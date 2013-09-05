@@ -6,6 +6,7 @@
 #include "osd.h"  // for keyboard input to DRAM debug only
 #include "config.h"
 #include "fpga.h"
+#include "messaging.h"
 
 extern uint8_t *pFileBuf;
 
@@ -30,7 +31,7 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
   uint32_t secCount;
   unsigned long time;
 
-  printf("FPGA:Starting Configuration.\n\r");
+  DEBUG(2,"FPGA:Starting Configuration.");
 
   time = Timer_Get(0);
 
@@ -44,16 +45,16 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
 
   // check INIT is high
   if (IO_Input_L(PIN_FPGA_INIT_L)) {
-    printf("FPGA:INIT is not high after PROG reset.\n\r");
+    WARNING("FPGA:INIT is not high after PROG reset.");
     return FALSE;
   }
   // check DONE is low
   if (IO_Input_H(PIN_FPGA_DONE)) {
-    printf("FPGA:DONE is high before configuration.\n\r");
+    WARNING("FPGA:DONE is high before configuration.");
     return FALSE;
   }
 
-  printf("[");
+//  printf("[");
   secCount = 0;
   do {
     if (!((secCount++ >> 4) & 3)) {
@@ -61,8 +62,7 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
     } else {
       ACTLED_OFF;
     }
-    if ( (secCount & 15) == 0)
-      printf("*");
+//    if ( (secCount & 15) == 0) printf("*");
 
     bytesRead = FF_Read(pFile, FS_FILEBUF_SIZE, 1, pFileBuf);
     //DumpBuffer(buffer, 512);
@@ -74,18 +74,18 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
   //
   SSC_DisableTxRx();
   ACTLED_OFF;
-  printf("]\n\r");
+//  printf("]");
   Timer_Wait(1);
 
   // check DONE is high
   if (!IO_Input_H(PIN_FPGA_DONE) ) {
-    printf("FPGA:DONE is low after configuration.\n\r");
+    WARNING("FPGA:DONE is low after configuration.");
     return FALSE;
   }
   else {
     time = Timer_Get(0)-time;
 
-    printf("FPGA:Configuration ok, took %d ms.\n\r", (uint32_t) (time >> 20));
+    DEBUG(0,"FPGA configured in %d ms.", (uint32_t) (time >> 20));
   }
   return TRUE;
 }
@@ -104,7 +104,7 @@ uint8_t FPGA_WaitStat(uint8_t mask, uint8_t wanted)
     SPI_DisableFpga();
 
     if (Timer_Check(timeout)) {
-      printf("FPGA:Waitstat timeout.\r\n");
+      ERROR("FPGA:Waitstat timeout.");
       return (1);
     }
   } while ((stat & mask) != wanted);
@@ -113,7 +113,7 @@ uint8_t FPGA_WaitStat(uint8_t mask, uint8_t wanted)
 
 uint8_t FPGA_SendBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
 {
-  //printf("FPGA:send buffer :%4x.\n\r",buf_tx_size);
+  DEBUG(3,"FPGA:send buffer :%4x.",buf_tx_size);
   if (FPGA_WaitStat(0x02, 0)) // !HF
     return (1); // timeout
 
@@ -128,7 +128,7 @@ uint8_t FPGA_SendBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
 uint8_t FPGA_ReadBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
 {
   // we assume read has completed and FIFO contains complete transfer
-  //printf("FPGA:read buffer :%4x.\n\r",buf_tx_size);
+  DEBUG(3,"FPGA:read buffer :%4x.",buf_tx_size);
   SPI_EnableFpga();
   SPI(0xA0); // should check status
   SPI_ReadBufferSingle(pBuf, buf_tx_size);
@@ -149,7 +149,7 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
   uint32_t buf_tx_size;
   /*uint32_t buf_tx_size_even;*/
 
-  printf("FPGA:Uploading file Addr:%8X Size:%8X.\n\r",base,size);
+  DEBUG(3,"FPGA:Uploading file Addr:%8X Size:%8X.",base,size);
   FF_Seek(pFile, 0, FF_SEEK_SET);
 
   SPI_EnableFpga();
@@ -167,7 +167,7 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
 
   count = (size + 511) >> 9; // sector count (rounded up) .. just to get the stars
 
-  printf("[");
+  //printf("[");
   while (count--) {
     // read data sector from memory card
     bytes_read = FF_Read(pFile, 512, 1, pFileBuf);
@@ -182,19 +182,20 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
     /*buf_tx_size_even = (buf_tx_size + 1) & 0xFFFE;*/
 
     rc |= FPGA_SendBuffer(pFileBuf, (uint16_t) buf_tx_size);
-    if ((count & 15) == 0) printf("*");
+    //if ((count & 15) == 0) printf("*");
     remaining_size -= buf_tx_size;
   }
-  printf("]\n\r");
+  //printf("]");
 
   if (FPGA_WaitStat(0x01, 0)) // wait for finish
     return(1);
 
   if (remaining_size != 0) {
-    printf("FPGA: Sent file truncated. Requested :%8X Sent :%8X.\n\r",size, size - remaining_size);
+    WARNING("FPGA: Sent file truncated. Requested :%8X Sent :%8X.",
+                                               size, size - remaining_size);
     rc = 2;
   } else
-    printf("FPGA:File uploaded.\n\r");
+    DEBUG(2,"FPGA:File uploaded.");
 
   return(rc) ;// no error
 }
@@ -211,12 +212,12 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
   /*uint32_t buf_tx_size_even;*/
   uint8_t *pTemp = NULL;
 
-  printf("FPGA:Verifying Addr:%8X Size:%8X.\n\r",base,size);
+  DEBUG(2,"FPGA:Verifying Addr:%8X Size:%8X.",base,size);
   FF_Seek(pFile, 0, FF_SEEK_SET);
 
   pTemp = malloc(512);
   if (pTemp == NULL) {
-    printf("FPGA:Memory allocation failure.\r\n");
+    ERROR("FPGA:Memory allocation failure.");
     return (1);
   }
 
@@ -235,7 +236,7 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
 
   count = (size + 511) >> 9; // sector count (rounded up) .. just to get the stars
 
-  printf("[");
+  //printf("[");
   while (count--) {
     // read data sector from memory card
     bytes_read = FF_Read(pFile, 512, 1, pFileBuf);
@@ -261,11 +262,11 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
 
     FPGA_ReadBuffer(pTemp, buf_tx_size);
     if (memcmp(pFileBuf,pTemp, buf_tx_size)) {
-      printf("!!Compare fail!! Block Addr:%8X\r\n", base);
+      ERROR("!!Compare fail!! Block Addr:%8X", base);
 
-      printf("Source:\r\n", base);
+      DEBUG(2,"Source:", base);
       DumpBuffer(pFileBuf,buf_tx_size);
-      printf("Memory:\r\n", base);
+      DEBUG(2,"Memory:", base);
       DumpBuffer(pTemp,buf_tx_size);
 
       rc = 1;
@@ -273,12 +274,12 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
     }
     base += buf_tx_size;
 
-    if ((count & 15) == 0) printf("*");
+    //if ((count & 15) == 0) printf("*");
     remaining_size -= buf_tx_size;
   }
-  printf("]\n\r");
+  //printf("]");
 
-  if (!rc) printf("FPGA:File verified complete.\n\r");
+  if (!rc) DEBUG(2,"FPGA:File verified complete.");
 
   free(pTemp); // give the memory back
   return(rc) ;
@@ -291,7 +292,7 @@ uint8_t FPGA_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size)
 // size - must be <=512 and even
 {
   uint32_t buf_tx_size = size;
-  /*printf("FPGA:BufToMem Addr:%8X.\n\r",base);*/
+  DEBUG(3,"FPGA:BufToMem Addr:%8X.",base);
   // uses write gate to get burst
   SPI_EnableFpga();
   SPI(0x80); // set address
@@ -308,7 +309,7 @@ uint8_t FPGA_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size)
 
   if (size>512) { // arb limit while debugging
     buf_tx_size = 512;
-    printf("FPGA:Max BufToMem size is 4K bytes.\n\r");
+    WARNING("FPGA:Max BufToMem size is 4K bytes.");
   }
   FPGA_SendBuffer(pBuf, buf_tx_size);
 
@@ -339,7 +340,7 @@ uint8_t FPGA_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size)
 
   if (size>512) { // arb limit while debugging
     buf_tx_size = 512;
-    printf("FPGA:Max MemToBuf size is 512 bytes.\n\r");
+    WARNING("FPGA:Max MemToBuf size is 512 bytes.");
   }
   SPI_EnableFpga();
   SPI(0x84); // do Read
@@ -360,7 +361,7 @@ uint8_t FPGA_DramTrain(void)
   // actually just dram test for now
   uint32_t i;
   uint32_t addr;
-  printf("DRAM enabled, running test.\r\n");
+  DEBUG(2,"DRAM enabled, running test.");
   // 25..0  64MByte
   // 25 23        15        7
   // 00 0000 0000 0000 0000 0000 0000
@@ -380,13 +381,13 @@ uint8_t FPGA_DramTrain(void)
     memset(pFileBuf, 0xAA, 512);
     FPGA_MemToBuf(pFileBuf, addr, 128);
     if (memcmp(pFileBuf,&kMemtest[0],127) || (pFileBuf[127] != (uint8_t) i) ) {
-      printf("!!Match fail Addr:%8X\r\n", addr);
+      printf("!!Match fail Addr:%8X", addr);
       DumpBuffer(pFileBuf,128);
       return (1);
     }
     addr = (0x100 << i);
   }
-  printf("DRAM passed.\r\n");
+  DEBUG(2,"DRAM passed.");
   return (0);
 }
 
@@ -396,19 +397,19 @@ uint8_t FPGA_ProdTest(void)
   uint32_t ram_ctrl;
   uint16_t key;
 
-  printf("PRODTEST: phase 0\r\n");
+  DEBUG(0,"PRODTEST: phase 0");
   ram_phase = kDRAM_PHASE;
   ram_ctrl  = kDRAM_SEL;
   OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase );
   FPGA_DramTrain();
 
-  printf("PRODTEST: phase+10\r\n");
+  DEBUG(0,"PRODTEST: phase+10");
   ram_phase = kDRAM_PHASE + 10;
   ram_ctrl  = kDRAM_SEL;
   OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase );
   FPGA_DramTrain();
 
-  printf("PRODTEST: phase-10\r\n");
+  DEBUG(0,"PRODTEST: phase-10");
   ram_phase = kDRAM_PHASE - 10;
   ram_ctrl  = kDRAM_SEL;
   OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase );
@@ -445,7 +446,7 @@ uint8_t FPGA_ProdTest(void)
 
     stat = OSD_ConfigReadStatus();
     if ((stat & 0x03) != 0x01) {
-      printf("Test %02X Num %02X, ** FAIL **\r\n", testpat, testnum);
+      WARNING("Test %02X Num %02X, ** FAIL **", testpat, testnum);
       failed ++;
     }
 
@@ -462,7 +463,7 @@ uint8_t FPGA_ProdTest(void)
     }
     if (testpat == 8) {
       if (failed == 0) {
-        printf("IO TEST PASS\r\n");
+        DEBUG(0,"IO TEST PASS");
       }
       testpat = 0;
       failed = 0;
@@ -481,14 +482,14 @@ uint8_t FPGA_ProdTest(void)
         maskpat = 0;
       else if (maskpat != 0) 
         maskpat--;
-      printf("Mask %01X\r\n", maskpat);
+      DEBUG(0,"Mask %01X", maskpat);
     }
     if (key == KEY_F7) {
       if    (maskpat == 0)
         maskpat = 8;
       else if (maskpat != 15)
         maskpat++;
-      printf("Mask %01X\r\n", maskpat);
+      DEBUG(0,"Mask %01X", maskpat);
     }
 
     if ((key == KEY_F4) || (key == KEY_F5)) {
@@ -511,7 +512,7 @@ uint8_t FPGA_ProdTest(void)
         case 6 : CFG_vid_timing_HD74(F60HZ); CFG_set_coder(CODER_DISABLE);     break;
         case 7 : CFG_vid_timing_HD74(F50HZ); CFG_set_coder(CODER_DISABLE);     break;
       }
-      printf("VidStd %01X\r\n", vidstd);
+      DEBUG(0,"VidStd %01X", vidstd);
       Timer_Wait(200);
 
       IO_DriveHigh_OD(PIN_FPGA_RST_L); // release reset

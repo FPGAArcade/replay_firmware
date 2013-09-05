@@ -1,6 +1,7 @@
 //
 #include "hardware.h"
 #include "card.h"
+#include "messaging.h"
 
 /*variables*/
 uint8_t  crc;
@@ -39,7 +40,7 @@ uint8_t Card_Init(void)
 
       if (ocr[2] == 0x01 && ocr[3] == 0xAA) {
       // the card can work at 2.7-3.6V
-        printf("SPI:Card_Init SDHC card detected\r\n");
+        DEBUG(1,"SPI:Card_Init SDHC card detected");
         while (!Timer_Check(timeout)) {
           // now we must wait until CMD41 returns 0 (or timeout elapses)
           if (MMC_Command(CMD55, 0) == 0x01) {
@@ -54,7 +55,7 @@ uint8_t Card_Init(void)
                 cardType = (ocr[0] & 0x40) ? CARDTYPE_SDHC : CARDTYPE_SD;
               }
               else {
-                printf("SPI:Card_Init CMD58 (READ_OCR) failed!\r\n");
+                WARNING("SPI:Card_Init CMD58 (READ_OCR) failed!");
               }
               SPI_DisableCard();
               AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SDHC card)
@@ -62,12 +63,12 @@ uint8_t Card_Init(void)
             }
           }
           else {
-            printf("SPI:Card_Init CMD55 (APP_CMD) failed!\r\n");
+            ERROR("SPI:Card_Init CMD55 (APP_CMD) failed!");
             SPI_DisableCard();
             return(CARDTYPE_NONE);
           }
         } // end of timer loop
-        printf("SPI:Card_Init SDHC card initialization timed out!\r\n");
+        ERROR("SPI:Card_Init SDHC card initialization timed out!");
         SPI_DisableCard();
         return(CARDTYPE_NONE);
       }
@@ -78,7 +79,7 @@ uint8_t Card_Init(void)
       // CMD55 accepted so it's an SD card (or Kingston 128 MB MMC)
       if (MMC_Command(CMD41, 0) <= 0x01) {
         // SD card detected - wait for the end of initialization
-        printf("SPI:Card_Init SD card detected\r\n");
+        DEBUG(1,"SPI:Card_Init SD card detected");
         while (!Timer_Check(timeout)) {
           // now we must wait until CMD41 returns 0 (or timeout elapses)
           if (MMC_Command(CMD55, 0) == 0x01) {
@@ -87,7 +88,7 @@ uint8_t Card_Init(void)
             if (MMC_Command(CMD41, 0) == 0x00) {
               // initialization completed
               if (MMC_Command(CMD16, 512) != 0x00) { //set block length
-                printf("SPI:Card_Init CMD16 (SET_BLOCKLEN) failed!\r\n");
+                WARNING("SPI:Card_Init CMD16 (SET_BLOCKLEN) failed!");
               }
 
               SPI_DisableCard();
@@ -97,26 +98,26 @@ uint8_t Card_Init(void)
               return(cardType);
             }
           } else {
-            printf("SPI:Card_Init CMD55 (APP_CMD) failed!\r\n");
+            ERROR("SPI:Card_Init CMD55 (APP_CMD) failed!");
             SPI_DisableCard();
             return(CARDTYPE_NONE);
           }
         } // end of timer loop
-        printf("SPI:Card_Init SD card initialization timed out!\r\n");
+        ERROR("SPI:Card_Init SD card initialization timed out!");
         SPI_DisableCard();
         return(CARDTYPE_NONE);
       }
     }
 
     // it's not an SD card
-    printf("SPI:Card_Init MMC card detected\r\n");
+    DEBUG(1,"SPI:Card_Init MMC card detected");
     while (!Timer_Check(timeout)) {
       // now we must wait until CMD1 returns 0 (or timeout elapses)
       if (MMC_Command(CMD1, 0) == 0x00) {
         // initialization completed
 
         if (MMC_Command(CMD16, 512) != 0x00) { // set block length
-          printf("SPI:Card_Init CMD16 (SET_BLOCKLEN) failed!\r\n");
+          WARNING("SPI:Card_Init CMD16 (SET_BLOCKLEN) failed!");
         }
 
         SPI_DisableCard();
@@ -125,13 +126,13 @@ uint8_t Card_Init(void)
         return(cardType);
       }
     }
-    printf("SPI:Card_Init MMC card initialization timed out!\r\n");
+    ERROR("SPI:Card_Init MMC card initialization timed out!");
     SPI_DisableCard();
     return(CARDTYPE_NONE);
   }
 
   SPI_DisableCard();
-  printf("SPI:Card_Init No memory card detected!\r\n");
+  ERROR("SPI:Card_Init No memory card detected!");
   return(CARDTYPE_NONE);
 }
 
@@ -143,7 +144,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 
   uint32_t sectorCount = numSectors;
 
-  /*printf("SPI:Card_ReadM sector %lu %lu\n\r",sector, numSectors);*/
+  DEBUG(3,"SPI:Card_ReadM sector %lu %lu",sector, numSectors);
   SPI_EnableCard();
 
   if (cardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
@@ -152,14 +153,14 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
   if (numSectors == 1) {
     // single sector
     if (MMC_Command(CMD17, sector)) {
-      printf("SPI:Card_ReadM CMD17 - invalid response 0x%02X (lba=%lu)\n\r", response, sector);
+      ERROR("SPI:Card_ReadM CMD17 - invalid response 0x%02X (lba=%lu)", response, sector);
       SPI_DisableCard();
       return(FF_ERR_DEVICE_DRIVER_FAILED);
     }
   } else {
     // multiple sector
     if (MMC_Command(CMD18, sector)) {
-      printf("SPI:Card_ReadM CMD18 - invalid response 0x%02X (lba=%lu)\n\r", response, sector);
+      ERROR("SPI:Card_ReadM CMD18 - invalid response 0x%02X (lba=%lu)", response, sector);
       SPI_DisableCard();
       return(FF_ERR_DEVICE_DRIVER_FAILED);
     }
@@ -170,7 +171,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
     timeout = Timer_Get(250);      // timeout
     while (SPI(0xFF) != 0xFE) {
       if (Timer_Check(timeout)) {
-        printf("SPI:Card_ReadM - no data token! (lba=%lu)\n\r", sector);
+        ERROR("SPI:Card_ReadM - no data token! (lba=%lu)", sector);
         SPI_DisableCard();
         return(FF_ERR_DEVICE_DRIVER_FAILED);
       }
@@ -193,7 +194,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
     timeout = Timer_Get(100);      // 100 ms timeout
     while ( (AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {
       if (Timer_Check(timeout)) {
-        printf("SPI:Card_ReadM DMA Timeout! (lba=%lu)\n\r", sector);
+        ERROR("SPI:Card_ReadM DMA Timeout! (lba=%lu)", sector);
         SPI_DisableCard();
         return(FF_ERR_DEVICE_DRIVER_FAILED);
       }
@@ -219,7 +220,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 
 FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void *pParam)
 {
-  printf("SPI:Card_WriteM sector %lu num %lu\n\r",sector, numSectors);
+  DEBUG(2,"SPI:Card_WriteM sector %lu num %lu",sector, numSectors);
 
   uint32_t sectorCount = numSectors;
   uint32_t i;
@@ -232,7 +233,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
 
   while (sectorCount--) {
     if (MMC_Command(CMD24, sector)) {
-      printf("SPI:Card_WriteM CMD24 - invalid response 0x%02X (lba=%lu)\n\r", response, sector);
+      ERROR("SPI:Card_WriteM CMD24 - invalid response 0x%02X (lba=%lu)", response, sector);
       SPI_DisableCard();
       return(FF_ERR_DEVICE_DRIVER_FAILED);
     }
@@ -256,7 +257,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
     response &= 0x1F;
     if (response != 0x05)
     {
-      printf("SPI:Card_WriteM - invalid status 0x%02X (lba=%lu)\n\r", response, sector);
+      ERROR("SPI:Card_WriteM - invalid status 0x%02X (lba=%lu)", response, sector);
       SPI_DisableCard();
       return(FF_ERR_DEVICE_DRIVER_FAILED);
     }
@@ -264,7 +265,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
     timeout = Timer_Get(500);      // timeout
     while (SPI(0xFF) == 0x00) {
       if (Timer_Check(timeout)) {
-        printf("SPI:Card_WriteM - busy write timeout! (lba=%lu)\n\r", sector);
+        ERROR("SPI:Card_WriteM - busy write timeout! (lba=%lu)", sector);
         SPI_DisableCard();
         return(FF_ERR_DEVICE_DRIVER_FAILED);
       }
@@ -300,7 +301,7 @@ uint8_t MMC_Command(uint8_t cmd, uint32_t arg)
     response = SPI(0xFF); // get response
   } while (response == 0xFF && attempts--);
 
-  //printf("response %02X\r\n",response);
+  DEBUG(3,"response %02X",response);
   return response;
 }
 
@@ -322,7 +323,7 @@ uint8_t MMC_Command12(void)
   timeout = Timer_Get(10);      // 10 ms timeout
   while (SPI(0xFF) == 0x00) {// wait until the card is not busy
     if (Timer_Check(timeout)) {
-      printf("SPI:Card_CMD12 (STOP) timeout!\n\r");
+      ERROR("SPI:Card_CMD12 (STOP) timeout!");
       SPI_DisableCard();
       return(0);
     }

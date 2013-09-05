@@ -1,5 +1,6 @@
 
 #include "hardware.h"
+#include "messaging.h"
 // hardware abstraction layer for Sam7S
 
 //
@@ -167,7 +168,7 @@ void SPI_Init(void)
 
 unsigned char SPI(unsigned char outByte)
 {
-  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;
+  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // warning, but is a must!
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
   AT91C_BASE_SPI->SPI_TDR = outByte;
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));
@@ -186,7 +187,7 @@ void SPI_WriteBufferSingle(void *pBuffer, uint32_t length)
   uint32_t timeout = Timer_Get(100);      // 100 ms timeout
   while ((AT91C_BASE_SPI->SPI_SR & AT91C_SPI_ENDTX ) != AT91C_SPI_ENDTX) {
     if (Timer_Check(timeout)) {
-      printf("SPI:WriteBufferSingle DMA Timeout!\n\r");
+      DEBUG(1,"SPI:WriteBufferSingle DMA Timeout!");
       AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTDIS | AT91C_PDC_RXTDIS;
       break;
     }
@@ -208,7 +209,7 @@ void SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
   uint32_t timeout = Timer_Get(100);      // 100 ms timeout
   while ((AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {
     if (Timer_Check(timeout)) {
-      printf("SPI:ReadBufferSingle DMA Timeout!\n\r");
+      DEBUG(1,"SPI:ReadBufferSingle DMA Timeout!");
       AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTDIS | AT91C_PDC_RXTDIS;
       break;
     }
@@ -461,13 +462,13 @@ void Timer_Wait(uint32_t time)
 //
 void DumpBuffer(const uint8_t *pBuffer, uint32_t size)
 {
-    /*printf("DumpBuffer\r\n");*/
+    /*DEBUG(1,"DumpBuffer");*/
     uint32_t i, j;
     for (i=0; i < (size / 16); i++) {
-      printf("0x%08X: ", i*16);
+      DEBUG(1,"0x%08X: ", i*16);
       for (j=0; j < 4; j++) {
-        printf("%08X ", ((unsigned int *) pBuffer)[i*4+j]);
+        DEBUG(1,"%08X ", ((unsigned int *) pBuffer)[i*4+j]);
       }
-      printf("\n\r");
+      DEBUG(1,"");
     }
 }

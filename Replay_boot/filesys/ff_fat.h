@@ -102,8 +102,6 @@ typedef struct _FatBuffers {
 		void		FF_lockFAT				(FF_IOMAN *pIoman);
 		void		FF_unlockFAT			(FF_IOMAN *pIoman);
 
-FF_T_UINT32 FF_FindFreeCluster(FF_IOMAN *pIoman, FF_ERROR *pError);
-
 FF_ERROR FF_ReleaseFatBuffer (FF_IOMAN *pIoman, FF_FatBuffers *pFatBuf);
 
 FF_INLINE void FF_InitFatBuffer (FF_FatBuffers *pBuffer, unsigned aMode)

@@ -50,12 +50,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 const ini_symtab_t symtab[] = {
 // in text  ,token to use ,is section
   { "SETUP"   ,INI_SETUP    ,TRUE  },
+  { "INFO"    ,INI_INFO     ,FALSE },
   { "BIN"     ,INI_BIN      ,FALSE },
   { "CLOCK"   ,INI_CLOCK    ,FALSE },
   { "CODER"   ,INI_CODER    ,FALSE },
   { "VFILTER" ,INI_VFILTER  ,FALSE },
   { "EN_TWI"  ,INI_EN_TWI   ,FALSE },
   { "EN_SPI"  ,INI_EN_SPI   ,FALSE },
+  { "SPI_CLK" ,INI_SPI_CLK  ,FALSE },
   { "BUTTON"  ,INI_BUTTON   ,FALSE },
   { "VIDEO"   ,INI_VIDEO    ,FALSE },
   { "CONFIG"  ,INI_CONFIG   ,FALSE },
@@ -153,11 +155,11 @@ uint8_t ParseIni(FF_FILE *pFile,
         section=symtab[idx].token;
         // check correctness, then call parser to indicate new section
         if (symtab[idx].token==INI_UNKNOWN) {
-          ERROR("Unknown keyword.\n\r");
+          ERROR("Unknown keyword.");
           lineError = lineNumber;
         }
         else if (symtab[idx].section==FALSE) {
-          ERROR("Keyword not valid here.\n\r");
+          ERROR("Keyword not valid here.");
           lineError = lineNumber;
         }
         else if (parseHandle(config, section, INI_UNKNOWN, NULL)) {
@@ -184,11 +186,11 @@ uint8_t ParseIni(FF_FILE *pFile,
         } while (symtab[idx].token!=INI_UNKNOWN);
         // call parser if token is fine
         if (symtab[idx].token==INI_UNKNOWN) {
-          ERROR("Unknown keyword.\n\r");
+          ERROR("Unknown keyword.");
           lineError = lineNumber;
         }
         else if (symtab[idx].section==TRUE) {
-          ERROR("Keyword not valid here.\n\r");
+          ERROR("Keyword not valid here.");
           lineError = lineNumber;
         }
         if (parseHandle(config, section, symtab[idx].token, value)) {
@@ -249,7 +251,7 @@ uint16_t ParseList(const char* value, ini_list_t *valueList, const uint16_t maxl
     }
     if ((++idx)==maxlen) break;
 
-    DEBUG(3,"%d: %s %x\n\r",idx-1,valueList[idx-1].strval,valueList[idx-1].intval); // details about values
+    DEBUG(3,"%d: %s %x",idx-1,valueList[idx-1].strval,valueList[idx-1].intval); // details about values
 
   } while (*end++); // check for end otherwise "remove" comma and do again
 

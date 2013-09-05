@@ -146,6 +146,41 @@ typedef struct menu {
 
 /* ========================================================================== */
 
+/** @brief ROM download backup structure
+*/
+typedef struct rom_list {
+  /** link to next menu entry */
+  struct rom_list   *next;
+
+  /** value of this menu entry */
+  char              rom_bak[MAX_LINE_LEN];
+
+} rom_list_t;
+
+/** @brief DATA download backup structure
+*/
+typedef struct data_list {
+  /** link to next menu entry */
+  struct data_list  *next;
+
+  /** value of this menu entry */
+  char              data_bak[MAX_LINE_LEN];
+
+} data_list_t;
+
+/** @brief INFO download backup structure
+*/
+typedef struct info_list {
+  /** link to next menu entry */
+  struct info_list  *next;
+
+  /** value of this menu entry */
+  char              info_bak[MAX_LINE_LEN];
+
+} info_list_t;
+
+/* ========================================================================== */
+
 /** @brief Basic replay status structure
 
     This structure contains the configuration and HW state
@@ -236,6 +271,9 @@ typedef struct {
   /** set to 1 if update is pending and must be processed by handle_ui() */
   uint8_t      update;
 
+  /** set to a line number if scrolling is required within handle_ui() */
+  uint8_t      scroll_pos;
+
   /** set to 1 if pop-up is requested for reboot (otherwise only FPGA reset) */
   uint8_t      do_reboot;
 
@@ -297,6 +335,33 @@ typedef struct {
 
   /** the actual browser directory path */
   char         act_dir[FF_MAX_PATH];
+
+  /* ======== used for config backup only ======== */
+
+  /** clock line backup */
+  char         clock_bak[MAX_LINE_LEN];
+  /** coder line backup */
+  char         coder_bak[MAX_LINE_LEN];
+  /** vfilter line backup */
+  char         vfilter_bak[MAX_LINE_LEN];
+  /** video line backup */
+  char         video_bak[MAX_LINE_LEN];
+  /** rom lines backup */
+  rom_list_t   *rom_bak;
+  /** rom lines backup position */
+  rom_list_t   *rom_bak_last;
+  /** data lines backup */
+  data_list_t  *data_bak;
+  /** data lines backup position*/
+  data_list_t  *data_bak_last;
+  /** info lines backup */
+  info_list_t  *info_bak;
+  /** info lines backup position*/
+  info_list_t  *info_bak_last;
+  /** SPI clock backup */
+  int32_t      spiclk_bak;
+  /** SPI clock last value */
+  int32_t      spiclk_old;
 } status_t;
 
 /* ========================================================================== */
@@ -319,7 +384,8 @@ void CFG_handle_fpga(void);
 /** @brief INIT ARM BOOTLOADER
 
     Copies bootloader from FLASH to RAM and starts it.
-    Will never return (without reset)!
+    Will never return directly, thus it also sets the FPGA
+    back in the setup mode to ensure a reload after the reset.
 */
 void CFG_call_bootloader(void);
 
@@ -473,5 +539,25 @@ void CFG_add_default(status_t *currentStatus);
     @param currentStatus pointer to the replay board status dataset
 */
 void CFG_free_menu(status_t *currentStatus);
+
+/** @brief FREE BACKUP MEMORY
+
+    Free memory allocated for baclup.
+
+    @param currentStatus pointer to the replay board status dataset
+*/
+void CFG_free_bak(status_t *currentStatus);
+
+/** @brief INI SAVER
+
+    Saves actual settings to an INI file.
+
+    @param currentStatus pointer to the replay board status dataset
+    @param iniDir directory where to put the INI file
+    @param iniFile filename in which the INI settings are written
+    @return 0 on success, others indicate a failure
+*/
+void CFG_save_all(status_t *currentStatus, const char *iniDir, 
+                  const char *iniFile);
 
 #endif

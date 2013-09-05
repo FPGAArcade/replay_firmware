@@ -25,8 +25,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     if MATCH(item->action_name,"fddselect") {
       // get config bits from structure and check if we can use it
       // NOTE: this is HARDCODED for given mask in the config settings!
-      if ( ((current_status->config_s&0x00000030)>>4) >=
-           item->action_value ) {
+      if ( ((current_status->config_s&0x00000030)>>4)>=item->action_value ) {
         if (!item->selected_option->option_name[0]) {
           // set only if still blank
           strcpy(item->selected_option->option_name,"<RETURN> to set");
@@ -56,14 +55,19 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       strcpy(item->selected_option->option_name,"<RETURN> to set");
       return 1;
     }
+    // backup ini ----------------------------------
+    if MATCH(item->action_name,"backup") {
+      strcpy(item->selected_option->option_name,"<RETURN> saves");
+      return 1;
+    }
     // reset ----------------------------------
     if MATCH(item->action_name,"reset") {
-      strcpy(item->selected_option->option_name,"<RETURN>");
+      strcpy(item->selected_option->option_name,"<RETURN> resets");
       return 1;
     }
     // reboot ----------------------------------
     if MATCH(item->action_name,"reboot") {
-      strcpy(item->selected_option->option_name,"<RETURN>");
+      strcpy(item->selected_option->option_name,"<RETURN> boots");
       return 1;
     }
   }
@@ -74,15 +78,22 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       // get config bits from structure and check if we can use it
       // NOTE: this is HARDCODED for given mask in the config settings!
       if ( ((current_status->config_s&0x00000030)>>4)>=item->action_value ) {
-        // open file browser
-        strcpy(current_status->act_dir,current_status->ini_dir);
-        // search for INI files
-        Filesel_Init(current_status->dir_scan, current_status->act_dir, "ADF");
-        // initialize browser
-        Filesel_ScanFirst(current_status->dir_scan);
-        current_status->file_browser = 1;
-        current_status->show_menu=0;
-        return 1;
+        if (item->selected_option->option_name[0]!='<') {
+          // deselect file
+          strcpy(item->selected_option->option_name,"<RETURN> to set");
+          item->selected_option=NULL;
+          return 1;
+        } else {
+          // open file browser
+          strcpy(current_status->act_dir,current_status->ini_dir);
+          // search for INI files
+          Filesel_Init(current_status->dir_scan, current_status->act_dir, "ADF");
+          // initialize browser
+          Filesel_ScanFirst(current_status->dir_scan);
+          current_status->file_browser = 1;
+          current_status->show_menu=0;
+          return 1;
+        }
       }
       return 0;
     }
@@ -92,15 +103,22 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       // NOTE: this is HARDCODED for given mask in the config settings!
       if ( ((current_status->config_s&0x0000000C)>>2) &
            (item->action_value+1) ) {
-        // open file browser
-        strcpy(current_status->act_dir,current_status->ini_dir);
-        // search for INI files
-        Filesel_Init(current_status->dir_scan, current_status->act_dir, "HDF");
-        // initialize browser
-        Filesel_ScanFirst(current_status->dir_scan);
-        current_status->file_browser = 1;
-        current_status->show_menu=0;
-        return 1;
+        if (item->selected_option->option_name[0]!='<') {
+          // deselect file
+          strcpy(item->selected_option->option_name,"<RETURN> to set");
+          item->selected_option=NULL;
+          return 1;
+        } else {
+          // open file browser
+          strcpy(current_status->act_dir,current_status->ini_dir);
+          // search for INI files
+          Filesel_Init(current_status->dir_scan, current_status->act_dir, "HDF");
+          // initialize browser
+          Filesel_ScanFirst(current_status->dir_scan);
+          current_status->file_browser = 1;
+          current_status->show_menu=0;
+          return 1;
+        }
       }
       return 0;
     }
@@ -114,6 +132,12 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       Filesel_ScanFirst(current_status->dir_scan);
       current_status->file_browser = 1;
       current_status->show_menu=0;
+      return 1;
+    }
+    // backup ----------------------------------
+    if MATCH(item->action_name,"backup") {
+      CFG_save_all(current_status, current_status->act_dir, "backup.ini");
+      current_status->update=1;
       return 1;
     }
     // reset ----------------------------------
@@ -221,6 +245,7 @@ void MENU_init_ui(status_t *current_status)
   OSD_SetPage(1);
   OSD_Clear();
   OSD_SetDisplay(0);
+  OSD_SetPage(0);
 
   // clean up display flags
   current_status->update=0;
@@ -249,6 +274,12 @@ void _MENU_back_dir(char *pPath)
 // TODO: colours from INI file instead of hardcoding...?
 void _MENU_update_ui(status_t *current_status)
 {
+  // reset scroll line position initially
+  if (current_status->scroll_pos) {
+    OSD_SetHOffset(current_status->scroll_pos, 0, 0);
+    current_status->scroll_pos=0;
+  }
+
   // clear OSD area and set the minimum header/footer lines we always need
   OSD_Clear();
   OSD_Write  (0,    "      ***              ***      ", 0);
@@ -283,8 +314,12 @@ void _MENU_update_ui(status_t *current_status)
           //ERROR: red text (0x04 would be dark red)
           OSD_WriteRC(6+i, 0, current_status->info[j++], 0, 0x0C, 0);
           break;
+        case 'I':
+          //INFO: gray text (0x0F would be white)
+          OSD_WriteRC(6+i, 0, current_status->info[j++], 0, 0x07, 0);
+          break;
         default:
-          //INFO: blue text (0x01 would be dark blue)
+          //DEBUG: blue text (0x01 would be dark blue)
           OSD_WriteRC(6+i, 0, current_status->info[j++], 0, 0x09, 0);
       }
     }
@@ -346,20 +381,23 @@ void _MENU_update_ui(status_t *current_status)
       uint32_t i;
       char *filename;
       FF_DIRENT entry;
-      char s[MAX_MENU_STRING+1];
-      s[MAX_MENU_STRING] = 0; // set temporary string length to OSD line length
 
       // show_menu file/directory list
       uint8_t sel = Filesel_GetSel(current_status->dir_scan);
       for (i = 0; i < MENU_HEIGHT; i++) {
-        memset(s, ' ', MAX_MENU_STRING); // clear line buffer
+        char s[OSDMAXLEN+1];
+        s[OSDMAXLEN] = 0; // set temporary string length to OSD line length
+        memset(s, ' ', OSDMAXLEN); // clear line buffer
         entry = Filesel_GetLine(current_status->dir_scan, i);
         filename = entry.FileName;
 
         len = strlen(filename);
-        if (len > MAX_MENU_STRING)
-          len = MAX_MENU_STRING; // trim display length if longer than menu size
-
+        if (i==sel) {
+          if (len > OSDLINELEN) { // enable scroll if long name
+            OSD_SetHOffset(i+2, 0, 0);
+            current_status->scroll_pos=i+2;
+          }
+        }
         if (entry.Attrib & FF_FAT_ATTR_DIR) {
           // a directory
           strncpy(s + 1, filename, len);
@@ -422,6 +460,9 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
   current_status->update=0;
   static uint32_t osd_timeout;
   static uint8_t osd_timeout_cnt=0;
+
+  static uint32_t scroll_timer;
+  static uint16_t  scroll_offset=0;
 
   // timeout of OSD after noticing last key press (or external forced update)
   if ((current_status->show_menu || current_status->popup_menu ||
@@ -739,9 +780,26 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
   // update menu if needed
   if (update) {
     _MENU_update_ui(current_status);
-    OSD_Enable(0); // do not disable KEYBOARD
-    OSD_SetDisplay(OSD_GetPage());
-    OSD_SetPage(OSD_NextPage());
+    // for testing pg 0 is enabled, in pg 1 scroll seems to be broken (in FPGA)
+    // --> can check this by setting next two parameters directly to 1
+    OSD_SetDisplay(0); //  OSD_GetPage());
+    OSD_SetPage(0); //     OSD_NextPage());
+    scroll_timer = Timer_Get(20); // restart scroll timer
+    scroll_offset = 0; // reset scroll position
+    OSD_Enable(0); // enable OSD and do not disable KEYBOARD
+  } else {
+    // scroll if needed
+    if (current_status->scroll_pos) {
+      if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
+          scroll_timer = Timer_Get(20); // restart scroll timer
+          scroll_offset= (scroll_offset+1) & ((OSDMAXLEN<<4)-1); // scrolling
+          OSD_WaitVBL();
+          OSD_SetHOffset(current_status->scroll_pos, 
+                         (uint8_t) (scroll_offset >> 4), 
+                         (uint8_t) (scroll_offset & 0xF));
+          DEBUG(3, "Offset: %d",scroll_offset);
+      }
+    }
   }
   return update;
 }

@@ -1,6 +1,7 @@
 #include "hardware.h"
 #include "config.h"
 #include "osd.h"
+#include "messaging.h"
 
 // nasty globals ...
 uint8_t osd_vscroll = 0;
@@ -43,12 +44,12 @@ void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint
     if (invert)
       attrib = (fg_col & 0xF) | (0x4 << 4);
     #ifdef OSD_DEBUG
-      printf("OsdWrite %s ", s);
+      DEBUG(1,"OsdWrite %s ", s);
 
       if (invert)
-        printf("<< \r\n");
+        DEBUG(1,"<< ");
       else
-        printf("   \r\n");
+        DEBUG(1,"   ");
     #endif
 
     // select OSD SPI device
@@ -156,7 +157,7 @@ void OSD_Clear(void)
   uint16_t n;
 
   #ifdef OSD_DEBUG
-    printf("OsdClear\r\n");
+    DEBUG(1,"OsdClear");
   #endif
 
   for (row = 0; row <OSDNLINE; row++) {
@@ -186,17 +187,18 @@ void OSD_WaitVBL(void)
       pioa_old = pioa;
       pioa     = AT91C_BASE_PIOA->PIO_PDSR;
       if (Timer_Check(timeout)) {
-        printf("OSDWaitVBL timeout\r\n");
+        WARNING("OSDWaitVBL timeout");
         break;
       }
     }
 }
 
-void OSD_BootPrint(const char *pText)
-{
-  printf("BootPrint : %s\n\r",pText);
-  OSD_WriteScroll(15, 0, pText, 0, 0xF, 0x0, 1);
-}
+//--> Replaced by structure in message.* module
+//void OSD_BootPrint(const char *pText)
+//{
+//  DEBUG(1,"BootPrint : %s",pText);
+//  OSD_WriteScroll(15, 0, pText, 0, 0xF, 0x0, 1);
+//}
 
 
 // enable displaying of OSD
@@ -257,7 +259,7 @@ void OSD_ConfigSendFileIO(uint32_t config)
 
 void OSD_ConfigSendCtrl(uint32_t config)
 {
-  printf("ram config 0x%04X\r\n",config);
+  DEBUG(1,"ram config 0x%04X",config);
 
   SPI_EnableOsd();
   SPI(OSDCMD_CONFIG | 0x03); // ctrl
@@ -362,7 +364,7 @@ uint16_t OSD_GetKeyCode(void)
         x = SPI(0);
         SPI_DisableOsd();
 
-        /*printf("new key %X\r\n",x);*/
+        /*DEBUG(1,"new key %X",x);*/
 
         if (x == ATKB_RELEASE)
             key_flags |= KF_RELEASED;
@@ -383,7 +385,8 @@ uint16_t OSD_GetKeyCode(void)
     if (x) {
       if (x==0x0d) key_code=KEY_ENTER;
       if (x=='1')  key_code=KEY_F1;   // NOT good - TODO: better mapping
-
+      if (x=='2')  key_code=KEY_F2;
+      if (x=='3')  key_code=KEY_F3;
       if (x=='4')  key_code=KEY_F4;
       if (x=='5')  key_code=KEY_F5;
       if (x=='6')  key_code=KEY_F6;
@@ -417,8 +420,8 @@ uint16_t OSD_GetKeyCode(void)
       }
       // we have a max. 5 char sequence or we got a timeout
       if (Timer_Check(tty_timeout) || (tty_idx==5)) {
-        for(int i=0;i<tty_idx;i++) printf("%x ",tty_buf[i]);
-        printf(" %d\r\n",tty_idx);
+        for(int i=0;i<tty_idx;i++) DEBUG(1,"%x ",tty_buf[i]);
+        DEBUG(1," %d",tty_idx);
         if (tty_idx==0) key_code=KEY_ESC;
         if ((tty_idx==2) && (tty_buf[0]==0x5b)) {
           if (tty_buf[1]==0x41) key_code=KEY_UP;

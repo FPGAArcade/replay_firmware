@@ -1,5 +1,6 @@
 
 #include "filesel.h"
+#include "messaging.h"
 
 extern FF_IOMAN *pIoman;
 
@@ -62,22 +63,22 @@ void PrintSummary(tDirScan* dir_entries)
 {
   uint32_t i;
 
-  printf("Filesel : scan first dir:%s ext:%s entries:%lu \n\r", dir_entries->pPath, dir_entries->file_ext, dir_entries->total_entries);
-  printf("Filesel : prevc %d nextc %d \n\r", dir_entries->prevc,dir_entries->nextc);
+  DEBUG(1,"Filesel : scan first dir:%s ext:%s entries:%lu ", dir_entries->pPath, dir_entries->file_ext, dir_entries->total_entries);
+  DEBUG(1,"Filesel : prevc %d nextc %d ", dir_entries->prevc,dir_entries->nextc);
 
-  printf("\r\n");
-  printf("Summary \r\n");
-  printf("\r\n");
+  DEBUG(1,"");
+  DEBUG(1,"Summary ");
+  DEBUG(1,"");
 
   if (dir_entries->prevc != 0) {
     for (i=dir_entries->prevc; i>0; --i) {
-      printf(" [p %d] %s \r\n", i-1, dir_entries->dPrev[i-1].FileName);
+      DEBUG(1," [p %d] %s ", i-1, dir_entries->dPrev[i-1].FileName);
     }
   }
 
   if (dir_entries->nextc != 0) {
     for (i=0; i<dir_entries->nextc; ++i) {
-      printf(" [n %d] %s \r\n", i, dir_entries->dNext[i].FileName);
+      DEBUG(1," [n %d] %s ", i, dir_entries->dNext[i].FileName);
     }
   }
 }
@@ -98,7 +99,7 @@ void Filesel_ScanUpdate(tDirScan* dir_entries)
   tester = FF_FindFirst(pIoman, &mydir, dir_entries->pPath); // Find first Object.
   while (tester == 0) {
     if (FilterFile(dir_entries, &mydir)) {
-      //printf("File %s\r\n", mydir.FileName);
+      //DEBUG(1,"File %s", mydir.FileName);
       //
       // first check file against our reference
       comp_result = CompareDirEntries(&mydir, &dir_entries->dRef);
@@ -200,7 +201,7 @@ void Filesel_ScanFirst(tDirScan* dir_entries)
   tester = FF_FindFirst(pIoman, &mydir, dir_entries->pPath); // Find first Object.
   while (tester == 0) {
     if (FilterFile(dir_entries, &mydir)) {
-      //printf("File %s\r\n", mydir.FileName);
+      //DEBUG(1,"File %s", mydir.FileName);
       //
       if (dir_entries->nextc == 0 ) {
         dir_entries->dNext[0] = mydir;
@@ -213,9 +214,9 @@ void Filesel_ScanFirst(tDirScan* dir_entries)
             break;
           if (comp_result<0) {
 
-            //printf("inserted at %d <%s>, moved to %d\r\n", i , mydir.FileName, dir_entries->num_entries);
+            //DEBUG(1,"inserted at %d <%s>, moved to %d", i , mydir.FileName, dir_entries->num_entries);
             for (j=dir_entries->nextc; j>i; --j) { // we know num_entries is 1 or more
-              //printf("J loop %d\r\n",j);
+              //DEBUG(1,"J loop %d",j);
               if (j < MAXDIRENTRIES) { // don't move the last one, it can fall off
                 dir_entries->dNext[j] = dir_entries->dNext[j-1];
               }
@@ -230,7 +231,7 @@ void Filesel_ScanFirst(tDirScan* dir_entries)
           // file is bigger than current entry, so we move on to compare with next entry - unless we are at the end
           if (dir_entries->nextc < MAXDIRENTRIES) {// not full
             if (i==dir_entries->nextc-1) { //last
-              //printf("Inserted at end, position %d\r\n",i+1);
+              //DEBUG(1,"Inserted at end, position %d",i+1);
               dir_entries->dNext[i+1] = mydir;
               dir_entries->nextc++;
               break;
@@ -251,7 +252,7 @@ void Filesel_ScanFirst(tDirScan* dir_entries)
 void Filesel_Init(tDirScan* dir_entries, char* pPath, char* pExt)
 {
   // called on directory change or startup
-  //printf("Init entry, path %s\r\n", pPath);
+  //DEBUG(1,"Init entry, path %s", pPath);
 
   _strlcpy(dNull.FileName, "", FF_MAX_FILENAME);
   dNull.Attrib = 0;
@@ -274,7 +275,7 @@ void Filesel_Init(tDirScan* dir_entries, char* pPath, char* pExt)
 
 void Filesel_ChangeDir(tDirScan* dir_entries, char* pPath)
 {
-  //printf("ChangeDir entry, path %s\r\n", pPath);
+  //DEBUG(1,"ChangeDir entry, path %s", pPath);
   dir_entries->pPath = pPath;
   dir_entries->total_entries = 0;
   dir_entries->prevc = 0;

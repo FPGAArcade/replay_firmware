@@ -16,7 +16,7 @@
 #include "osd.h"
 #include "messaging.h"
 
-const char version[] = {"24July13_r2"}; // note /0 added automatically
+const char version[] = {"15Aug13_r0"}; // note /0 added automatically
 
 // GLOBALS
 uint8_t  fatBuf[FS_FATBUF_SIZE]; // used by file system
@@ -49,14 +49,13 @@ int main(void)
   // dx div (divider) 0-127 divider value
   // yx sel 1 = on, 0 = off
   //
-  // y0 - FPGA DRAM
+  // y0 - FPGA DRAM/sys clk
   // y1 - Coder
-  // y2 - FPGA aux/sys clk
+  // y2 - FPGA aux/audio clk
   // y3 - Expansion Main
   // y4 - FPGA video
   // y5 - Expansion Small
   //
-
 
   // initialise
   Hardware_Init(); // Initialise board hardware
@@ -68,8 +67,12 @@ int main(void)
   status_t current_status;
   memset((void *)&current_status,0,sizeof(status_t));
   strcpy(current_status.ini_dir,"\\");
+  strcpy(current_status.act_dir,"\\");
   strcpy(current_status.ini_file,"replay.ini");
   strcpy(current_status.bin_file,"replay.bin");
+
+  // setup message structure
+  MSG_init(&current_status,1);
 
   // directory scan structure
   tDirScan dir_status;
@@ -86,23 +89,23 @@ int main(void)
   USART_Init(115200); // Initialize debug USART
   ACTLED_OFF;
 
-  DEBUG(0,"\033[2J");
-  DEBUG(0,"");
-  DEBUG(0," == FPGAArcade Replay Board ==");
-  DEBUG(0," Mike Johnson & Wolfgang Scherr");
-  DEBUG(0,"");
-  MSG_warning(&current_status, "NON-RELEASED BETA VERSION");
-  DEBUG(0,"");
-  DEBUG(0,"ARM Firmware: %s",version);
-  DEBUG(0,"");
-  DEBUG(0,"Built upon work by Dennis van Weeren & Jakub Bednarski");
-  MSG_info(&current_status, "Using %s",FF_REVISION);
-  DEBUG(0,"               by James Walmsley");
-  DEBUG(0,"");
-  DEBUG(0,"");
+  DEBUG(1,"\033[2J");
+  DEBUG(1,"");
+  DEBUG(0,"== FPGAArcade Replay Board ==");
+  DEBUG(0,"Mike Johnson & Wolfgang Scherr");
+  DEBUG(1,"");
+  MSG_warning("NON-RELEASED BETA VERSION");
+  DEBUG(1,"");
+  DEBUG(1,"ARM Firmware: %s",version);
+  DEBUG(1,"");
+  DEBUG(1,"Built upon work by Dennis van Weeren & Jakub Bednarski");
+  MSG_info("Using %s",FF_REVISION);
+  DEBUG(1,"               by James Walmsley");
+  DEBUG(1,"");
+  DEBUG(1,"");
 
-  //MSG_warning(&current_status, "A test warning.");
-  //MSG_error(&current_status, "A test error.");
+  //MSG_warning("A test warning.");
+  //MSG_error("A test error.");
 
   // create file system and set up I/O
   pFileBuf = (uint8_t *)fileBuf;
@@ -115,7 +118,7 @@ int main(void)
   CFG_vid_timing_HD27(F60HZ);
   CFG_set_coder(CODER_DISABLE);
 
-  printf("\n\r");
+  DEBUG(1,"");
 
   // Loop forever
   while (TRUE) {
@@ -131,6 +134,9 @@ int main(void)
     // we require an functional sdcard filesystem to continue
     if (current_status.fs_mounted_ok) {
       sprintf(full_filename,"%s%s",current_status.ini_dir,current_status.ini_file);
+
+      // free any backup stuff
+      CFG_free_bak(&current_status);
 
       // pre FPGA load ini file parse: FPGA bin, post ini, clocking, coder, video filter
       CFG_pre_init(&current_status, full_filename);
@@ -148,7 +154,7 @@ int main(void)
           CFG_fatal_error(status);  // flash we fail to configure FPGA
           current_status.fpga_load_ok = 0;
         } else {
-          printf("FPGA CONFIG \"%s\" done.\n\r",full_filename);
+          DEBUG(1,"FPGA CONFIG \"%s\" done.",full_filename);
           current_status.fpga_load_ok = 1;
         }
       }
@@ -158,7 +164,7 @@ int main(void)
       sprintf(full_filename,"%s%s",current_status.ini_dir,current_status.ini_file);
 
       if (!current_status.fpga_load_ok) {
-        printf("FPGA has been configured by debugger.\n\r");
+        DEBUG(1,"FPGA has been configured by debugger.");
         current_status.fpga_load_ok = 1;
       }
 
@@ -173,55 +179,32 @@ int main(void)
       }
 
       // we free the memory of a previous setup
-      if (current_status.menu_top) {
-        DEBUG(0,"--------------------------\n\r");
-        DEBUG(0,"CLEANUP (%ld bytes free)\n\r",CFG_get_free_mem());
-        CFG_free_menu(&current_status);
-      }
-
+      DEBUG(1,"--------------------------");
+      DEBUG(1,"CLEANUP (%ld bytes free)",CFG_get_free_mem());
+      CFG_free_menu(&current_status);
+      
       // initialize root entry properly, it is the seed of this menu tree
-      DEBUG(0,"--------------------------\n\r");
-      DEBUG(0,"PRE-INIT (%ld bytes free)\n\r",CFG_get_free_mem());
+      DEBUG(1,"--------------------------");
+      DEBUG(1,"PRE-INIT (%ld bytes free)",CFG_get_free_mem());
 
       // post FPGA load ini file parse: video DAC, ROM files, etc.
       if (CFG_init(&current_status, full_filename)) {
         CFG_free_menu(&current_status);
-//      }
-//      else {
-//        snprintf(current_status.info2,MENU_INFO_WIDTH," f:%s",full_filename);
+        CFG_free_bak(&current_status);
       }
 
       CFG_add_default(&current_status);
 
       if (current_status.menu_top) {
         //
-        DEBUG(0,"--------------------------\n\r");
-        DEBUG(0,"POSTINIT (%ld bytes free)\n\r",CFG_get_free_mem());
-      /* DETAILED DEBUG ONLY!!!
-       *
-       *  current_status.pMenuAct = current_status.pMenuTop;
-       *  while (current_status.pMenuAct && current_status.pMenuAct->pItems) {
-       *    DEBUG(2,"T:%s\n\r",current_status.pMenuAct->title);
-       *    current_status.pItemAct = current_status.pMenuAct->pItems;
-       *    while (current_status.pItemAct && current_status.pItemAct->pOptions) {
-       *      DEBUG(2,"  I: %s %08lx %s\n\r",current_status.pItemAct->item,current_status.pItemAct->mask,current_status.pItemAct->dynamic?"(dynamic)":"(static)");
-       *      current_status.pOptionAct = current_status.pItemAct->pOptions;
-       *      while (current_status.pOptionAct && (current_status.pOptionAct->option[0])) {
-       *        DEBUG(2,"    O: %s %08lx %s\n\r",current_status.pOptionAct->option,current_status.pOptionAct->value,current_status.pOptionAct==current_status.pItemAct->pOptSet?"(default)":"");
-       *        current_status.pOptionAct = current_status.pOptionAct->pNext;
-       *      }
-       *      current_status.pItemAct = current_status.pItemAct->pNext;
-       *    }
-       *    current_status.pMenuAct = current_status.pMenuAct->pNext;
-       *  }
-       */
+        DEBUG(1,"--------------------------");
+        DEBUG(1,"POSTINIT (%ld bytes free)",CFG_get_free_mem());
       }
-      //snprintf(current_status.info1,MENU_INFO_WIDTH," v:%s, %ldkB free",version,CFG_get_free_mem()>>10);
 
       uint32_t spiFreq = BOARD_MCK /
                          ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
                          1000000;
-      MSG_info(&current_status,"SPI clock: %d MHz", spiFreq);
+      DEBUG(0,"SPI clock: %d MHz", spiFreq);
 
       // we do a final update of MENU / settings and let the core run
       // afterwards, we show the generic status menu
@@ -260,6 +243,7 @@ int main(void)
         if (key == KEY_MENU) {
           if (current_status.button==BUTTON_RESET) {
             strcpy(current_status.ini_dir,"\\");
+            strcpy(current_status.act_dir,"\\");
             strcpy(current_status.ini_file,"replay.ini");
             // set PROG low to reset FPGA (open drain)
             IO_DriveLow_OD(PIN_FPGA_PROG_L);
@@ -276,10 +260,10 @@ int main(void)
 
         // we deconfigured externally!
         if ((!IO_Input_H(PIN_FPGA_DONE)) && (current_status.fpga_load_ok)) {
-          printf("FPGA has been deconfigured.\n\r");
+          MSG_warning("FPGA has been deconfigured.");
           // assume this is the programmer and wait for it to be reconfigured
           while (!IO_Input_H(PIN_FPGA_DONE)) {
-            printf("    waiting for reconfig....\n\r");
+            MSG_warning("    waiting for reconfig....");
             Timer_Wait(1000);
           }
           OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase

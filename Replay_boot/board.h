@@ -15,7 +15,6 @@
 #define TRUE 1
 #define FS_FATBUF_SIZE 2048  // must be >= 2x block size
 #define FS_FILEBUF_SIZE 512  // DONT CHANGE THIS
-#define NULL 0
 
 //#define OSD_DEBUG
 

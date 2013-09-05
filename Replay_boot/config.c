@@ -152,6 +152,12 @@ void CFG_call_bootloader(void)
       *dest++ = *src++;
   }
 
+  // set PROG low to reset FPGA (open drain)
+  IO_DriveLow_OD(PIN_FPGA_PROG_L);
+  Timer_Wait(1);
+  IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+  Timer_Wait(2);
+
   asm("ldr r3, = 0x00200000\n");
   asm("bx  r3\n");
 }
@@ -213,24 +219,23 @@ void CFG_card_start(status_t *current_status)
 
     switch(pIoman->pPartition->Type) {
       case FF_T_FAT32:
-        MSG_info(current_status, "SDCARD: FAT32 formatted"); break;
+        MSG_info("SDCARD: FAT32 formatted"); break;
         //DEBUG(1,"FAT32 Formatted Drive"); break;
       case FF_T_FAT16:
-        MSG_info(current_status, "SDCARD: FAT16 formatted"); break;
+        MSG_info("SDCARD: FAT16 formatted"); break;
         //DEBUG(1,"FAT16 Formatted Drive"); break;
       case FF_T_FAT12:
-       MSG_info(current_status, "SDCARD: FAT12 formatted"); break;
+       MSG_info("SDCARD: FAT12 formatted"); break;
        //DEBUG(1,"FAT12 Formatted Drive"); break;
     }
-    DEBUG(1,"");
+    //DEBUG(1,"");
+    //DEBUG(1,"Block Size: %d",     pIoman->pPartition->BlkSize);
+    //DEBUG(1,"Cluster Size: %d kB", (pIoman->pPartition->BlkSize *
+    //        pIoman->pPartition->SectorsPerCluster) / 1024);
+    //DEBUG(1,"Volume Size: %lu MB", FF_GetVolumeSize(pIoman));
+    //DEBUG(1,"");
 
-    DEBUG(1,"Block Size: %d",     pIoman->pPartition->BlkSize);
-    DEBUG(1,"Cluster Size: %d kB", (pIoman->pPartition->BlkSize *
-            pIoman->pPartition->SectorsPerCluster) / 1024);
-    DEBUG(1,"Volume Size: %lu MB", FF_GetVolumeSize(pIoman));
-    DEBUG(1,"");
-
-    MSG_info(current_status, "SDCARD: %dB/%dkB/%luMB",
+    MSG_info("SDCARD: %dB/%dkB/%luMB",
                               pIoman->pPartition->BlkSize,
                               (pIoman->pPartition->BlkSize *
                                pIoman->pPartition->SectorsPerCluster) >> 10,
@@ -298,14 +303,6 @@ uint8_t Cfg_UploadRom(char *filename, uint32_t base,
   FF_FILE *fSource = NULL;
   fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
   uint8_t rc=1;
-  char s[OSDMAXLEN]; // watch size
-  char n[9]; // watch size
-
-
-// 31      23      15     87      0
-// ................................
-// ROM:XXXXXXXX A:XXXXXXXX,S:XXXXXX
-  FileDisplayName(n, 9, filename); // size includes /0
 
   if (fSource) {
       FPGA_FileToMem(fSource, base, size);
@@ -315,16 +312,9 @@ uint8_t Cfg_UploadRom(char *filename, uint32_t base,
         rc=0;
       }
       FF_Close(fSource);
-
-      sprintf(s, "ROM:%s A:%08X,S:%06X",n, base, size);
-      OSD_BootPrint(s);
-
-      DEBUG(2, "ROM:%s A:%08X,S:%06X",filename, base, size);
+      DEBUG(1, "%s @0x%X,S:%d",filename, base, size);
   } else {
     ERROR("Could not open %s", filename);
-
-    sprintf(s, "Could not open ROM file");
-    OSD_BootPrint(s);
     return 1;
   }
 
@@ -504,6 +494,7 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
         }
                                        // =====================
         if (name==INI_CLOCK) {        // ===> PLL/CLOCKING CONFIGURATION
+          strcpy(pStatus->clock_bak,value);
           if (MATCH(value,"PAL")) {
             Configure_ClockGen(&init_clock_config_pal);
           }
@@ -537,6 +528,7 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
                                        // =====================
         if (name==INI_CODER) {        // ===> CODER CONFIGURATION (OPTIONAL)
           coder_t codcfg;
+          strcpy(pStatus->coder_bak,value);
           if (MATCH(value,"DISABLE")) {
             codcfg=CODER_DISABLE;
           }
@@ -562,6 +554,7 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
                                        // =====================
         if (name==INI_VFILTER) {      // ===> VIDEO FILTER CONFIGURATION
           ini_list_t valueList[8];
+          strcpy(pStatus->vfilter_bak,value);
           uint16_t entries = ParseList(value,valueList,8);
           if (entries==3) {
             Configure_VidBuf(1, valueList[0].intval, valueList[1].intval, valueList[2].intval);
@@ -589,6 +582,27 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
             pStatus->spi_osd_enabled=valueList[1].intval;
             DEBUG(1,"SPI control: %s %s ",pStatus->spi_fpga_enabled?"FPGA":"-"
                                 ,pStatus->spi_osd_enabled?"OSD":"-");
+          }
+          else return 1;
+        }
+                                       // =====================
+        if (name==INI_SPI_CLK) {       // ===> SPI CLOCK SETUP
+          ini_list_t valueList[8];
+          uint16_t entries = ParseList(value,valueList,8);
+          if (entries==1) {
+            // we allow only reducing clock to avoid issues with sdcard settings
+            if (valueList[0].intval>
+                ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8)) {
+              pStatus->spiclk_old = ((AT91C_BASE_SPI->SPI_CSR[0] & 
+                                       AT91C_SPI_SCBR) >> 8);
+              AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | 
+                                                     (valueList[0].intval<<8);
+              uint32_t spiFreq = BOARD_MCK /
+                       ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
+                       1000000;
+              DEBUG(1,"New SPI clock: %d MHz",spiFreq);
+              pStatus->spiclk_bak = valueList[0].intval;
+            }
           }
           else return 1;
         }
@@ -637,14 +651,14 @@ uint8_t CFG_pre_init(status_t *currentStatus, const char *iniFile)
       FF_Close(fIni);
 
       if (status !=0 ) {
-        MSG_error(currentStatus, "Parse failed in INI, line %d",status);
+        MSG_error("Parse failed in INI, line %d",status);
         //ERROR("Error parsing INI file at line %d ",status);
         return 1;
       }
 
     }
     else {
-      MSG_error(currentStatus, "INI file not found");
+      MSG_error("INI file not found");
       //ERROR("Ini file not found.");
       return 1;
 
@@ -744,6 +758,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
       if (section==INI_SETUP) {
                                          // =====================
         if (name==INI_VIDEO) {          // ===> FINAL VIDEO CONFIGURATION
+          strcpy(pStatus->video_bak,value);
           if (pStatus->twi_enabled) {
             ini_list_t valueList[32];
             uint16_t entries = ParseList(value,valueList,32);
@@ -763,7 +778,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             else return 1;
             DEBUG(2,"VIDEO: %s",value);
           } else {
-            MSG_error(pStatus, "VIDEO config but TWI disabled");
+            MSG_error("VIDEO config but TWI disabled");
             //ERROR("VIDEO not allowed, ignored");
           }
         }
@@ -780,8 +795,27 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             DEBUG(2,"CONFIG: static=0x%08X, dynamic=0x%08X",
                     pStatus->config_s,pStatus->config_d);
           } else {
-            MSG_error(pStatus, "FPGA config but SPI disabled");
+            MSG_error("FPGA config but SPI disabled");
             //ERROR("CONFIG not allowed, ignored");
+          }
+        }
+                                        // =====================
+        if (name==INI_INFO) {          // ===> SHOW INFO LINE
+          ini_list_t valueList[8];
+          uint16_t entries = ParseList(value,valueList,8);
+          if (entries==1) {
+            // we do this to get rid of ""
+            if (pStatus->info_bak) {
+              pStatus->info_bak_last->next=malloc(sizeof(info_list_t));
+              pStatus->info_bak_last=pStatus->info_bak_last->next;
+            } else {
+              pStatus->info_bak=malloc(sizeof(info_list_t));
+              pStatus->info_bak_last=pStatus->info_bak;
+            }
+            pStatus->info_bak_last->next=NULL;
+            strcpy(pStatus->info_bak_last->info_bak,valueList[0].strval);
+            
+            MSG_info(valueList[0].strval);
           }
         }
       }
@@ -790,6 +824,15 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                                        // =====================
         if (name==INI_ROM) {          // ===> UPLOAD A ROM FILE
                                        // (name is relative to INI path)
+          if (pStatus->rom_bak) {
+            pStatus->rom_bak_last->next=malloc(sizeof(rom_list_t));
+            pStatus->rom_bak_last=pStatus->rom_bak_last->next;
+          } else {
+            pStatus->rom_bak=malloc(sizeof(rom_list_t));
+            pStatus->rom_bak_last=pStatus->rom_bak;
+          }
+          pStatus->rom_bak_last->next=NULL;
+          strcpy(pStatus->rom_bak_last->rom_bak,value);
           if (pStatus->spi_fpga_enabled) {
             ini_list_t valueList[8];
             uint16_t entries = ParseList(value,valueList,8);
@@ -803,7 +846,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                       valueList[2].intval,valueList[1].intval);
               if (Cfg_UploadRom(fullname, valueList[2].intval,
                                    valueList[1].intval,pStatus->verify_dl)) {
-                MSG_error(pStatus, "ROM upload to FPGA failed");
+                MSG_error("ROM upload to FPGA failed");
                 return 1;
               } else {
                 return 0;
@@ -820,7 +863,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                       adr,valueList[1].intval);
               if (Cfg_UploadRom(fullname, adr, valueList[1].intval,
                                 pStatus->verify_dl)) {
-                MSG_error(pStatus, "ROM upload to FPGA failed");
+                MSG_error("ROM upload to FPGA failed");
                 return 1;
               } else {
                 return 0;
@@ -828,13 +871,22 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             }
             else return 1;
           } else {
-            MSG_error(pStatus, "ROM upload, but SPI disabled");
+            MSG_error("ROM upload, but SPI disabled");
             //ERROR("ROM not allowed, ignored");
           }
         }
                                        // =====================
         if (name==INI_DATA) {         // ===> UPLOAD A DATA SET
                                        //      (name is relative to INI path)
+          if (pStatus->data_bak) {
+            pStatus->data_bak_last->next=malloc(sizeof(data_list_t));
+            pStatus->data_bak_last=pStatus->data_bak_last->next;
+          } else {
+            pStatus->data_bak=malloc(sizeof(data_list_t));
+            pStatus->data_bak_last=pStatus->data_bak;
+          }
+          pStatus->data_bak_last->next=NULL;
+          strcpy(pStatus->data_bak_last->data_bak,value);
           if (pStatus->spi_fpga_enabled) {
             ini_list_t valueList[32];
             uint16_t entries = ParseList(value,valueList,32);
@@ -847,7 +899,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                       valueList[entries-2].intval,entries-2);
               if (FPGA_BufToMem(buf, valueList[entries-2].intval,
                                      valueList[entries-1].intval)) {
-                MSG_error(pStatus, "DATA upload to FPGA failed");
+                MSG_error("DATA upload to FPGA failed");
                 return 1;
               }
               if (pStatus->verify_dl) {
@@ -857,7 +909,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                                       valueList[entries-1].intval);
                 for(int i=0;i<(entries-2);i++) {
                   if (tmpbuf[i]!=buf[i]) {
-                    MSG_error(pStatus, "DATA verification failed");
+                    MSG_error("DATA verification failed");
                     //ERROR("Data upload failed.");
                     return 1;
                   }
@@ -870,7 +922,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             }
             else return 1;
           } else {
-            MSG_error(pStatus, "DATA upload, but SPI disabled");
+            MSG_error("DATA upload, but SPI disabled");
             //ERROR("DATA not allowed, ignored");
           }
         }
@@ -880,7 +932,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                                          // =====================
         if (name==INI_TITLE) {          // ===> set new menu title
           ini_list_t valueList[8];
-          uint16_t entries = ParseList(value,valueList,32);
+          uint16_t entries = ParseList(value,valueList,8);
           if (entries==1) {
             DEBUG(2,"TITLE: %s ",value);
             DEBUG(3,"T1: %lx %lx %lx ",pStatus->menu_act,
@@ -984,7 +1036,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                 pStatus->menu_item_act->conf_dynamic=0;
               } else {
                 pStatus->menu_item_act->conf_dynamic=0;
-                MSG_error(pStatus, "Menu items must be static or dynamic");
+                MSG_error("Menu items must be static or dynamic");
                 //ERROR("Illegal item type, only static or dynamic allowed");
                 return 1;
               }
@@ -1023,7 +1075,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             if ((pStatus->menu_item_act->conf_mask &
                  pStatus->item_opt_act->conf_value) !=
                  pStatus->item_opt_act->conf_value) {
-              MSG_error(pStatus, "item mask does not fit to value");
+              MSG_error("item mask does not fit to value");
               //ERROR("Mask would hide this option value!");
               return 1;
             }
@@ -1033,7 +1085,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                   MATCH(valueList[2].strval,"D")) {
                 pStatus->menu_item_act->selected_option=pStatus->item_opt_act;
               } else {
-                MSG_error(pStatus, "bad option type - use 'default' or none");
+                MSG_error("bad option type - use 'default' or none");
                 //ERROR("Illegal option type (\"default\" or none)");
                 return 1;
               }
@@ -1097,13 +1149,13 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
       int32_t status = ParseIni(fIni, _CFG_parse_handler, currentStatus);
       FF_Close(fIni);
       if (status !=0 ) {
-        MSG_error(currentStatus, "Parse failed in INI, line %d",status);
+        MSG_error("Parse failed in INI, line %d",status);
         //ERROR("Error parsing INI file at line %d ",status);
         return status;
       }
     }
     else {
-      MSG_error(currentStatus, "INI file not found");
+      MSG_error("INI file not found");
       //ERROR("Ini file not found.");
       return 1;
     }
@@ -1111,7 +1163,7 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
 
   init_mem -= CFG_get_free_mem();
   DEBUG(1,"Final free MEM:   %ld bytes", CFG_get_free_mem());
-  MSG_info(currentStatus,"Menu requires %ld bytes", init_mem);
+  if (init_mem) DEBUG(0,"Menu requires %ld bytes", init_mem);
 
   sprintf(currentStatus->status[0], "ARM |FW:%s (%ldkB free)", version,
                                       CFG_get_free_mem()>>10);
@@ -1132,7 +1184,8 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   return 0;
 }
 
-void CFG_add_default(status_t *currentStatus) {
+void CFG_add_default(status_t *currentStatus) 
+{
   status_t *pStatus = (status_t*) currentStatus;
 
   // add default menu entry
@@ -1185,6 +1238,21 @@ void CFG_add_default(status_t *currentStatus) {
   pStatus->item_opt_act->option_name[0]=0;
 
   pStatus->menu_item_act = pStatus->menu_item_act->next;
+  strcpy(pStatus->menu_item_act->item_name,"Config Backup");
+  pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+  pStatus->menu_item_act->next->last=pStatus->menu_item_act;
+  pStatus->menu_item_act->option_list=NULL;
+  pStatus->menu_item_act->selected_option=NULL;
+  pStatus->menu_item_act->conf_dynamic=0;
+  pStatus->menu_item_act->conf_mask=0;
+  strcpy(pStatus->menu_item_act->action_name,"backup");
+  pStatus->menu_item_act->option_list=malloc(sizeof(itemoption_t));
+  pStatus->item_opt_act = pStatus->menu_item_act->option_list;
+  pStatus->item_opt_act->next=NULL;
+  pStatus->item_opt_act->last=NULL;
+  pStatus->item_opt_act->option_name[0]=0;
+
+  pStatus->menu_item_act = pStatus->menu_item_act->next;
   strcpy(pStatus->menu_item_act->item_name,"Reboot Board");
   pStatus->menu_item_act->next=NULL;
   pStatus->menu_item_act->option_list=NULL;
@@ -1199,8 +1267,9 @@ void CFG_add_default(status_t *currentStatus) {
   pStatus->item_opt_act->option_name[0]=0;
 }
 
-void CFG_free_menu(status_t *currentStatus) {
-  DEBUG(2,"--- FREE MENU SPACE ---");
+void CFG_free_menu(status_t *currentStatus) 
+{
+  DEBUG(2,"--- FREE MENU (and backup) SPACE ---");
 
   currentStatus->menu_act = currentStatus->menu_top;
   while (currentStatus->menu_act) {
@@ -1236,4 +1305,181 @@ void CFG_free_menu(status_t *currentStatus) {
   currentStatus->menu_act = NULL;
   currentStatus->menu_item_act = NULL;
   currentStatus->item_opt_act = NULL;
+}
+
+void CFG_free_bak(status_t *currentStatus) 
+{
+  currentStatus->rom_bak_last=currentStatus->rom_bak;
+  while (currentStatus->rom_bak_last) {
+    rom_list_t *p = currentStatus->rom_bak_last->next;
+    free(currentStatus->rom_bak_last);
+    currentStatus->rom_bak_last=p;
+  }
+  currentStatus->rom_bak=NULL;
+  currentStatus->rom_bak_last=NULL;
+  
+  currentStatus->data_bak_last=currentStatus->data_bak;
+  while (currentStatus->data_bak_last) {
+    data_list_t *p = currentStatus->data_bak_last->next;
+    free(currentStatus->data_bak_last);
+    currentStatus->data_bak_last=p;
+  }
+  currentStatus->data_bak=NULL;
+  currentStatus->data_bak_last=NULL;
+
+  currentStatus->info_bak_last=currentStatus->info_bak;
+  while (currentStatus->info_bak_last) {
+    info_list_t *p = currentStatus->info_bak_last->next;
+    free(currentStatus->info_bak_last);
+    currentStatus->info_bak_last=p;
+  }
+  currentStatus->info_bak=NULL;
+  currentStatus->info_bak_last=NULL;
+
+  currentStatus->clock_bak[0]=0;
+  currentStatus->coder_bak[0]=0;
+  currentStatus->vfilter_bak[0]=0;
+  currentStatus->video_bak[0]=0;
+
+  currentStatus->spiclk_bak=0;
+  if (currentStatus->spiclk_old) {
+    AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | 
+                                  (currentStatus->spiclk_old<<8);
+  }
+  currentStatus->spiclk_old=0;
+}
+
+void _CFG_write_str(FF_FILE *fIni, char *str) 
+{
+  uint32_t len = strlen(str);
+  FF_Write (fIni, len, 1, (uint8_t *)str);
+}
+
+void _CFG_write_strln(FF_FILE *fIni, char *str) 
+{
+  _CFG_write_str(fIni,str);
+  _CFG_write_str(fIni,"\r\n");
+}
+
+void CFG_save_all(status_t *currentStatus, const char *iniDir, 
+                  const char *iniFile) 
+{
+  FF_FILE *fIni = NULL;
+  char full_filename[FF_MAX_PATH];
+  sprintf(full_filename,"%s%s",iniDir,iniFile);
+
+  if (currentStatus->fs_mounted_ok) {
+    DEBUG(1,"Writing %s",full_filename);
+
+    fIni = FF_Open(pIoman, full_filename, 
+                   FF_MODE_WRITE|FF_MODE_CREATE|FF_MODE_TRUNCATE, NULL);
+
+    if(fIni) {
+      char s[128];
+
+      // SETUP section
+      _CFG_write_strln(fIni,"[SETUP]");        
+      sprintf(s,"bin = %s",currentStatus->bin_file);
+      _CFG_write_strln(fIni,s);
+
+      sprintf(s,"clock = %s",currentStatus->clock_bak);
+      _CFG_write_strln(fIni,s);
+
+      sprintf(s,"coder = %s",currentStatus->coder_bak);
+      _CFG_write_strln(fIni,s);
+
+      sprintf(s,"vfilter = %s",currentStatus->vfilter_bak);
+      _CFG_write_strln(fIni,s);
+
+      sprintf(s,"en_twi = %d",currentStatus->twi_enabled);
+      _CFG_write_strln(fIni,s);
+
+      sprintf(s,"en_spi = %d,%d",currentStatus->spi_fpga_enabled,
+                                 currentStatus->spi_osd_enabled);
+      _CFG_write_strln(fIni,s);
+
+      if (currentStatus->spiclk_bak) {
+        sprintf(s,"spi_clk = %ld",currentStatus->spiclk_bak);
+        _CFG_write_strln(fIni,s);
+      }
+
+      sprintf(s,"button = %s",currentStatus->button==BUTTON_RESET?"reset": (
+                              currentStatus->button==BUTTON_OFF?"off":"menu"));
+      _CFG_write_strln(fIni,s);
+
+      sprintf(s,"video = %s",currentStatus->video_bak);
+      _CFG_write_strln(fIni,s);
+
+      sprintf(s,"config = 0x%08lx,0x%08lx",currentStatus->config_s
+                                      ,currentStatus->config_d);
+      _CFG_write_strln(fIni,s);
+
+      currentStatus->info_bak_last=currentStatus->info_bak;
+      while (currentStatus->info_bak_last) {
+        sprintf(s,"info = %s",currentStatus->info_bak_last->info_bak);
+        _CFG_write_strln(fIni,s);        
+        currentStatus->info_bak_last=currentStatus->info_bak_last->next;
+      }
+      
+      // UPLOAD section
+      _CFG_write_strln(fIni,"");        
+      _CFG_write_strln(fIni,"[UPLOAD]");        
+
+      sprintf(s,"verify = 0");
+      _CFG_write_strln(fIni,s);
+
+      currentStatus->rom_bak_last=currentStatus->rom_bak;
+      while (currentStatus->rom_bak_last) {
+        sprintf(s,"rom = %s",currentStatus->rom_bak_last->rom_bak);
+        _CFG_write_strln(fIni,s);        
+        currentStatus->rom_bak_last=currentStatus->rom_bak_last->next;
+      }
+      
+      currentStatus->data_bak_last=currentStatus->data_bak;
+      while (currentStatus->data_bak_last) {
+        sprintf(s,"data = %s",currentStatus->data_bak_last->data_bak);
+        _CFG_write_strln(fIni,s);        
+        currentStatus->data_bak_last=currentStatus->data_bak_last->next;
+      }
+
+      // MENU section
+      _CFG_write_strln(fIni,"");        
+      if (currentStatus->menu_top) {
+        menu_t *menu_act = currentStatus->menu_top;
+        menuitem_t *item_act;
+        itemoption_t *option_act;
+
+        _CFG_write_strln(fIni,"[MENU]");        
+        while (menu_act && menu_act->item_list) {
+          if (menu_act && (!MATCH(menu_act->menu_title,"Replay Menu"))) {
+            sprintf(s,"title = \"%s\"",menu_act->menu_title);
+            _CFG_write_strln(fIni,s);
+            
+            item_act = menu_act->item_list;
+            while (item_act && item_act->option_list) {
+              sprintf(s,"item = \"%s\",0x%08lx,%s",item_act->item_name,
+                        item_act->conf_mask,
+                        item_act->conf_dynamic?"dynamic":"static");
+              _CFG_write_strln(fIni,s);
+              
+              option_act = item_act->option_list;
+              while (option_act && option_act->option_name[0]) {
+                sprintf(s,"option = \"%s\",0x%08lx%s",option_act->option_name,
+                          option_act->conf_value,
+                          option_act==item_act->selected_option?",default":"");
+                _CFG_write_strln(fIni,s);
+
+                option_act = option_act->next;
+              }
+              item_act = item_act->next;
+            }
+          }
+          menu_act = menu_act->next;
+        }
+      }
+
+      FF_Close(fIni);
+    }
+  }
+
 }

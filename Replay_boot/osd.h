@@ -101,8 +101,9 @@ uint32_t OSD_ConfigReadStatus(void);
 uint32_t OSD_ConfigReadFileIO(void); // num disks etc
 
 void OSD_WaitVBL(void);
-void OSD_BootPrint(const char *pText);
 
+//--> Replaced by structure in message.* module
+//void OSD_BootPrint(const char *pText);
 
 uint8_t OSD_ConvASCII(uint16_t c);
 uint16_t OSD_GetKeyCode(void);

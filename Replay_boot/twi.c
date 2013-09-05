@@ -1,6 +1,7 @@
 
 #include "hardware.h"
 #include "twi.h"
+#include "messaging.h"
 
 #define TWI_TIMEOUTMAX 50000
 
@@ -9,7 +10,7 @@ void TWI_Wait_Tx(void)
   uint32_t timeout = 0;
   while( !TWI_ByteSent() && (++timeout < TWI_TIMEOUTMAX) );
   if (timeout == TWI_TIMEOUTMAX)
-    printf("TWI:Tx timeout.\n\r");
+    ERROR("TWI:Tx timeout.");
 }
 
 void TWI_Wait_Rx(void)
@@ -17,7 +18,7 @@ void TWI_Wait_Rx(void)
   uint32_t timeout = 0;
   while( !TWI_ByteReceived() && (++timeout < TWI_TIMEOUTMAX) );
   if (timeout == TWI_TIMEOUTMAX)
-    printf("TWI:Rx timeout.\n\r");
+    ERROR("TWI:Rx timeout.");
 }
 
 void TWI_Wait_Cmpl(void)
@@ -25,7 +26,7 @@ void TWI_Wait_Cmpl(void)
   uint32_t timeout = 0;
   while( !TWI_TransferComplete() && (++timeout < TWI_TIMEOUTMAX) );
   if (timeout == TWI_TIMEOUTMAX)
-    printf("TWI:Completion timeout.\n\r"); // note this is debug only, no error handler
+    ERROR("TWI:Completion timeout."); // note this is debug only, no error handler
 }
 
 //
@@ -107,38 +108,37 @@ void Configure_VidBuf(uint8_t chan, uint8_t stc, uint8_t lpf, uint8_t mode)
   //      2     DC biac
   //      1     Mute
   //      0     Off
-  printf("AC-STC: ");
+  DEBUG(2,"AC-STC: ");
   switch (stc) {
-    case 0: printf("9MHz"); break;
-    case 1: printf("15MHz"); break;
-    case 2: printf("35MHz"); break;
-    case 3: printf("35MHz"); break;
-    default: printf("unknown"); break;
+    case 0: DEBUG(2,"9MHz"); break;
+    case 1: DEBUG(2,"15MHz"); break;
+    case 2: DEBUG(2,"35MHz"); break;
+    case 3: DEBUG(2,"35MHz"); break;
+    default: DEBUG(2,"unknown"); break;
   }
-  printf(", LPF: ");
+  DEBUG(2,", LPF: ");
   switch (lpf) {
-    case 0: printf("9MHz"); break;
-    case 1: printf("16MHz"); break;
-    case 2: printf("35MHz"); break;
-    case 3: printf("bypass"); break;
-    default: printf("unknown"); break;
+    case 0: DEBUG(2,"9MHz"); break;
+    case 1: DEBUG(2,"16MHz"); break;
+    case 2: DEBUG(2,"35MHz"); break;
+    case 3: DEBUG(2,"bypass"); break;
+    default: DEBUG(2,"unknown"); break;
   }
-  printf(", BIAS: ");
+  DEBUG(2,", BIAS: ");
   switch (mode) {
-    case 0: printf("off"); break;
-    case 1: printf("mute"); break;
-    case 2: printf("DC"); break;
-    case 3: printf("DC+250mV"); break;
-    case 4: printf("AC"); break;
-    default: printf("unknown"); break;
+    case 0: DEBUG(2,"off"); break;
+    case 1: DEBUG(2,"mute"); break;
+    case 2: DEBUG(2,"DC"); break;
+    case 3: DEBUG(2,"DC+250mV"); break;
+    case 4: DEBUG(2,"AC"); break;
+    default: DEBUG(2,"unknown"); break;
   }
-  printf("\n\r");
   uint8_t command = ((stc & 0x03) << 6 ) | ((lpf & 0x03) << 3) | (mode & 0x07);
   Write_THS7353(chan, command);
   if (Read_THS7353(chan) != command)
-    printf("TWI:THS7353 chan:%d Config failure.\n\r",chan);
+    ERROR("TWI:THS7353 chan:%d Config failure.",chan);
   else
-    printf("TWI:THS7353 chan:%d Config OK.\n\r",chan);
+    DEBUG(2,"TWI:THS7353 chan:%d Config OK.",chan);
 }
 //
 //
@@ -168,16 +168,15 @@ void Configure_ClockGen(const clockconfig_t *config)
       default : vco_freq[addr] = 0;
     }
 
-    printf("PLL%d VCO Freq ~ %6d KHz",addr+1, vco_freq[addr]);
+    DEBUG(2,"PLL%d VCO Freq ~ %6d KHz",addr+1, vco_freq[addr]);
     if (vco_freq[addr] > 190000) pll_conf[addr] |= 1;
-    if (vco_freq[addr] > 300000) printf(" !! OUT OF RANGE !!");
-    if (vco_freq[addr] <  80000) printf(" !! OUT OF RANGE !!");
-    printf("\n\r");
+    if (vco_freq[addr] > 300000) ERROR(" !! OUT OF RANGE !!");
+    if (vco_freq[addr] <  80000) ERROR(" !! OUT OF RANGE !!");
   }
   // px sel (divider source selection)
   // px div (divider) 0-127 divider value
   // yx sel (0= divider0 .. 5= divider5) 0x1x = on
-  printf("Clock outputs :\n\r");
+  DEBUG(1,"PLL clock outputs :");
 
   for (addr=0; addr<6; addr++) {
     switch (config->p_sel[addr])
@@ -190,15 +189,14 @@ void Configure_ClockGen(const clockconfig_t *config)
     }
     op_freq = op_freq / config->p_div[addr];
 
-    printf(" %d : ",addr);
-    if (config->y_sel[addr] == 0)
-       printf("     OFF\n\r");
-    else
-       printf("~ %6d KHz\n\r",op_freq);
+    if (config->y_sel[addr] == 0) {
+       DEBUG(1," %d :      OFF",addr);
+    } else {
+       DEBUG(1," %d : ~ %6d KHz",addr,op_freq);
+    }
   }
-  printf("\n\r");
 
-  //printf("PLL config %d %d %d\n\r", pll_conf[0], pll_conf[1], pll_conf[2]);
+  DEBUG(3,"PLL config %d %d %d", pll_conf[0], pll_conf[1], pll_conf[2]);
 
   mem[ 1-1] = (EBITS(config->pll1_m, 0, 8));
   mem[ 2-1] = (EBITS(config->pll1_n, 0, 8));
@@ -262,9 +260,9 @@ void Configure_ClockGen(const clockconfig_t *config)
      ok = FALSE;
   }
   if (!ok)
-    printf("TWI:Clock Configure failure.\n\r");
+    ERROR("TWI:Clock Configure failure.");
   else
-    printf("TWI:Clock Configure OK.\n\r");
+    DEBUG(1,"TWI:Clock Configure OK.");
 
   //
   // M divider 1..511  N divider 1..4095  m <= n
@@ -334,10 +332,10 @@ void Configure_CH7301(const vidconfig_t *config)
 {
   // first of all, read ID register to make sure device is present
   uint8_t readData = Read_CH7301(0x4B);
-  if (readData == 0x17)
-    printf("TWI:CH7301 found OK.\n\r");
-  else {
-    printf("TWI:**** CH7301 not found. ****\n\r");
+  if (readData == 0x17) {
+    DEBUG(2,"TWI:CH7301 found OK.");
+  } else {
+    DEBUG(2,"TWI:**** CH7301 not found. ****");
     return;
   }
   Write_CH7301(0x1C, config->reg1C);

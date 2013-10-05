@@ -339,7 +339,7 @@ uint16_t OSD_GetKeyCode(void)
     uint16_t key_code = 0;
     uint8_t  x;
 
-    static uint32_t delay;
+    static uint32_t button_delay;
     static uint8_t  button_pressed = 0;
 
     SPI_EnableOsd();
@@ -352,9 +352,9 @@ uint16_t OSD_GetKeyCode(void)
       if (!button_pressed) {
         key_code = KEY_MENU;
         button_pressed = 1;
-        delay = Timer_Get(BUTTONDELAY);
+        button_delay = Timer_Get(BUTTONDELAY);
       }
-    } else if (Timer_Check(delay)) {
+    } else if (Timer_Check(button_delay)) {
         button_pressed = 0;
     }
 
@@ -381,71 +381,84 @@ uint16_t OSD_GetKeyCode(void)
         }
     }
 
-    x=USART_Getc();
-    if (x) {
-      if (x==0x0d) key_code=KEY_ENTER;
-      if (x=='1')  key_code=KEY_F1;   // NOT good - TODO: better mapping
-      if (x=='2')  key_code=KEY_F2;
-      if (x=='3')  key_code=KEY_F3;
-      if (x=='4')  key_code=KEY_F4;
-      if (x=='5')  key_code=KEY_F5;
-      if (x=='6')  key_code=KEY_F6;
-      if (x=='7')  key_code=KEY_F7;
-      if (x=='8')  key_code=KEY_F8;
-      if (x=='9')  key_code=KEY_F9;
+    if (!key_code) {
+      static uint8_t  esc_received = 0;
+      static uint32_t esc_delay = 0;
 
-      if (x==0x1b) {
-        Timer_Wait(1); // NOT good - TODO: do not swallow chars of sequence
-        x=USART_Getc();
-        if (x==0)    key_code=KEY_ESC;
-        if (x==0x41) key_code=KEY_UP;
-        if (x==0x42) key_code=KEY_DOWN;
-        if (x==0x43) key_code=KEY_RIGHT;
-        if (x==0x44) key_code=KEY_LEFT;
+      if (USART_Peekc()==0x1b) {
+        if (!esc_received) {
+          // lets take some time to check for further characters
+          esc_received = 1;
+          esc_delay = Timer_Get(SERIALDELAY);
+        } else if (Timer_Check(esc_delay)) {
+          // timeout, let's see what we got...
+          const uint8_t UP_KEYSEQ[]    = {0x1b, 0x5b, 0x41};
+          const uint8_t DOWN_KEYSEQ[]  = {0x1b, 0x5b, 0x42};
+          const uint8_t RIGHT_KEYSEQ[] = {0x1b, 0x5b, 0x43};
+          const uint8_t LEFT_KEYSEQ[]  = {0x1b, 0x5b, 0x44};
+          //--
+          const uint8_t POS1_KEYSEQ[]  = {0x1b, 0x5b, 0x31, 0x7e};
+          const uint8_t INS_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x7e};
+          const uint8_t DEL_KEYSEQ[]   = {0x1b, 0x5b, 0x33, 0x7e};
+          const uint8_t END_KEYSEQ[]   = {0x1b, 0x5b, 0x34, 0x7e};
+          const uint8_t PGUP_KEYSEQ[]  = {0x1b, 0x5b, 0x35, 0x7e};
+          const uint8_t PGDN_KEYSEQ[]  = {0x1b, 0x5b, 0x36, 0x7e};
+          //--
+          const uint8_t F1_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x31, 0x7e};
+          const uint8_t F2_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x32, 0x7e};
+          const uint8_t F3_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x33, 0x7e};
+          const uint8_t F4_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x34, 0x7e};
+          const uint8_t F5_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x35, 0x7e};
+          const uint8_t F6_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x37, 0x7e};
+          const uint8_t F7_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x38, 0x7e};
+          const uint8_t F8_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x39, 0x7e};
+          const uint8_t F9_KEYSEQ[]    = {0x1b, 0x5b, 0x32, 0x30, 0x7e};
+          const uint8_t F10_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x31, 0x7e};
+          const uint8_t F11_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x33, 0x7e};
+          const uint8_t F12_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x34, 0x7e};
 
-        if (x==0x7e) key_code=KEY_MENU; // NOT good - TODO: better mapping
-      }
-    }
-/*
-    static uint8_t  tty_esc = 0;
-    static uint32_t tty_timeout = 0;
-    static int      tty_idx = 0;
-    static uint8_t  tty_buf[5] = {0,0,0,0,0};
+          esc_received = 0;
 
-    if (tty_esc) {
-      if (x) {
-        // got another character, extend timeout for another ms
-        tty_buf[tty_idx++]=x;
-        tty_timeout=Timer_Get(1);
-      }
-      // we have a max. 5 char sequence or we got a timeout
-      if (Timer_Check(tty_timeout) || (tty_idx==5)) {
-        for(int i=0;i<tty_idx;i++) DEBUG(1,"%x ",tty_buf[i]);
-        DEBUG(1," %d",tty_idx);
-        if (tty_idx==0) key_code=KEY_ESC;
-        if ((tty_idx==2) && (tty_buf[0]==0x5b)) {
-          if (tty_buf[1]==0x41) key_code=KEY_UP;
-          if (tty_buf[1]==0x42) key_code=KEY_DOWN;
-          if (tty_buf[1]==0x43) key_code=KEY_RIGHT;
-          if (tty_buf[1]==0x44) key_code=KEY_LEFT;
+          if ((!key_code) && USART_GetBuf(LEFT_KEYSEQ,sizeof(LEFT_KEYSEQ))) key_code=KEY_LEFT;
+          if ((!key_code) && USART_GetBuf(RIGHT_KEYSEQ,sizeof(RIGHT_KEYSEQ))) key_code=KEY_RIGHT;
+          if ((!key_code) && USART_GetBuf(UP_KEYSEQ,sizeof(UP_KEYSEQ))) key_code=KEY_UP;
+          if ((!key_code) && USART_GetBuf(DOWN_KEYSEQ,sizeof(DOWN_KEYSEQ))) key_code=KEY_DOWN;
+          if ((!key_code) && USART_GetBuf(PGUP_KEYSEQ,sizeof(PGUP_KEYSEQ))) key_code=KEY_PGUP;
+          if ((!key_code) && USART_GetBuf(PGDN_KEYSEQ,sizeof(PGDN_KEYSEQ))) key_code=KEY_PGDN;
+
+          if ((!key_code) && USART_GetBuf(POS1_KEYSEQ,sizeof(POS1_KEYSEQ))) key_code=KEY_ESC; // ignored
+          if ((!key_code) && USART_GetBuf(END_KEYSEQ,sizeof(END_KEYSEQ))) key_code=KEY_ESC; // ignored
+          if ((!key_code) && USART_GetBuf(INS_KEYSEQ,sizeof(INS_KEYSEQ))) key_code=KEY_ESC; // ignored
+          if ((!key_code) && USART_GetBuf(DEL_KEYSEQ,sizeof(DEL_KEYSEQ))) key_code=KEY_ESC; // ignored
+          
+          if ((!key_code) && USART_GetBuf(F1_KEYSEQ,sizeof(F1_KEYSEQ))) key_code=KEY_F1;
+          if ((!key_code) && USART_GetBuf(F2_KEYSEQ,sizeof(F2_KEYSEQ))) key_code=KEY_F2;
+          if ((!key_code) && USART_GetBuf(F3_KEYSEQ,sizeof(F3_KEYSEQ))) key_code=KEY_F3;
+          if ((!key_code) && USART_GetBuf(F4_KEYSEQ,sizeof(F4_KEYSEQ))) key_code=KEY_F4;
+          if ((!key_code) && USART_GetBuf(F5_KEYSEQ,sizeof(F5_KEYSEQ))) key_code=KEY_F5;
+          if ((!key_code) && USART_GetBuf(F6_KEYSEQ,sizeof(F6_KEYSEQ))) key_code=KEY_F6;
+          if ((!key_code) && USART_GetBuf(F7_KEYSEQ,sizeof(F7_KEYSEQ))) key_code=KEY_F7;
+          if ((!key_code) && USART_GetBuf(F8_KEYSEQ,sizeof(F8_KEYSEQ))) key_code=KEY_F8;
+          if ((!key_code) && USART_GetBuf(F9_KEYSEQ,sizeof(F9_KEYSEQ))) key_code=KEY_F9;
+          if ((!key_code) && USART_GetBuf(F10_KEYSEQ,sizeof(F10_KEYSEQ))) key_code=KEY_F10;
+          if ((!key_code) && USART_GetBuf(F11_KEYSEQ,sizeof(F11_KEYSEQ))) key_code=KEY_ESC; // ignored
+          if ((!key_code) && USART_GetBuf(F12_KEYSEQ,sizeof(F12_KEYSEQ))) key_code=KEY_MENU;
+          if (!key_code) {
+            key_code=KEY_ESC;
+            USART_Getc(); // take ESC key
+            // Use the lines below temporarly to check not implemented sequences
+            // (then also comment out above lines!)
+            //while (USART_CharAvail()>0) {
+            //  printf("%02x ",USART_Getc());
+            //} 
+            //printf("\n\r");
+          }
         }
-        if ((tty_idx==4) && (tty_buf[0]==0x5b)) { // ignore the middle ones...
-          if (tty_buf[3]==0x7e) key_code=KEY_MENU; // NOT good - TODO: better mapping
-        }
-        tty_idx=0;
-        tty_esc=0;
+      } else {
+        uint8_t c=USART_Getc();          // take (non-sequence) single char input
+        if (c==0x0d) key_code=KEY_ENTER;
       }
     }
-    else {
-      if (x==0x0d) key_code=KEY_ENTER;
-      if (x=='1')  key_code=KEY_F1;   // NOT good - TODO: better mapping
-      if (x==0x1b) {
-        // got an ESC, remember and set timeout to 1 ms
-        tty_esc=1;
-        tty_timeout=Timer_Get(1);
-      }
-    }
-*/
 
     return key_code;
 }

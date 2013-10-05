@@ -98,6 +98,7 @@ int main(void)
   DEBUG(1,"");
   DEBUG(1,"ARM Firmware: %s",version);
   DEBUG(1,"");
+
   DEBUG(1,"Built upon work by Dennis van Weeren & Jakub Bednarski");
   MSG_info("Using %s",FF_REVISION);
   DEBUG(1,"               by James Walmsley");

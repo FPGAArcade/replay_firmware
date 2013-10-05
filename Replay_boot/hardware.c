@@ -89,11 +89,74 @@ uint8_t IO_Input_L(uint32_t pin)  // returns true if pin low
   else
     return FALSE;
 }
+
+//
+// IRQ
+//
+#define IRQ_MASK 0x00000080
+
+static inline unsigned __get_cpsr(void)
+{
+  unsigned long retval;
+  asm volatile (" mrs  %0, cpsr" : "=r" (retval) : /* no inputs */  );
+  return retval;
+}
+
+static inline void __set_cpsr(unsigned val)
+{
+  asm volatile (" msr  cpsr, %0" : /* no outputs */ : "r" (val)  );
+}
+
+unsigned disableIRQ(void)
+{
+  unsigned _cpsr;
+
+  _cpsr = __get_cpsr();
+  __set_cpsr(_cpsr | IRQ_MASK);
+  return _cpsr;
+}
+
+unsigned enableIRQ(void)
+{
+  unsigned _cpsr;
+
+  _cpsr = __get_cpsr();
+  __set_cpsr(_cpsr & ~IRQ_MASK);
+  return _cpsr;
+}
+
 //
 // USART
 //
+
+// for RX, we use a software ring buffer as we are interested in any character
+// as soon as it is received.
+volatile uint8_t USART_rxbuf[16];
+volatile int16_t USART_rxptr, USART_rdptr;
+
+// for TX, we use a hardware buffer triggered to be sent when full or on a CR.
+volatile uint8_t USART_txbuf[64];
+volatile int16_t USART_txptr, USART_wrptr;
+
+void ISR_USART(void)
+{
+  uint32_t isr_status = AT91C_BASE_US0->US_CSR;
+
+  // returns if no character
+  if (!(isr_status & AT91C_US_RXRDY))
+    return;
+
+  USART_rxbuf[USART_rxptr] = AT91C_BASE_US0->US_RHR;
+  USART_rxptr = (USART_rxptr+1) & 15;
+}
+
 void USART_Init(unsigned long baudrate)
 {
+  void (*handler)(void) = &ISR_USART;
+
+  // disable IRQ on ARM
+  disableIRQ();
+
   // Configure PA5 and PA6 for USART0 use
   AT91C_BASE_PIOA->PIO_PDR = AT91C_PA5_RXD0 | AT91C_PA6_TXD0;
   // disable pullup on output
@@ -111,8 +174,27 @@ void USART_Init(unsigned long baudrate)
   // Configure the USART0 @115200 bauds
   AT91C_BASE_US0->US_BRGR = BOARD_MCK / 16 / baudrate;
 
+  // Disable AIC interrupt first
+  AT91C_BASE_AIC->AIC_IDCR = 1 << AT91C_ID_US0;
+  
+  // Configure AIC interrupt mode and handler
+  AT91C_BASE_AIC->AIC_SMR[AT91C_ID_US0] = 0;
+  AT91C_BASE_AIC->AIC_SVR[AT91C_ID_US0] = (int32_t)handler;
+
+  // Clear AIC interrupt
+  AT91C_BASE_AIC->AIC_ICCR = 1 << AT91C_ID_US0;
+
+  // Enable AIC interrupt
+  AT91C_BASE_AIC->AIC_IECR = 1 << AT91C_ID_US0;
+
   // Enable receiver & transmitter
   AT91C_BASE_US0->US_CR = AT91C_US_RXEN | AT91C_US_TXEN;
+
+  // Enable USART RX interrupt
+  AT91C_BASE_US0->US_IER = AT91C_US_RXRDY;
+
+  // enable IRQ on ARM
+  enableIRQ();
 }
 
 void USART_Putc(void* p, char c)
@@ -124,13 +206,46 @@ void USART_Putc(void* p, char c)
 
 uint8_t USART_Getc(void)
 {
-  // returns 0 if no character
-  if (!(AT91C_BASE_US0->US_CSR & AT91C_US_RXRDY))
-    return 0;
-  else {
-    AT91C_BASE_US0->US_CR = AT91C_US_RXEN | AT91C_US_TXEN | AT91C_US_RSTSTA;
-    return (AT91C_BASE_US0->US_RHR & 0xFF);
+  uint8_t val;
+  if (USART_rxptr!=USART_rdptr) {
+    val = USART_rxbuf[USART_rdptr];
+    USART_rdptr = (USART_rdptr+1)&15;
+  } else {
+    val=0;
   }
+  return val;
+}
+
+uint8_t USART_Peekc(void)
+{
+  uint8_t val;
+  if (USART_rxptr!=USART_rdptr) {
+    val = USART_rxbuf[USART_rdptr];
+  } else {
+    val=0;
+  }
+  return val;
+}
+
+inline int16_t USART_CharAvail(void)
+{
+  return (16+USART_rxptr-USART_rdptr)&15;
+}
+
+int16_t USART_GetBuf(const uint8_t buf[], int16_t len)
+{
+  uint16_t i;
+
+  if (USART_CharAvail()<len) return 0; // not enough chars to compare
+
+  for (i=0;i<len;++i) {
+    if (USART_rxbuf[(USART_rdptr+i)&15]!=buf[i]) break;
+  }
+  if (i!=len) return 0; // no match
+
+  // got it, remove chars from buffer
+  USART_rdptr = (USART_rdptr+len)&15;
+  return 1;
 }
 
 //

@@ -26,7 +26,10 @@
 
 #define REPEATDELAY     500         // repeat delay in 1ms units
 #define REPEATRATE      50          // repeat rate in 1ms units
-#define BUTTONDELAY     100         //
+
+#define BUTTONDELAY     100         // replay button delay in 1ms units
+
+#define SERIALDELAY     1           // serial timeout delay in 1ms units
 
 #define STF_NEWKEY 0x01
 

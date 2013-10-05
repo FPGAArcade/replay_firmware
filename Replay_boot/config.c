@@ -501,29 +501,32 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
           else if (MATCH(value,"NTSC")) {
               Configure_ClockGen(&init_clock_config_ntsc);
             }
-            else {
-              ini_list_t valueList[32];
-              uint16_t entries = ParseList(value,valueList,32);
-              if (entries==24) {
-                // temporary map to structure required for setup routine
-                clockconfig_t clkcfg = {
-                  valueList[0].intval, valueList[1].intval,       // pll1 m,n
-                  valueList[2].intval, valueList[3].intval,       // pll2 m,n
-                  valueList[4].intval, valueList[5].intval,       // pll3 m,n
-                  { valueList[6].intval, valueList[7].intval,
-                    valueList[8].intval, valueList[9].intval,
-                    valueList[10].intval,valueList[11].intval, },//p0,1,2,3,4,5
-                  { valueList[12].intval,valueList[13].intval,
-                    valueList[14].intval,valueList[15].intval,
-                    valueList[16].intval,valueList[17].intval, },//d0,1,2,3,4,5
-                  { valueList[18].intval,valueList[19].intval,
-                    valueList[20].intval,valueList[21].intval,
-                    valueList[22].intval,valueList[23].intval  } //y0,1,2,3,4,5
-                };
-                Configure_ClockGen(&clkcfg);
+            else if (MATCH(value,"HD74")) {
+                Configure_ClockGen(&init_clock_config_hd74);
               }
-              else return 1;
-            }
+              else {
+                ini_list_t valueList[32];
+                uint16_t entries = ParseList(value,valueList,32);
+                if (entries==24) {
+                  // temporary map to structure required for setup routine
+                  clockconfig_t clkcfg = {
+                    valueList[0].intval, valueList[1].intval,       // pll1 m,n
+                    valueList[2].intval, valueList[3].intval,       // pll2 m,n
+                    valueList[4].intval, valueList[5].intval,       // pll3 m,n
+                    { valueList[6].intval, valueList[7].intval,
+                      valueList[8].intval, valueList[9].intval,
+                      valueList[10].intval,valueList[11].intval, },//p0,1,2,3,4,5
+                    { valueList[12].intval,valueList[13].intval,
+                      valueList[14].intval,valueList[15].intval,
+                      valueList[16].intval,valueList[17].intval, },//d0,1,2,3,4,5
+                    { valueList[18].intval,valueList[19].intval,
+                      valueList[20].intval,valueList[21].intval,
+                      valueList[22].intval,valueList[23].intval  } //y0,1,2,3,4,5
+                  };
+                  Configure_ClockGen(&clkcfg);
+                }
+                else return 1;
+              }
         }
                                        // =====================
         if (name==INI_CODER) {        // ===> CODER CONFIGURATION (OPTIONAL)

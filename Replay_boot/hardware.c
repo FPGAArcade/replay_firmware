@@ -135,7 +135,7 @@ volatile uint8_t USART_rxbuf[16];
 volatile int16_t USART_rxptr, USART_rdptr;
 
 // for TX, we use a hardware buffer triggered to be sent when full or on a CR.
-volatile uint8_t USART_txbuf[64];
+volatile uint8_t USART_txbuf[128];
 volatile int16_t USART_txptr, USART_wrptr;
 
 void ISR_USART(void)
@@ -198,9 +198,27 @@ void USART_Init(unsigned long baudrate)
 }
 
 void USART_Putc(void* p, char c)
-{
-  while (!(AT91C_BASE_US0->US_CSR & AT91C_US_TXEMPTY));
-  AT91C_BASE_US0->US_THR = c;
+{ 
+  // if both PDC channels are blocked, we still have to wait --> bad luck...
+  while (AT91C_BASE_US0->US_TNCR) ;
+  // ok, thats the simplest solution - we could still continue in some cases,
+  // but I am not sure if it is worth the effort...
+
+  USART_txbuf[USART_wrptr]=c;
+  USART_wrptr=(USART_wrptr+1)&127;
+  if ((c=='\n')||(!USART_wrptr)) {
+    // flush the buffer now (end of line, end of buffer reached or buffer full)
+    if ((AT91C_BASE_US0->US_TCR==0)&&(AT91C_BASE_US0->US_TNCR==0)) {
+      AT91C_BASE_US0->US_TPR = (uint32_t)&(USART_txbuf[USART_txptr]);
+      AT91C_BASE_US0->US_TCR = (128+USART_wrptr-USART_txptr)&127;
+      AT91C_BASE_US0->US_PTCR = AT91C_PDC_TXTEN;
+      USART_txptr=USART_wrptr;
+    } else if (AT91C_BASE_US0->US_TNCR==0) {
+      AT91C_BASE_US0->US_TNPR = (uint32_t)&(USART_txbuf[USART_txptr]);
+      AT91C_BASE_US0->US_TNCR = (128+USART_wrptr-USART_txptr)&127;      
+      USART_txptr=USART_wrptr;
+    }
+  }
 }
 
 

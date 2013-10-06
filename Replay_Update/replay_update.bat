@@ -20,5 +20,7 @@ echo # B: Switch the board off for min. 5 seconds, then on again       #
 echo # C: If it still does not work, try again above update procedure  #
 echo #                                                                 #
 echo ###################################################################
-FW\usbdl load FW\main.s19
-
+cd FW
+if exist bootrom.bin usbdl full main.s19
+if not exist bootrom.bin usbdl load main.s19
+cd ..

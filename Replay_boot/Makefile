@@ -8,6 +8,9 @@
 # Released to the Public Domain
 # Please read the make user manual!
 #
+# Addons by W. Scherr (ws_arcade <at> pin4.at):
+#   - separate build directory for binaries
+#   - added build-number-generator for created binaries
 #
 # On command line:
 #
@@ -43,6 +46,9 @@
 
 # object, list, etc. directory
 OUTPUT_DIR = build
+
+# build number
+BUILD_NUM = $$(./buildnum)
 
 # MCU name and submodel
 MCU      = arm7tdmi
@@ -181,6 +187,8 @@ endif
 
 CDEFS += -D__WinARM__
 ADEFS += -D__WinARM__
+
+CDEFS += -D__BUILDNUMBER__=\"$(BUILD_NUM)\"
 
 # Compiler flags.
 
@@ -365,6 +373,7 @@ sym: $(BUILDDIR)$(TARGET).sym
 begin:
 	@echo
 	@echo $(MSG_BEGIN)
+	@touch main.c
 
 finished:
 	@echo $(MSG_ERRORS_NONE)

@@ -16,7 +16,7 @@
 #include "osd.h"
 #include "messaging.h"
 
-const char version[] = {"15Aug13_r0"}; // note /0 added automatically
+const char version[] = {__BUILDNUMBER__};
 
 // GLOBALS
 uint8_t  fatBuf[FS_FATBUF_SIZE]; // used by file system
@@ -26,37 +26,6 @@ FF_IOMAN *pIoman = NULL;
 
 int main(void)
 {
-// some hardcoded profiles
-
-  // PLL CONFIGURATION
-  // =================
-  //
-  // Can be set independent of FPGA
-  //
-  // input clock = 27MHz
-  //
-  // output = (27 * n / m) / p
-  //
-  // Examples:
-  //
-  // PAL  17.73447                M= 46 N= 423 Fvco=248     p=14 output = 17.73447
-  // PAL  28.37516 x 2 = 56.75032 M=481 N=4044 Fvco=227     p=4  output = 56.75052 error = 3.5ppm
-  // NTSC 14.31818                M= 33 N= 280 Fvco=229     p=16 output = 14.31818
-  // NTSC 28.63636 x 2 = 57.27272 M= 33 N= 280 Fvco=229     p=4  output = 57.27272
-  //                              M=375 n=2048 Fvco=147.456 p=12 output = 12.288MHz
-  //
-  // px sel 0 = bypass(input clock) 1 = pll1 2 = pll2 4 = pll3
-  // dx div (divider) 0-127 divider value
-  // yx sel 1 = on, 0 = off
-  //
-  // y0 - FPGA DRAM/sys clk
-  // y1 - Coder
-  // y2 - FPGA aux/audio clk
-  // y3 - Expansion Main
-  // y4 - FPGA video
-  // y5 - Expansion Small
-  //
-
   // initialise
   Hardware_Init(); // Initialise board hardware
   init_printf(NULL, USART_Putc); // Initialise printf

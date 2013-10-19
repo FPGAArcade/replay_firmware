@@ -36,23 +36,27 @@
 typedef struct
 {
     FF_FILE *fSource;
+    uint8_t  name[MAX_DISPLAY_FILENAME]; /*HDD file name*/
+    uint16_t present;
     uint16_t cylinders;
     uint16_t heads;
     uint16_t sectors;
+    uint16_t size;
     uint16_t sectors_per_block;
-    //uint32_t index[1024];
-    //uint32_t index_size;
-    char     name[MAX_DISPLAY_FILENAME]; /*floppy name*/
 } hdfTYPE;
 
-/*void IdentifyDevice(uint16_t *pBuffer, uint8_t unit);
-unsigned long chs2lba(unsigned short cylinder, unsigned char head, unsigned short sector, unsigned char unit);
-void WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned char sector_number, unsigned char cylinder_low, unsigned char cylinder_high, unsigned char drive_head);
-void WriteStatus(unsigned char status);
-void HandleHDD(unsigned char c1, unsigned char c2);
-void GetHardfileGeometry(hdfTYPE *hdf);
-void BuildHardfileIndex(hdfTYPE *hdf);
-unsigned char HardFileSeek(hdfTYPE *hdf, unsigned long lba);
-unsigned char OpenHardfile(unsigned char unit);
-*/
+uint8_t HDD_OpenHardfile(char *filename, uint8_t unit);
+void HDD_GetHardfileGeometry(hdfTYPE *hdf);
+void HDD_BuildHardfileIndex(hdfTYPE *hdf);
+uint32_t HDD_chs2lba(uint16_t cylinder, uint8_t head, uint16_t sector, uint8_t unit);
+
+unsigned char HDD_HardFileSeek(hdfTYPE *pHDF, unsigned long lba);
+void HDD_IdentifyDevice(uint16_t *pBuffer, uint8_t unit);
+
+void HDD_FileRead(FF_FILE *fSource);
+void HDD_FileReadEx(FF_FILE *fSource, uint16_t block_count);
+
+void HDD_WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned char sector_number, unsigned char cylinder_low, unsigned char cylinder_high, unsigned char drive_head);
+void HDD_WriteStatus(unsigned char status);
+void HDD_HandleHDD(unsigned char c1, unsigned char c2);
 #endif

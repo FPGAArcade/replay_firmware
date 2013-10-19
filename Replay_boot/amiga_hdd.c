@@ -1,36 +1,48 @@
 
 #include "hardware.h"
 #include "config.h"
+#include "messaging.h"
 #include "amiga_hdd.h"
 
-extern uint8_t DEBUG;
+const uint8_t HDD_DEBUG = 0;
+
+/** @brief extern link to sdcard i/o manager
+
+  Having this here is "ugly", but ff_ioman declares this "prototype"
+  in the header which is actually code and should be in the .c file.
+  Won't fix for now to avoid issues with the fullfat stuff....
+
+  Usually it should be part of the module header where it belongs to,
+  not at all in this .h/.c file...
+*/
+extern FF_IOMAN *pIoman;
+
 // hardfile structure
 hdfTYPE hdf[2];
 
 // helper function for byte swapping
-void SwapBytes(uint8_t *ptr, uint32_t len)
+// modfified the code for a less elegant version, but gives no more warning!
+void HDD_SwapBytes(uint8_t *ptr, uint32_t len)
 {
   uint8_t x;
   len >>= 1;
   while (len--) {
-    x = *ptr;
-    *ptr++ = ptr[1];
-    *ptr++ = x;
+    x = ptr[0];
+    ptr[0] = ptr[1];
+    ptr[1] = x;
+    ptr += 2;
   }
 }
 
-uint32_t chs2lba(uint16_t cylinder, uint8_t head, uint16_t sector, uint8_t unit)
+uint32_t HDD_chs2lba(uint16_t cylinder, uint8_t head, uint16_t sector, uint8_t unit)
 {
   return(cylinder * hdf[unit].heads + head) * hdf[unit].sectors + sector - 1;
 }
-
-
 
 void HDD_IdentifyDevice(uint16_t *pBuffer, uint8_t unit)
 { // builds Identify Device struct
 
   char *p;
-  uint8_t i, x;
   uint32_t total_sectors = hdf[unit].cylinders * hdf[unit].heads * hdf[unit].sectors;
 
   memset(pBuffer, 0, 512);
@@ -39,21 +51,14 @@ void HDD_IdentifyDevice(uint16_t *pBuffer, uint8_t unit)
   pBuffer[1] = hdf[unit].cylinders; // cyl count
   pBuffer[3] = hdf[unit].heads;     // head count
   pBuffer[6] = hdf[unit].sectors;   // sectors per track
-  memcpy((char*)&pBuffer[10], "1234567890ABCDEFGHIJ", 20); // serial number - byte swapped
-  memcpy((char*)&pBuffer[23], ".100    ", 8); // firmware version - byte swapped
-  // model name
+  memcpy((char*)&pBuffer[10], "1234567890ABCDEFGHIJ", 20); // serial number
+  memcpy((char*)&pBuffer[23], ".100    ", 8); // firmware version
+  //
   p = (char*)&pBuffer[27];
   memcpy(p, "Replay                                  ", 40); // model name - byte swapped
   p += 8;
-  /*
-  if (config.hardfile[unit].long_name[0]) {
-    for (i = 0; (x = config.hardfile[unit].long_name[i]) && i < 16; i++) // copy file name as model name
-    p[i] = x;
-  } else {
-    memcpy(p, config.hardfile[unit].name, 8); // copy file name as model name
-  }
-  */
-  SwapBytes((char*)&pBuffer[27], 40);
+  strncpy(p,(char *)hdf[unit].name,16);      // file name as part of model name - byte swapped
+  HDD_SwapBytes((uint8_t*)&pBuffer[27], 40);
   //
   pBuffer[47] = 0x8010; //maximum sectors per block in Read/Write Multiple command
   pBuffer[53] = 1;
@@ -66,10 +71,9 @@ void HDD_IdentifyDevice(uint16_t *pBuffer, uint8_t unit)
   pBuffer[61] = (uint16_t)(total_sectors >> 16);
 }
 
-void WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned char sector_number, unsigned char cylinder_low, unsigned char cylinder_high, unsigned char drive_head)
+void HDD_WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned char sector_number, unsigned char cylinder_low, unsigned char cylinder_high, unsigned char drive_head)
 {
-    /*
-    EnableFpga();
+    SPI_EnableFpga();
 
     SPI(CMD_IDE_REGS_WR); // write task file registers command
     SPI(0x00);
@@ -93,14 +97,12 @@ void WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned cha
     SPI(0x00);
     SPI(drive_head); // drive/head
 
-    DisableFpga();
-    */
+    SPI_DisableFpga();
 }
 
-void WriteStatus(unsigned char status)
+void HDD_WriteStatus(unsigned char status)
 {
-    /*
-    EnableFpga();
+    SPI_EnableFpga();
 
     SPI(CMD_IDE_STATUS_WR);
     SPI(status);
@@ -109,13 +111,11 @@ void WriteStatus(unsigned char status)
     SPI(0x00);
     SPI(0x00);
 
-    DisableFpga();
-    */
+    SPI_DisableFpga();
 }
 
-void HandleHDD(unsigned char c1, unsigned char c2)
+void HDD_HandleHDD(unsigned char c1, unsigned char c2)
 {
-    /*
     unsigned short id[256];
     unsigned char  tfr[8];
     unsigned short i;
@@ -126,294 +126,294 @@ void HandleHDD(unsigned char c1, unsigned char c2)
     unsigned long  lba;
     unsigned short sector_count;
     unsigned short block_count;
+    unsigned char  sector_buffer[512];
 
     if (c1 & CMD_IDECMD)
     {
-        DISKLED_ON;
-        EnableFpga();
-        SPI(CMD_IDE_REGS_RD); // read task file registers
+      ACTLED_ON;
+      SPI_EnableFpga();
+      SPI(CMD_IDE_REGS_RD); // read task file registers
+      SPI(0x00);
+      SPI(0x00);
+      SPI(0x00);
+      SPI(0x00);
+      SPI(0x00);
+      for (i = 0; i < 8; i++)
+      {
+          SPI(0);
+          tfr[i] = SPI(0);
+      }
+      SPI_DisableFpga();
+
+      unit = tfr[6] & 0x10 ? 1 : 0; // master/slave selection
+
+      #ifdef HDD_DEBUG
+        DEBUG(1,"IDE: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X",
+                tfr[0],tfr[1],tfr[2],tfr[3],tfr[4],tfr[5],tfr[6],tfr[7]);
+      #endif
+
+      if ((tfr[7] & 0xF0) == ACMD_RECALIBRATE) // Recalibrate 0x10-0x1F (class 3 command: no data)
+      {
+        DEBUG(2,"Recalibrate");
+        HDD_WriteTaskFile(0, 0, 1, 0, 0, tfr[6] & 0xF0);
+        HDD_WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
+      }
+      else if (tfr[7] == ACMD_EXECUTE_DEVICE_DIAGNOSTIC) // Execute Device Diagnostic
+      {
+        DEBUG(2,"Execute Device Diagnostic");
+        HDD_WriteTaskFile(0x01, 0x01, 0x01, 0x00, 0x00, 0x00);
+        HDD_WriteStatus(IDE_STATUS_END);
+      }
+      else if (tfr[7] == ACMD_IDENTIFY_DEVICE) // Identify Device
+      {
+        DEBUG(2,"Identify Device");
+        HDD_IdentifyDevice(id, unit);
+        HDD_WriteTaskFile(0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+        HDD_WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
+        SPI_EnableFpga();
+        SPI(CMD_IDE_DATA_WR); // write data command
         SPI(0x00);
         SPI(0x00);
         SPI(0x00);
         SPI(0x00);
         SPI(0x00);
-        for (i = 0; i < 8; i++)
+        for (i = 0; i < 256; i++)
         {
-            SPI(0);
-            tfr[i] = SPI(0);
+            SPI((unsigned char)id[i]);
+            SPI((unsigned char)(id[i] >> 8));
         }
-        DisableFpga();
+        SPI_DisableFpga();
+        HDD_WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
+      }
+      else if (tfr[7] == ACMD_INITIALIZE_DEVICE_PARAMETERS) // Initiallize Device Parameters
+      {
+        DEBUG(2,"Initialize Device Parameters");
+        HDD_WriteTaskFile(0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+        HDD_WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
+      }
+      else if (tfr[7] == ACMD_SET_MULTIPLE_MODE) // Set Multiple Mode
+      {
+        hdf[unit].sectors_per_block = tfr[2];
 
-        unit = tfr[6] & 0x10 ? 1 : 0; // master/slave selection
+        DEBUG(2,"Set Multiple Mode");
+        HDD_WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
+      }
+      else if (tfr[7] == ACMD_READ_SECTORS) // Read Sectors
+      {
+        HDD_WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
 
-        #ifdef DEBUG
-            printf("IDE:");
-            for (i = 1; i < 7; i++)
-                printf("%02X.",tfr[i]);
-            printf("%02X\n", tfr[7]);
+        sector = tfr[3];
+        cylinder = tfr[4] | tfr[5]<<8;
+        head = tfr[6] & 0x0F;
+
+        if (tfr[6] & 0x40)
+           lba = head<<24 | cylinder<<8 | sector;
+        else
+            lba =  HDD_chs2lba(cylinder, head, sector, unit);
+
+        sector_count = tfr[2];
+        if (sector_count == 0)
+           sector_count = 0x100;
+
+        if (hdf[unit].size)
+            HDD_HardFileSeek(&hdf[unit], lba);
+
+        while (sector_count)
+        {
+            #warning TODO - FPGA_Status
+            //while (!(SPI_GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
+
+            HDD_WriteStatus(IDE_STATUS_IRQ);
+
+            if (FF_BytesLeft(hdf[unit].fSource))
+            {
+                HDD_FileRead(hdf[unit].fSource);
+                FF_Seek(hdf[unit].fSource, 1, FF_SEEK_CUR);
+            }
+
+            sector_count--; // decrease sector count
+        }
+      }
+      else if (tfr[7] == ACMD_READ_MULTIPLE) // Read Multiple Sectors (multiple sector transfer per IRQ)
+      {
+        HDD_WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
+
+        sector = tfr[3];
+        cylinder = tfr[4] | tfr[5]<<8;
+        head = tfr[6] & 0x0F;
+
+        if (tfr[6] & 0x40)
+           lba = head<<24 | cylinder<<8 | sector;
+        else
+            lba =  HDD_chs2lba(cylinder, head, sector, unit);
+
+        sector_count = tfr[2];
+        if (sector_count == 0)
+           sector_count = 0x100;
+
+        #ifdef DEBUG_READ_MULTIPLE
+        DEBUG(3,"unit     : %d\n", unit);
+        DEBUG(3,"sector   : %d\n", sector);
+        DEBUG(3,"cylinder : %d\n", cylinder);
+        DEBUG(3,"head     : %d\n", head);
+        DEBUG(3,"lba      : %ld\n", lba);
+        DEBUG(3,"count    : %d\n", sector_count);
         #endif
 
-        if ((tfr[7] & 0xF0) == ACMD_RECALIBRATE) // Recalibrate 0x10-0x1F (class 3 command: no data)
+        if (hdf[unit].size)
+            HDD_HardFileSeek(&hdf[unit], lba);
+
+        while (sector_count)
         {
-            printf("Recalibrate\n");
-            WriteTaskFile(0, 0, 1, 0, 0, tfr[6] & 0xF0);
-            WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
+          #warning TODO - FPGA_Status
+          //while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
+
+          block_count = sector_count;
+          if (block_count > hdf[unit].sectors_per_block)
+              block_count = hdf[unit].sectors_per_block;
+
+          HDD_WriteStatus(IDE_STATUS_IRQ);
+
+          if (FF_BytesLeft(hdf[unit].fSource))
+              HDD_FileReadEx(hdf[unit].fSource, block_count);
+
+          // this was already commented out...
+          //HDD_WriteStatus(IDE_STATUS_IRQ);
+
+          sector_count -= block_count; // decrease sector count
         }
-        else if (tfr[7] == ACMD_EXECUTE_DEVICE_DIAGNOSTIC) // Execute Device Diagnostic
-        {
-            printf("Execute Device Diagnostic\n");
-            WriteTaskFile(0x01, 0x01, 0x01, 0x00, 0x00, 0x00);
-            WriteStatus(IDE_STATUS_END);
-        }
-        else if (tfr[7] == ACMD_IDENTIFY_DEVICE) // Identify Device
-        {
-            printf("Identify Device\n");
-            IdentifyDevice(id, unit);
-            WriteTaskFile(0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
-            WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
-            EnableFpga();
-            SPI(CMD_IDE_DATA_WR); // write data command
-            SPI(0x00);
-            SPI(0x00);
-            SPI(0x00);
-            SPI(0x00);
-            SPI(0x00);
-            for (i = 0; i < 256; i++)
-            {
-                SPI((unsigned char)id[i]);
-                SPI((unsigned char)(id[i] >> 8));
-            }
-            DisableFpga();
-            WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
-        }
-        else if (tfr[7] == ACMD_INITIALIZE_DEVICE_PARAMETERS) // Initiallize Device Parameters
-        {
-            printf("Initialize Device Parameters\n");
-            WriteTaskFile(0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
-            WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
-        }
-        else if (tfr[7] == ACMD_SET_MULTIPLE_MODE) // Set Multiple Mode
-        {
-            hdf[unit].sectors_per_block = tfr[2];
+      }
+      else if (tfr[7] == ACMD_WRITE_SECTORS) // write sectors
+      {
+        HDD_WriteStatus(IDE_STATUS_REQ); // pio out (class 2) command type
 
-            printf("Set Multiple Mode\n");
-            WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
-        }
-        else if (tfr[7] == ACMD_READ_SECTORS) // Read Sectors
-        {
-            WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
+        sector = tfr[3];
+        cylinder = tfr[4] | tfr[5]<<8;
+        head = tfr[6] & 0x0F;
 
-            sector = tfr[3];
-            cylinder = tfr[4] | tfr[5]<<8;
-            head = tfr[6] & 0x0F;
-
-            if (tfr[6] & 0x40)
-               lba = head<<24 | cylinder<<8 | sector;
-            else
-                lba =  chs2lba(cylinder, head, sector, unit);
-
-            sector_count = tfr[2];
-            if (sector_count == 0)
-               sector_count = 0x100;
-
-            if (hdf[unit].file.size)
-                HardFileSeek(&hdf[unit], lba);
-
-            while (sector_count)
-            {
-                while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
-
-                WriteStatus(IDE_STATUS_IRQ);
-
-                if (hdf[unit].file.size)
-                {
-                    FileRead(&hdf[unit].file, NULL);
-                    FileSeek(&hdf[unit].file, 1, SEEK_CUR);
-                }
-
-                sector_count--; // decrease sector count
-            }
-        }
-        else if (tfr[7] == ACMD_READ_MULTIPLE) // Read Multiple Sectors (multiple sector transfer per IRQ)
-        {
-            WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
-
-            sector = tfr[3];
-            cylinder = tfr[4] | tfr[5]<<8;
-            head = tfr[6] & 0x0F;
-
-            if (tfr[6] & 0x40)
-               lba = head<<24 | cylinder<<8 | sector;
-            else
-                lba =  chs2lba(cylinder, head, sector, unit);
-
-            sector_count = tfr[2];
-            if (sector_count == 0)
-               sector_count = 0x100;
-
-            #ifdef DEBUG_READ_MULTIPLE
-            printf("unit     : %d\n", unit);
-            printf("sector   : %d\n", sector);
-            printf("cylinder : %d\n", cylinder);
-            printf("head     : %d\n", head);
-            printf("lba      : %ld\n", lba);
-            printf("count    : %d\n", sector_count);
-            #endif
-
-            if (hdf[unit].file.size)
-                HardFileSeek(&hdf[unit], lba);
-
-            while (sector_count)
-            {
-                while (!(GetFPGAStatus() & CMD_IDECMD)); // wait for empty sector buffer
-
-                block_count = sector_count;
-                if (block_count > hdf[unit].sectors_per_block)
-                    block_count = hdf[unit].sectors_per_block;
-
-                WriteStatus(IDE_STATUS_IRQ);
-
-                if (hdf[unit].file.size)
-                    FileReadEx(&hdf[unit].file, NULL, block_count); // NULL enables direct transfer to the FPGA
-
-                //WriteStatus(IDE_STATUS_IRQ);
-
-                sector_count -= block_count; // decrease sector count
-            }
-        }
-        else if (tfr[7] == ACMD_WRITE_SECTORS) // write sectors
-        {
-            WriteStatus(IDE_STATUS_REQ); // pio out (class 2) command type
-
-            sector = tfr[3];
-            cylinder = tfr[4] | tfr[5]<<8;
-            head = tfr[6] & 0x0F;
-
-            if (tfr[6] & 0x40)
-               lba = head<<24 | cylinder<<8 | sector;
-            else
-                lba =  chs2lba(cylinder, head, sector, unit);
-
-            sector_count = tfr[2];
-            if (sector_count == 0)
-                sector_count = 0x100;
-
-            if (hdf[unit].file.size)
-                HardFileSeek(&hdf[unit], lba);
-
-            while (sector_count)
-            {
-                while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
-
-                EnableFpga();
-                SPI(CMD_IDE_DATA_RD); // read data command
-                SPI(0x00);
-                SPI(0x00);
-                SPI(0x00);
-                SPI(0x00);
-                SPI(0x00);
-                for (i = 0; i < 512; i++)
-                    sector_buffer[i] = SPI(0xFF);
-                DisableFpga();
-
-                sector_count--; // decrease sector count
-
-                if (sector_count)
-                    WriteStatus(IDE_STATUS_IRQ);
-                else
-                    WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
-
-                if (hdf[unit].file.size)
-                {
-                    FileWrite(&hdf[unit].file, sector_buffer);
-                    FileSeek(&hdf[unit].file, 1, SEEK_CUR);
-                }
-            }
-        }
-        else if (tfr[7] == ACMD_WRITE_MULTIPLE) // write sectors
-        {
-            WriteStatus(IDE_STATUS_REQ); // pio out (class 2) command type
-
-            sector = tfr[3];
-            cylinder = tfr[4] | tfr[5]<<8;
-            head = tfr[6] & 0x0F;
-
-            if (tfr[6] & 0x40)
-               lba = head<<24 | cylinder<<8 | sector;
-            else
-                lba =  chs2lba(cylinder, head, sector, unit);
-
-            sector_count = tfr[2];
-            if (sector_count == 0)
-                sector_count = 0x100;
-
-            if (hdf[unit].file.size)
-                HardFileSeek(&hdf[unit], lba);
-
-            while (sector_count)
-            {
-                block_count = sector_count;
-                if (block_count > hdf[unit].sectors_per_block)
-                    block_count = hdf[unit].sectors_per_block;
-
-                while (block_count)
-                {
-                    while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
-
-                    EnableFpga();
-                    SPI(CMD_IDE_DATA_RD); // read data command
-                    SPI(0x00);
-                    SPI(0x00);
-                    SPI(0x00);
-                    SPI(0x00);
-                    SPI(0x00);
-                    for (i = 0; i < 512; i++)
-                        sector_buffer[i] = SPI(0xFF);
-                    DisableFpga();
-
-                    if (hdf[unit].file.size)
-                    {
-                        FileWrite(&hdf[unit].file, sector_buffer);
-                        FileSeek(&hdf[unit].file, 1, SEEK_CUR);
-                    }
-
-                    block_count--;  // decrease block count
-                    sector_count--; // decrease sector count
-                }
-
-                if (sector_count)
-                    WriteStatus(IDE_STATUS_IRQ);
-                else
-                    WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
-            }
-        }
+        if (tfr[6] & 0x40)
+           lba = head<<24 | cylinder<<8 | sector;
         else
-        {
-            printf("Unknown ATA command\n");
+            lba =  HDD_chs2lba(cylinder, head, sector, unit);
 
-            printf("IDE:");
-            for (i = 1; i < 7; i++)
-                printf("%02X.", tfr[i]);
-            printf("%02X\n", tfr[7]);
-            WriteTaskFile(0x04, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
-            WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ | IDE_STATUS_ERR);
+        sector_count = tfr[2];
+        if (sector_count == 0)
+            sector_count = 0x100;
+
+        if (hdf[unit].size)
+            HDD_HardFileSeek(&hdf[unit], lba);
+
+        while (sector_count)
+        {
+          #warning TODO - FPGA_Status
+          //while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
+
+          SPI_EnableFpga();
+          SPI(CMD_IDE_DATA_RD); // read data command
+          SPI(0x00);
+          SPI(0x00);
+          SPI(0x00);
+          SPI(0x00);
+          SPI(0x00);
+          for (i = 0; i < 512; i++)
+            sector_buffer[i] = SPI(0xFF);
+          SPI_DisableFpga();
+
+          sector_count--; // decrease sector count
+
+          if (sector_count)
+            HDD_WriteStatus(IDE_STATUS_IRQ);
+          else
+            HDD_WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
+
+          if (hdf[unit].size)
+          {
+            FF_Write(hdf[unit].fSource,512,1,sector_buffer);
+            FF_Seek(hdf[unit].fSource, 1, FF_SEEK_CUR);
+          }
         }
-        DISKLED_OFF;
+      }
+      else if (tfr[7] == ACMD_WRITE_MULTIPLE) // write sectors
+      {
+        HDD_WriteStatus(IDE_STATUS_REQ); // pio out (class 2) command type
+
+        sector = tfr[3];
+        cylinder = tfr[4] | tfr[5]<<8;
+        head = tfr[6] & 0x0F;
+
+        if (tfr[6] & 0x40)
+           lba = head<<24 | cylinder<<8 | sector;
+        else
+            lba =  HDD_chs2lba(cylinder, head, sector, unit);
+
+        sector_count = tfr[2];
+        if (sector_count == 0)
+            sector_count = 0x100;
+
+        if (hdf[unit].size)
+            HDD_HardFileSeek(&hdf[unit], lba);
+
+        while (sector_count)
+        {
+          block_count = sector_count;
+          if (block_count > hdf[unit].sectors_per_block)
+              block_count = hdf[unit].sectors_per_block;
+
+          while (block_count)
+          {
+            #warning TODO - FPGA_Status
+            //while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
+
+            SPI_EnableFpga();
+            SPI(CMD_IDE_DATA_RD); // read data command
+            SPI(0x00);
+            SPI(0x00);
+            SPI(0x00);
+            SPI(0x00);
+            SPI(0x00);
+            for (i = 0; i < 512; i++)
+                sector_buffer[i] = SPI(0xFF);
+            SPI_DisableFpga();
+
+            if (hdf[unit].size)
+            {
+              FF_Write(hdf[unit].fSource,512,1,sector_buffer);
+              FF_Seek(hdf[unit].fSource, 1, FF_SEEK_CUR);
+            }
+
+            block_count--;  // decrease block count
+            sector_count--; // decrease sector count
+          }
+
+          if (sector_count)
+              HDD_WriteStatus(IDE_STATUS_IRQ);
+          else
+              HDD_WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
+        }
+      }
+      else
+      {
+        WARNING("Unknown ATA command:");
+        WARNING("%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X",
+             tfr[0],tfr[1],tfr[2],tfr[3],tfr[4],tfr[5],tfr[6],tfr[7]);
+        HDD_WriteTaskFile(0x04, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+        HDD_WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ | IDE_STATUS_ERR);
+      }
+      ACTLED_OFF;
     }
-    */
 }
 
-void GetHardfileGeometry(hdfTYPE *pHDF)
+void HDD_GetHardfileGeometry(hdfTYPE *pHDF)
 { // this function comes from WinUAE, should return the same CHS as WinUAE
-    /*
     unsigned long total;
     unsigned long i, head, cyl, spt;
     unsigned long sptt[] = { 63, 127, 255, -1 };
+    unsigned long size = FF_BytesLeft(pHDF->fSource);
 
-    if (pHDF->file.size == 0)
+    if (size == 0)
         return;
 
-    total = pHDF->file.size / 512;
+    total = size / 512;
 
     for (i = 0; sptt[i] >= 0; i++)
     {
@@ -421,7 +421,7 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
         for (head = 4; head <= 16; head++)
         {
             cyl = total / (head * spt);
-            if (pHDF->file.size <= 512 * 1024 * 1024)
+            if (size <= 512 * 1024 * 1024)
             {
                 if (cyl <= 1023)
                     break;
@@ -442,83 +442,44 @@ void GetHardfileGeometry(hdfTYPE *pHDF)
     pHDF->cylinders = (unsigned short)cyl;
     pHDF->heads = (unsigned short)head;
     pHDF->sectors = (unsigned short)spt;
-  */
+    pHDF->size = size;
 }
 
-void BuildHardfileIndex(hdfTYPE *pHDF)
+unsigned char HDD_HardFileSeek(hdfTYPE *pHDF, unsigned long lba)
 {
-    // builds index to speed up hard file seek
-    /*
-    fileTYPE *file = &pHDF->file;
-    unsigned long *index = pHDF->index;
-    unsigned long i;
-    unsigned long j;
-
-    pHDF->index_size = 16; // indexing size
-    j = 1 << pHDF->index_size;
-    i = pHDF->file.size >> 10; // divided by index table size (1024)
-    while (j < i) // find greater or equal power of two
-    {
-        j <<= 1;
-        pHDF->index_size++;
-    }
-
-    for (i = 0; i < file->size; i += j)
-    {
-        FileSeek(file, i >> 9, SEEK_SET); // FileSeek seeks in 512-byte sectors
-        *index++ = file->cluster;
-    }
-    */
+  return FF_Seek(pHDF->fSource, lba*512, FF_SEEK_SET);
 }
 
-unsigned char HardFileSeek(hdfTYPE *pHDF, unsigned long lba)
+uint8_t HDD_OpenHardfile(char *filename, uint8_t unit)
 {
-    /*
-    if ((pHDF->file.sector ^ lba) & cluster_mask)
-    { // different clusters
-        if ((pHDF->file.sector > lba) || ((pHDF->file.sector ^ lba) & (cluster_mask << (fat32 ? 7 : 8)))) // 7: 128 FAT32 links per sector, 8: 256 FAT16 links per sector
-        { // requested cluster lies before current pointer position or in different FAT sector
-            pHDF->file.cluster = pHDF->index[lba >> (pHDF->index_size - 9)];// minus 9 because lba is in 512-byte sectors
-            pHDF->file.sector = lba & (-1 << (pHDF->index_size - 9));
-        }
-    }
-    return FileSeek(&pHDF->file, lba, SEEK_SET);
-    */
-    return 0;
+  uint32_t time = Timer_Get(0);
+  hdf[unit].present = 0;
+  hdf[unit].name[0] = 0;
+  hdf[unit].fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
+
+  if (hdf[unit].fSource)
+  {
+    HDD_GetHardfileGeometry(&hdf[unit]);
+    // we removed the indexing - assuming the fullfat stuff handles it good enough...
+    strncpy((char *)hdf[unit].name,filename,MAX_DISPLAY_FILENAME);
+    hdf[unit].present = 1;
+    time = Timer_Get(0) - time;
+
+    INFO("HDF (%s)",unit?"slave":"master");
+    INFO("SIZE: %lu (%lu MB)", hdf[unit].size, hdf[unit].size >> 20);
+    INFO("CHS : %u.%u.%u", hdf[unit].cylinders, hdf[unit].heads, hdf[unit].sectors);
+    INFO("      --> %lu MB", ((((unsigned long) hdf[unit].cylinders) * hdf[unit].heads * hdf[unit].sectors) >> 11));
+    INFO("Opened in %lu ms", time >> 20);
+    return 1;
+  }
+
+  return 0;
 }
 
-uint8_t OpenHardfile(uint8_t unit)
-{
+void HDD_FileRead(FF_FILE *fSource) {
+  #warning TODO: Read block from file and send to FPGA directly --> in mmc.c of original minimig firmware
+}
 
-    uint32_t time;
-    char filename[12];
-    /*
-    strncpy(filename, config.hardfile[unit].name, 8);
-    strcpy(&filename[8], "HDF");
-
-    if (filename[0])
-    {
-        if (FileOpen(&hdf[unit].file, filename))
-        {
-            GetHardfileGeometry(&hdf[unit]);
-
-            printf("HARDFILE %d:\n", unit);
-            printf("file: \"%.8s.%.3s\"\n", hdf[unit].file.name, &hdf[unit].file.name[8]);
-            printf("size: %lu (%lu MB)\n", hdf[unit].file.size, hdf[unit].file.size >> 20);
-            printf("CHS: %u.%u.%u", hdf[unit].cylinders, hdf[unit].heads, hdf[unit].sectors);
-            printf(" (%lu MB)\n", ((((unsigned long) hdf[unit].cylinders) * hdf[unit].heads * hdf[unit].sectors) >> 11));
-
-            time = GetTimer(0);
-            BuildHardfileIndex(&hdf[unit]);
-            time = GetTimer(0) - time;
-            printf("Hardfile indexed in %lu ms\n", time >> 20);
-
-            config.hardfile[unit].present = 1;
-            return 1;
-        }
-    }
-    */
-    //config.hardfile[unit].present = 0;
-
-    return 0;
+void HDD_FileReadEx(FF_FILE *fSource, uint16_t block_count) {
+  #warning TODO: Read blocks from file and send to FPGA --> in mmc.c of original minimig firmware
 }

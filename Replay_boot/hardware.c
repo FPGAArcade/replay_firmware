@@ -1,7 +1,14 @@
+// hardware abstraction layer for Sam7S
 
 #include "hardware.h"
 #include "messaging.h"
-// hardware abstraction layer for Sam7S
+
+#define USB_USART 0
+
+#if USB_USART==1
+  #include"cdc_enumerate.h"
+  extern struct _AT91S_CDC pCDC;
+#endif
 
 //
 // General
@@ -152,6 +159,9 @@ void ISR_USART(void)
 
 void USART_Init(unsigned long baudrate)
 {
+#if USB_USART==1
+  USB_Open();
+#else
   void (*handler)(void) = &ISR_USART;
 
   // disable IRQ on ARM
@@ -195,6 +205,28 @@ void USART_Init(unsigned long baudrate)
 
   // enable IRQ on ARM
   enableIRQ();
+#endif
+}
+
+void USART_update(void)
+{
+  #if USB_USART==1
+    if (pCDC.IsConfigured(&pCDC)) 
+    {
+      char data[16];
+      uint16_t length;
+      length = pCDC.Read(&pCDC,data, 16);
+      if (length) {
+        if ((length+USART_rxptr)>15) {
+          memcpy((void *)&(USART_rxbuf[USART_rxptr]),data,16-USART_rxptr);
+          memcpy((void *)USART_rxbuf,(void *)&(data[(16-USART_rxptr)]),length-(16-USART_rxptr));
+        } else {
+          memcpy((void *)&(USART_rxbuf[USART_rxptr]),data,length);
+        }
+        USART_rxptr = (USART_rxptr+length) & 15;
+      }
+    }
+  #endif
 }
 
 void USART_Putc(void* p, char c)
@@ -207,17 +239,26 @@ void USART_Putc(void* p, char c)
   USART_txbuf[USART_wrptr]=c;
   USART_wrptr=(USART_wrptr+1)&127;
   if ((c=='\n')||(!USART_wrptr)) {
-    // flush the buffer now (end of line, end of buffer reached or buffer full)
-    if ((AT91C_BASE_US0->US_TCR==0)&&(AT91C_BASE_US0->US_TNCR==0)) {
-      AT91C_BASE_US0->US_TPR = (uint32_t)&(USART_txbuf[USART_txptr]);
-      AT91C_BASE_US0->US_TCR = (128+USART_wrptr-USART_txptr)&127;
-      AT91C_BASE_US0->US_PTCR = AT91C_PDC_TXTEN;
-      USART_txptr=USART_wrptr;
-    } else if (AT91C_BASE_US0->US_TNCR==0) {
-      AT91C_BASE_US0->US_TNPR = (uint32_t)&(USART_txbuf[USART_txptr]);
-      AT91C_BASE_US0->US_TNCR = (128+USART_wrptr-USART_txptr)&127;      
-      USART_txptr=USART_wrptr;
-    }
+    #if USB_USART==1
+      if (pCDC.IsConfigured(&pCDC)) 
+      {
+        //pCDC.Write(&pCDC, data, length);
+        pCDC.Write(&pCDC, (const char *)&(USART_txbuf[USART_txptr]), (128+USART_wrptr-USART_txptr)&127);
+        USART_txptr=USART_wrptr;
+      }
+    #else
+      // flush the buffer now (end of line, end of buffer reached or buffer full)
+      if ((AT91C_BASE_US0->US_TCR==0)&&(AT91C_BASE_US0->US_TNCR==0)) {
+        AT91C_BASE_US0->US_TPR = (uint32_t)&(USART_txbuf[USART_txptr]);
+        AT91C_BASE_US0->US_TCR = (128+USART_wrptr-USART_txptr)&127;
+        AT91C_BASE_US0->US_PTCR = AT91C_PDC_TXTEN;
+        USART_txptr=USART_wrptr;
+      } else if (AT91C_BASE_US0->US_TNCR==0) {
+        AT91C_BASE_US0->US_TNPR = (uint32_t)&(USART_txbuf[USART_txptr]);
+        AT91C_BASE_US0->US_TNCR = (128+USART_wrptr-USART_txptr)&127;      
+        USART_txptr=USART_wrptr;
+      }
+    #endif
   }
 }
 

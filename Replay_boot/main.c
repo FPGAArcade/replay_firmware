@@ -195,6 +195,8 @@ int main(void)
           // get user control codes
           key = OSD_GetKeyCode();
 
+          USART_update();
+
           //CFG_handle_fpga();
           if (MENU_handle_ui(key,&current_status)) {
             // do further update stuff here...

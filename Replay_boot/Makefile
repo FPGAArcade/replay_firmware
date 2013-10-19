@@ -97,6 +97,7 @@ SRC += menu.c
 SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unaligned.c filesys/ff_unicode.c
 SRC += filesys/ff_memory.c filesys/ff_safety.c filesys/ff_blk.c filesys/ff_ioman.c filesys/ff_fat.c
 SRC += filesys/ff_crc.c filesys/ff_dir.c filesys/ff_error.c filesys/ff_file.c filesys/ff_hash.c
+SRC += usb/cdc_enumerate.c
 SRC += iniparser.c messaging.c
 SRC += common/Cstartup_SAM7.c
 
@@ -146,11 +147,11 @@ DEBUG = stabs
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS  = ./filesys ./common
+EXTRAINCDIRS  = ./filesys ./common ./usb
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./common
+EXTRA_LIBDIRS  = ./filesys ./common ./usb
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common

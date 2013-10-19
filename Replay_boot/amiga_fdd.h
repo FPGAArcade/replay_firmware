@@ -13,7 +13,15 @@
 #define DSK_WRITABLE 0x10 /*disk is writable*/
 #define MAX_DISPLAY_FILENAME 23
 
+// constants
 #define MAX_TRACKS (83*2)
+#define TRACK_SIZE 12668
+#define HEADER_SIZE 0x40
+#define DATA_SIZE 0x400
+#define SECTOR_SIZE (HEADER_SIZE + DATA_SIZE)
+#define SECTOR_COUNT 11
+#define LAST_SECTOR (SECTOR_COUNT - 1)
+#define GAP_SIZE (TRACK_SIZE - SECTOR_COUNT * SECTOR_SIZE)
 
 typedef struct
 {

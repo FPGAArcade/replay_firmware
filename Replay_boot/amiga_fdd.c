@@ -1,24 +1,15 @@
 
 #include "hardware.h"
 #include "config.h"
+#include "messaging.h"
 #include "amiga_fdd.h"
 
-uint8_t DEBUG = 0;
+const uint8_t FDD_DEBUG = 0;
 
-uint8_t drives = 0; // number of active drives reported by FPGA (may change only during reset)
-adfTYPE df[4];            // drive 0 information structure
+uint8_t drives = 0;   // number of active drives reported by FPGA (may change only during reset)
+adfTYPE df[4];        // drive 0 information structure
 
 extern uint8_t *pFileBuf;
-
-extern void ErrorMessage(const char *message, unsigned char code);  // menu.c
-
-#define TRACK_SIZE 12668
-#define HEADER_SIZE 0x40
-#define DATA_SIZE 0x400
-#define SECTOR_SIZE (HEADER_SIZE + DATA_SIZE)
-#define SECTOR_COUNT 11
-#define LAST_SECTOR (SECTOR_COUNT - 1)
-#define GAP_SIZE (TRACK_SIZE - SECTOR_COUNT * SECTOR_SIZE)
 
 //
 // READ
@@ -51,13 +42,14 @@ void FDD_SendSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksy
   x = 0x55;
   checksum[0] = x;
   SPI(x);
-  x = track >> 1 & 0x55;
+  x = (track >> 1) & 0x55;
   checksum[1] = x;
   SPI(x);
-  x = sector >> 1 & 0x55;
+  x = (sector >> 1) & 0x55;
   checksum[2] = x;
   SPI(x);
-  x = 11 - sector >> 1 & 0x55;
+  // subtraction has higher prio, added brackets accordingly!
+  x = ((11 - sector) >> 1) & 0x55; 
   checksum[3] = x;
   SPI(x);
 
@@ -71,7 +63,8 @@ void FDD_SendSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksy
   x = sector & 0x55;
   checksum[2] ^= x;
   SPI(x);
-  x = 11 - sector & 0x55;
+  // subtraction has higher prio, added brackets accordingly!
+  x = (11 - sector) & 0x55;
   checksum[3] ^= x;
   SPI(x);
 
@@ -149,17 +142,15 @@ void FDD_ReadTrack(adfTYPE *drive)
   uint16_t dsksync;
   uint16_t dsklen;
   uint32_t offset;
-  uint32_t bytesRead;
 
   if (drive->track >= drive->tracks) {
-    printf("Illegal track read: %d\r\n", drive->track);
-    //ErrorMessage("    Illegal track read!", drive->track);
+    ERROR("Illegal track %u read!", drive->track);
     drive->track = drive->tracks - 1;
   }
 
   // display track number: cylinder & head
-  if (DEBUG)
-    printf("ReadTrack:Track number <%u>\r\n", drive->track);
+  if (FDD_DEBUG)
+    DEBUG(1,"#%u", drive->track);
 
   offset = (512*11) * drive->track;
 
@@ -187,12 +178,12 @@ void FDD_ReadTrack(adfTYPE *drive)
   if (track >= drive->tracks)
     track = drive->tracks - 1;
 
-  if (DEBUG)
-    printf("Readtrack:Status (%u) [%04X]:\r\n", status >> 6, dsksync);
+  if (FDD_DEBUG)
+    DEBUG(1,"#(%u,%04X)", status >> 6, dsksync);
 
   while (1) {
     // note read moves on file pointer automatically
-    bytesRead = FF_Read(drive->fSource, FS_FILEBUF_SIZE, 1, pFileBuf);
+    FF_Read(drive->fSource, FS_FILEBUF_SIZE, 1, pFileBuf);
 
     SPI_EnableFpga();
 
@@ -216,8 +207,8 @@ void FDD_ReadTrack(adfTYPE *drive)
     // Prince of Persia: $4891
     // Commando: $A245
 
-    if (DEBUG)
-      printf("%X:%04X\r\n", sector, dsklen);
+    if (FDD_DEBUG)
+      DEBUG(2,"#%X:%04X", sector, dsklen);
 
     // some loaders stop dma if sector header isn't what they expect
     // because we don't check dma transfer count after sending a word
@@ -289,8 +280,8 @@ uint8_t FDD_FindSync(adfTYPE *drive)
       c4 = SPI(0);
       if (c3 == 0x44 && c4 == 0x89) {
         SPI_DisableFpga();
-        if (DEBUG)
-          printf("#SYNC:\n\r");
+        if (FDD_DEBUG)
+          DEBUG(1,"#SYNC");
         return 1;
       }
     }
@@ -324,7 +315,7 @@ uint8_t FDD_GetHeader(uint8_t *pTrack, uint8_t *pSector)
       c2 = SPI(0); // second sync msb
       if (c1 != 0x44 || c2 != 0x89) {
         error = 21;
-        printf("\n\rSecond sync word missing...\n\r");
+        ERROR("Second sync word missing!");
         break;
       }
 
@@ -364,8 +355,8 @@ uint8_t FDD_GetHeader(uint8_t *pTrack, uint8_t *pSector)
          error = 25;
 
       if (error) {
-        printf("\n\rWrong header: %u.%u.%u.%u\n\r", c1, c2, c3, c4);
-         break;
+        ERROR("Wrong header: %u.%u.%u.%u", c1, c2, c3, c4);
+        break;
       }
       *pTrack = c2;
       *pSector = c3;
@@ -407,6 +398,11 @@ uint8_t FDD_GetHeader(uint8_t *pTrack, uint8_t *pSector)
     SPI_DisableFpga();
   }
   SPI_DisableFpga();
+
+  if (error) {
+    ERROR("GetHeader: error %u", error);
+  }
+
   return 0;
 }
 
@@ -508,6 +504,10 @@ uint8_t FDD_GetData(void)
   }
   SPI_DisableFpga();
 
+  if (error) {
+    ERROR("GetData: error %u", error);
+  }
+
   return 0;
 }
 
@@ -528,8 +528,8 @@ void FDD_WriteTrack(adfTYPE *drive)
 
   FF_Seek(drive->fSource, offset, FF_SEEK_SET);
 
-  if (DEBUG)
-    printf("*%u:\n\r", drive->track);
+  if (FDD_DEBUG)
+    DEBUG(1,"*%u", drive->track);
 
   while (FDD_FindSync(drive)) {
     if (FDD_GetHeader(&rx_track, &rx_sector)) {
@@ -554,7 +554,7 @@ void FDD_WriteTrack(adfTYPE *drive)
             FF_Write(drive->fSource, FS_FILEBUF_SIZE, 1, pFileBuf);
           else {
             error = 30;
-            printf("Write attempt to protected disk!\n\r");
+            ERROR("Write attempt to protected disk!");
           }
         }
       } else {
@@ -563,8 +563,7 @@ void FDD_WriteTrack(adfTYPE *drive)
     }
 
     if (error) {
-      printf("WriteTrack: error %u\n\r", error);
-      //ErrorMessage("  WriteTrack", Error);
+      ERROR("WriteTrack: error %u", error);
     }
   }
 }

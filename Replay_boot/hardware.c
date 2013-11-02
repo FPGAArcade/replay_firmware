@@ -383,13 +383,13 @@ void SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
   uint32_t timeout = Timer_Get(100);      // 100 ms timeout
   while ((AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {
     if (Timer_Check(timeout)) {
-      DEBUG(1,"SPI:ReadBufferSingle DMA Timeout!");
+      WARNING("SPI:ReadBufferSingle DMA Timeout!");
       AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTDIS | AT91C_PDC_RXTDIS;
       break;
     }
   };
-
 }
+
 void SPI_Wait4XferEnd(void)
 {
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY));

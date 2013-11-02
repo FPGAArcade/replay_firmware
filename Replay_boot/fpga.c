@@ -136,6 +136,104 @@ uint8_t FPGA_ReadBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
   return (0);
 }
 
+#define _SPI_EnableFpga() { AT91C_BASE_PIOA->PIO_CODR=PIN_FPGA_CTRL0; }
+#define _SPI_DisableFpga() { while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY)); AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL0; }
+
+inline uint8_t _SPI(uint8_t outByte)
+{
+  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // warning, but is a must!
+  while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
+  AT91C_BASE_SPI->SPI_TDR = outByte;
+  while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));
+  return((uint8_t)AT91C_BASE_SPI->SPI_RDR);
+}
+
+inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
+{
+  do {
+    _SPI_EnableFpga();
+    _SPI(0x87); // do Read
+    if ((_SPI(0) & mask) == wanted) break;
+    _SPI_DisableFpga();
+  } while (1);
+  _SPI_DisableFpga();
+}
+
+inline void _SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
+{
+  AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
+  AT91C_BASE_SPI->SPI_TCR  = length;
+  AT91C_BASE_SPI->SPI_RPR  = (uint32_t) pBuffer;
+  AT91C_BASE_SPI->SPI_RCR  = length;
+  AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN;
+  while ((AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {};
+}
+
+void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
+{
+  uint32_t i, j, sum=0;
+  uint8_t buf[512];
+  //volatile uint32_t *dest = (uint32_t)(&buf); //(volatile uint32_t *)0x00200000L;
+  volatile uint32_t *dest = (volatile uint32_t *)0x00200000L;
+  uint8_t value;
+  
+  DEBUG(0,"FPGA: copy %d bytes from 0x%lx and execute if the checksum is 0x%lx",len,base,checksum);
+  DEBUG(0,"FPGA: we have about %ld bytes free for the code",((uint32_t)&value)-0x00200000L);
+
+  if ((((uint32_t)&value)-0x00200000L)<len) {
+    WARNING("FPGA: Not enough memory, processor may crash!");
+  }
+
+  SPI_EnableFpga();
+  SPI(0x80); // set address
+  SPI((uint8_t)(base));
+  SPI((uint8_t)(base >> 8));
+  SPI((uint8_t)(base >> 16));
+  SPI((uint8_t)(base >> 24));
+  SPI_DisableFpga();
+
+  SPI_EnableFpga();
+  SPI(0x81); // set direction
+  SPI(0x80); // read
+  SPI_DisableFpga();
+
+  // no variables in mem from here...
+  DEBUG(0,"FPGA: SRAM start: 0x%lx (%d blocks)",(uint32_t)dest,1+len/512);
+
+  // LOOP FOR BLOCKS TO READ TO SRAM
+  for(i=0;i<(len/512)+1;++i) {
+    _SPI_EnableFpga();
+    _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
+    _SPI((uint8_t)( 512 - 1));
+    _SPI((uint8_t)((512 - 1) >> 8));
+    _SPI_DisableFpga();
+    _FPGA_WaitStat(0x04, 0);
+    _SPI_EnableFpga();
+    _SPI(0xA0); // should check status
+    _SPI_ReadBufferSingle((void *)dest, 512);
+    _SPI_DisableFpga();
+    for(j=0;j<128;++j) {
+      sum += *dest++;
+    }
+  }
+  if (sum!=checksum) goto error;
+  // execute from SRAM the code we just pushed in
+  asm("ldr r3, = 0x00200000\n");
+  asm("bx  r3\n");
+
+error:
+  DEBUG(0,"FPGA: Checksum expected: 0x%lx and got 0x%lx",checksum,sum);
+  dest = (volatile uint32_t *)0x00200000L;
+  DEBUG(0,"FPGA: <-- 0x%08lx",*(dest));
+  DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+1));
+  DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+2));
+  DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+3));
+  DEBUG(0,"FPGA: --> RESET");
+  // execute from reset vector (full restart)
+  asm("ldr r3, = 0x00000000\n");
+  asm("bx  r3\n");
+}
+
 uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
 // this function sends given file to FPGA's memory
 // base - memory base address (bits 23..16)
@@ -381,7 +479,7 @@ uint8_t FPGA_DramTrain(void)
     memset(pFileBuf, 0xAA, 512);
     FPGA_MemToBuf(pFileBuf, addr, 128);
     if (memcmp(pFileBuf,&kMemtest[0],127) || (pFileBuf[127] != (uint8_t) i) ) {
-      printf("!!Match fail Addr:%8X", addr);
+      ERROR("!!Match fail Addr:%8X", addr);
       DumpBuffer(pFileBuf,128);
       return (1);
     }

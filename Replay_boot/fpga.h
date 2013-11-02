@@ -19,6 +19,8 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size);
 uint8_t FPGA_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size);
 uint8_t FPGA_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size);
 
+void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum);
+
 uint8_t FPGA_DramTrain(void);
 uint8_t FPGA_ProdTest(void);
 

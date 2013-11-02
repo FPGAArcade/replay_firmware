@@ -148,16 +148,18 @@ void CFG_call_bootloader(void)
   volatile uint32_t *src = (volatile uint32_t *)0x200;
   volatile uint32_t *dest = (volatile uint32_t *)0x00200000;
 
-  for(i = 0; i < 1024; i++) {
-      *dest++ = *src++;
-  }
-
   // set PROG low to reset FPGA (open drain)
   IO_DriveLow_OD(PIN_FPGA_PROG_L);
   Timer_Wait(1);
   IO_DriveHigh_OD(PIN_FPGA_PROG_L);
   Timer_Wait(2);
 
+  // copy bootloader to SRAM
+  for(i = 0; i < 1024; i++) {
+      *dest++ = *src++;
+  }
+
+  // launch bootloader in SRAM
   asm("ldr r3, = 0x00200000\n");
   asm("bx  r3\n");
 }
@@ -759,7 +761,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
 
       // -------------------------------------------------------
       if (section==INI_SETUP) {
-                                         // =====================
+                                        // =====================
         if (name==INI_VIDEO) {          // ===> FINAL VIDEO CONFIGURATION
           strcpy(pStatus->video_bak,value);
           if (pStatus->twi_enabled) {
@@ -879,7 +881,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
           }
         }
                                        // =====================
-        if (name==INI_DATA) {         // ===> UPLOAD A DATA SET
+        if (name==INI_DATA) {          // ===> UPLOAD A DATA SET
                                        //      (name is relative to INI path)
           if (pStatus->data_bak) {
             pStatus->data_bak_last->next=malloc(sizeof(data_list_t));
@@ -929,10 +931,23 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             //ERROR("DATA not allowed, ignored");
           }
         }
+                                      // =====================
+        if (name==INI_LAUNCH) {       // ===> Get data from FPGA and execute
+          ini_list_t valueList[8];
+          uint16_t entries = ParseList(value,valueList,8);
+          if (entries==3) {
+            uint32_t start   =valueList[0].intval;
+            uint32_t length  =valueList[1].intval;
+            uint32_t checksum=valueList[2].intval;
+            DEBUG(2,"LAUNCH FROM MEMORY @ 0x%lx, l:%d (s:0x%x),",start,length,checksum);
+            FPGA_ExecMem(start,(uint16_t)length,checksum);
+          }
+          else return 1;
+        }
       }
       // -------------------------------------------------------
       if (section==INI_MENU) {
-                                         // =====================
+                                        // =====================
         if (name==INI_TITLE) {          // ===> set new menu title
           ini_list_t valueList[8];
           uint16_t entries = ParseList(value,valueList,8);
@@ -975,7 +990,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             return 1;
           }
         }
-                                         // =====================
+                                        // =====================
         if (name==INI_ITEM) {           // ===> add a new menu item
           ini_list_t valueList[8];
           uint16_t entries = ParseList(value,valueList,32);
@@ -1056,7 +1071,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             return 1;
           }
         }
-                                         // =====================
+                                        // =====================
         if (name==INI_OPTION) {         // ===> add an option to an item
           ini_list_t valueList[8];
           uint16_t entries = ParseList(value,valueList,32);

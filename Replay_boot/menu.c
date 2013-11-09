@@ -55,6 +55,11 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       strcpy(item->selected_option->option_name,"<RETURN> to set");
       return 1;
     }
+    // loadselect ----------------------------------
+    if MATCH(item->action_name,"loadselect") {
+      //nothing to do here
+      return 1;
+    }
     // backup ini ----------------------------------
     if MATCH(item->action_name,"backup") {
       strcpy(item->selected_option->option_name,"<RETURN> saves");
@@ -134,6 +139,22 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       current_status->show_menu=0;
       return 1;
     }
+    // loadselect ----------------------------------
+    if MATCH(item->action_name,"loadselect") {
+      if ((item->option_list) && (item->option_list->option_name[0]='*')
+          && (item->option_list->option_name[1]='.') && (item->option_list->option_name[2])) {
+        DEBUG(1,"LOAD from: %s ext: %s",current_status->act_dir,(item->option_list->option_name)+2);
+        // open file browser
+        strcpy(current_status->act_dir,current_status->ini_dir);
+        // search for INI files
+        Filesel_Init(current_status->dir_scan, current_status->act_dir, (item->option_list->option_name)+2);
+        // initialize browser
+        Filesel_ScanFirst(current_status->dir_scan);
+        current_status->file_browser = 1;
+        current_status->show_menu=0;
+        return 1;
+      }
+    }
     // backup ----------------------------------
     if MATCH(item->action_name,"backup") {
       CFG_save_all(current_status, current_status->act_dir, "backup.ini");
@@ -206,6 +227,21 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       Timer_Wait(2);
       // NO update here!
       return 0;
+    }
+    // loadselect ----------------------------------
+    if MATCH(item->action_name,"loadselect") {
+      if ((current_status->act_dir[0]) && (mydir.FileName[0])) {
+        char full_filename[FF_MAX_PATH];
+        sprintf(full_filename,"%s%s",current_status->act_dir,mydir.FileName);
+        // upload with auto-size to given adress and optional verification run
+        CFG_upload_rom(full_filename,item->action_value,0,item->option_list->conf_value);
+        current_status->show_menu=0;
+        current_status->popup_menu=0;
+        current_status->show_status=0;
+        current_status->file_browser=0;
+        OSD_Disable();
+        return 1;
+      }
     }
   }
   return 0;
@@ -861,6 +897,8 @@ uint8_t _MENU_update(status_t *current_status) {
     // --> we never return back here !!!!
   } else {
     OSD_Reset(OSDCMD_CTRL_RES);
+    Timer_Wait(100);
+    OSD_Reset(OSDCMD_CTRL);
     Timer_Wait(100);
     // fall back to status screen
     current_status->update=1;

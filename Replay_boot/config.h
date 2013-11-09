@@ -427,7 +427,7 @@ void CFG_card_start(status_t *currentStatus);
 
     @param filename (absolute) filename to the binary file
     @param base base address where to store the data on the FPGA
-    @param size size of the datafile
+    @param size size of the datafile (when 0, do auto-sizing)
     @param verify if set to 1, verify uploaded content again
 
     @return 0 when transmission was successful, others indicate a failure

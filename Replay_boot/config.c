@@ -299,14 +299,19 @@ void CFG_set_coder(coder_t standard)
   }
 }
 
-uint8_t Cfg_UploadRom(char *filename, uint32_t base,
-                      uint32_t size, uint8_t verify)
+uint8_t CFG_upload_rom(char *filename, uint32_t base,
+                       uint32_t size, uint8_t verify)
 {
   FF_FILE *fSource = NULL;
   fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
   uint8_t rc=1;
 
   if (fSource) {
+      DEBUG(1, "%s @0x%X,S:%d",filename, base, size);
+      if (!size) { // auto-size
+        size=FF_BytesLeft(fSource);
+        DEBUG(1, "--> S:%d", size);
+      }
       FPGA_FileToMem(fSource, base, size);
       if (verify) {
         rc=FPGA_FileToMemVerify(fSource, base, size);
@@ -314,7 +319,6 @@ uint8_t Cfg_UploadRom(char *filename, uint32_t base,
         rc=0;
       }
       FF_Close(fSource);
-      DEBUG(1, "%s @0x%X,S:%d",filename, base, size);
   } else {
     ERROR("Could not open %s", filename);
     return 1;
@@ -849,7 +853,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
               DEBUG(2,"ROM upload @ 0x%08lX (%ld byte)",
                       valueList[2].intval,valueList[1].intval);
-              if (Cfg_UploadRom(fullname, valueList[2].intval,
+              if (CFG_upload_rom(fullname, valueList[2].intval,
                                    valueList[1].intval,pStatus->verify_dl)) {
                 MSG_error("ROM upload to FPGA failed");
                 return 1;
@@ -866,8 +870,8 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
               DEBUG(2,"ROM upload @ 0x%08lX (%ld byte)",
                       adr,valueList[1].intval);
-              if (Cfg_UploadRom(fullname, adr, valueList[1].intval,
-                                pStatus->verify_dl)) {
+              if (CFG_upload_rom(fullname, adr, valueList[1].intval,
+                                 pStatus->verify_dl)) {
                 MSG_error("ROM upload to FPGA failed");
                 return 1;
               } else {

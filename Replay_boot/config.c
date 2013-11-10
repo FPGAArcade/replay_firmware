@@ -1195,6 +1195,13 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   // TODO: ini path may exceed length and crash system here!
   sprintf(currentStatus->status[2], "INI |%s", iniFile);
 
+  // check all config bits
+  _MENU_update_bits(currentStatus);
+
+  // reset core and remove halt
+  OSD_Reset(OSDCMD_CTRL_RES);
+  Timer_Wait(100);
+
   DEBUG(2,"POST-INI processing done");
 
   // temp

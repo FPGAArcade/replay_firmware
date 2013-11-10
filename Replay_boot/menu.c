@@ -896,8 +896,10 @@ uint8_t _MENU_update(status_t *current_status) {
     CFG_call_bootloader();
     // --> we never return back here !!!!
   } else {
+    // perform soft-reset
     OSD_Reset(OSDCMD_CTRL_RES);
-    Timer_Wait(100);
+    Timer_Wait(1);
+    // we should not need this, but just in case...
     OSD_Reset(OSDCMD_CTRL);
     Timer_Wait(100);
     // fall back to status screen

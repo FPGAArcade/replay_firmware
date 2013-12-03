@@ -34,7 +34,7 @@ const clockconfig_t init_clock_config_pal = {
   { 1,  2,  4,  0,  0,  0, }, // p0,1,2,3,4,5
   { 2,  14, 5,  1,  1,  1, }, // d0,1,2,3,4,5
   { 1,  1,  1,  0,  1,  0  }  // y0,1,2,3,4,5
-// 56  17  49   0   27  0
+// 113  17  49   0   27  0
 };
 
 const clockconfig_t init_clock_config_ntsc ={
@@ -45,7 +45,7 @@ const clockconfig_t init_clock_config_ntsc ={
   { 2,  16, 5,  1,  1,  1, }, // d0,1,2,3,4,5
   { 1,  1,  1,  0,  1,  0  }  // y0,1,2,3,4,5
 };
-// 57  14  49   0   27  0
+// 114  14  49   0   27  0
 
 const clockconfig_t init_clock_config_hd74 ={
   33,  280,   // pll1 m,n = 229MHz
@@ -602,9 +602,9 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
             // we allow only reducing clock to avoid issues with sdcard settings
             if (valueList[0].intval>
                 ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8)) {
-              pStatus->spiclk_old = ((AT91C_BASE_SPI->SPI_CSR[0] & 
+              pStatus->spiclk_old = ((AT91C_BASE_SPI->SPI_CSR[0] &
                                        AT91C_SPI_SCBR) >> 8);
-              AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | 
+              AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL |
                                                      (valueList[0].intval<<8);
               uint32_t spiFreq = BOARD_MCK /
                        ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
@@ -823,7 +823,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             }
             pStatus->info_bak_last->next=NULL;
             strcpy(pStatus->info_bak_last->info_bak,valueList[0].strval);
-            
+
             MSG_info(valueList[0].strval);
           }
         }
@@ -1213,7 +1213,7 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   return 0;
 }
 
-void CFG_add_default(status_t *currentStatus) 
+void CFG_add_default(status_t *currentStatus)
 {
   status_t *pStatus = (status_t*) currentStatus;
 
@@ -1296,7 +1296,7 @@ void CFG_add_default(status_t *currentStatus)
   pStatus->item_opt_act->option_name[0]=0;
 }
 
-void CFG_free_menu(status_t *currentStatus) 
+void CFG_free_menu(status_t *currentStatus)
 {
   DEBUG(2,"--- FREE MENU (and backup) SPACE ---");
 
@@ -1336,7 +1336,7 @@ void CFG_free_menu(status_t *currentStatus)
   currentStatus->item_opt_act = NULL;
 }
 
-void CFG_free_bak(status_t *currentStatus) 
+void CFG_free_bak(status_t *currentStatus)
 {
   currentStatus->rom_bak_last=currentStatus->rom_bak;
   while (currentStatus->rom_bak_last) {
@@ -1346,7 +1346,7 @@ void CFG_free_bak(status_t *currentStatus)
   }
   currentStatus->rom_bak=NULL;
   currentStatus->rom_bak_last=NULL;
-  
+
   currentStatus->data_bak_last=currentStatus->data_bak;
   while (currentStatus->data_bak_last) {
     data_list_t *p = currentStatus->data_bak_last->next;
@@ -1372,26 +1372,26 @@ void CFG_free_bak(status_t *currentStatus)
 
   currentStatus->spiclk_bak=0;
   if (currentStatus->spiclk_old) {
-    AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | 
+    AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL |
                                   (currentStatus->spiclk_old<<8);
   }
   currentStatus->spiclk_old=0;
 }
 
-void _CFG_write_str(FF_FILE *fIni, char *str) 
+void _CFG_write_str(FF_FILE *fIni, char *str)
 {
   uint32_t len = strlen(str);
   FF_Write (fIni, len, 1, (uint8_t *)str);
 }
 
-void _CFG_write_strln(FF_FILE *fIni, char *str) 
+void _CFG_write_strln(FF_FILE *fIni, char *str)
 {
   _CFG_write_str(fIni,str);
   _CFG_write_str(fIni,"\r\n");
 }
 
-void CFG_save_all(status_t *currentStatus, const char *iniDir, 
-                  const char *iniFile) 
+void CFG_save_all(status_t *currentStatus, const char *iniDir,
+                  const char *iniFile)
 {
   FF_FILE *fIni = NULL;
   char full_filename[FF_MAX_PATH];
@@ -1400,14 +1400,14 @@ void CFG_save_all(status_t *currentStatus, const char *iniDir,
   if (currentStatus->fs_mounted_ok) {
     DEBUG(1,"Writing %s",full_filename);
 
-    fIni = FF_Open(pIoman, full_filename, 
+    fIni = FF_Open(pIoman, full_filename,
                    FF_MODE_WRITE|FF_MODE_CREATE|FF_MODE_TRUNCATE, NULL);
 
     if(fIni) {
       char s[128];
 
       // SETUP section
-      _CFG_write_strln(fIni,"[SETUP]");        
+      _CFG_write_strln(fIni,"[SETUP]");
       sprintf(s,"bin = %s",currentStatus->bin_file);
       _CFG_write_strln(fIni,s);
 
@@ -1446,13 +1446,13 @@ void CFG_save_all(status_t *currentStatus, const char *iniDir,
       currentStatus->info_bak_last=currentStatus->info_bak;
       while (currentStatus->info_bak_last) {
         sprintf(s,"info = %s",currentStatus->info_bak_last->info_bak);
-        _CFG_write_strln(fIni,s);        
+        _CFG_write_strln(fIni,s);
         currentStatus->info_bak_last=currentStatus->info_bak_last->next;
       }
-      
+
       // UPLOAD section
-      _CFG_write_strln(fIni,"");        
-      _CFG_write_strln(fIni,"[UPLOAD]");        
+      _CFG_write_strln(fIni,"");
+      _CFG_write_strln(fIni,"[UPLOAD]");
 
       sprintf(s,"verify = 0");
       _CFG_write_strln(fIni,s);
@@ -1460,37 +1460,37 @@ void CFG_save_all(status_t *currentStatus, const char *iniDir,
       currentStatus->rom_bak_last=currentStatus->rom_bak;
       while (currentStatus->rom_bak_last) {
         sprintf(s,"rom = %s",currentStatus->rom_bak_last->rom_bak);
-        _CFG_write_strln(fIni,s);        
+        _CFG_write_strln(fIni,s);
         currentStatus->rom_bak_last=currentStatus->rom_bak_last->next;
       }
-      
+
       currentStatus->data_bak_last=currentStatus->data_bak;
       while (currentStatus->data_bak_last) {
         sprintf(s,"data = %s",currentStatus->data_bak_last->data_bak);
-        _CFG_write_strln(fIni,s);        
+        _CFG_write_strln(fIni,s);
         currentStatus->data_bak_last=currentStatus->data_bak_last->next;
       }
 
       // MENU section
-      _CFG_write_strln(fIni,"");        
+      _CFG_write_strln(fIni,"");
       if (currentStatus->menu_top) {
         menu_t *menu_act = currentStatus->menu_top;
         menuitem_t *item_act;
         itemoption_t *option_act;
 
-        _CFG_write_strln(fIni,"[MENU]");        
+        _CFG_write_strln(fIni,"[MENU]");
         while (menu_act && menu_act->item_list) {
           if (menu_act && (!MATCH(menu_act->menu_title,"Replay Menu"))) {
             sprintf(s,"title = \"%s\"",menu_act->menu_title);
             _CFG_write_strln(fIni,s);
-            
+
             item_act = menu_act->item_list;
             while (item_act && item_act->option_list) {
               sprintf(s,"item = \"%s\",0x%08lx,%s",item_act->item_name,
                         item_act->conf_mask,
                         item_act->conf_dynamic?"dynamic":"static");
               _CFG_write_strln(fIni,s);
-              
+
               option_act = item_act->option_list;
               while (option_act && option_act->option_name[0]) {
                 sprintf(s,"option = \"%s\",0x%08lx%s",option_act->option_name,

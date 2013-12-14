@@ -197,6 +197,8 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       strncpy(item->option_list->option_name,
               mydir.FileName, MAX_OPTION_STRING-1);
       item->option_list->option_name[MAX_OPTION_STRING-1]=0;
+      current_status->show_menu=1;
+      current_status->file_browser=0;
       return 1;
     }
     // hddselect,0...1 ----------------------------------
@@ -206,6 +208,8 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       strncpy(item->option_list->option_name,
               mydir.FileName, MAX_OPTION_STRING-1);
       item->option_list->option_name[MAX_OPTION_STRING-1]=0;
+      current_status->show_menu=1;
+      current_status->file_browser=0;
       return 1;
     }
     // iniselect ----------------------------------
@@ -236,9 +240,9 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
         // upload with auto-size to given adress and optional verification run
         CFG_upload_rom(full_filename,item->action_value,0,item->option_list->conf_value);
         current_status->show_menu=0;
+        current_status->file_browser=0;
         current_status->popup_menu=0;
         current_status->show_status=0;
-        current_status->file_browser=0;
         OSD_Disable();
         return 1;
       }
@@ -640,8 +644,6 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
         // check for filebrowser action and update display if succesfully
         update = _MENU_action(current_status->menu_item_act,
                               current_status, 2);
-        current_status->file_browser=0;
-        current_status->show_menu=1;
       }
     }
     if (key == KEY_ESC) {
@@ -822,7 +824,10 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
     OSD_SetPage(0); //     OSD_NextPage());
     scroll_timer = Timer_Get(20); // restart scroll timer
     scroll_offset = 0; // reset scroll position
-    OSD_Enable(DISABLE_KEYBOARD); // enable OSD and disable KEYBOARD for core
+    if ((current_status->show_menu || current_status->popup_menu ||
+         current_status->file_browser || current_status->show_status)) {
+      OSD_Enable(DISABLE_KEYBOARD); // just in case, enable OSD and disable KEYBOARD for core
+    }
   } else {
     // scroll if needed
     if (current_status->scroll_pos) {

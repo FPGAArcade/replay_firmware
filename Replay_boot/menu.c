@@ -822,7 +822,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
     OSD_SetPage(0); //     OSD_NextPage());
     scroll_timer = Timer_Get(20); // restart scroll timer
     scroll_offset = 0; // reset scroll position
-    OSD_Enable(0); // enable OSD and do not disable KEYBOARD
+    OSD_Enable(DISABLE_KEYBOARD); // enable OSD and disable KEYBOARD for core
   } else {
     // scroll if needed
     if (current_status->scroll_pos) {

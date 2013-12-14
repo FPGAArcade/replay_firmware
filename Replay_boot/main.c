@@ -185,7 +185,7 @@ int main(void)
       Timer_Wait(100);
       current_status.show_status=1;
       current_status.update=1;
-      OSD_Enable(1);
+      OSD_Enable(DISABLE_KEYBOARD);
 
       // we run in here as long as there is no need to reload the FPGA
       while (current_status.fpga_load_ok) {
@@ -202,7 +202,7 @@ int main(void)
             // do further update stuff here...
           }
           // this key starts the bootloader - TODO: find better key or remove again...
-          if (key == KEY_F1) CFG_call_bootloader();
+          if (key == KEY_RESET) CFG_call_bootloader();
         }
         else {
           if (IO_Input_L(PIN_MENU_BUTTON)) {

@@ -193,14 +193,6 @@ void OSD_WaitVBL(void)
     }
 }
 
-//--> Replaced by structure in message.* module
-//void OSD_BootPrint(const char *pText)
-//{
-//  DEBUG(1,"BootPrint : %s",pText);
-//  OSD_WriteScroll(15, 0, pText, 0, 0xF, 0x0, 1);
-//}
-
-
 // enable displaying of OSD
 void OSD_Enable(unsigned char mode)
 {
@@ -441,12 +433,12 @@ uint16_t OSD_GetKeyCode(void)
           if ((!key_code) && USART_GetBuf(F8_KEYSEQ,sizeof(F8_KEYSEQ))) key_code=KEY_F8;
           if ((!key_code) && USART_GetBuf(F9_KEYSEQ,sizeof(F9_KEYSEQ))) key_code=KEY_F9;
           if ((!key_code) && USART_GetBuf(F10_KEYSEQ,sizeof(F10_KEYSEQ))) key_code=KEY_F10;
-          if ((!key_code) && USART_GetBuf(F11_KEYSEQ,sizeof(F11_KEYSEQ))) key_code=KEY_ESC; // ignored
+          if ((!key_code) && USART_GetBuf(F11_KEYSEQ,sizeof(F11_KEYSEQ))) key_code=KEY_RESET; // ignored
           if ((!key_code) && USART_GetBuf(F12_KEYSEQ,sizeof(F12_KEYSEQ))) key_code=KEY_MENU;
           if (!key_code) {
             key_code=KEY_ESC;
             USART_Getc(); // take ESC key
-            // Use the lines below temporarly to check not implemented sequences
+            // Use the lines below temporarly to check out not implemented sequences
             // (then also comment out above lines!)
             //while (USART_CharAvail()>0) {
             //  printf("%02x ",USART_Getc());

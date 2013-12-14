@@ -55,6 +55,7 @@
 #define KEY_PGDN  0x17A
 #define KEY_HOME  0x16C
 #define KEY_ESC   0x076
+#define KEY_RESET 0x078
 #define KEY_ENTER 0x05A
 #define KEY_BACK  0x066
 #define KEY_SPACE 0x029

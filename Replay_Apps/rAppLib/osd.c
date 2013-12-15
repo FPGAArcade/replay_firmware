@@ -17,10 +17,10 @@ uint8_t osd_page = 0;
 const char keycode_table[128] =
 {
       0,  0,  0,  0,  0,  0,  0,  0,   0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0, 'Q','1', 0,   0,  0, 'Z','S','A','W','2', 0,
-      0, 'C','X','D','E','4','3', 0,   0, ' ','V','F','T','R','5', 0,
-      0, 'N','B','H','G','Y','6', 0,   0,  0, 'M','J','U','7','8', 0,
-      0, ',','K','I','O','0','9', 0,  '.', 0,  0, 'L', 0, 'P', 0,  0,
+      0,  0,  0,  0,  0, 'q','1', 0,   0,  0, 'z','s','a','w','2', 0,
+      0, 'c','x','d','e','4','3', 0,   0, ' ','v','f','t','r','5', 0,
+      0, 'n','b','h','g','y','6', 0,   0,  0, 'm','j','u','7','8', 0,
+      0, ',','k','i','o','0','9', 0,  '.', 0,  0, 'l', 0, 'p', 0,  0,
       0,  0,  0,  0,  0,  0,  0,  0,   0,  0,  0,  0,  0,  0,  0,  0,
       0,  0,  0,  0,  0,  0,  0,  0,   0, '1', 0, '4','7', 0,  0,  0,
      '0','.','2','5','6','8', 0,  0,   0,  0, '3', 0, '9', 0,  0,  0
@@ -341,24 +341,26 @@ uint16_t OSD_GetKeyCode(void)
     }
 
     if (x & STF_NEWKEY) {
-        SPI_EnableOsd();
-        SPI(OSDCMD_READKBD);
-        x = SPI(0);
-        SPI_DisableOsd();
+      SPI_EnableOsd();
+      SPI(OSDCMD_READKBD);
+      x = SPI(0);
+      SPI_DisableOsd();
 
-        if (x == ATKB_RELEASE)
-            key_flags |= KF_RELEASED;
-        else if ((x & 0xFE) == ATKB_EXTEND) // extended codes are preceeded by 0xE0 or 0xE1
-            key_flags |= KF_EXTENDED;
+      if (x == ATKB_RELEASE)
+          key_flags |= KF_RELEASED;
+      else if ((x & 0xFE) == ATKB_EXTEND) // extended codes are preceeded by 0xE0 or 0xE1
+          key_flags |= KF_EXTENDED;
+      else
+      {
+        if ((x<128)&&(keycode_table[x])) 
+          x=keycode_table[x];
+        key_code = key_flags | x;
+        if (key_code == old_key_code)
+          key_code |= KF_REPEATED;
         else
-        {
-             key_code = key_flags | x;
-             if (key_code == old_key_code)
-                key_code |= KF_REPEATED;
-             else
-                 old_key_code = key_code;
-             key_flags = 0;
-        }
+           old_key_code = key_code;
+        key_flags = 0;
+      }
     }
 
     if (!key_code) {

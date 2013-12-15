@@ -197,8 +197,8 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 
   // LOOP FOR BLOCKS TO READ TO SRAM
   for(i=0;i<(len/512)+1;++i) {
-    uint32_t buf[512/4];
-    volatile uint32_t *ptr;
+    uint32_t buf[128];
+    uint32_t *ptr = &(buf[0]);
     _SPI_EnableFpga();
     _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
     _SPI((uint8_t)( 512 - 1));
@@ -209,11 +209,11 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     _SPI(0xA0); // should check status
     _SPI_ReadBufferSingle(buf, 512);
     _SPI_DisableFpga();
-    ptr = &(buf[0]);
     for(j=0;j<128;++j) {
       // avoid summing up undefined data in the last block
-      if ((l++)<len) sum += *ptr++;
+      if (l<len) sum += *ptr++;
       else break;
+      l+=4;
     }
   }
   
@@ -234,6 +234,7 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
   sum=0;
   dest = (volatile uint32_t *)0x00200000L;
   DEBUG(0,"FPGA: SRAM start: 0x%lx (%d blocks)",(uint32_t)dest,1+len/512);
+  Timer_Wait(500); // take care we can send this message before we go on!
 
   SPI_EnableFpga();
   SPI(0x80); // set address

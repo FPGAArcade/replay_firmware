@@ -1,6 +1,8 @@
 /*
 File: printf.h
 
+$Id$
+
 Copyright (C) 2004  Kustaa Nyholm
 
 This library is free software; you can redistribute it and/or

@@ -57,7 +57,7 @@ void _init_osd(void)
 // show messages on OSD + USART
 void _show(char *s, int line)  {
   printf("%s\r\n",s);
-  OSD_WriteRC(line, 0, s, 0, 0x00, 0);   // 0x09=blue, 0x00=white
+  OSD_WriteRC(line, 0, s, 0, 0x0F, 0);   // 0x09=blue, 0x00=black, 0x0F=white
 }
 
 // Here we go!

@@ -23,11 +23,9 @@ uint8_t IO_Input_H(uint32_t pin);
 uint8_t IO_Input_L(uint32_t pin);
 
 //
+void USART_ReInit(unsigned long baudrate);
 void USART_Putc(void* p, char c);
 uint8_t USART_Getc(void);
-uint8_t USART_Peekc(void);
-int16_t USART_CharAvail(void);
-int16_t USART_GetBuf(const uint8_t buf[], int16_t len);
 
 //
 unsigned char SPI(unsigned char outByte) __attribute__ ((section (".fastrun")));

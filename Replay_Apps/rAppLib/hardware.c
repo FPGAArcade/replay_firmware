@@ -43,131 +43,48 @@ uint8_t IO_Input_L(uint32_t pin)  // returns true if pin low
 }
 
 //
-// IRQ
-//
-#define IRQ_MASK 0x00000080
-
-static inline unsigned __get_cpsr(void)
-{
-  unsigned long retval;
-  asm volatile (" mrs  %0, cpsr" : "=r" (retval) : /* no inputs */  );
-  return retval;
-}
-
-static inline void __set_cpsr(unsigned val)
-{
-  asm volatile (" msr  cpsr, %0" : /* no outputs */ : "r" (val)  );
-}
-
-unsigned disableIRQ(void)
-{
-  unsigned _cpsr;
-
-  _cpsr = __get_cpsr();
-  __set_cpsr(_cpsr | IRQ_MASK);
-  return _cpsr;
-}
-
-unsigned enableIRQ(void)
-{
-  unsigned _cpsr;
-
-  _cpsr = __get_cpsr();
-  __set_cpsr(_cpsr & ~IRQ_MASK);
-  return _cpsr;
-}
-
-//
 // USART
 //
 
-// for RX, we use a software ring buffer as we are interested in any character
-// as soon as it is received.
-volatile uint8_t USART_rxbuf[16];
-volatile int16_t USART_rxptr, USART_rdptr;
-
-// for TX, we use a hardware buffer triggered to be sent when full or on a CR.
-volatile uint8_t USART_txbuf[128];
-volatile int16_t USART_txptr, USART_wrptr;
-
-void ISR_USART(void)
+void USART_ReInit(unsigned long baudrate)
 {
-  uint32_t isr_status = AT91C_BASE_US0->US_CSR;
+  // Configure PA5 and PA6 for USART0 use
+  AT91C_BASE_PIOA->PIO_PDR = AT91C_PA5_RXD0 | AT91C_PA6_TXD0;
+  // disable pullup on output
+  AT91C_BASE_PIOA->PIO_PPUDR = PIN_TXD;
 
-  // returns if no character
-  if (!(isr_status & AT91C_US_RXRDY))
-    return;
+  // Enable the peripheral clock in the PMC
+  AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_US0;
 
-  USART_rxbuf[USART_rxptr] = AT91C_BASE_US0->US_RHR;
-  USART_rxptr = (USART_rxptr+1) & 15;
+  // Reset and disable receiver & transmitter
+  AT91C_BASE_US0->US_CR = AT91C_US_RSTRX | AT91C_US_RSTTX | AT91C_US_RXDIS | AT91C_US_TXDIS;
+
+  // Configure USART0 mode
+  AT91C_BASE_US0->US_MR = AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK | AT91C_US_CHRL_8_BITS | AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT | AT91C_US_CHMODE_NORMAL;
+
+  // Configure the USART0 @115200 bauds
+  AT91C_BASE_US0->US_BRGR = BOARD_MCK / 16 / baudrate;
+
+  // Enable receiver & transmitter
+  AT91C_BASE_US0->US_CR = AT91C_US_RXEN | AT91C_US_TXEN;
 }
 
 void USART_Putc(void* p, char c)
-{ 
-  // if both PDC channels are blocked, we still have to wait --> bad luck...
-  while (AT91C_BASE_US0->US_TNCR) ;
-  // ok, thats the simplest solution - we could still continue in some cases,
-  // but I am not sure if it is worth the effort...
-
-  USART_txbuf[USART_wrptr]=c;
-  USART_wrptr=(USART_wrptr+1)&127;
-  if ((c=='\n')||(!USART_wrptr)) {
-    // flush the buffer now (end of line, end of buffer reached or buffer full)
-    if ((AT91C_BASE_US0->US_TCR==0)&&(AT91C_BASE_US0->US_TNCR==0)) {
-      AT91C_BASE_US0->US_TPR = (uint32_t)&(USART_txbuf[USART_txptr]);
-      AT91C_BASE_US0->US_TCR = (128+USART_wrptr-USART_txptr)&127;
-      AT91C_BASE_US0->US_PTCR = AT91C_PDC_TXTEN;
-      USART_txptr=USART_wrptr;
-    } else if (AT91C_BASE_US0->US_TNCR==0) {
-      AT91C_BASE_US0->US_TNPR = (uint32_t)&(USART_txbuf[USART_txptr]);
-      AT91C_BASE_US0->US_TNCR = (128+USART_wrptr-USART_txptr)&127;      
-      USART_txptr=USART_wrptr;
-    }
-  }
+{
+  while (!(AT91C_BASE_US0->US_CSR & AT91C_US_TXEMPTY));
+  AT91C_BASE_US0->US_THR = c;
 }
+
 
 uint8_t USART_Getc(void)
 {
-  uint8_t val;
-  if (USART_rxptr!=USART_rdptr) {
-    val = USART_rxbuf[USART_rdptr];
-    USART_rdptr = (USART_rdptr+1)&15;
-  } else {
-    val=0;
+  // returns 0 if no character
+  if (!(AT91C_BASE_US0->US_CSR & AT91C_US_RXRDY))
+    return 0;
+  else {
+    AT91C_BASE_US0->US_CR = AT91C_US_RXEN | AT91C_US_TXEN | AT91C_US_RSTSTA;
+    return (AT91C_BASE_US0->US_RHR & 0xFF);
   }
-  return val;
-}
-
-uint8_t USART_Peekc(void)
-{
-  uint8_t val;
-  if (USART_rxptr!=USART_rdptr) {
-    val = USART_rxbuf[USART_rdptr];
-  } else {
-    val=0;
-  }
-  return val;
-}
-
-inline int16_t USART_CharAvail(void)
-{
-  return (16+USART_rxptr-USART_rdptr)&15;
-}
-
-int16_t USART_GetBuf(const uint8_t buf[], int16_t len)
-{
-  uint16_t i;
-
-  if (USART_CharAvail()<len) return 0; // not enough chars to compare
-
-  for (i=0;i<len;++i) {
-    if (USART_rxbuf[(USART_rdptr+i)&15]!=buf[i]) break;
-  }
-  if (i!=len) return 0; // no match
-
-  // got it, remove chars from buffer
-  USART_rdptr = (USART_rdptr+len)&15;
-  return 1;
 }
 
 //

@@ -362,76 +362,14 @@ uint16_t OSD_GetKeyCode(void)
     }
 
     if (!key_code) {
-      static uint8_t  esc_received = 0;
-      static uint32_t esc_delay = 0;
-
-      if (USART_Peekc()==0x1b) {
-        if (!esc_received) {
-          // lets take some time to check for further characters
-          esc_received = 1;
-          esc_delay = Timer_Get(SERIALDELAY);
-        } else if (Timer_Check(esc_delay)) {
-          // timeout, let's see what we got...
-          const uint8_t UP_KEYSEQ[]    = {0x1b, 0x5b, 0x41};
-          const uint8_t DOWN_KEYSEQ[]  = {0x1b, 0x5b, 0x42};
-          const uint8_t RIGHT_KEYSEQ[] = {0x1b, 0x5b, 0x43};
-          const uint8_t LEFT_KEYSEQ[]  = {0x1b, 0x5b, 0x44};
-          //--
-          const uint8_t POS1_KEYSEQ[]  = {0x1b, 0x5b, 0x31, 0x7e};
-          const uint8_t INS_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x7e};
-          const uint8_t DEL_KEYSEQ[]   = {0x1b, 0x5b, 0x33, 0x7e};
-          const uint8_t END_KEYSEQ[]   = {0x1b, 0x5b, 0x34, 0x7e};
-          const uint8_t PGUP_KEYSEQ[]  = {0x1b, 0x5b, 0x35, 0x7e};
-          const uint8_t PGDN_KEYSEQ[]  = {0x1b, 0x5b, 0x36, 0x7e};
-          //--
-          const uint8_t F1_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x31, 0x7e};
-          const uint8_t F2_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x32, 0x7e};
-          const uint8_t F3_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x33, 0x7e};
-          const uint8_t F4_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x34, 0x7e};
-          const uint8_t F5_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x35, 0x7e};
-          const uint8_t F6_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x37, 0x7e};
-          const uint8_t F7_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x38, 0x7e};
-          const uint8_t F8_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x39, 0x7e};
-          const uint8_t F9_KEYSEQ[]    = {0x1b, 0x5b, 0x32, 0x30, 0x7e};
-          const uint8_t F10_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x31, 0x7e};
-          const uint8_t F11_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x33, 0x7e};
-          const uint8_t F12_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x34, 0x7e};
-
-          esc_received = 0;
-
-          if ((!key_code) && USART_GetBuf(LEFT_KEYSEQ,sizeof(LEFT_KEYSEQ))) key_code=KEY_LEFT;
-          if ((!key_code) && USART_GetBuf(RIGHT_KEYSEQ,sizeof(RIGHT_KEYSEQ))) key_code=KEY_RIGHT;
-          if ((!key_code) && USART_GetBuf(UP_KEYSEQ,sizeof(UP_KEYSEQ))) key_code=KEY_UP;
-          if ((!key_code) && USART_GetBuf(DOWN_KEYSEQ,sizeof(DOWN_KEYSEQ))) key_code=KEY_DOWN;
-          if ((!key_code) && USART_GetBuf(PGUP_KEYSEQ,sizeof(PGUP_KEYSEQ))) key_code=KEY_PGUP;
-          if ((!key_code) && USART_GetBuf(PGDN_KEYSEQ,sizeof(PGDN_KEYSEQ))) key_code=KEY_PGDN;
-
-          if ((!key_code) && USART_GetBuf(POS1_KEYSEQ,sizeof(POS1_KEYSEQ))) key_code=KEY_ESC; // ignored
-          if ((!key_code) && USART_GetBuf(END_KEYSEQ,sizeof(END_KEYSEQ))) key_code=KEY_ESC; // ignored
-          if ((!key_code) && USART_GetBuf(INS_KEYSEQ,sizeof(INS_KEYSEQ))) key_code=KEY_ESC; // ignored
-          if ((!key_code) && USART_GetBuf(DEL_KEYSEQ,sizeof(DEL_KEYSEQ))) key_code=KEY_ESC; // ignored
-          
-          if ((!key_code) && USART_GetBuf(F1_KEYSEQ,sizeof(F1_KEYSEQ))) key_code=KEY_F1;
-          if ((!key_code) && USART_GetBuf(F2_KEYSEQ,sizeof(F2_KEYSEQ))) key_code=KEY_F2;
-          if ((!key_code) && USART_GetBuf(F3_KEYSEQ,sizeof(F3_KEYSEQ))) key_code=KEY_F3;
-          if ((!key_code) && USART_GetBuf(F4_KEYSEQ,sizeof(F4_KEYSEQ))) key_code=KEY_F4;
-          if ((!key_code) && USART_GetBuf(F5_KEYSEQ,sizeof(F5_KEYSEQ))) key_code=KEY_F5;
-          if ((!key_code) && USART_GetBuf(F6_KEYSEQ,sizeof(F6_KEYSEQ))) key_code=KEY_F6;
-          if ((!key_code) && USART_GetBuf(F7_KEYSEQ,sizeof(F7_KEYSEQ))) key_code=KEY_F7;
-          if ((!key_code) && USART_GetBuf(F8_KEYSEQ,sizeof(F8_KEYSEQ))) key_code=KEY_F8;
-          if ((!key_code) && USART_GetBuf(F9_KEYSEQ,sizeof(F9_KEYSEQ))) key_code=KEY_F9;
-          if ((!key_code) && USART_GetBuf(F10_KEYSEQ,sizeof(F10_KEYSEQ))) key_code=KEY_F10;
-          if ((!key_code) && USART_GetBuf(F11_KEYSEQ,sizeof(F11_KEYSEQ))) key_code=KEY_RESET; // ignored
-          if ((!key_code) && USART_GetBuf(F12_KEYSEQ,sizeof(F12_KEYSEQ))) key_code=KEY_MENU;
-          if (!key_code) {
-            key_code=KEY_ESC;
-            USART_Getc(); // take ESC key
-          }
-        }
-      } else {
-        uint8_t c=USART_Getc();          // take (non-sequence) single char input
-        if (c==0x0d) key_code=KEY_ENTER;
-      }
+      key_code = USART_Getc();
+      if (key_code=='m') key_code=KEY_MENU;
+      if (key_code=='r') key_code=KEY_RESET;
+      if (key_code=='u') key_code=KEY_UP;
+      if (key_code=='d') key_code=KEY_DOWN;
+      if (key_code=='l') key_code=KEY_LEFT;
+      if (key_code=='r') key_code=KEY_RIGHT;
+      if (key_code==0x0d) key_code=KEY_ENTER;
     }
 
     return key_code;

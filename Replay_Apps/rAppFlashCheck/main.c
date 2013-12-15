@@ -12,7 +12,7 @@
 #include "osd.h"
 
 // for sprintf
-#include "stdio.h"
+#include "printf.h"
 
 const char version[] = {__BUILDNUMBER__};
 
@@ -54,33 +54,61 @@ void _init_osd(void)
   OSD_Enable(DISABLE_KEYBOARD);
 }
 
+// show messages on OSD + USART
+void _show(char *s, int line)  {
+  printf("%s\r\n",s);
+  OSD_WriteRC(line, 0, s, 0, 0x00, 0);   // 0x09=blue, 0x00=white
+}
+
+// Here we go!
 int main(void)
 {
   volatile uint32_t *boot   = (volatile uint32_t *)0x00100000;
   volatile uint32_t *loader = (volatile uint32_t *)0x00102000;
   volatile uint32_t *end    = (volatile uint32_t *)0x00140000;
   char s[256];
+  int osd_enabled=1;
 
+  // re-init USART, disable IRQ-based access
+  USART_ReInit(115200);
+  // re-init OSD
   _init_osd();
+  // re-init printf system, clear terminal output
+  init_printf(0x0, USART_Putc);
+  printf("\033[2J\r\n");
+
+  // ------------------------------------------------------------------------
+  // start app code here!
+
+  OSD_WriteRC(4, 0, "Checksums:", 0, 0x00, 0);
 
   // simple checksum of boot area
   unsigned long blsum=0;
   while(boot!=loader) {
     blsum += *boot++;
   }
+  sprintf(s,"Bootloader: 0x%08lx",blsum);
+  _show(s,6);
+
   // simple checksum of loader area
   unsigned long ldsum=0;
   while(loader!=end) {
     ldsum += *loader++;
   }
-
-  OSD_WriteRC(4, 0, "Checksums:", 0, 0x09, 0);
-
-  sprintf(s,"Bootloader: 0x%08lx",blsum);
-  OSD_WriteRC(6, 0, s, 0, 0x09, 0);
-
   sprintf(s,"Replay Loader: 0x%08lx",ldsum);
-  OSD_WriteRC(7, 0, s, 0, 0x09, 0);
+  _show(s,7);
+
+  // show flash content
+  boot   = (volatile uint32_t *)0x00100000;
+  sprintf(s,"BL 0: 0x%08lx",*boot++);
+  _show(s,9);
+  sprintf(s,"BL 1: 0x%08lx",*boot++);
+  _show(s,10);
+  loader = (volatile uint32_t *)0x00102000;
+  sprintf(s,"LD 0: 0x%08lx",*loader++);
+  _show(s,12);
+  sprintf(s,"LD 1: 0x%08lx",*loader++);
+  _show(s,13);
 
   // Loop forever
   while (TRUE) {
@@ -89,7 +117,13 @@ int main(void)
     key = OSD_GetKeyCode();
     // this key starts the bootloader
     if (key == KEY_RESET) _call_bootloader();
-    if (key == KEY_MENU) OSD_Disable();
+    if (key == KEY_MENU) {
+      if (osd_enabled) OSD_Disable();
+      else OSD_Enable(DISABLE_KEYBOARD);
+      osd_enabled = !osd_enabled;
+    }
   }
+
+  // ------------------------------------------------------------------------
   return 0; /* never reached */
 }

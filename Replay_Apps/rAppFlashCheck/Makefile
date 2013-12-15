@@ -86,6 +86,7 @@ SRC += ../rAppLib/common/syscalls.c
 SRC += ../rAppLib/hardware.c
 SRC += ../rAppLib/fpga.c
 SRC += ../rAppLib/osd.c
+SRC += ../rAppLib/printf.c
 SRC += ../rAppLib/common/Cstartup_SAM7.c
 
 # List C source files here which must be compiled in ARM-Mode.

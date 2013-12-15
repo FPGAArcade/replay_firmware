@@ -216,7 +216,7 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
   
   // STOP HERE
   if (sum!=checksum) {
-    ERROR(0,"FPGA: CHK exp: 0x%lx got: 0x%lx",checksum,sum);
+    ERROR("FPGA: CHK exp: 0x%lx got: 0x%lx",checksum,sum);
     dest = (volatile uint32_t *)0x00200000L;
     DEBUG(0,"FPGA: <-- 0x%08lx",*(dest));
     DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+1));

@@ -173,7 +173,6 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 {
   uint32_t i, j, sum=0;
   uint8_t buf[512];
-  //volatile uint32_t *dest = (uint32_t)(&buf); //(volatile uint32_t *)0x00200000L;
   volatile uint32_t *dest = (volatile uint32_t *)0x00200000L;
   uint8_t value;
   
@@ -197,8 +196,54 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
   SPI(0x80); // read
   SPI_DisableFpga();
 
+  // LOOP FOR BLOCKS TO READ TO SRAM
+  for(i=0;i<(len/512)+1;++i) {
+    _SPI_EnableFpga();
+    _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
+    _SPI((uint8_t)( 512 - 1));
+    _SPI((uint8_t)((512 - 1) >> 8));
+    _SPI_DisableFpga();
+    _FPGA_WaitStat(0x04, 0);
+    _SPI_EnableFpga();
+    _SPI(0xA0); // should check status
+    _SPI_ReadBufferSingle(buf, 512);
+    _SPI_DisableFpga();
+    dest=&buf;
+    for(j=0;j<128;++j) {
+      sum += *dest++;
+    }
+  }
+  
+  // STOP HERE
+  if (sum!=checksum) {
+    ERROR(0,"FPGA: CHK exp: 0x%lx got: 0x%lx",checksum,sum);
+    dest = (volatile uint32_t *)0x00200000L;
+    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest));
+    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+1));
+    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+2));
+    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+3));
+    return;
+  }
+
+  // NOW COPY IT TO RAM!
   // no variables in mem from here...
+
+  sum=0;
+  dest = (volatile uint32_t *)0x00200000L;
   DEBUG(0,"FPGA: SRAM start: 0x%lx (%d blocks)",(uint32_t)dest,1+len/512);
+
+  SPI_EnableFpga();
+  SPI(0x80); // set address
+  SPI((uint8_t)(base));
+  SPI((uint8_t)(base >> 8));
+  SPI((uint8_t)(base >> 16));
+  SPI((uint8_t)(base >> 24));
+  SPI_DisableFpga();
+
+  SPI_EnableFpga();
+  SPI(0x81); // set direction
+  SPI(0x80); // read
+  SPI_DisableFpga();
 
   // LOOP FOR BLOCKS TO READ TO SRAM
   for(i=0;i<(len/512)+1;++i) {
@@ -216,19 +261,11 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
       sum += *dest++;
     }
   }
-  if (sum!=checksum) goto error;
-  // execute from SRAM the code we just pushed in
-  asm("ldr r3, = 0x00200000\n");
-  asm("bx  r3\n");
-
-error:
-  DEBUG(0,"FPGA: Checksum expected: 0x%lx and got 0x%lx",checksum,sum);
-  dest = (volatile uint32_t *)0x00200000L;
-  DEBUG(0,"FPGA: <-- 0x%08lx",*(dest));
-  DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+1));
-  DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+2));
-  DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+3));
-  DEBUG(0,"FPGA: --> RESET");
+  if (sum==checksum) {
+    // execute from SRAM the code we just pushed in
+    asm("ldr r3, = 0x00200000\n");
+    asm("bx  r3\n");
+  }
   // execute from reset vector (full restart)
   asm("ldr r3, = 0x00000000\n");
   asm("bx  r3\n");

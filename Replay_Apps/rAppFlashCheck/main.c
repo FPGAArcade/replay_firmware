@@ -11,6 +11,9 @@
 #include "fpga.h"
 #include "osd.h"
 
+// for sprintf
+#include "stdio.h"
+
 const char version[] = {__BUILDNUMBER__};
 
 // we copy the actual bootloader from flash to the RAM and call it
@@ -19,7 +22,7 @@ void _call_bootloader(void)
 {
   int i;
 
-  volatile uint32_t *src = (volatile uint32_t *)0x200;
+  volatile uint32_t *src = (volatile uint32_t *)0x00100200;
   volatile uint32_t *dest = (volatile uint32_t *)0x00200000;
 
   // set PROG low to reset FPGA (open drain)
@@ -38,9 +41,9 @@ void _call_bootloader(void)
   asm("bx  r3\n");
 }
 
-int main(void)
+// initialize OSD again
+void _init_osd(void)
 {
-  //OSD_Disable();
   OSD_SetDisplay(0);
   OSD_SetPage(0);
   OSD_Clear();
@@ -49,6 +52,35 @@ int main(void)
   OSD_WriteRC(14, 0, "                                ", 0, 0, 0x01);
   OSD_WriteRC(0, 11,            "REPLAY APP", 0, 0xE, 0);
   OSD_Enable(DISABLE_KEYBOARD);
+}
+
+int main(void)
+{
+  volatile uint32_t *boot   = (volatile uint32_t *)0x00100000;
+  volatile uint32_t *loader = (volatile uint32_t *)0x00102000;
+  volatile uint32_t *end    = (volatile uint32_t *)0x00140000;
+  char s[256];
+
+  _init_osd();
+
+  // simple checksum of boot area
+  unsigned long blsum=0;
+  while(boot!=loader) {
+    blsum += *boot++;
+  }
+  // simple checksum of loader area
+  unsigned long ldsum=0;
+  while(loader!=end) {
+    ldsum += *loader++;
+  }
+
+  OSD_WriteRC(4, 0, "Checksums:", 0, 0x09, 0);
+
+  sprintf(s,"Bootloader: 0x%08lx",blsum);
+  OSD_WriteRC(6, 0, s, 0, 0x09, 0);
+
+  sprintf(s,"Replay Loader: 0x%08lx",ldsum);
+  OSD_WriteRC(7, 0, s, 0, 0x09, 0);
 
   // Loop forever
   while (TRUE) {

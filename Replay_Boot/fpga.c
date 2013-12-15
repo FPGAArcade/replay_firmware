@@ -171,8 +171,7 @@ inline void _SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
 
 void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 {
-  uint32_t i, j, sum=0;
-  uint8_t buf[512];
+  uint32_t i, j, l=0, sum=0;
   volatile uint32_t *dest = (volatile uint32_t *)0x00200000L;
   uint8_t value;
   
@@ -198,6 +197,8 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 
   // LOOP FOR BLOCKS TO READ TO SRAM
   for(i=0;i<(len/512)+1;++i) {
+    uint32_t buf[512/4];
+    volatile uint32_t *ptr;
     _SPI_EnableFpga();
     _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
     _SPI((uint8_t)( 512 - 1));
@@ -208,9 +209,11 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     _SPI(0xA0); // should check status
     _SPI_ReadBufferSingle(buf, 512);
     _SPI_DisableFpga();
-    dest=&buf;
+    ptr = &(buf[0]);
     for(j=0;j<128;++j) {
-      sum += *dest++;
+      // avoid summing up undefined data in the last block
+      if ((l++)<len) sum += *ptr++;
+      else break;
     }
   }
   
@@ -257,17 +260,10 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     _SPI(0xA0); // should check status
     _SPI_ReadBufferSingle((void *)dest, 512);
     _SPI_DisableFpga();
-    for(j=0;j<128;++j) {
-      sum += *dest++;
-    }
+    for(j=0;j<128;++j) *dest++;
   }
-  if (sum==checksum) {
-    // execute from SRAM the code we just pushed in
-    asm("ldr r3, = 0x00200000\n");
-    asm("bx  r3\n");
-  }
-  // execute from reset vector (full restart)
-  asm("ldr r3, = 0x00000000\n");
+  // execute from SRAM the code we just pushed in
+  asm("ldr r3, = 0x00200000\n");
   asm("bx  r3\n");
 }
 

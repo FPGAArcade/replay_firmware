@@ -127,12 +127,6 @@ ASRC =
 ASRCARM  = common/Cstartup.S
 ASRCARM += common/swi_handler.S
 
-## Output format. (can be s19, ihex or binary)
-## (binary i.e. for openocd and SAM-BA, hex i.e. for lpc21isp and uVision)
-FORMAT = s19
-#FORMAT = ihex
-#FORMAT = binary
-
 # Optimization level, can be [0, 1, 2, 3, s].
 # 0 = turn off optimization. s = optimize for size.
 # (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
@@ -346,27 +340,12 @@ $(BUILDDIR)/isset:
 	echo ok > $(BUILDDIR)/isset
 #	mkdir -p $(OUTDIR)
 
-ifeq ($(FORMAT),ihex)
-build: elf hex lss sym
-hex: $(BUILDDIR)$(TARGET).hex
-IMGEXT=hex
-else
-ifeq ($(FORMAT),binary)
-build: elf bin lss sym
-bin: $(BUILDDIR)$(TARGET).bin
-IMGEXT=bin
-else
-ifeq ($(FORMAT),s19)
-build: elf s19 lss sym
-s19: $(BUILDDIR)$(TARGET).s19
-IMGEXT=s19
-else
-$(error "$(MSG_FORMATERROR) $(FORMAT)")
-endif
-endif
-endif
+build: elf hex bin s19 lss sym
 
 elf: $(BUILDDIR)$(TARGET).elf
+hex: $(BUILDDIR)$(TARGET).hex
+bin: $(BUILDDIR)$(TARGET).bin
+s19: $(BUILDDIR)$(TARGET).s19
 lss: $(BUILDDIR)$(TARGET).lss
 sym: $(BUILDDIR)$(TARGET).sym
 
@@ -393,13 +372,13 @@ gccversion :
 $(BUILDDIR)%.hex: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -O $(FORMAT) $< $@
+	$(OBJCOPY) -Oihex $< $@
 
 # Create final output file (.bin) from ELF output file.
 $(BUILDDIR)%.bin: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -O $(FORMAT) $< $@
+	$(OBJCOPY) -Obinary $< $@
 
 # Create final output file (.s19) from ELF output file.
 $(BUILDDIR)%.s19: $(BUILDDIR)%.elf

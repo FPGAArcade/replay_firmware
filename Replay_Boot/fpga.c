@@ -8,8 +8,6 @@
 #include "fpga.h"
 #include "messaging.h"
 
-extern uint8_t *pFileBuf;
-
 const uint8_t kMemtest[128] =
 {
     0x00,0x00,0xFF,0xFF,0xFF,0xFF,0x00,0x00,0xFF,0xFF,0x00,0x00,0x00,0x00,0xFF,0xFF,
@@ -285,12 +283,9 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
 // size - memory size (bits 23..16)
 {
   uint8_t  rc = 0;
-  uint32_t count = 0;
   uint32_t remaining_size = size;
-
-  uint32_t bytes_read;
-  uint32_t buf_tx_size;
-  /*uint32_t buf_tx_size_even;*/
+  unsigned long time;
+  time = Timer_Get(0);
 
   DEBUG(3,"FPGA:Uploading file Addr:%8X Size:%8X.",base,size);
   FF_Seek(pFile, 0, FF_SEEK_SET);
@@ -308,30 +303,28 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
   SPI(0x00); // write
   SPI_DisableFpga();
 
-  count = (size + 511) >> 9; // sector count (rounded up) .. just to get the stars
-
-  //printf("[");
-  while (count--) {
+  while (remaining_size) {
+    uint8_t fBuf[512];
+    uint32_t buf_tx_size = 512;
+    uint32_t bytes_read;
+    
     // read data sector from memory card
-    bytes_read = FF_Read(pFile, 512, 1, pFileBuf);
+    bytes_read = FF_Read(pFile, 512, 1, fBuf);
     if (bytes_read == 0) break; // catch 0 len file error
-
-    buf_tx_size = 512;
 
     // clip to smallest of file and transfer length
     if (remaining_size < buf_tx_size) buf_tx_size = remaining_size;
     if (bytes_read     < buf_tx_size) buf_tx_size = bytes_read;
 
-    /*buf_tx_size_even = (buf_tx_size + 1) & 0xFFFE;*/
-
-    rc |= FPGA_SendBuffer(pFileBuf, (uint16_t) buf_tx_size);
-    //if ((count & 15) == 0) printf("*");
+    rc |= FPGA_SendBuffer(fBuf, (uint16_t) buf_tx_size);
     remaining_size -= buf_tx_size;
   }
-  //printf("]");
 
   if (FPGA_WaitStat(0x01, 0)) // wait for finish
     return(1);
+
+  time = Timer_Get(0)-time;
+  DEBUG(2,"Upload done in %d ms.", (uint32_t) (time >> 20));
 
   if (remaining_size != 0) {
     WARNING("FPGA: Sent file truncated. Requested :%8X Sent :%8X.",
@@ -342,27 +335,17 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
 
   return(rc) ;// no error
 }
-/*{{{*/
+
 uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
 {
   // for debug
   uint8_t  rc = 0;
-  uint32_t count = 0;
   uint32_t remaining_size = size;
-
-  uint32_t bytes_read;
-  uint32_t buf_tx_size;
-  /*uint32_t buf_tx_size_even;*/
-  uint8_t *pTemp = NULL;
+  unsigned long time;
+  time = Timer_Get(0);
 
   DEBUG(2,"FPGA:Verifying Addr:%8X Size:%8X.",base,size);
   FF_Seek(pFile, 0, FF_SEEK_SET);
-
-  pTemp = malloc(512);
-  if (pTemp == NULL) {
-    ERROR("FPGA:Memory allocation failure.");
-    return (1);
-  }
 
   SPI_EnableFpga();
   SPI(0x80); // set address
@@ -377,57 +360,55 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
   SPI(0x80); // read
   SPI_DisableFpga();
 
-  count = (size + 511) >> 9; // sector count (rounded up) .. just to get the stars
+  while (remaining_size) {
+    uint8_t fBuf[512];
+    uint8_t tBuf[512];
+    uint32_t bytes_read;
+    uint32_t buf_tx_size = 512;
 
-  //printf("[");
-  while (count--) {
     // read data sector from memory card
-    bytes_read = FF_Read(pFile, 512, 1, pFileBuf);
+    bytes_read = FF_Read(pFile, 512, 1, fBuf);
     if (bytes_read == 0) break;
-    buf_tx_size = 512;
 
     // clip to smallest of file and transfer length
     if (remaining_size < buf_tx_size) buf_tx_size = remaining_size;
     if (bytes_read     < buf_tx_size) buf_tx_size = bytes_read;
 
-    /*buf_tx_size_even = (buf_tx_size + 1) & 0xFFFE; // even*/
-
+    // read same sector from FPGA
     SPI_EnableFpga();
     SPI(0x84); // do Read
     SPI((uint8_t)( buf_tx_size - 1));
     SPI((uint8_t)((buf_tx_size - 1) >> 8));
     SPI_DisableFpga();
-
     if (FPGA_WaitStat(0x04, 0)) { // wait for read finish
-      free(pTemp); // give the memory back
       return(1);
     }
-
-    FPGA_ReadBuffer(pTemp, buf_tx_size);
-    if (memcmp(pFileBuf,pTemp, buf_tx_size)) {
+    FPGA_ReadBuffer(tBuf, buf_tx_size);
+    
+    // compare
+    if (memcmp(fBuf,tBuf, buf_tx_size)) {
       ERROR("!!Compare fail!! Block Addr:%8X", base);
 
       DEBUG(2,"Source:", base);
-      DumpBuffer(pFileBuf,buf_tx_size);
+      DumpBuffer(fBuf,buf_tx_size);
       DEBUG(2,"Memory:", base);
-      DumpBuffer(pTemp,buf_tx_size);
+      DumpBuffer(tBuf,buf_tx_size);
 
       rc = 1;
       break;
     }
     base += buf_tx_size;
 
-    //if ((count & 15) == 0) printf("*");
     remaining_size -= buf_tx_size;
   }
-  //printf("]");
+
+  time = Timer_Get(0)-time;
+  DEBUG(2,"Verify done in %d ms.", (uint32_t) (time >> 20));
 
   if (!rc) DEBUG(2,"FPGA:File verified complete.");
 
-  free(pTemp); // give the memory back
   return(rc) ;
 }
-/*}}}*/
 
 
 uint8_t FPGA_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size)
@@ -502,6 +483,7 @@ uint8_t FPGA_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size)
 uint8_t FPGA_DramTrain(void)
 {
   // actually just dram test for now
+  uint8_t mBuf[512];
   uint32_t i;
   uint32_t addr;
   DEBUG(2,"DRAM enabled, running test.");
@@ -509,23 +491,23 @@ uint8_t FPGA_DramTrain(void)
   // 25 23        15        7
   // 00 0000 0000 0000 0000 0000 0000
 
-  memset(pFileBuf, 0, 512);
-  for (i=0;i<128;i++) pFileBuf[i] = kMemtest[i];
+  memset(mBuf, 0, 512);
+  for (i=0;i<128;i++) mBuf[i] = kMemtest[i];
 
   addr = 0;
   for (i=0;i<19;i++){
-    pFileBuf[127] = (uint8_t) i;
-    FPGA_BufToMem(pFileBuf, addr, 128);
+    mBuf[127] = (uint8_t) i;
+    FPGA_BufToMem(mBuf, addr, 128);
     addr = (0x100 << i);
   }
 
   addr = 0;
   for (i=0;i<19;i++){
-    memset(pFileBuf, 0xAA, 512);
-    FPGA_MemToBuf(pFileBuf, addr, 128);
-    if (memcmp(pFileBuf,&kMemtest[0],127) || (pFileBuf[127] != (uint8_t) i) ) {
+    memset(mBuf, 0xAA, 512);
+    FPGA_MemToBuf(mBuf, addr, 128);
+    if (memcmp(mBuf,&kMemtest[0],127) || (mBuf[127] != (uint8_t) i) ) {
       ERROR("!!Match fail Addr:%8X", addr);
-      DumpBuffer(pFileBuf,128);
+      DumpBuffer(mBuf,128);
       return (1);
     }
     addr = (0x100 << i);

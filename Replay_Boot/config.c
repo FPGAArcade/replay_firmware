@@ -660,8 +660,7 @@ uint8_t CFG_pre_init(status_t *currentStatus, const char *iniFile)
       FF_Close(fIni);
 
       if (status !=0 ) {
-        MSG_error("Parse failed in INI, line %d",status);
-        //ERROR("Error parsing INI file at line %d ",status);
+        ERROR("Execution stopped at INI line %d",status);
         return 1;
       }
 
@@ -1171,8 +1170,7 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
       int32_t status = ParseIni(fIni, _CFG_parse_handler, currentStatus);
       FF_Close(fIni);
       if (status !=0 ) {
-        MSG_error("Parse failed in INI, line %d",status);
-        //ERROR("Error parsing INI file at line %d ",status);
+        ERROR("Execution stopped at INI line %d",status);
         return status;
       }
     }

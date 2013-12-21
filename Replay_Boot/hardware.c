@@ -354,9 +354,7 @@ void SPI_WriteBufferSingle(void *pBuffer, uint32_t length)
   // single bank only, assume idle on entry
   AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
   AT91C_BASE_SPI->SPI_TCR  = length;
-
   AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN;
-  //while ((AT91C_BASE_SPI->SPI_SR & AT91C_SPI_ENDTX ) != AT91C_SPI_ENDTX) {}; // no timeout
 
   uint32_t timeout = Timer_Get(100);      // 100 ms timeout
   while ((AT91C_BASE_SPI->SPI_SR & AT91C_SPI_ENDTX ) != AT91C_SPI_ENDTX) {
@@ -365,19 +363,16 @@ void SPI_WriteBufferSingle(void *pBuffer, uint32_t length)
       AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTDIS | AT91C_PDC_RXTDIS;
       break;
     }
-  };
+  }
 }
 
 void SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
 {
   // we do not care what we send out (current buffer contents), the FPGA will ignore
-
   AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
   AT91C_BASE_SPI->SPI_TCR  = length;
-
   AT91C_BASE_SPI->SPI_RPR  = (uint32_t) pBuffer;
   AT91C_BASE_SPI->SPI_RCR  = length;
-
   AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN;
 
   uint32_t timeout = Timer_Get(100);      // 100 ms timeout
@@ -387,7 +382,7 @@ void SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
       AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTDIS | AT91C_PDC_RXTDIS;
       break;
     }
-  };
+  }
 }
 
 void SPI_Wait4XferEnd(void)
@@ -640,13 +635,11 @@ void Timer_Wait(uint32_t time)
 //
 void DumpBuffer(const uint8_t *pBuffer, uint32_t size)
 {
-    /*DEBUG(1,"DumpBuffer");*/
-    uint32_t i, j;
-    for (i=0; i < (size / 16); i++) {
-      DEBUG(1,"0x%08X: ", i*16);
-      for (j=0; j < 4; j++) {
-        DEBUG(1,"%08X ", ((unsigned int *) pBuffer)[i*4+j]);
-      }
-      DEBUG(1,"");
+    DEBUG(2,"DumpBuffer:");
+    uint32_t i;
+    for (i=0; i < size; i+=16) {
+      DEBUG(2,"0x%08X: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", i,
+      pBuffer[i+0], pBuffer[i+1],pBuffer[i+2], pBuffer[i+3],pBuffer[i+4], pBuffer[i+5],pBuffer[i+6], pBuffer[i+7],
+      pBuffer[i+8], pBuffer[i+9],pBuffer[i+10], pBuffer[i+11],pBuffer[i+12], pBuffer[i+13],pBuffer[i+14], pBuffer[i+15]);
     }
 }

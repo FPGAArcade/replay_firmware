@@ -39,7 +39,8 @@ void SSC_Configure_Boot(void);
 void SSC_EnableTxRx(void);
 void SSC_DisableTxRx(void);
 void SSC_Write(uint32_t frame);
-void SSC_WriteBufferSingle(void *pBuffer, uint32_t length);
+void SSC_WaitDMA(void);
+void SSC_WriteBufferSingle(void *pBuffer, uint32_t length, uint32_t wait);
 //
 void TWI_Configure(void);
 void TWI_Stop(void);

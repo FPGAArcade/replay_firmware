@@ -54,19 +54,31 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
     return FALSE;
   }
 
-//  printf("[");
+  // send FPGA data with SSC DMA in parallel to reading the file
   secCount = 0;
   do {
+    uint8_t fBuf1[512];
+    uint8_t fBuf2[512];
+    uint8_t *pBufR;
+    uint8_t *pBufW;
+
+    // showing some progress...
     if (!((secCount++ >> 4) & 3)) {
       ACTLED_ON;
     } else {
       ACTLED_OFF;
     }
-//    if ( (secCount & 15) == 0) printf("*");
-
-    bytesRead = FF_Read(pFile, FS_FILEBUF_SIZE, 1, pFileBuf);
-    //DumpBuffer(buffer, 512);
-    SSC_WriteBufferSingle(pFileBuf, bytesRead);
+    
+    // switch between 2 buffers to read-in
+    if (secCount&1)
+      pBufR = &(fBuf2[0]);
+    else
+      pBufR = &(fBuf1[0]);
+    bytesRead = FF_Read(pFile, FS_FILEBUF_SIZE, 1, pBufR);
+    // take the just read buffer for writing
+    pBufW = pBufR;
+    SSC_WaitDMA();
+    SSC_WriteBufferSingle(pBufW, bytesRead, 0);
   } while(bytesRead > 0);
 
   // some extra clocks
@@ -74,7 +86,6 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
   //
   SSC_DisableTxRx();
   ACTLED_OFF;
-//  printf("]");
   Timer_Wait(1);
 
   // check DONE is high

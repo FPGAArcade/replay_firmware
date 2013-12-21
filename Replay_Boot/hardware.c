@@ -504,16 +504,20 @@ void SSC_Write(uint32_t frame)
   AT91C_BASE_SSC->SSC_THR = frame;
 }
 
-void SSC_WriteBufferSingle(void *pBuffer, uint32_t length)
+void SSC_WaitDMA(void)
+{
+  // wait for buffer to be sent
+  while ((AT91C_BASE_SSC->SSC_SR & AT91C_SSC_ENDTX ) != AT91C_SSC_ENDTX) {}; // no timeout
+}
+
+void SSC_WriteBufferSingle(void *pBuffer, uint32_t length, uint32_t wait)
 {
   // single bank only, assume idle on entry
   AT91C_BASE_SSC->SSC_TPR = (unsigned int) pBuffer;
   AT91C_BASE_SSC->SSC_TCR = length;
   AT91C_BASE_SSC->SSC_PTCR = AT91C_PDC_TXTEN;
-  /*while ((AT91C_BASE_SSC->SSC_TCR) != 0);*/
-  // wait for buffer to be sent
-  while ((AT91C_BASE_SSC->SSC_SR & AT91C_SSC_ENDTX ) != AT91C_SSC_ENDTX) {}; // no timeout
-
+  // wait for transmission only if requested
+  if (wait) SSC_WaitDMA();
 }
 
 //

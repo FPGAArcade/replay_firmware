@@ -4,6 +4,10 @@
 #include "board.h"
 #include "fullfat.h"
 
+// file buffer MUST be a equal or a multiple of the FPGA buffer size!
+#define FILEBUF_SIZE (512*4)
+#define FPGA_MEMBUF_SIZE 512
+
 #define kDRAM_PHASE 0x68
 #define kDRAM_SEL   0x02
 

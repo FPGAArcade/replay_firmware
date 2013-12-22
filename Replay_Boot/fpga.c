@@ -23,6 +23,7 @@ const uint8_t kMemtest[128] =
 //
 // General
 //
+
 uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
 {
   uint32_t bytesRead;
@@ -55,8 +56,8 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
   // send FPGA data with SSC DMA in parallel to reading the file
   secCount = 0;
   do {
-    uint8_t fBuf1[512];
-    uint8_t fBuf2[512];
+    uint8_t fBuf1[FILEBUF_SIZE];
+    uint8_t fBuf2[FILEBUF_SIZE];
     uint8_t *pBufR;
     uint8_t *pBufW;
 
@@ -72,7 +73,7 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
       pBufR = &(fBuf2[0]);
     else
       pBufR = &(fBuf1[0]);
-    bytesRead = FF_Read(pFile, FS_FILEBUF_SIZE, 1, pBufR);
+    bytesRead = FF_Read(pFile, FILEBUF_SIZE, 1, pBufR);
     // take the just read buffer for writing
     pBufW = pBufR;
     SSC_WaitDMA();
@@ -98,6 +99,7 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
   }
   return TRUE;
 }
+
 //
 // FILEIO
 //
@@ -145,138 +147,6 @@ uint8_t FPGA_ReadBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
   return (0);
 }
 
-#define _SPI_EnableFpga() { AT91C_BASE_PIOA->PIO_CODR=PIN_FPGA_CTRL0; }
-#define _SPI_DisableFpga() { while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY)); AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL0; }
-
-inline uint8_t _SPI(uint8_t outByte)
-{
-  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // warning, but is a must!
-  while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
-  AT91C_BASE_SPI->SPI_TDR = outByte;
-  while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));
-  return((uint8_t)AT91C_BASE_SPI->SPI_RDR);
-}
-
-inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
-{
-  do {
-    _SPI_EnableFpga();
-    _SPI(0x87); // do Read
-    if ((_SPI(0) & mask) == wanted) break;
-    _SPI_DisableFpga();
-  } while (1);
-  _SPI_DisableFpga();
-}
-
-inline void _SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
-{
-  AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
-  AT91C_BASE_SPI->SPI_TCR  = length;
-  AT91C_BASE_SPI->SPI_RPR  = (uint32_t) pBuffer;
-  AT91C_BASE_SPI->SPI_RCR  = length;
-  AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN;
-  while ((AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {};
-}
-
-void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
-{
-  uint32_t i, j, l=0, sum=0;
-  volatile uint32_t *dest = (volatile uint32_t *)0x00200000L;
-  uint8_t value;
-  
-  DEBUG(0,"FPGA: copy %d bytes from 0x%lx and execute if the checksum is 0x%lx",len,base,checksum);
-  DEBUG(0,"FPGA: we have about %ld bytes free for the code",((uint32_t)&value)-0x00200000L);
-
-  if ((((uint32_t)&value)-0x00200000L)<len) {
-    WARNING("FPGA: Not enough memory, processor may crash!");
-  }
-
-  SPI_EnableFpga();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
-  SPI_DisableFpga();
-
-  SPI_EnableFpga();
-  SPI(0x81); // set direction
-  SPI(0x80); // read
-  SPI_DisableFpga();
-
-  // LOOP FOR BLOCKS TO READ TO SRAM
-  for(i=0;i<(len/512)+1;++i) {
-    uint32_t buf[128];
-    uint32_t *ptr = &(buf[0]);
-    _SPI_EnableFpga();
-    _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
-    _SPI((uint8_t)( 512 - 1));
-    _SPI((uint8_t)((512 - 1) >> 8));
-    _SPI_DisableFpga();
-    _FPGA_WaitStat(0x04, 0);
-    _SPI_EnableFpga();
-    _SPI(0xA0); // should check status
-    _SPI_ReadBufferSingle(buf, 512);
-    _SPI_DisableFpga();
-    for(j=0;j<128;++j) {
-      // avoid summing up undefined data in the last block
-      if (l<len) sum += *ptr++;
-      else break;
-      l+=4;
-    }
-  }
-  
-  // STOP HERE
-  if (sum!=checksum) {
-    ERROR("FPGA: CHK exp: 0x%lx got: 0x%lx",checksum,sum);
-    dest = (volatile uint32_t *)0x00200000L;
-    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest));
-    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+1));
-    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+2));
-    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+3));
-    return;
-  }
-
-  // NOW COPY IT TO RAM!
-  // no variables in mem from here...
-
-  sum=0;
-  dest = (volatile uint32_t *)0x00200000L;
-  DEBUG(0,"FPGA: SRAM start: 0x%lx (%d blocks)",(uint32_t)dest,1+len/512);
-  Timer_Wait(500); // take care we can send this message before we go on!
-
-  SPI_EnableFpga();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
-  SPI_DisableFpga();
-
-  SPI_EnableFpga();
-  SPI(0x81); // set direction
-  SPI(0x80); // read
-  SPI_DisableFpga();
-
-  // LOOP FOR BLOCKS TO READ TO SRAM
-  for(i=0;i<(len/512)+1;++i) {
-    _SPI_EnableFpga();
-    _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
-    _SPI((uint8_t)( 512 - 1));
-    _SPI((uint8_t)((512 - 1) >> 8));
-    _SPI_DisableFpga();
-    _FPGA_WaitStat(0x04, 0);
-    _SPI_EnableFpga();
-    _SPI(0xA0); // should check status
-    _SPI_ReadBufferSingle((void *)dest, 512);
-    _SPI_DisableFpga();
-    for(j=0;j<128;++j) *dest++;
-  }
-  // execute from SRAM the code we just pushed in
-  asm("ldr r3, = 0x00200000\n");
-  asm("bx  r3\n");
-}
-
 uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
 // this function sends given file to FPGA's memory
 // base - memory base address (bits 23..16)
@@ -304,24 +174,36 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
   SPI_DisableFpga();
 
   while (remaining_size) {
-    uint8_t fBuf[512];
-    uint32_t buf_tx_size = 512;
+    #if (FPGA_MEMBUF_SIZE>FILEBUF_SIZE) 
+      #error "FPGA_MEMBUF_SIZE>FILEBUF_SIZE !"
+    #endif
+    uint8_t fBuf[FILEBUF_SIZE];
+    uint8_t *wPtr;
+    uint32_t buf_tx_size = FILEBUF_SIZE;
     uint32_t bytes_read;
-    
+    uint16_t fpgabuf_size=FPGA_MEMBUF_SIZE;
+
     // read data sector from memory card
-    bytes_read = FF_Read(pFile, 512, 1, fBuf);
+    bytes_read = FF_Read(pFile, FILEBUF_SIZE, 1, fBuf);
     if (bytes_read == 0) break; // catch 0 len file error
 
     // clip to smallest of file and transfer length
     if (remaining_size < buf_tx_size) buf_tx_size = remaining_size;
     if (bytes_read     < buf_tx_size) buf_tx_size = bytes_read;
-
-    rc |= FPGA_SendBuffer(fBuf, (uint16_t) buf_tx_size);
+    // rc |= FPGA_SendBuffer(fBuf, (uint16_t) buf_tx_size);
     remaining_size -= buf_tx_size;
-  }
 
-  if (FPGA_WaitStat(0x01, 0)) // wait for finish
-    return(1);
+    // send file buffer
+    wPtr = &(fBuf[0]);
+    while(buf_tx_size) {
+      if (buf_tx_size < fpgabuf_size) fpgabuf_size = buf_tx_size;
+      rc |= FPGA_SendBuffer(wPtr, fpgabuf_size);
+      wPtr += fpgabuf_size;
+      buf_tx_size -= fpgabuf_size;
+      if (FPGA_WaitStat(0x01, 0)) // wait for finish
+        return(1);
+    }
+  }
 
   time = Timer_Get(0)-time;
   DEBUG(2,"Upload done in %d ms.", (uint32_t) (time >> 20));
@@ -361,13 +243,19 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
   SPI_DisableFpga();
 
   while (remaining_size) {
-    uint8_t fBuf[512];
-    uint8_t tBuf[512];
+    #if (FPGA_MEMBUF_SIZE>FILEBUF_SIZE) 
+      #error "FPGA_MEMBUF_SIZE>FILEBUF_SIZE !"
+    #endif
+    uint8_t fBuf[FILEBUF_SIZE];
+    uint8_t tBuf[FILEBUF_SIZE];
+    uint8_t *wPtr;
+    uint32_t buf_tx_size = FILEBUF_SIZE;
     uint32_t bytes_read;
-    uint32_t buf_tx_size = 512;
+    uint16_t fpgabuf_size=FPGA_MEMBUF_SIZE;
+    uint32_t fpga_read_left;
 
     // read data sector from memory card
-    bytes_read = FF_Read(pFile, 512, 1, fBuf);
+    bytes_read = FF_Read(pFile, FILEBUF_SIZE, 1, fBuf);
     if (bytes_read == 0) break;
 
     // clip to smallest of file and transfer length
@@ -375,16 +263,23 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
     if (bytes_read     < buf_tx_size) buf_tx_size = bytes_read;
 
     // read same sector from FPGA
-    SPI_EnableFpga();
-    SPI(0x84); // do Read
-    SPI((uint8_t)( buf_tx_size - 1));
-    SPI((uint8_t)((buf_tx_size - 1) >> 8));
-    SPI_DisableFpga();
-    if (FPGA_WaitStat(0x04, 0)) { // wait for read finish
-      return(1);
+    wPtr=&(tBuf[0]);
+    fpga_read_left=buf_tx_size;
+    while (fpga_read_left) {
+      if (fpga_read_left < fpgabuf_size) fpgabuf_size = fpga_read_left;
+      SPI_EnableFpga();
+      SPI(0x84); // do Read
+      SPI((uint8_t)( fpgabuf_size - 1));
+      SPI((uint8_t)((fpgabuf_size - 1) >> 8));
+      SPI_DisableFpga();
+      if (FPGA_WaitStat(0x04, 0)) { // wait for read finish
+        return(1);
+      }
+      FPGA_ReadBuffer(wPtr, fpgabuf_size);
+      wPtr+=fpgabuf_size;
+      fpga_read_left-=fpgabuf_size;
     }
-    FPGA_ReadBuffer(tBuf, buf_tx_size);
-    
+
     // compare
     if (memcmp(fBuf,tBuf, buf_tx_size)) {
       ERROR("!!Compare fail!! Block Addr:%8X", base);
@@ -398,7 +293,6 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
       break;
     }
     base += buf_tx_size;
-
     remaining_size -= buf_tx_size;
   }
 
@@ -410,10 +304,9 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
   return(rc) ;
 }
 
-
 uint8_t FPGA_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size)
-// base - memory base address (bits 23..16)
-// size - must be <=512 and even
+// base - memory base address
+// size - must be <=FPGA_MEMBUF_SIZE and even
 {
   uint32_t buf_tx_size = size;
   DEBUG(3,"FPGA:BufToMem Addr:%8X.",base);
@@ -431,9 +324,9 @@ uint8_t FPGA_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size)
   SPI(0x00); // write
   SPI_DisableFpga();
 
-  if (size>512) { // arb limit while debugging
-    buf_tx_size = 512;
-    WARNING("FPGA:Max BufToMem size is 4K bytes.");
+  if (size>FPGA_MEMBUF_SIZE) { // arb limit while debugging
+    buf_tx_size = FPGA_MEMBUF_SIZE;
+    WARNING("FPGA:Max BufToMem size is %d bytes.",FPGA_MEMBUF_SIZE);
   }
   FPGA_SendBuffer(pBuf, buf_tx_size);
 
@@ -444,8 +337,8 @@ uint8_t FPGA_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size)
 }
 
 uint8_t FPGA_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size)
-// base - memory base address (bits 23..16)
-// size - memory size (bits 23..16)
+// base - memory base address
+// size - must be <=FPGA_MEMBUF_SIZE and even
 {
   uint32_t buf_tx_size = size;
 
@@ -462,9 +355,9 @@ uint8_t FPGA_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size)
   SPI(0x80); // read
   SPI_DisableFpga();
 
-  if (size>512) { // arb limit while debugging
-    buf_tx_size = 512;
-    WARNING("FPGA:Max MemToBuf size is 512 bytes.");
+  if (size>FPGA_MEMBUF_SIZE) { // arb limit while debugging
+    buf_tx_size = FPGA_MEMBUF_SIZE;
+    WARNING("FPGA:Max MemToBuf size is %d bytes.",FPGA_MEMBUF_SIZE);
   }
   SPI_EnableFpga();
   SPI(0x84); // do Read
@@ -479,6 +372,10 @@ uint8_t FPGA_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size)
 
   return (0) ;// no error
 }
+
+//
+// Memory Test
+//
 
 uint8_t FPGA_DramTrain(void)
 {
@@ -664,5 +561,144 @@ uint8_t FPGA_ProdTest(void)
 
   } while (key != KEY_MENU);
   return (0);
+}
+
+//
+// Replay Application Call (rApps):
+//
+// ----------------------------------------------------------------
+//  we need this local/inline to avoid function calls in this stage
+// ----------------------------------------------------------------
+
+#define _SPI_EnableFpga() { AT91C_BASE_PIOA->PIO_CODR=PIN_FPGA_CTRL0; }
+#define _SPI_DisableFpga() { while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY)); AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL0; }
+
+inline uint8_t _SPI(uint8_t outByte)
+{
+  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // warning, but is a must!
+  while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
+  AT91C_BASE_SPI->SPI_TDR = outByte;
+  while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));
+  return((uint8_t)AT91C_BASE_SPI->SPI_RDR);
+}
+
+inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
+{
+  do {
+    _SPI_EnableFpga();
+    _SPI(0x87); // do Read
+    if ((_SPI(0) & mask) == wanted) break;
+    _SPI_DisableFpga();
+  } while (1);
+  _SPI_DisableFpga();
+}
+
+inline void _SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
+{
+  AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
+  AT91C_BASE_SPI->SPI_TCR  = length;
+  AT91C_BASE_SPI->SPI_RPR  = (uint32_t) pBuffer;
+  AT91C_BASE_SPI->SPI_RCR  = length;
+  AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN;
+  while ((AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {};
+}
+
+void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
+{
+  uint32_t i, j, l=0, sum=0;
+  volatile uint32_t *dest = (volatile uint32_t *)0x00200000L;
+  uint8_t value;
+  
+  DEBUG(0,"FPGA: copy %d bytes from 0x%lx and execute if the checksum is 0x%lx",len,base,checksum);
+  DEBUG(0,"FPGA: we have about %ld bytes free for the code",((uint32_t)&value)-0x00200000L);
+
+  if ((((uint32_t)&value)-0x00200000L)<len) {
+    WARNING("FPGA: Not enough memory, processor may crash!");
+  }
+
+  SPI_EnableFpga();
+  SPI(0x80); // set address
+  SPI((uint8_t)(base));
+  SPI((uint8_t)(base >> 8));
+  SPI((uint8_t)(base >> 16));
+  SPI((uint8_t)(base >> 24));
+  SPI_DisableFpga();
+
+  SPI_EnableFpga();
+  SPI(0x81); // set direction
+  SPI(0x80); // read
+  SPI_DisableFpga();
+
+  // LOOP FOR BLOCKS TO READ TO SRAM
+  for(i=0;i<(len/512)+1;++i) {
+    uint32_t buf[128];
+    uint32_t *ptr = &(buf[0]);
+    _SPI_EnableFpga();
+    _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
+    _SPI((uint8_t)( 512 - 1));
+    _SPI((uint8_t)((512 - 1) >> 8));
+    _SPI_DisableFpga();
+    _FPGA_WaitStat(0x04, 0);
+    _SPI_EnableFpga();
+    _SPI(0xA0); // should check status
+    _SPI_ReadBufferSingle(buf, 512);
+    _SPI_DisableFpga();
+    for(j=0;j<128;++j) {
+      // avoid summing up undefined data in the last block
+      if (l<len) sum += *ptr++;
+      else break;
+      l+=4;
+    }
+  }
+  
+  // STOP HERE
+  if (sum!=checksum) {
+    ERROR("FPGA: CHK exp: 0x%lx got: 0x%lx",checksum,sum);
+    dest = (volatile uint32_t *)0x00200000L;
+    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest));
+    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+1));
+    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+2));
+    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+3));
+    return;
+  }
+
+  // NOW COPY IT TO RAM!
+  // no variables in mem from here...
+
+  sum=0;
+  dest = (volatile uint32_t *)0x00200000L;
+  DEBUG(0,"FPGA: SRAM start: 0x%lx (%d blocks)",(uint32_t)dest,1+len/512);
+  Timer_Wait(500); // take care we can send this message before we go on!
+
+  SPI_EnableFpga();
+  SPI(0x80); // set address
+  SPI((uint8_t)(base));
+  SPI((uint8_t)(base >> 8));
+  SPI((uint8_t)(base >> 16));
+  SPI((uint8_t)(base >> 24));
+  SPI_DisableFpga();
+
+  SPI_EnableFpga();
+  SPI(0x81); // set direction
+  SPI(0x80); // read
+  SPI_DisableFpga();
+
+  // LOOP FOR BLOCKS TO READ TO SRAM
+  for(i=0;i<(len/512)+1;++i) {
+    _SPI_EnableFpga();
+    _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
+    _SPI((uint8_t)( 512 - 1));
+    _SPI((uint8_t)((512 - 1) >> 8));
+    _SPI_DisableFpga();
+    _FPGA_WaitStat(0x04, 0);
+    _SPI_EnableFpga();
+    _SPI(0xA0); // should check status
+    _SPI_ReadBufferSingle((void *)dest, 512);
+    _SPI_DisableFpga();
+    for(j=0;j<128;++j) *dest++;
+  }
+  // execute from SRAM the code we just pushed in
+  asm("ldr r3, = 0x00200000\n");
+  asm("bx  r3\n");
 }
 

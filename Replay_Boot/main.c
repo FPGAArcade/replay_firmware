@@ -16,16 +16,15 @@
 #include "osd.h"
 #include "messaging.h"
 
-const char version[] = {__BUILDNUMBER__};
-
 // GLOBALS
-uint8_t  fatBuf[FS_FATBUF_SIZE]; // used by file system
-uint8_t  fileBuf[FS_FILEBUF_SIZE];
-uint8_t  *pFileBuf = NULL;
-FF_IOMAN *pIoman = NULL;
+FF_IOMAN *pIoman = NULL;  // file system handle
+const char version[] = {__BUILDNUMBER__}; // actual build version
 
 int main(void)
 {
+  // used by file system
+  uint8_t fatBuf[FS_FATBUF_SIZE];
+
   // initialise
   Hardware_Init(); // Initialise board hardware
   init_printf(NULL, USART_Putc); // Initialise printf
@@ -78,7 +77,6 @@ int main(void)
   //MSG_error("A test error.");
 
   // create file system and set up I/O
-  pFileBuf = (uint8_t *)fileBuf;
   pIoman = FF_CreateIOMAN(fatBuf, FS_FATBUF_SIZE, 512, NULL);
 
   // register file system handlers

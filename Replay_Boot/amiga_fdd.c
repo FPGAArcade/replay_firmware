@@ -9,7 +9,8 @@ const uint8_t FDD_DEBUG = 0;
 uint8_t drives = 0;   // number of active drives reported by FPGA (may change only during reset)
 adfTYPE df[4];        // drive 0 information structure
 
-extern uint8_t *pFileBuf;
+// localized buffer for this module
+uint8_t  FDD_fBuf[FDD_BUF_SIZE];
 
 //
 // READ
@@ -183,7 +184,7 @@ void FDD_ReadTrack(adfTYPE *drive)
 
   while (1) {
     // note read moves on file pointer automatically
-    FF_Read(drive->fSource, FS_FILEBUF_SIZE, 1, pFileBuf);
+    FF_Read(drive->fSource, FDD_BUF_SIZE, 1, FDD_fBuf);
 
     SPI_EnableFpga();
 
@@ -217,7 +218,7 @@ void FDD_ReadTrack(adfTYPE *drive)
     if (track == drive->track) {
       // send sector if fpga is still asking for data
        if (status & CMD_RDTRK) {
-         FDD_SendSector(pFileBuf, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);
+         FDD_SendSector(FDD_fBuf, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);
          if (sector == LAST_SECTOR)
            FDD_SendGap();
        }
@@ -446,7 +447,7 @@ uint8_t FDD_GetData(void)
 
       // odd bits of data field
       i = 128;
-      p = pFileBuf;
+      p = FDD_fBuf;
       do {
         c = SPI(0);
         checksum[0] ^= c;
@@ -465,7 +466,7 @@ uint8_t FDD_GetData(void)
 
       // even bits of data field
       i = 128;
-      p = pFileBuf;
+      p = FDD_fBuf;
       do {
         c = SPI(0);
         checksum[0] ^= c;
@@ -551,7 +552,7 @@ void FDD_WriteTrack(adfTYPE *drive)
 
         if (FDD_GetData()) {
           if (drive->status & DSK_WRITABLE)
-            FF_Write(drive->fSource, FS_FILEBUF_SIZE, 1, pFileBuf);
+            FF_Write(drive->fSource, FDD_BUF_SIZE, 1, FDD_fBuf);
           else {
             error = 30;
             ERROR("Write attempt to protected disk!");

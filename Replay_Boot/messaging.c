@@ -98,7 +98,8 @@ void MSG_warning(char *fmt, ...)
 void MSG_error(char *fmt, ...) 
 { char s[256]; // take "enough" size here, not to get any overflow problems...
   char *sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
-  
+  int i;
+
   // process initial printf (nearly) w/o size limit...
   va_list argptr;
   va_start(argptr,fmt);
@@ -112,4 +113,21 @@ void MSG_error(char *fmt, ...)
 
   // if the status structure pointer is set (OSD available), print it there
   if (msg_status) _MSG_to_osd(s,'E');
+
+  for (i=0;i<7;i++) {
+    ACTLED_OFF;
+    Timer_Wait(150);
+    ACTLED_ON;
+    Timer_Wait(150);
+    ACTLED_OFF;
+    Timer_Wait(150);
+    ACTLED_ON;
+    Timer_Wait(150);
+    ACTLED_OFF;
+    Timer_Wait(300);
+  }
+  IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
+  // perform a reset
+  asm("ldr r3, = 0x00000000\n");
+  asm("bx  r3\n");
 }

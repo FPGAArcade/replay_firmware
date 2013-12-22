@@ -4,6 +4,9 @@
 #include "board.h"
 #include "fullfat.h"
 
+// FILE buffer size = FDD sector size
+#define FDD_BUF_SIZE 512
+
 // floppy disk interface defs
 #define CMD_RDTRK 0x01
 #define CMD_WRTRK 0x02

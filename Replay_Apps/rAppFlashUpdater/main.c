@@ -268,6 +268,16 @@ int main(void)
   
   // Loop forever
   while (TRUE) {
+      uint16_t key;
+      // get user control codes
+      key = OSD_GetKeyCode();
+      // this key starts the flashing
+      if (key == 'r') {
+        _call_bootloader();
+        // perform a reset
+        asm("ldr r3, = 0x00000000\n");
+        asm("bx  r3\n");
+      }
   }
 
   // ------------------------------------------------------------------------

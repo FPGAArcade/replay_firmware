@@ -11,6 +11,7 @@ compressor.exe: compressor.c
 	gcc -o compressor.exe compressor.c $(LIBS)
 	cp ../../../hw/replay/cores/loader/sdcard/loader.bin .
 	./compressor.exe > ../../arm_sw/Replay_boot/loader.c
+	rm loader.bin
 
 clean:
 	rm compressor.exe

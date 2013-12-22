@@ -190,21 +190,22 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
     // clip to smallest of file and transfer length
     if (remaining_size < buf_tx_size) buf_tx_size = remaining_size;
     if (bytes_read     < buf_tx_size) buf_tx_size = bytes_read;
-    // rc |= FPGA_SendBuffer(fBuf, (uint16_t) buf_tx_size);
     remaining_size -= buf_tx_size;
 
     // send file buffer
     wPtr = &(fBuf[0]);
     while(buf_tx_size) {
+      if (FPGA_WaitStat(0x01, 0)) // wait for finish, it is a little faster doing that way
+        return(1);
       if (buf_tx_size < fpgabuf_size) fpgabuf_size = buf_tx_size;
       rc |= FPGA_SendBuffer(wPtr, fpgabuf_size);
       wPtr += fpgabuf_size;
       buf_tx_size -= fpgabuf_size;
-      if (FPGA_WaitStat(0x01, 0)) // wait for finish
-        return(1);
     }
   }
 
+  if (FPGA_WaitStat(0x01, 0)) // wait for finish (final)
+    return(1);
   time = Timer_Get(0)-time;
   DEBUG(2,"Upload done in %d ms.", (uint32_t) (time >> 20));
 

@@ -27,9 +27,13 @@ int main(void)
 
   // initialise
   Hardware_Init(); // Initialise board hardware
+  IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
+  ACTLED_ON;
+
+  USART_Init(115200); // Initialize debug USART
   init_printf(NULL, USART_Putc); // Initialise printf
 
-  ACTLED_ON;
+  Timer_Init();
 
   // replay main status structure
   status_t current_status;
@@ -49,15 +53,14 @@ int main(void)
   // end of variables
 
   // INIT
-  Timer_Init();
-  SPI_Init();
-  IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
-  SSC_Configure_Boot();
-  TWI_Configure();
-  USART_Init(115200); // Initialize debug USART
-  ACTLED_OFF;
-
   DEBUG(1,"\033[2J");
+
+  SPI_Init();
+  SSC_Configure_Boot();
+  TWI_Configure(); // requires timer init
+  //
+  ACTLED_OFF;
+  //
   DEBUG(1,"");
   DEBUG(0,"== FPGAArcade Replay Board ==");
   DEBUG(0,"Mike Johnson & Wolfgang Scherr");
@@ -150,7 +153,7 @@ int main(void)
       DEBUG(1,"--------------------------");
       DEBUG(1,"CLEANUP (%ld bytes free)",CFG_get_free_mem());
       CFG_free_menu(&current_status);
-      
+
       // initialize root entry properly, it is the seed of this menu tree
       DEBUG(1,"--------------------------");
       DEBUG(1,"PRE-INIT (%ld bytes free)",CFG_get_free_mem());

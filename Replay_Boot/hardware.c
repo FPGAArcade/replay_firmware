@@ -22,7 +22,7 @@ void Hardware_Init(void)
   AT91C_BASE_PIOA->PIO_PER   = 0xFFFFFFFF; //grab all IOs
   AT91C_BASE_PIOA->PIO_PPUER = 0xFFFFFFFF; //enable all pullups (to be sure)
   AT91C_BASE_PIOA->PIO_ODR   = 0xFFFFFFFF; //disable all outputs
-  AT91C_BASE_PIOA->PIO_CODR  = 0xFFFFFFFF; //set all outputs low
+  AT91C_BASE_PIOA->PIO_CODR  = 0xFFFFFFFF; //clear all outputs (for open drain drive)
 
   //set outputs
   AT91C_BASE_PIOA->PIO_SODR = PIN_USB_PULLUP_L;
@@ -186,7 +186,7 @@ void USART_Init(unsigned long baudrate)
 
   // Disable AIC interrupt first
   AT91C_BASE_AIC->AIC_IDCR = 1 << AT91C_ID_US0;
-  
+
   // Configure AIC interrupt mode and handler
   AT91C_BASE_AIC->AIC_SMR[AT91C_ID_US0] = 0;
   AT91C_BASE_AIC->AIC_SVR[AT91C_ID_US0] = (int32_t)handler;
@@ -211,7 +211,7 @@ void USART_Init(unsigned long baudrate)
 void USART_update(void)
 {
   #if USB_USART==1
-    if (pCDC.IsConfigured(&pCDC)) 
+    if (pCDC.IsConfigured(&pCDC))
     {
       char data[16];
       uint16_t length;
@@ -230,7 +230,7 @@ void USART_update(void)
 }
 
 void USART_Putc(void* p, char c)
-{ 
+{
   // if both PDC channels are blocked, we still have to wait --> bad luck...
   while (AT91C_BASE_US0->US_TNCR) ;
   // ok, thats the simplest solution - we could still continue in some cases,
@@ -240,7 +240,7 @@ void USART_Putc(void* p, char c)
   USART_wrptr=(USART_wrptr+1)&127;
   if ((c=='\n')||(!USART_wrptr)) {
     #if USB_USART==1
-      if (pCDC.IsConfigured(&pCDC)) 
+      if (pCDC.IsConfigured(&pCDC))
       {
         //pCDC.Write(&pCDC, data, length);
         pCDC.Write(&pCDC, (const char *)&(USART_txbuf[USART_txptr]), (128+USART_wrptr-USART_txptr)&127);
@@ -255,7 +255,7 @@ void USART_Putc(void* p, char c)
         USART_txptr=USART_wrptr;
       } else if (AT91C_BASE_US0->US_TNCR==0) {
         AT91C_BASE_US0->US_TNPR = (uint32_t)&(USART_txbuf[USART_txptr]);
-        AT91C_BASE_US0->US_TNCR = (128+USART_wrptr-USART_txptr)&127;      
+        AT91C_BASE_US0->US_TNCR = (128+USART_wrptr-USART_txptr)&127;
         USART_txptr=USART_wrptr;
       }
     #endif
@@ -523,14 +523,19 @@ void TWI_Configure(void)
   volatile uint32_t read;
   // PA4  SCL                     output  (TWI)
   // PA3  SDA                     output  (TWI)
+
+  // bug fix for THS
+  AT91C_BASE_PIOA->PIO_CODR = PIN_SCL | PIN_SDA;
+  IO_DriveHigh_OD(PIN_SDA);
+  for (uint8_t j=0; j<9; j++) {
+    Timer_Wait(1);
+    IO_DriveLow_OD(PIN_SCL);
+    Timer_Wait(1);
+    IO_DriveHigh_OD(PIN_SCL);
+  }
+
   // Enable SSC peripheral clock
   AT91C_BASE_PMC->PMC_PCER = 1 << AT91C_ID_TWI;
-
-  // disable pull ups
-  AT91C_BASE_PIOA->PIO_PPUDR = PIN_SCL | PIN_SDA;
-  // assign clock and data
-  AT91C_BASE_PIOA->PIO_ASR = PIN_SCL | PIN_SDA;
-  AT91C_BASE_PIOA->PIO_PDR = PIN_SCL | PIN_SDA;
 
   // Reset the TWI
   AT91C_BASE_TWI->TWI_CR = AT91C_TWI_SWRST;
@@ -543,6 +548,14 @@ void TWI_Configure(void)
   // Set clock. Note, max speed 100KHz
   AT91C_BASE_TWI->TWI_CWGR = 0;  // stop clock
   AT91C_BASE_TWI->TWI_CWGR = (0x2 << 16) | (0x77 << 8) | 0x77; // ~50KHz
+
+  // disable pull ups
+  AT91C_BASE_PIOA->PIO_PPUDR = PIN_SCL | PIN_SDA;
+  // enable multi driver
+  AT91C_BASE_PIOA->PIO_MDER  = PIN_SCL | PIN_SDA;
+  // assign clock and data
+  AT91C_BASE_PIOA->PIO_ASR = PIN_SCL | PIN_SDA;
+  AT91C_BASE_PIOA->PIO_PDR = PIN_SCL | PIN_SDA;
 }
 
 void TWI_Stop(void)

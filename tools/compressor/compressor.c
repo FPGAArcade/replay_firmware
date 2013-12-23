@@ -14,13 +14,22 @@
 //
 #include "stdint.h"
 
-main() {
+int main(int argc, char *argv[]) {
   FILE *inputFile;
+  char *filename;
 
-  inputFile=fopen("loader.bin","rb");
+  if (argc>1) {
+    filename = argv[1];
+  } else {
+    fprintf(stderr,"No filename given!\n");
+    exit(-1);
+  }
+
+  printf("  // %s\n",filename);
+  inputFile=fopen(filename,"rb");
   if (!inputFile) {
-      printf("Can't read file!\n");
-      exit(0);
+      fprintf(stderr,"Can't read file!\n");
+      exit(-2);
   } else {
     uint32_t cmp_len, cmp_sum=0;
     int cmp_status;
@@ -35,10 +44,10 @@ main() {
       src_len=fread(fBuf,1,sizeof(fBuf),inputFile);
       src_sum+=src_len;
       cmp_len = compressBound(src_len);
-      cmp_status = compress(pBuf, &cmp_len, fBuf, src_len);
+      cmp_status = compress(pBuf, (mz_ulong *)&cmp_len, fBuf, src_len);
       if (cmp_status) {
-        printf("Error %d!\n",cmp_status);
-        exit(-1);
+        fprintf(stderr,"Error %d!\n",cmp_status);
+        exit(-3);
       }
       cmp_sum+=cmp_len;
 /*

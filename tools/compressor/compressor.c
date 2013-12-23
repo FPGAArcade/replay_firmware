@@ -17,6 +17,7 @@
 int main(int argc, char *argv[]) {
   FILE *inputFile;
   char *filename;
+  long bufsize=0;
 
   if (argc>1) {
     filename = argv[1];
@@ -24,7 +25,13 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"No filename given!\n");
     exit(-1);
   }
+  if (argc==3) {
+    bufsize = strtol(argv[2],0,10);
+  }
 
+  if ((bufsize>3*8192)||(bufsize<512)) bufsize=8192;
+
+  printf("#define DECOMP_BUFSIZE %ld\n",bufsize);
   printf("  // %s\n",filename);
   inputFile=fopen(filename,"rb");
   if (!inputFile) {
@@ -33,15 +40,15 @@ int main(int argc, char *argv[]) {
   } else {
     uint32_t cmp_len, cmp_sum=0;
     int cmp_status;
-    uint8_t fBuf[8192];
-    uint8_t pBuf[8192];
+    uint8_t fBuf[3*8192];
+    uint8_t pBuf[3*8192];
     uint32_t src_len, src_sum=0;
     uint32_t max=0;
 
     printf("  const uint8_t loader[] = {\n");
     while (!feof(inputFile)) {
       int i;
-      src_len=fread(fBuf,1,sizeof(fBuf),inputFile);
+      src_len=fread(fBuf,1,bufsize,inputFile);
       src_sum+=src_len;
       cmp_len = compressBound(src_len);
       cmp_status = compress(pBuf, (mz_ulong *)&cmp_len, fBuf, src_len);

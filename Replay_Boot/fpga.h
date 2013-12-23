@@ -11,6 +11,7 @@
 #define kDRAM_PHASE 0x68
 #define kDRAM_SEL   0x02
 
+uint8_t FPGA_Default(void);
 uint8_t FPGA_Config(FF_FILE *pFile);
 
 uint8_t FPGA_WaitStat(uint8_t mask, uint8_t wanted);

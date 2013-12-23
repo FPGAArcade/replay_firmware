@@ -8,6 +8,11 @@
 #include "fpga.h"
 #include "messaging.h"
 
+// Bah! But that's how it is proposed by this lib...
+#include "tinfl.c"
+// ok, so it is :-)
+#include "loader.c"
+
 const uint8_t kMemtest[128] =
 {
     0x00,0x00,0xFF,0xFF,0xFF,0xFF,0x00,0x00,0xFF,0xFF,0x00,0x00,0x00,0x00,0xFF,0xFF,
@@ -23,6 +28,96 @@ const uint8_t kMemtest[128] =
 //
 // General
 //
+
+uint8_t FPGA_Default(void) // embedded in FW, something to start with
+{
+  uint32_t secCount;
+  unsigned long time;
+
+  uint8_t dBuf1[8192];
+  uint8_t dBuf2[8192];
+  uint32_t loaderIdx=0;
+
+  DEBUG(0,"FPGA: Using onboard setup.");
+
+  time = Timer_Get(0);
+
+  // set PROG low to reset FPGA (open drain)
+  IO_DriveLow_OD(PIN_FPGA_PROG_L); //AT91C_BASE_PIOA->PIO_OER = PIN_FPGA_PROG_L;
+
+  SSC_EnableTxRx(); // start to drive config outputs
+  Timer_Wait(1);
+  IO_DriveHigh_OD(PIN_FPGA_PROG_L);  //AT91C_BASE_PIOA->PIO_ODR = PIN_FPGA_PROG_L;
+  Timer_Wait(2);
+
+  // check INIT is high
+  if (IO_Input_L(PIN_FPGA_INIT_L)) {
+    WARNING("FPGA:INIT is not high after PROG reset.");
+    return FALSE;
+  }
+  // check DONE is low
+  if (IO_Input_H(PIN_FPGA_DONE)) {
+    WARNING("FPGA:DONE is high before configuration.");
+    return FALSE;
+  }
+
+  // send FPGA data with SSC DMA in parallel to reading the file
+  secCount = 0;
+  do {
+    uint8_t *pWBuf, *pRBuf;
+    uint16_t cmp_status;
+    uint32_t uncomp_len = sizeof(dBuf1); // does not matter which we use here, have to be the same!
+    uint32_t cmp_len = (loader[loaderIdx]<<8) | (loader[loaderIdx+1]);
+    loaderIdx += 2;
+
+    // showing some progress...
+    if (!((secCount++ >> 4) & 3)) {
+      ACTLED_ON;
+    } else {
+      ACTLED_OFF;
+    }
+
+    if (secCount&1) {
+      pWBuf=&(dBuf1[0]);
+    } else {
+      pWBuf=&(dBuf2[0]);
+    }
+    cmp_status = tinfl_decompress_mem_to_mem(pWBuf, uncomp_len, &(loader[loaderIdx]), cmp_len, TINFL_FLAG_PARSE_ZLIB_HEADER);
+    if (cmp_status==-1) {
+      WARNING("Bad FPGA configuration setup in FW");
+      break;
+    } else {
+      uncomp_len=cmp_status;
+    }
+    loaderIdx+=cmp_len;
+    DEBUG(3,"%d --> %d  (%08x,%08x,%d)",cmp_len,uncomp_len,pWBuf,&(loader[loaderIdx]),cmp_status);
+
+    // take the just read buffer for writing
+    pRBuf=pWBuf;
+    SSC_WaitDMA();
+    SSC_WriteBufferSingle(pRBuf, uncomp_len, 0);
+  } while(loaderIdx < sizeof(loader));
+  SSC_WaitDMA();
+
+  // some extra clocks
+  SSC_Write(0x00);
+  //
+  SSC_DisableTxRx();
+  ACTLED_OFF;
+  Timer_Wait(1);
+
+  // check DONE is high
+  if (!IO_Input_H(PIN_FPGA_DONE) ) {
+    WARNING("FPGA:DONE is low after configuration.");
+    return FALSE;
+  }
+  else {
+    time = Timer_Get(0)-time;
+
+    DEBUG(0,"FPGA configured in %d ms.", (uint32_t) (time >> 20));
+  }
+  return TRUE;
+}
 
 uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
 {
@@ -79,6 +174,7 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
     SSC_WaitDMA();
     SSC_WriteBufferSingle(pBufW, bytesRead, 0);
   } while(bytesRead > 0);
+  SSC_WaitDMA();
 
   // some extra clocks
   SSC_Write(0x00);
@@ -404,7 +500,7 @@ uint8_t FPGA_DramTrain(void)
     memset(mBuf, 0xAA, 512);
     FPGA_MemToBuf(mBuf, addr, 128);
     if (memcmp(mBuf,&kMemtest[0],127) || (mBuf[127] != (uint8_t) i) ) {
-      ERROR("!!Match fail Addr:%8X", addr);
+      WARNING("!!Match fail Addr:%8X", addr);
       DumpBuffer(mBuf,128);
       return (1);
     }

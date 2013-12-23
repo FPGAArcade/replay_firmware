@@ -114,7 +114,7 @@ void MSG_error(char *fmt, ...)
   // if the status structure pointer is set (OSD available), print it there
   if (msg_status) _MSG_to_osd(s,'E');
 
-  for (i=0;i<7;i++) {
+  for (i=0;i<4;i++) {
     ACTLED_OFF;
     Timer_Wait(150);
     ACTLED_ON;
@@ -126,8 +126,14 @@ void MSG_error(char *fmt, ...)
     ACTLED_OFF;
     Timer_Wait(300);
   }
-  IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
-  // perform a reset
+  // make sure FPGA is held in reset
+  IO_DriveLow_OD(PIN_FPGA_RST_L);
+  // set PROG low to reset FPGA (open drain)
+  IO_DriveLow_OD(PIN_FPGA_PROG_L);
+  Timer_Wait(1);
+  IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+  Timer_Wait(2);
+  // perform a ARM reset
   asm("ldr r3, = 0x00000000\n");
   asm("bx  r3\n");
 }

@@ -557,9 +557,9 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
     else {
       // show menu (if there is something to show)
       if (current_status->menu_top) {
-        current_status->show_menu=1;
+        current_status->show_menu=0;
         current_status->popup_menu=0;
-        current_status->show_status=0;
+        current_status->show_status=1;
         current_status->file_browser=0;
         update=1;
         // set timeout
@@ -656,7 +656,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
 
   // --------------------------------------------------
 
-  else if (current_status->show_status) {
+  else if ((current_status->show_status) && (current_status->fpga_load_ok!=2)) {
     if ((key  & ~KF_REPEATED) == KEY_RIGHT) {
       // go to last menu entry
       while (current_status->menu_act->last) {

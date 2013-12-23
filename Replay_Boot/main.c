@@ -85,10 +85,6 @@ int main(void)
   // register file system handlers
   FF_RegisterBlkDevice(pIoman, 512,(FF_WRITE_BLOCKS) Card_WriteM, (FF_READ_BLOCKS) Card_ReadM, NULL);
 
-  // initially configure default clocks, video filter and diable video coder (may not be fitted)
-  CFG_vid_timing_HD27(F60HZ);
-  CFG_set_coder(CODER_DISABLE);
-
   DEBUG(1,"");
 
   // Loop forever
@@ -129,6 +125,23 @@ int main(void)
           current_status.fpga_load_ok = 1;
         }
       }
+    } else {
+      // set up some default to have OSD enabled
+      if (!IO_Input_H(PIN_FPGA_DONE)) {
+        // initially configure default clocks, video filter and diable video coder (may not be fitted)
+        CFG_vid_timing_HD27(F60HZ);
+        CFG_set_coder(CODER_DISABLE);
+        if (FPGA_Default()) {
+          DEBUG(1,"FPGA default set.");
+          current_status.fpga_load_ok=2;
+          current_status.twi_enabled=1;
+          current_status.spi_fpga_enabled=1;
+          current_status.spi_osd_enabled=1;
+          sprintf(current_status.status[0], "ARM |FW:%s (%ldkB free)", version,
+                                              CFG_get_free_mem()>>10);
+          sprintf(current_status.status[1], "FPGA|NO VALID SETUP ON SDCARD!");
+        }
+      }
     }
 
     if ((current_status.fpga_load_ok) || (IO_Input_H(PIN_FPGA_DONE))) {
@@ -143,39 +156,56 @@ int main(void)
       IO_DriveHigh_OD(PIN_FPGA_RST_L);
       Timer_Wait(200);
 
-      // configure some video DAC defaults, if we are allowed to
-      if (current_status.twi_enabled) {
-        /*Configure_CH7301(&default_vid_config);*/
-        CFG_set_CH7301_SD();
-      }
-
-      // we free the memory of a previous setup
-      DEBUG(1,"--------------------------");
-      DEBUG(1,"CLEANUP (%ld bytes free)",CFG_get_free_mem());
-      CFG_free_menu(&current_status);
-
-      // initialize root entry properly, it is the seed of this menu tree
-      DEBUG(1,"--------------------------");
-      DEBUG(1,"PRE-INIT (%ld bytes free)",CFG_get_free_mem());
-
-      // post FPGA load ini file parse: video DAC, ROM files, etc.
-      if (CFG_init(&current_status, full_filename)) {
-        CFG_free_menu(&current_status);
-        CFG_free_bak(&current_status);
-      }
-
-      CFG_add_default(&current_status);
-
-      if (current_status.menu_top) {
-        //
-        DEBUG(1,"--------------------------");
-        DEBUG(1,"POSTINIT (%ld bytes free)",CFG_get_free_mem());
-      }
-
       uint32_t spiFreq = BOARD_MCK /
                          ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
                          1000000;
       DEBUG(0,"SPI clock: %d MHz", spiFreq);
+
+      if (current_status.fpga_load_ok!=2) {
+        // we free the memory of a previous setup
+        DEBUG(1,"--------------------------");
+        DEBUG(1,"CLEANUP (%ld bytes free)",CFG_get_free_mem());
+        CFG_free_menu(&current_status);
+        
+        // initialize root entry properly, it is the seed of this menu tree
+        DEBUG(1,"--------------------------");
+        DEBUG(1,"PRE-INIT (%ld bytes free)",CFG_get_free_mem());
+
+        // post FPGA load ini file parse: video DAC, ROM files, etc.
+        if (CFG_init(&current_status, full_filename)) {
+          CFG_free_menu(&current_status);
+          CFG_free_bak(&current_status);
+        }
+        CFG_add_default(&current_status);
+
+        if (current_status.menu_top) {
+          //
+          DEBUG(1,"--------------------------");
+          DEBUG(1,"POSTINIT (%ld bytes free)",CFG_get_free_mem());
+        }
+      } else {
+          if (OSD_ConfigReadSysconVer() != 0xA5) {
+            ERROR("FPGA Syscon not detected !!");
+            // need to disable all OSD access
+          }
+          uint32_t config_ver    = OSD_ConfigReadVer();
+          DEBUG(1,"FPGA ver: 0x%08x",config_ver);
+          // setup DRAM, DAC, etc.
+          OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
+          OSD_Reset(OSDCMD_CTRL_RES|OSDCMD_CTRL_HALT);
+          Timer_Wait(100);
+          if (config_ver & 0x8000) {
+            FPGA_DramTrain();
+          }
+          const vidconfig_t vid_config = { 0x00,0x48,0xC0,0x80,0x00,0x01,0x00,0x80,0x08,0x16,0x30,0x60,0x00,0x18,0xC0,0x00 };
+          Configure_CH7301(&vid_config);
+          //CFG_set_CH7301_HD();  --> does not work ???
+          // dynamic/static setup bits
+          OSD_ConfigSendUserD(0);
+          OSD_ConfigSendUserS(0);
+          OSD_Reset(OSDCMD_CTRL_RES);
+          WARNING("Using hardcoded fallback!");
+      }
 
       // we do a final update of MENU / settings and let the core run
       // afterwards, we show the generic status menu
@@ -218,6 +248,8 @@ int main(void)
             strcpy(current_status.ini_dir,"\\");
             strcpy(current_status.act_dir,"\\");
             strcpy(current_status.ini_file,"replay.ini");
+            IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
+            ACTLED_ON;
             // set PROG low to reset FPGA (open drain)
             IO_DriveLow_OD(PIN_FPGA_PROG_L);
             Timer_Wait(1);
@@ -242,6 +274,18 @@ int main(void)
           OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
           FPGA_DramTrain();
           break;
+        }
+        // we check if we are in fallback mode and a proper sdcard is available now
+        if ((current_status.fpga_load_ok==2)&&(current_status.fs_mounted_ok)) {
+          IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
+          ACTLED_ON;
+          // set PROG low to reset FPGA (open drain)
+          IO_DriveLow_OD(PIN_FPGA_PROG_L);
+          Timer_Wait(1);
+          IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+          Timer_Wait(2);
+          // invalidate FPGA configuration here as well
+          current_status.fpga_load_ok = 0;
         }
       }
     }

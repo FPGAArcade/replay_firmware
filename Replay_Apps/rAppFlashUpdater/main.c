@@ -133,22 +133,21 @@ int main(void)
   volatile uint32_t code;  // set to base later
   volatile uint32_t *fptr; // set to base later
 
-  sprintf(s,"BOOT:");
+  sprintf(s,"Flasher rApp by Wolfgang Scherr");
   _show(s,2);
-  sprintf(s," Base:   0x%08lx",bootbase);
+
+  sprintf(s,"BOOT (base/length):");
   _show(s,3);
-  sprintf(s," Length: 0x%08lx",bootlength);
+  sprintf(s," Base:   0x%08lx/0x%08lx",bootbase,bootlength);
   _show(s,4);
   
-  sprintf(s,"LOADER:");
+  sprintf(s,"LOADER (base/length):");
   _show(s,5);
-  sprintf(s," Base:   0x%08lx",loaderbase);
+  sprintf(s," Base:   0x%08lx/0x%08lx",loaderbase,loaderlength);
   _show(s,6);
-  sprintf(s," Length: 0x%08lx",loaderlength);
-  _show(s,7);
 
   sprintf(s,"CHECKSUMS (flash/sdcard):");
-  _show(s,8);
+  _show(s,7);
 
   length=bootlength; l=0;
   uint32_t bsum=0, bfsum=0;
@@ -171,7 +170,7 @@ int main(void)
     sprintf(s," BOOT:   0x%08lx/0x%08lx %s",bfsum,bsum,bfsum==bsum?" ":"!");
     if (bfsum!=bsum) bok=0;
   }
-  _show(s,9);
+  _show(s,8);
 
   length=loaderlength; l=0;
   uint32_t lsum=0, lfsum=0;
@@ -194,11 +193,11 @@ int main(void)
     sprintf(s," LOADER: 0x%08lx/0x%08lx %s",lfsum,lsum,lfsum==lsum?" ":"!");
     if (lfsum!=lsum) lok=0;
   }
-  _show(s,10);
+  _show(s,9);
 
   if (!lok) {    // we don't process bok for now until we know this works well!
     sprintf(s,"--PRESS 'F' TO START FLASHING!--");
-    _show(s,12);
+    _show(s,11);
     // Loop forever
     while (TRUE) {
       uint16_t key;
@@ -208,8 +207,10 @@ int main(void)
       if (key == 'f') break;
     }
     sprintf(s,"********************************");
-    _showhi(s,11);
+    _showhi(s,10);
     sprintf(s,"* FLASHING! DO NOT SWITCH OFF! *");
+    _showhi(s,11);
+    sprintf(s,"*                              *");
     _showhi(s,12);
     sprintf(s,"********************************");
     _showhi(s,13);
@@ -253,12 +254,14 @@ int main(void)
       code+=256;
       // show something on OSD...
       if ((l&0xfff)==0) {
-        sprintf(s,"0x%08x %lu%%",code,100*l/length);
-        _show(s,13);
+        sprintf(s,"@0x%08x (%lu%% written)",code,100*l/length);
+        OSD_WriteRC(12, 2, s, 0, 0xF, 0);
       }
     }
   }
   // 
+  sprintf(s,"                                ");
+  _show(s,10);
   sprintf(s,"                                ");
   _show(s,11);
   sprintf(s,"--DONE, PLS. POWER CYCLE BOARD--");

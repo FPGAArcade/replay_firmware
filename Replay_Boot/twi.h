@@ -22,28 +22,6 @@ typedef struct
   uint8_t p_sel[6];
   uint8_t p_div[6];
   uint8_t y_sel[6];
-  //{{{
-  //uint8_t  p0_sel;     // 2:0 p0 sel
-  //uint8_t  p1_sel;     // 2:0 p1 sel
-  //uint8_t  p2_sel;     // 2:0 p2 sel
-  //uint8_t  p3_sel;     // 2:0 p3 sel
-  //uint8_t  p4_sel;     // 2:0 p4 sel
-  //uint8_t  p5_sel;     // 2:0 p5 sel
-
-  //uint8_t  p0_div;     // 6:0 p0 div
-  //uint8_t  p1_div;     // 6:0 p1 div
-  //uint8_t  p2_div;     // 6:0 p2 div
-  //uint8_t  p3_div;     // 6:0 p3 div
-  //uint8_t  p4_div;     // 6:0 p4 div
-  //uint8_t  p5_div;     // 6:0 p5 div
-
-  //uint8_t  y0_sel;     // 4:ena 2:0 y0 sel
-  //uint8_t  y1_sel;     // 4:ena 2:0 y1 sel
-  //uint8_t  y2_sel;     // 4:ena 2:0 y2 sel
-  //uint8_t  y3_sel;     // 4:ena 2:0 y3 sel
-  //uint8_t  y4_sel;     // 4:ena 2:0 y4 sel
-  //uint8_t  y5_sel;     // 4:ena 2:0 y5 sel
-  //}}}
 } clockconfig_t;
 
 typedef struct

@@ -327,6 +327,7 @@ uint8_t OSD_ConvASCII(uint16_t keycode)
 uint16_t OSD_GetKeyCode(void)
 {
     static uint16_t key_flags = 0;
+    static uint16_t alt = 0;
     static uint16_t old_key_code = 0;
     uint16_t key_code = 0;
     uint8_t  x;
@@ -356,20 +357,26 @@ uint16_t OSD_GetKeyCode(void)
         x = SPI(0);
         SPI_DisableOsd();
 
-        /*DEBUG(1,"new key %X",x);*/
+        //DEBUG(0,"new key %X",x);
 
-        if (x == ATKB_RELEASE)
+        if (x == KEY_ALT) {
+          alt=1;
+        } else if (x == ATKB_RELEASE) {
             key_flags |= KF_RELEASED;
-        else if ((x & 0xFE) == ATKB_EXTEND) // extended codes are preceeded by 0xE0 or 0xE1
+            alt=0;
+        } else if ((x & 0xFE) == ATKB_EXTEND) { // extended codes are preceeded by 0xE0 or 0xE1
             key_flags |= KF_EXTENDED;
-        else
-        {
-             key_code = key_flags | x;
-             if (key_code == old_key_code)
+        } else {
+            if ((x==KEY_RESET) && alt) {
+              key_code = KEY_REST;
+            } else {
+              key_code = key_flags | x;
+            }
+            if (key_code == old_key_code)
                 key_code |= KF_REPEATED;
-             else
+            else
                  old_key_code = key_code;
-             key_flags = 0;
+            key_flags = 0;
         }
     }
 

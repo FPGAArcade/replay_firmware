@@ -50,12 +50,12 @@
 
 #define DISABLE_KEYBOARD 0x02        // disable keyboard while OSD is active
 
-#define KEY_MENU  0x007
+#define KEY_REST  0xFFF
+
 #define KEY_PGUP  0x17D
 #define KEY_PGDN  0x17A
 #define KEY_HOME  0x16C
 #define KEY_ESC   0x076
-#define KEY_RESET 0x078
 #define KEY_ENTER 0x05A
 #define KEY_BACK  0x066
 #define KEY_SPACE 0x029
@@ -73,6 +73,11 @@
 #define KEY_F8    0x00A
 #define KEY_F9    0x001
 #define KEY_F10   0x009
+#define KEY_MENU  0x007
+#define KEY_RESET 0x078
+
+#define KEY_ALT   0x011
+#define KEY_SHIFT 0x012
 
 /*functions*/
 void OSD_Write(uint8_t row, const char *s, uint8_t invert);

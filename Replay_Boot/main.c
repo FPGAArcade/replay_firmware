@@ -234,6 +234,15 @@ int main(void)
           }
           // this key starts the bootloader - TODO: find better key or remove again...
           if (key == KEY_RESET) CFG_call_bootloader();
+          // this key restarts the core only
+          if (key == KEY_REST) {
+            // perform soft-reset
+            OSD_Reset(OSDCMD_CTRL_RES);
+            Timer_Wait(1);
+            // we should not need this, but just in case...
+            OSD_Reset(OSDCMD_CTRL);
+            Timer_Wait(100);
+          }
         }
         else {
           if (IO_Input_L(PIN_MENU_BUTTON)) {

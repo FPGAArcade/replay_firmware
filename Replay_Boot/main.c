@@ -105,6 +105,9 @@ int main(void)
       // free any backup stuff
       CFG_free_bak(&current_status);
 
+      // reset the DRAM phase in case we want to set it in the INI
+      current_status.dram_phase = 0;
+      
       // pre FPGA load ini file parse: FPGA bin, post ini, clocking, coder, video filter
       CFG_pre_init(&current_status, full_filename);
 

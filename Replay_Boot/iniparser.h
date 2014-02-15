@@ -22,6 +22,7 @@ typedef enum {
     INI_INFO,     ///< token for INFO line
     INI_BIN,      ///< token for BIN keyword (FPGA config file definition) 
     INI_CLOCK,    ///< token for CLOCK keyword (PLL chip configuration)
+    INI_PHASE,    ///< token for PHASE keyword (DRAM timing configuration)
     INI_CODER,    ///< token for CODER keyword (TV coder configuration)
     INI_VFILTER,  ///< token for VFILTER keyword (video filter configuration)
     INI_EN_TWI,   ///< token for EN_TWI keyword (enables post-TWI usage)

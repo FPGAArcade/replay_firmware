@@ -573,6 +573,16 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
           else return 1;
         }
                                        // =====================
+        if (name==INI_PHASE) {       // ===> DRAM PHASE CONFIG
+          ini_list_t valueList[8];
+          uint16_t entries = ParseList(value,valueList,8);
+          if (entries==1) {
+            pStatus->dram_phase=valueList[0].intval;
+            DEBUG(1,"DRAM phase: %d",pStatus->dram_phase);
+          }
+          else return 1;
+        }
+                                       // =====================
         if (name==INI_EN_TWI) {       // ===> ALLOW TWI POST-CONFIGURATIONS
           ini_list_t valueList[8];
           uint16_t entries = ParseList(value,valueList,8);
@@ -1147,8 +1157,12 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   uint32_t config_stat   = OSD_ConfigReadStatus();
   uint32_t config_fileio = OSD_ConfigReadFileIO();
 
-  OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
-
+  if (!currentStatus->dram_phase) {
+    OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
+  } else {
+    OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (currentStatus->dram_phase)); // phase from INI
+  }
+  
   // reset core and halt it for now
   OSD_Reset(OSDCMD_CTRL_RES|OSDCMD_CTRL_HALT);
   Timer_Wait(100);

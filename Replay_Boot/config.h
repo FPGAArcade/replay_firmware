@@ -243,6 +243,9 @@ typedef struct {
   /** next address where to load a ROM content - set by ini_post_read() */
   uint32_t     last_rom_adr;
 
+  /** set DRAM phase config - set by ini_post_read() */
+  uint8_t     dram_phase;
+
   /* ======== CONFIGURATION ======== */
 
   /** "static" core configuration, set on (re-)initialisation only */

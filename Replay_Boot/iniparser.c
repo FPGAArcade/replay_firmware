@@ -53,6 +53,7 @@ const ini_symtab_t symtab[] = {
   { "INFO"    ,INI_INFO     ,FALSE },
   { "BIN"     ,INI_BIN      ,FALSE },
   { "CLOCK"   ,INI_CLOCK    ,FALSE },
+  { "PHASE"   ,INI_PHASE    ,FALSE },
   { "CODER"   ,INI_CODER    ,FALSE },
   { "VFILTER" ,INI_VFILTER  ,FALSE },
   { "EN_TWI"  ,INI_EN_TWI   ,FALSE },

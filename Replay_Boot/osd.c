@@ -367,8 +367,8 @@ uint16_t OSD_GetKeyCode(void)
         } else if ((x & 0xFE) == ATKB_EXTEND) { // extended codes are preceeded by 0xE0 or 0xE1
             key_flags |= KF_EXTENDED;
         } else {
-            if ((x==KEY_RESET) && alt) {
-              key_code = KEY_REST;
+            if ((x==KEY_REST) && alt) {
+              key_code = KEY_RESET;
             } else {
               key_code = key_flags | x;
             }
@@ -440,7 +440,7 @@ uint16_t OSD_GetKeyCode(void)
           if ((!key_code) && USART_GetBuf(F8_KEYSEQ,sizeof(F8_KEYSEQ))) key_code=KEY_F8;
           if ((!key_code) && USART_GetBuf(F9_KEYSEQ,sizeof(F9_KEYSEQ))) key_code=KEY_F9;
           if ((!key_code) && USART_GetBuf(F10_KEYSEQ,sizeof(F10_KEYSEQ))) key_code=KEY_F10;
-          if ((!key_code) && USART_GetBuf(F11_KEYSEQ,sizeof(F11_KEYSEQ))) key_code=KEY_RESET; // ignored
+          if ((!key_code) && USART_GetBuf(F11_KEYSEQ,sizeof(F11_KEYSEQ))) key_code=KEY_REST;
           if ((!key_code) && USART_GetBuf(F12_KEYSEQ,sizeof(F12_KEYSEQ))) key_code=KEY_MENU;
           if (!key_code) {
             key_code=KEY_ESC;

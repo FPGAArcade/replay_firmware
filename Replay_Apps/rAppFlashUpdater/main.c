@@ -20,25 +20,29 @@ const char version[] = {__BUILDNUMBER__};
 // (we assume there is no collision with the actual stack)
 void _call_bootloader(void)
 {
-  int i;
-
-  volatile uint32_t *src = (volatile uint32_t *)0x00100200;
-  volatile uint32_t *dest = (volatile uint32_t *)0x00200000;
-
-  // set PROG low to reset FPGA (open drain)
-  IO_DriveLow_OD(PIN_FPGA_PROG_L);
-  Timer_Wait(1);
-  IO_DriveHigh_OD(PIN_FPGA_PROG_L);
-  Timer_Wait(2);
-
-  // copy bootloader to SRAM
-  for(i = 0; i < 1024; i++) {
-      *dest++ = *src++;
-  }
-
-  // launch bootloader in SRAM
-  asm("ldr r3, = 0x00200000\n");
+  // we can only reset, loading the bootloader in SRAM
+  // cuts the leg of our own chair we are sitting on...
+  asm("ldr r3, = 0x00000000\n");
   asm("bx  r3\n");
+//  int i;
+//
+//  volatile uint32_t *src = (volatile uint32_t *)0x00100200;
+//  volatile uint32_t *dest = (volatile uint32_t *)0x00200000;
+//
+//  // set PROG low to reset FPGA (open drain)
+//  IO_DriveLow_OD(PIN_FPGA_PROG_L);
+//  Timer_Wait(1);
+//  IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+//  Timer_Wait(2);
+//
+//  // copy bootloader to SRAM
+//  for(i = 0; i < 1024; i++) {
+//      *dest++ = *src++;
+//  }
+//
+//  // launch bootloader in SRAM
+//  asm("ldr r3, = 0x00200000\n");
+//  asm("bx  r3\n");
 }
 
 // initialize OSD again
@@ -99,8 +103,6 @@ int main(void)
 
   // re-init USART, disable IRQ-based access
   USART_ReInit(115200);
-  // re-init OSD
-  _init_osd();
   // re-init printf system, clear terminal output
   init_printf(0x0, USART_Putc);
   printf("\033[2J\r\n");
@@ -129,160 +131,170 @@ int main(void)
   uint32_t loaderlength = config[4];
   uint32_t loadersum = config[5];
 
-  uint32_t i, j, l, length, bok=1, lok=1;
+  uint32_t i, j, l, length, bok, lok;
   volatile uint32_t code;  // set to base later
   volatile uint32_t *fptr; // set to base later
 
-  sprintf(s,"Flasher rApp by Wolfgang Scherr");
-  _show(s,2);
+  while (1) {
+    // re-init OSD
+    _init_osd();
 
-  sprintf(s,"BOOT (base/length):");
-  _show(s,3);
-  sprintf(s," Base:   0x%08lx/0x%08lx",bootbase,bootlength);
-  _show(s,4);
-  
-  sprintf(s,"LOADER (base/length):");
-  _show(s,5);
-  sprintf(s," Base:   0x%08lx/0x%08lx",loaderbase,loaderlength);
-  _show(s,6);
+    sprintf(s,"Flasher rApp by Wolfgang Scherr");
+    _show(s,2);
 
-  sprintf(s,"CHECKSUMS (flash/sdcard):");
-  _show(s,7);
-
-  length=bootlength; l=0;
-  uint32_t bsum=0, bfsum=0;
-  code   = bootbase;
-  fptr = (volatile uint32_t *)bootbase;
-  for(i=0;i<((length/512)+1);i++) {
-    uint32_t buf[128];
-    _get_block(code,buf);
-    for(j=0;j<128;j++) {
-      if (l<length) bsum+=buf[j];
-      else break;
-      bfsum+=*fptr++;
-      l += 4;
-    }
-    code+=512;
-  }
-  if (bootsum!=bsum) {
-    sprintf(s," BOOT:   BAD SDCARD DATA!");
-  } else {
-    sprintf(s," BOOT:   0x%08lx/0x%08lx %s",bfsum,bsum,bfsum==bsum?" ":"!");
-    if (bfsum!=bsum) bok=0;
-  }
-  _show(s,8);
-
-  length=loaderlength; l=0;
-  uint32_t lsum=0, lfsum=0;
-  code   = loaderbase;
-  fptr = (volatile uint32_t *)loaderbase;
-  for(i=0;i<((length/512)+1);i++) {
-    uint32_t buf[128];
-    _get_block(code,buf);
-    for(j=0;j<128;j++) {
-      if (l<length) lsum+=buf[j];
-      else break;
-      lfsum+=*fptr++;
-      l += 4;
-    }
-    code+=512;
-  }
-  if (loadersum!=lsum) {
-    sprintf(s," LOADER: BAD SDCARD DATA!");
-  } else {
-    sprintf(s," LOADER: 0x%08lx/0x%08lx %s",lfsum,lsum,lfsum==lsum?" ":"!");
-    if (lfsum!=lsum) lok=0;
-  }
-  _show(s,9);
-
-  if (!lok) {    // we don't process bok for now until we know this works well!
-    sprintf(s,"--PRESS 'F' TO START FLASHING!--");
-    _show(s,11);
-    // Loop forever
-    while (TRUE) {
-      uint16_t key;
-      // get user control codes
-      key = OSD_GetKeyCode();
-      // this key starts the flashing
-      if (key == 'f') break;
-    }
-    sprintf(s,"********************************");
-    _showhi(s,10);
-    sprintf(s,"* FLASHING! DO NOT SWITCH OFF! *");
-    _showhi(s,11);
-    sprintf(s,"*                              *");
-    _showhi(s,12);
-    sprintf(s,"********************************");
-    _showhi(s,13);
+    sprintf(s,"BOOT (base/length):");
+    _show(s,3);
+    sprintf(s," Base:   0x%08lx/0x%08lx",bootbase,bootlength);
+    _show(s,4);
     
-    // Configure the flash again, just to be safe...
-    AT91C_BASE_MC->MC_FMR = AT91C_MC_FWS_1FWS |
-                            (48<<16);
+    sprintf(s,"LOADER (base/length):");
+    _show(s,5);
+    sprintf(s," Base:   0x%08lx/0x%08lx",loaderbase,loaderlength);
+    _show(s,6);
 
-    // flash the main loader
-    length = loaderlength; l=0;
-    code   = loaderbase;
+    sprintf(s,"CHECKSUMS (flash/sdcard):");
+    _show(s,7);
+
+    bok=1, lok=1;
+    length=bootlength; l=0;
+    uint32_t bsum=0, bfsum=0;
+    code   = bootbase;
+    fptr = (volatile uint32_t *)bootbase;
     for(i=0;i<((length/512)+1);i++) {
       uint32_t buf[128];
-      volatile uint32_t *p=0x0;
       _get_block(code,buf);
-      // write first page from buffer
-      for(j=0;j<64;j++) {
-        p[j]=buf[j];
-      l+=4;
+      for(j=0;j<128;j++) {
+        if (l<length) bsum+=buf[j];
+        else break;
+        bfsum+=*fptr++;
+        l += 4;
       }
-      Timer_Wait(10); // we need this to delay, the following while is quite useless...?
-      while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
-      AT91C_BASE_MC->MC_FCR = (0x5A000000L) |
-                              (code&0x3FF00L) |
-                              AT91C_MC_FCMD_START_PROG;
-      Timer_Wait(10); // we need this to delay, the following while is quite useless...?
-      while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
-      code+=256;
-      // write second page from buffer
-      for(j=0;j<64;j++) {
-        p[j]=buf[j+64];
+      code+=512;
+    }
+    if (bootsum!=bsum) {
+      sprintf(s," BOOT:   BAD SDCARD DATA!");
+    } else {
+      sprintf(s," BOOT:   0x%08lx/0x%08lx %s",bfsum,bsum,bfsum==bsum?" ":"!");
+      if (bfsum!=bsum) bok=0;
+    }
+    _show(s,8);
+
+    length=loaderlength; l=0;
+    uint32_t lsum=0, lfsum=0;
+    code   = loaderbase;
+    fptr = (volatile uint32_t *)loaderbase;
+    for(i=0;i<((length/512)+1);i++) {
+      uint32_t buf[128];
+      _get_block(code,buf);
+      for(j=0;j<128;j++) {
+        if (l<length) lsum+=buf[j];
+        else break;
+        lfsum+=*fptr++;
+        l += 4;
+      }
+      code+=512;
+    }
+    if (loadersum!=lsum) {
+      sprintf(s," LOADER: BAD SDCARD DATA!");
+    } else {
+      sprintf(s," LOADER: 0x%08lx/0x%08lx %s",lfsum,lsum,lfsum==lsum?" ":"!");
+      if (lfsum!=lsum) lok=0;
+    }
+    _show(s,9);
+
+    if (!lok) {    // we don't process bok for now until we know this works well!
+      sprintf(s,"--PRESS 'F' TO START FLASHING!--");
+      _show(s,11);
+      sprintf(s,"--  (OR PRESS 'R' TO REBOOT)  --");
+      _show(s,12);
+      // Loop forever
+      while (TRUE) {
+        uint16_t key;
+        // get user control codes
+        key = OSD_GetKeyCode();
+        // user decided to reboot
+        if (key == 'r') {
+          _call_bootloader();
+        }
+        // this key starts the flashing
+        if (key == 'f') break;
+      }
+      sprintf(s,"********************************");
+      _showhi(s,10);
+      sprintf(s,"* FLASHING! DO NOT SWITCH OFF! *");
+      _showhi(s,11);
+      sprintf(s,"*                              *");
+      _showhi(s,12);
+      sprintf(s,"********************************");
+      _showhi(s,13);
+      
+      // Configure the flash again, just to be safe...
+      AT91C_BASE_MC->MC_FMR = AT91C_MC_FWS_1FWS |
+                              (48<<16);
+
+      // flash the main loader
+      length = loaderlength; l=0;
+      code   = loaderbase;
+      for(i=0;i<((length/512)+1);i++) {
+        uint32_t buf[128];
+        volatile uint32_t *p=0x0;
+        _get_block(code,buf);
+        // write first page from buffer
+        for(j=0;j<64;j++) {
+          p[j]=buf[j];
         l+=4;
+        }
+        Timer_Wait(10); // we need this to delay, the following while is quite useless...?
+        while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
+        AT91C_BASE_MC->MC_FCR = (0x5A000000L) |
+                                (code&0x3FF00L) |
+                                AT91C_MC_FCMD_START_PROG;
+        Timer_Wait(10); // we need this to delay, the following while is quite useless...?
+        while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
+        code+=256;
+        // write second page from buffer
+        for(j=0;j<64;j++) {
+          p[j]=buf[j+64];
+          l+=4;
+        }
+        Timer_Wait(10); // we need this to delay, the following while is quite useless...?
+        while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
+        AT91C_BASE_MC->MC_FCR = (0x5A000000L) |
+                                (code&0x3FF00L) |
+                                AT91C_MC_FCMD_START_PROG;
+        Timer_Wait(10); // we need this to delay, the following while is quite useless...?
+        while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
+        code+=256;
+        // show something on OSD...
+        if ((l&0xfff)==0) {
+          sprintf(s,"@0x%08x (%lu%% written)",code,100*l/length);
+          OSD_WriteRC(12, 2, s, 0, 0xF, 0);
+        }
       }
-      Timer_Wait(10); // we need this to delay, the following while is quite useless...?
-      while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
-      AT91C_BASE_MC->MC_FCR = (0x5A000000L) |
-                              (code&0x3FF00L) |
-                              AT91C_MC_FCMD_START_PROG;
-      Timer_Wait(10); // we need this to delay, the following while is quite useless...?
-      while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
-      code+=256;
-      // show something on OSD...
-      if ((l&0xfff)==0) {
-        sprintf(s,"@0x%08x (%lu%% written)",code,100*l/length);
-        OSD_WriteRC(12, 2, s, 0, 0xF, 0);
+    } else {
+      // 
+      sprintf(s,"                                ");
+      _show(s,10);
+      sprintf(s,"                                ");
+      _show(s,11);
+      sprintf(s,">flash OK - press 'R' to reboot<");
+      _show(s,12);
+      sprintf(s,"                                ");
+      _show(s,13);
+      
+      // Loop forever
+      while (TRUE) {
+          uint16_t key;
+          // get user control codes
+          key = OSD_GetKeyCode();
+          // this key starts the flashing
+          if (key == 'r') {
+            _call_bootloader();
+          }
       }
     }
   }
-  // 
-  sprintf(s,"                                ");
-  _show(s,10);
-  sprintf(s,"                                ");
-  _show(s,11);
-  sprintf(s,"--DONE, PLS. POWER CYCLE BOARD--");
-  _show(s,12);
-  sprintf(s,"                                ");
-  _show(s,13);
   
-  // Loop forever
-  while (TRUE) {
-      uint16_t key;
-      // get user control codes
-      key = OSD_GetKeyCode();
-      // this key starts the flashing
-      if (key == 'r') {
-        _call_bootloader();
-        // perform a reset
-        asm("ldr r3, = 0x00000000\n");
-        asm("bx  r3\n");
-      }
-  }
-
   // ------------------------------------------------------------------------
   return 0; /* never reached */
 }

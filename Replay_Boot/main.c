@@ -87,6 +87,8 @@ int main(void)
 
   DEBUG(1,"");
 
+  FDD_Init(); // here?
+
   // Loop forever
   while (TRUE) {
     char full_filename[FF_MAX_PATH];
@@ -105,9 +107,6 @@ int main(void)
       // free any backup stuff
       CFG_free_bak(&current_status);
 
-      // reset the DRAM phase in case we want to set it in the INI
-      current_status.dram_phase = 0;
-      
       // pre FPGA load ini file parse: FPGA bin, post ini, clocking, coder, video filter
       CFG_pre_init(&current_status, full_filename);
 
@@ -169,7 +168,7 @@ int main(void)
         DEBUG(1,"--------------------------");
         DEBUG(1,"CLEANUP (%ld bytes free)",CFG_get_free_mem());
         CFG_free_menu(&current_status);
-        
+
         // initialize root entry properly, it is the seed of this menu tree
         DEBUG(1,"--------------------------");
         DEBUG(1,"PRE-INIT (%ld bytes free)",CFG_get_free_mem());
@@ -213,8 +212,6 @@ int main(void)
       // we do a final update of MENU / settings and let the core run
       // afterwards, we show the generic status menu
       MENU_init_ui(&current_status);
-      /*ConfigUpdate();*/
-      /*OSD_ConfigSendFileIO(1); // one disk at startup*/
       OSD_Reset(0);
       Timer_Wait(100);
       current_status.show_status=1;
@@ -231,7 +228,6 @@ int main(void)
 
           USART_update();
 
-          //CFG_handle_fpga();
           if (MENU_handle_ui(key,&current_status)) {
             // do further update stuff here...
           }
@@ -299,6 +295,8 @@ int main(void)
           // invalidate FPGA configuration here as well
           current_status.fpga_load_ok = 0;
         }
+
+        CFG_handle_fpga();
       }
     }
 

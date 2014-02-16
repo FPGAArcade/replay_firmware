@@ -8,7 +8,8 @@
 #define FILEBUF_SIZE (512*4)
 #define FPGA_MEMBUF_SIZE 512
 
-#define kDRAM_PHASE 0x68
+// Wolfgang: reduced phase by 10 as discussed with Mike (on 16feb2014) 
+#define kDRAM_PHASE (0x68-10)
 #define kDRAM_SEL   0x02
 
 uint8_t FPGA_Default(void);

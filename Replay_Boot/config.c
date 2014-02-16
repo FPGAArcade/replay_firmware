@@ -122,18 +122,26 @@ void CFG_fatal_error(uint8_t error)
 
 void CFG_handle_fpga(void)
 {
-    unsigned char  c1, c2;
+    uint8_t  status;
+    uint16_t addr;
 
     SPI_EnableFpga();
-    c1 = SPI(0); // cmd request and drive number
-    c2 = SPI(0); // track number
-    SPI(0);
-    SPI(0);
-    SPI(0);
-    SPI(0);
+    SPI(0x18); // dma sync
     SPI_DisableFpga();
 
-    FDD_Handle(c1, c2);
+    SPI_EnableFpga();
+    SPI(0x00);
+    status = SPI(0); // cmd request
+    addr   = SPI(0) << 8;
+    addr  |= SPI(0);
+    SPI_DisableFpga();
+
+    if (status & 0x08) {
+      DEBUG(1,"FDD:handle track %04X", addr);
+      FDD_Handle(status, addr);
+    }
+
+    /*FDD_Handle(c1, c2);*/
     //HandleHDD(c1, c2);
 
     FDD_UpdateDriveStatus();
@@ -1160,7 +1168,12 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   if (!currentStatus->dram_phase) {
     OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
   } else {
-    OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (currentStatus->dram_phase)); // phase from INI
+    if (abs(currentStatus->dram_phase)<21) {
+      INFO("DRAM phase fix: %d -> %d",kDRAM_PHASE,kDRAM_PHASE + currentStatus->dram_phase);
+      OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (kDRAM_PHASE + currentStatus->dram_phase)); // phase from INI
+    } else {
+      WARNING("DRAM phase value bad, ignored!");
+    }
   }
   
   // reset core and halt it for now
@@ -1194,6 +1207,10 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
       return 1;
     }
   }
+
+  // TEMP config to 1 floppy, no hard disk
+  OSD_ConfigSendFileIO( (0x00 << 4) | 0x01);
+  // 0x22 write config (fileio)       W0       number of disks 2..0 FD 7..4 HD note FD is a number 0-4 HD is a MASK
 
   init_mem -= CFG_get_free_mem();
   DEBUG(1,"Final free MEM:   %ld bytes", CFG_get_free_mem());

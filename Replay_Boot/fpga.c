@@ -162,7 +162,7 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
     } else {
       ACTLED_OFF;
     }
-    
+
     // switch between 2 buffers to read-in
     if (secCount&1)
       pBufR = &(fBuf2[0]);
@@ -270,7 +270,7 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
   SPI_DisableFpga();
 
   while (remaining_size) {
-    #if (FPGA_MEMBUF_SIZE>FILEBUF_SIZE) 
+    #if (FPGA_MEMBUF_SIZE>FILEBUF_SIZE)
       #error "FPGA_MEMBUF_SIZE>FILEBUF_SIZE !"
     #endif
     uint8_t fBuf[FILEBUF_SIZE];
@@ -340,7 +340,7 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
   SPI_DisableFpga();
 
   while (remaining_size) {
-    #if (FPGA_MEMBUF_SIZE>FILEBUF_SIZE) 
+    #if (FPGA_MEMBUF_SIZE>FILEBUF_SIZE)
       #error "FPGA_MEMBUF_SIZE>FILEBUF_SIZE !"
     #endif
     uint8_t fBuf[FILEBUF_SIZE];
@@ -480,7 +480,7 @@ uint8_t FPGA_DramTrain(void)
   uint8_t mBuf[512];
   uint32_t i;
   uint32_t addr;
-  DEBUG(2,"DRAM enabled, running test.");
+  DEBUG(1,"FPGA:DRAM enabled, running test.");
   // 25..0  64MByte
   // 25 23        15        7
   // 00 0000 0000 0000 0000 0000 0000
@@ -506,7 +506,7 @@ uint8_t FPGA_DramTrain(void)
     }
     addr = (0x100 << i);
   }
-  DEBUG(2,"DRAM passed.");
+  DEBUG(1,"FPGA:DRAM TEST passed.");
   return (0);
 }
 
@@ -597,9 +597,9 @@ uint8_t FPGA_ProdTest(void)
     }
 
     if (key == KEY_F6) {
-      if    (maskpat == 8) 
+      if    (maskpat == 8)
         maskpat = 0;
-      else if (maskpat != 0) 
+      else if (maskpat != 0)
         maskpat--;
       DEBUG(0,"Mask %01X", maskpat);
     }
@@ -705,7 +705,7 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
   uint32_t i, j, l=0, sum=0;
   volatile uint32_t *dest = (volatile uint32_t *)0x00200000L;
   uint8_t value;
-  
+
   DEBUG(0,"FPGA: copy %d bytes from 0x%lx and execute if the checksum is 0x%lx",len,base,checksum);
   DEBUG(0,"FPGA: we have about %ld bytes free for the code",((uint32_t)&value)-0x00200000L);
 
@@ -747,7 +747,7 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
       l+=4;
     }
   }
-  
+
   // STOP HERE
   if (sum!=checksum) {
     ERROR("FPGA: CHK exp: 0x%lx got: 0x%lx",checksum,sum);

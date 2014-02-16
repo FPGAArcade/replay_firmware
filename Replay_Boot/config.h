@@ -244,7 +244,7 @@ typedef struct {
   uint32_t     last_rom_adr;
 
   /** set DRAM phase config - set by ini_post_read() */
-  uint8_t     dram_phase;
+  int8_t      dram_phase;
 
   /* ======== CONFIGURATION ======== */
 

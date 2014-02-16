@@ -4,9 +4,9 @@
 #include "messaging.h"
 #include "amiga_fdd.h"
 
-const uint8_t FDD_DEBUG = 0;
+const uint8_t FDD_DEBUG = 1;
 
-uint8_t drives = 0;   // number of active drives reported by FPGA (may change only during reset)
+//uint8_t drives = 0;   // number of active drives reported by FPGA (may change only during reset)
 adfTYPE df[4];        // drive 0 information structure
 
 // localized buffer for this module
@@ -21,6 +21,8 @@ uint8_t  FDD_fBuf[FDD_BUF_SIZE];
 void FDD_SendSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl)
 {
   //DumpBuffer(pData, 64);
+  if (FDD_DEBUG)
+    DEBUG(1,"FDD_SendSector %04X, %04X", sector, track);
 
   uint8_t checksum[4];
   uint16_t i;
@@ -50,7 +52,7 @@ void FDD_SendSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksy
   checksum[2] = x;
   SPI(x);
   // subtraction has higher prio, added brackets accordingly!
-  x = ((11 - sector) >> 1) & 0x55; 
+  x = ((11 - sector) >> 1) & 0x55;
   checksum[3] = x;
   SPI(x);
 
@@ -139,6 +141,7 @@ void FDD_ReadTrack(adfTYPE *drive)
 
   uint8_t  sector;
   uint8_t  status;
+  uint16_t addr;
   uint8_t  track;
   uint16_t dsksync;
   uint16_t dsklen;
@@ -151,7 +154,7 @@ void FDD_ReadTrack(adfTYPE *drive)
 
   // display track number: cylinder & head
   if (FDD_DEBUG)
-    DEBUG(1,"#%u", drive->track);
+    DEBUG(1,"FDD_ReadTrack #%u", drive->track);
 
   offset = (512*11) * drive->track;
 
@@ -166,36 +169,21 @@ void FDD_ReadTrack(adfTYPE *drive)
     sector = drive->sector_offset;
     FF_Seek(drive->fSource, offset + (sector<<9), FF_SEEK_SET);
   }
-
-  SPI_EnableFpga();
-  status   = SPI(0); // read request signal
-  track    = SPI(0); // track number (cylinder & head)
-  dsksync  = SPI(0) << 8; // disk sync high byte
-  dsksync |= SPI(0); // disk sync low byte
-  dsklen   = SPI(0) << 8 & 0x3F00; // msb of mfm words to transfer
-  dsklen  |= SPI(0); // lsb of mfm words to transfer
-  SPI_DisableFpga();
-
-  if (track >= drive->tracks)
-    track = drive->tracks - 1;
-
-  if (FDD_DEBUG)
-    DEBUG(1,"#(%u,%04X)", status >> 6, dsksync);
-
   while (1) {
     // note read moves on file pointer automatically
     FF_Read(drive->fSource, FDD_BUF_SIZE, 1, FDD_fBuf);
 
     SPI_EnableFpga();
-
-    // check if FPGA is still asking for data
-    status   = SPI(0); // read request signal
-    track    = SPI(0); // track number (cylinder & head)
+    SPI(0x00);
+    status   = SPI(0); // cmd request
+    addr     = SPI(0) << 8;
+    addr    |= SPI(0);
     dsksync  = SPI(0) << 8; // disk sync high byte
     dsksync |= SPI(0); // disk sync low byte
-    dsklen   = SPI(0) << 8 & 0x3F00; // msb of mfm words to transfer
-    dsklen  |= SPI(0); // lsb of mfm words to transfer
+    SPI_DisableFpga();
+    track = (uint8_t) addr & 0xFF;
 
+    // end of disk check
     if (track >= drive->tracks)
       track = drive->tracks - 1;
 
@@ -208,8 +196,11 @@ void FDD_ReadTrack(adfTYPE *drive)
     // Prince of Persia: $4891
     // Commando: $A245
 
-    if (FDD_DEBUG)
-      DEBUG(2,"#%X:%04X", sector, dsklen);
+    /*if (FDD_DEBUG)*/
+      /*DEBUG(2,"#%X:%04X", sector, dsklen);*/
+
+    SPI_EnableFpga();
+    SPI(0x40); // enable write
 
     // some loaders stop dma if sector header isn't what they expect
     // because we don't check dma transfer count after sending a word
@@ -217,7 +208,7 @@ void FDD_ReadTrack(adfTYPE *drive)
     // in this case let's start transfer from the beginning
     if (track == drive->track) {
       // send sector if fpga is still asking for data
-       if (status & CMD_RDTRK) {
+       if (status & 0x08) {
          FDD_SendSector(FDD_fBuf, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);
          if (sector == LAST_SECTOR)
            FDD_SendGap();
@@ -232,7 +223,7 @@ void FDD_ReadTrack(adfTYPE *drive)
       break;
 
     // read dma request
-    if (!(status & CMD_RDTRK))
+    if (!(status & 0x08))
       break;
 
     sector++;
@@ -577,28 +568,28 @@ void FDD_UpdateDriveStatus(void)
   SPI_DisableFpga();
 }
 
-void FDD_Handle(uint8_t c1, uint8_t c2)
+void FDD_Handle(uint8_t status, uint16_t addr)
 {
-  uint8_t sel;
-  drives = (c1 >> 4) & 0x03; // number of active floppy drives
+  // request must be asserted to get here
+  uint8_t sel = status & 0x03;
 
-  if (c1 & CMD_RDTRK) {
+  if (status & 0x4) { // write
+    /*ACTLED_ON;*/
+    /*sel = (c1 >> 6) & 0x03;*/
+    /*df[sel].track = c2;*/
+    /*FDD_WriteTrack(&df[sel]);*/
+    /*ACTLED_OFF;*/
+  } else {
     ACTLED_ON;
-    sel = (c1 >> 6) & 0x03;
-    df[sel].track = c2;
+    df[sel].track = (uint8_t) (addr & 0xFF);
     FDD_ReadTrack(&df[sel]);
-    ACTLED_OFF;
-  } else if (c1 & CMD_WRTRK) {
-    ACTLED_ON;
-    sel = (c1 >> 6) & 0x03;
-    df[sel].track = c2;
-    FDD_WriteTrack(&df[sel]);
     ACTLED_OFF;
   }
 }
 
 void FDD_Init(void)
 {
+  DEBUG(1,"FDD:Init");
   uint32_t i;
   for (i=0; i<4; i++) {
     df[i].status = 0; df[i].fSource = NULL;

@@ -13,7 +13,7 @@
 
 // floppy status
 #define DSK_INSERTED 0x01 /*disk is inserted*/
-#define DSK_WRITABLE 0x10 /*disk is writable*/
+#define DSK_WRITABLE 0x02 /*disk is writable*/
 #define MAX_DISPLAY_FILENAME 23
 
 // constants
@@ -45,7 +45,7 @@ uint8_t FDD_GetHeader(uint8_t *pTrack, uint8_t *pSector);
 uint8_t FDD_GetData(void);
 void FDD_WriteTrack(adfTYPE *drive);
 void FDD_UpdateDriveStatus(void);
-void FDD_Handle(uint8_t c1, uint8_t c2);
+void FDD_Handle(uint8_t status, uint16_t addr);
 void FDD_Init(void);
 
 

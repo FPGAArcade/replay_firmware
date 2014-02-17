@@ -367,8 +367,8 @@ uint16_t OSD_GetKeyCode(void)
         } else if ((x & 0xFE) == ATKB_EXTEND) { // extended codes are preceeded by 0xE0 or 0xE1
             key_flags |= KF_EXTENDED;
         } else {
-            if ((x==KEY_RESET) && alt) {
-              key_code = KEY_REST;
+            if ((x==KEY_REST) && alt) {
+              key_code = KEY_RESET;
             } else {
               key_code = key_flags | x;
             }

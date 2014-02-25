@@ -199,6 +199,7 @@ void FDD_ReadTrack(adfTYPE *drive)
     /*if (FDD_DEBUG)*/
       /*DEBUG(2,"#%X:%04X", sector, dsklen);*/
 
+
     SPI_EnableFpga();
     SPI(0x40); // enable write
 
@@ -208,11 +209,11 @@ void FDD_ReadTrack(adfTYPE *drive)
     // in this case let's start transfer from the beginning
     if (track == drive->track) {
       // send sector if fpga is still asking for data
-       if (status & 0x08) {
+       /*if (status & 0x08) {*/
          FDD_SendSector(FDD_fBuf, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);
          if (sector == LAST_SECTOR)
            FDD_SendGap();
-       }
+       /*}*/
     }
 
     // we are done accessing FPGA
@@ -573,6 +574,11 @@ void FDD_Handle(uint8_t status, uint16_t addr)
   // request must be asserted to get here
   uint8_t sel = status & 0x03;
 
+  // ack all commands
+  SPI_EnableFpga();
+  SPI(0x19);
+  SPI_DisableFpga();
+
   if (status & 0x4) { // write
     /*ACTLED_ON;*/
     /*sel = (c1 >> 6) & 0x03;*/
@@ -585,6 +591,12 @@ void FDD_Handle(uint8_t status, uint16_t addr)
     FDD_ReadTrack(&df[sel]);
     ACTLED_OFF;
   }
+
+  // transfer complete
+  SPI_EnableFpga();
+  SPI(0x1A);
+  SPI_DisableFpga();
+
 }
 
 void FDD_Init(void)

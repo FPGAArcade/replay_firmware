@@ -122,29 +122,24 @@ void CFG_fatal_error(uint8_t error)
 
 void CFG_handle_fpga(void)
 {
-    uint8_t  status;
-    uint16_t addr;
+    uint8_t status;
 
     SPI_EnableFpga();
-    SPI(0x18); // dma sync
+    SPI(0x18); // status update
     SPI_DisableFpga();
 
     SPI_EnableFpga();
     SPI(0x00);
     status = SPI(0); // cmd request
-    addr   = SPI(0) << 8;
-    addr  |= SPI(0);
+    // just read first status word to save time
     SPI_DisableFpga();
 
-    if (status & 0x08) {
-      DEBUG(1,"FDD:handle track %04X", addr);
-      FDD_Handle(status, addr);
+    if (status & 0x08) { // FF request
+      DEBUG(1,"FDD:handle request");
+      FDD_Handle();
     }
 
-    /*FDD_Handle(c1, c2);*/
-    //HandleHDD(c1, c2);
-
-    FDD_UpdateDriveStatus();
+    FDD_UpdateDriveStatus(); // TO GO - only if drive inserted/changed
 }
 
 // we copy the actual bootloader from flash to the RAM and call it
@@ -1175,7 +1170,7 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
       WARNING("DRAM phase value bad, ignored!");
     }
   }
-  
+
   // reset core and halt it for now
   OSD_Reset(OSDCMD_CTRL_RES|OSDCMD_CTRL_HALT);
   Timer_Wait(100);

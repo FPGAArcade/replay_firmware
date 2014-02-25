@@ -8,7 +8,7 @@
 #include "twi.h"
 #include "fullfat.h"
 
-#include "amiga_fdd.h"
+#include "fileio_fdd.h"
 #include "amiga_hdd.h"
 #include "iniparser.h"
 #include "config.h"

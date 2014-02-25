@@ -10,7 +10,7 @@
 #include "iniparser.h"
 #include "twi.h"
 #include "filesel.h"
-#include "amiga_fdd.h"
+#include "fileio_fdd.h"
 
 /* ========================================================================== */
 
@@ -560,7 +560,7 @@ void CFG_free_bak(status_t *currentStatus);
     @param iniFile filename in which the INI settings are written
     @return 0 on success, others indicate a failure
 */
-void CFG_save_all(status_t *currentStatus, const char *iniDir, 
+void CFG_save_all(status_t *currentStatus, const char *iniDir,
                   const char *iniFile);
 
 #endif

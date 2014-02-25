@@ -90,7 +90,7 @@ SRC += fpga.c
 SRC += twi.c
 SRC += filesel.c
 SRC += config.c
-SRC += amiga_fdd.c
+SRC += fileio_fdd.c
 SRC += amiga_hdd.c
 SRC += osd.c
 SRC += menu.c
@@ -338,7 +338,7 @@ all: begin $(BUILDDIR)/isset gccversion build finished end
 $(BUILDDIR)/isset:
 	mkdir -p $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
 	echo ok > $(BUILDDIR)/isset
-#	mkdir -p $(OUTDIR)
+#       mkdir -p $(OUTDIR)
 
 build: elf hex bin s19 lss sym
 

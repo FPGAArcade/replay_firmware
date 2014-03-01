@@ -162,7 +162,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
         DEBUG(1,"LOAD from: %s ext: %s",current_status->act_dir,(item->option_list->option_name)+2);
         // open file browser
         strcpy(current_status->act_dir,current_status->ini_dir);
-        // search for INI files
+        // search for files with given extension
         Filesel_Init(current_status->dir_scan, current_status->act_dir, (item->option_list->option_name)+2);
         // initialize browser
         Filesel_ScanFirst(current_status->dir_scan);
@@ -259,14 +259,30 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     if MATCH(item->action_name,"loadselect") {
       if ((current_status->act_dir[0]) && (mydir.FileName[0])) {
         char full_filename[FF_MAX_PATH];
-        sprintf(full_filename,"%s%s",current_status->act_dir,mydir.FileName);
         // upload with auto-size to given adress and optional verification run
-        CFG_upload_rom(full_filename,item->action_value,0,item->option_list->conf_value);
+        // conf value is 8 bit format, 1 bit halt flag, 1 bit reset flag, 1 bit verification flag (LSB)
+        if ((item->option_list->conf_value>>2)&1) {
+          // halt the core if requested
+          OSD_Reset(OSDCMD_CTRL_HALT);
+          Timer_Wait(1);
+        }
+        sprintf(full_filename,"%s%s",current_status->act_dir,mydir.FileName);
+        CFG_upload_rom(full_filename,item->action_value,0,item->option_list->conf_value&1,(item->option_list->conf_value>>3)&255);
         current_status->show_menu=0;
         current_status->file_browser=0;
         current_status->popup_menu=0;
         current_status->show_status=0;
         OSD_Disable();
+        Timer_Wait(1);
+        if ((item->option_list->conf_value>>2)&1) {
+          // continue operation of the core if requested
+          OSD_Reset(0);
+        }
+        if ((item->option_list->conf_value>>1)&1) {
+          // perform soft-reset if requested
+          OSD_Reset(OSDCMD_CTRL_RES);
+        }
+        Timer_Wait(1);
         return 1;
       }
     }

@@ -302,26 +302,33 @@ void CFG_set_coder(coder_t standard)
   }
 }
 
-uint8_t CFG_upload_rom(char *filename, uint32_t base,
-                       uint32_t size, uint8_t verify)
+uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size, 
+                       uint8_t verify, uint8_t format)
 {
   FF_FILE *fSource = NULL;
   fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
   uint8_t rc=1;
+  uint32_t offset=0;
+  uint16_t filebase=0;
 
   if (fSource) {
-      DEBUG(1, "%s @0x%X,S:%d",filename, base, size);
-      if (!size) { // auto-size
-        size=FF_BytesLeft(fSource);
-        DEBUG(1, "--> S:%d", size);
-      }
-      FPGA_FileToMem(fSource, base, size);
-      if (verify) {
-        rc=FPGA_FileToMemVerify(fSource, base, size);
-      } else {
-        rc=0;
-      }
-      FF_Close(fSource);
+    if (format==1) {
+      FF_Seek(fSource, 0, FF_SEEK_SET);
+      uint32_t bytes_read = FF_Read(fSource, 2, 1, (uint8_t *)&filebase);
+      if (bytes_read == 0) filebase=0;
+      else offset=2;
+    }
+    if (!size) { // auto-size
+      size=FF_BytesLeft(fSource);
+    }
+    DEBUG(1, "%s @0x%X (0x%X),S:%d",filename, base+filebase, offset, size);
+    FPGA_FileToMem(fSource, base+filebase, size, offset);
+    if (verify) {
+      rc=FPGA_FileToMemVerify(fSource, base+filebase, size, offset);
+    } else {
+      rc=0;
+    }
+    FF_Close(fSource);
   } else {
     ERROR("Could not open %s", filename);
     return 1;
@@ -857,7 +864,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
           if (pStatus->spi_fpga_enabled) {
             ini_list_t valueList[8];
             uint16_t entries = ParseList(value,valueList,8);
-            if ((entries==3) && (strlen(valueList[0].strval))) {
+            if ((entries==4) && (strlen(valueList[0].strval))) {
               char fullname[FF_MAX_PATH];
               // set address properly
               pStatus->last_rom_adr = valueList[2].intval+valueList[1].intval;
@@ -865,8 +872,24 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
               DEBUG(2,"ROM upload @ 0x%08lX (%ld byte)",
                       valueList[2].intval,valueList[1].intval);
-              if (CFG_upload_rom(fullname, valueList[2].intval,
-                                   valueList[1].intval,pStatus->verify_dl)) {
+              if (CFG_upload_rom(fullname, valueList[2].intval,valueList[1].intval,
+                                 pStatus->verify_dl,valueList[3].intval)) {
+                MSG_error("ROM upload to FPGA failed");
+                return 1;
+              } else {
+                return 0;
+              }
+            }
+            else if ((entries==3) && (strlen(valueList[0].strval))) {
+              char fullname[FF_MAX_PATH];
+              // set address properly
+              pStatus->last_rom_adr = valueList[2].intval+valueList[1].intval;
+              // prepare filename
+              sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
+              DEBUG(2,"ROM upload @ 0x%08lX (%ld byte)",
+                      valueList[2].intval,valueList[1].intval);
+              if (CFG_upload_rom(fullname, valueList[2].intval,valueList[1].intval,
+                                 pStatus->verify_dl,0)) {
                 MSG_error("ROM upload to FPGA failed");
                 return 1;
               } else {
@@ -883,7 +906,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               DEBUG(2,"ROM upload @ 0x%08lX (%ld byte)",
                       adr,valueList[1].intval);
               if (CFG_upload_rom(fullname, adr, valueList[1].intval,
-                                 pStatus->verify_dl)) {
+                                 pStatus->verify_dl, 0)) {
                 MSG_error("ROM upload to FPGA failed");
                 return 1;
               } else {
@@ -1090,6 +1113,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                                         // =====================
         if (name==INI_OPTION) {         // ===> add an option to an item
           ini_list_t valueList[8];
+          uint8_t nocheck=0;
           uint16_t entries = ParseList(value,valueList,32);
           if ((entries==2)||(entries==3)) {
             DEBUG(2,"OPTION: %s ",value);
@@ -1106,21 +1130,27 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               pStatus->item_opt_act->next=NULL;
             }
             pStatus->item_opt_act->conf_value=valueList[1].intval;
+            if (entries==3) {
+              if (MATCH(valueList[2].strval,"FLAGS") ||
+                  MATCH(valueList[2].strval,"F")) {
+                nocheck=1;
+              } else {
+                if (MATCH(valueList[2].strval,"DEFAULT") ||
+                    MATCH(valueList[2].strval,"DEF") ||
+                    MATCH(valueList[2].strval,"D")) {
+                  pStatus->menu_item_act->selected_option=pStatus->item_opt_act;
+                } else {
+                  MSG_error("bad option type - use 'default' or none");
+                  //ERROR("Illegal option type (\"default\" or none)");
+                  return 1;
+                }
+              }
+            }
             if ((pStatus->menu_item_act->conf_mask &
                  pStatus->item_opt_act->conf_value) !=
                  pStatus->item_opt_act->conf_value) {
-              MSG_error("item mask does not fit to value");
-              //ERROR("Mask would hide this option value!");
-              return 1;
-            }
-            if (entries==3) {
-              if (MATCH(valueList[2].strval,"DEFAULT") ||
-                  MATCH(valueList[2].strval,"DEF") ||
-                  MATCH(valueList[2].strval,"D")) {
-                pStatus->menu_item_act->selected_option=pStatus->item_opt_act;
-              } else {
-                MSG_error("bad option type - use 'default' or none");
-                //ERROR("Illegal option type (\"default\" or none)");
+              if (!nocheck) {
+                MSG_error("item mask does not fit to value");
                 return 1;
               }
             }

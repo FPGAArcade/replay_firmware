@@ -243,7 +243,7 @@ uint8_t FPGA_ReadBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
   return (0);
 }
 
-uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
+uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset)
 // this function sends given file to FPGA's memory
 // base - memory base address (bits 23..16)
 // size - memory size (bits 23..16)
@@ -254,7 +254,7 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
   time = Timer_Get(0);
 
   DEBUG(3,"FPGA:Uploading file Addr:%8X Size:%8X.",base,size);
-  FF_Seek(pFile, 0, FF_SEEK_SET);
+  FF_Seek(pFile, offset, FF_SEEK_SET);
 
   SPI_EnableFpga();
   SPI(0x80); // set address
@@ -303,7 +303,7 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
   if (FPGA_WaitStat(0x01, 0)) // wait for finish (final)
     return(1);
   time = Timer_Get(0)-time;
-  DEBUG(2,"Upload done in %d ms.", (uint32_t) (time >> 20));
+  DEBUG(1,"Upload done in %d ms.", (uint32_t) (time >> 20));
 
   if (remaining_size != 0) {
     WARNING("FPGA: Sent file truncated. Requested :%8X Sent :%8X.",
@@ -315,7 +315,7 @@ uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size)
   return(rc) ;// no error
 }
 
-uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
+uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset)
 {
   // for debug
   uint8_t  rc = 0;
@@ -324,7 +324,7 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
   time = Timer_Get(0);
 
   DEBUG(2,"FPGA:Verifying Addr:%8X Size:%8X.",base,size);
-  FF_Seek(pFile, 0, FF_SEEK_SET);
+  FF_Seek(pFile, offset, FF_SEEK_SET);
 
   SPI_EnableFpga();
   SPI(0x80); // set address
@@ -394,7 +394,7 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size)
   }
 
   time = Timer_Get(0)-time;
-  DEBUG(2,"Verify done in %d ms.", (uint32_t) (time >> 20));
+  DEBUG(1,"Verify done in %d ms.", (uint32_t) (time >> 20));
 
   if (!rc) DEBUG(2,"FPGA:File verified complete.");
 

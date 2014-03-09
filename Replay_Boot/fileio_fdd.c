@@ -23,11 +23,23 @@ void FDD_AmigaHeader(adfTYPE *drive,  uint8_t track, uint8_t sector, uint16_t ds
   uint8_t *p;
 
   uint32_t addr_ts = (SECTOR_COUNT * SECTOR_SIZE * track) + (SECTOR_SIZE * sector);
+  uint32_t time;
 
   // read block to calc checksum
   // could add local cache check here if offset == last_offset
+
+  /*time = Timer_Get(0);*/
   FF_Seek(drive->fSource, addr_ts, FF_SEEK_SET); // check return
+  /*time = Timer_Get(0) - time;*/
+  /*INFO("header seek in %lu ms", time >> 20);*/
+
+  /*time = Timer_Get(0);*/
   FF_Read(drive->fSource, 512, 1, FDD_fBuf);   // check return
+  /*time = Timer_Get(0) - time;*/
+  /*INFO("header read in %lu ms", time >> 20);*/
+
+
+  //DEBUG(1,"FDD:header seek :%08X",addr_ts);
 
   // workaround for Copy Lock in Wiz'n'Liz and North&South (might brake other games)
   if (dsksync == 0x0000 || dsksync == 0x8914 || dsksync == 0xA144)
@@ -42,7 +54,7 @@ void FDD_AmigaHeader(adfTYPE *drive,  uint8_t track, uint8_t sector, uint16_t ds
   uint8_t dsksyncl = (uint8_t)(dsksync);
 
   SPI_EnableFpga();
-  SPI(0x40); // enable write
+  SPI(0x50); // enable write
 
   // preamble
   SPI(0xAA);
@@ -138,16 +150,29 @@ void FDD_Read(adfTYPE *drive, uint32_t offset, uint16_t size)
 { // track number is updated in drive struct before calling this function
   uint16_t i;
   uint8_t *p;
+  uint32_t time;
 
   if (size > FDD_BUF_SIZE) {
     ERROR("size too big"); // temp, split over buffers
     return;
   }
+
+  //DEBUG(1,"FDD:sector seek: %08X, size %04X",offset, size);
+
   // could add local cache check here if offset == last_offset
+  // looks like FF is optimal with seeking to current pos, but worth checking
+  /*time = Timer_Get(0);*/
   FF_Seek(drive->fSource, offset, FF_SEEK_SET); // check return
+  /*time = Timer_Get(0) - time;*/
+  /*INFO("block seek in %lu ms", time >> 20);*/
+
+  /*time = Timer_Get(0);*/
   FF_Read(drive->fSource, size, 1, FDD_fBuf);   // check return
+  /*time = Timer_Get(0) - time;*/
+  /*INFO("block read in %lu ms", time >> 20);*/
+
   SPI_EnableFpga();
-  SPI(0x40); // enable write
+  SPI(0x50); // enable write
 
   i = size;
   p = FDD_fBuf;
@@ -490,7 +515,7 @@ void FDD_Read(adfTYPE *drive, uint32_t offset, uint16_t size)
 void FDD_UpdateDriveStatus(void)
 {
   SPI_EnableFpga();
-  SPI(0x10);
+  SPI(0x20);
   SPI(df[0].status | (df[1].status << 1) | (df[2].status << 2) | (df[3].status << 3));
   SPI_DisableFpga();
 }
@@ -513,31 +538,31 @@ void FDD_Handle(void)
   //}
 
   uint8_t  status;
-  uint16_t cmd;
-  uint16_t user;
-  uint8_t  sel;
-  uint8_t  req;
-  uint16_t addr;
+  uint8_t  cmd;
   uint16_t size;
+  uint16_t addr;
+  uint16_t user;
+
+  uint8_t  sel;
   uint32_t addr_ts;
 
   SPI_EnableFpga();
   SPI(0x00);
   status   = SPI(0); // cmd request
-  cmd      = SPI(0) << 8;
-  cmd     |= SPI(0);
+  cmd      = SPI(0);
+  size     = SPI(0); //8 bits to be expanded
+  addr     = SPI(0) << 8;
+  addr    |= SPI(0);
   user     = SPI(0) << 8;
   user    |= SPI(0);
   SPI_DisableFpga();
 
   // ack all commands
   SPI_EnableFpga();
-  SPI(0x19);
+  SPI(0x18);
   SPI_DisableFpga();
 
   sel  = status & 0x03;
-  req  = (cmd & 0xF000) >> 12;
-  addr = (cmd & 0x0FFF);
 
   /*size = 512; // default*/
   /*switch (req & 0x07) {*/
@@ -555,13 +580,13 @@ void FDD_Handle(void)
 
   if (status & 0x4) { // write
   } else {
-    DEBUG(1,"FDD:handle request drive:%02X req:%02X addr:%04X user:%08X",sel,req,addr,user);
+    DEBUG(1,"FDD:handle request drive:%02X cmd:%02X addr:%04X user:%08X",sel,cmd,addr,user);
 
-    switch (req) {
+    switch (cmd) {
       // amiga floppy header
-      case 8 : FDD_AmigaHeader(&df[sel], (addr & 0xFF), (addr>>8), user); break;
+      case 0x80: FDD_AmigaHeader(&df[sel], (addr & 0xFF), (addr>>8), user); break;
       // block transfer, 512 with address from track/sector
-      case 9 : FDD_Read(&df[sel], addr_ts, 512); break;
+      case 0x81 : FDD_Read(&df[sel], addr_ts, 512); break;
 
       // note we do 3x seek and reads of the same block now.
       // check file system caches otherwise we need to do here
@@ -569,7 +594,7 @@ void FDD_Handle(void)
   }
   // transfer complete
   SPI_EnableFpga();
-  SPI(0x1A);
+  SPI(0x19);
   SPI_DisableFpga();
 
 }

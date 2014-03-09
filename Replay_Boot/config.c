@@ -125,7 +125,7 @@ void CFG_handle_fpga(void)
     uint8_t status;
 
     SPI_EnableFpga();
-    SPI(0x18); // status update
+    SPI(0x10); // status update move to header
     SPI_DisableFpga();
 
     SPI_EnableFpga();
@@ -134,9 +134,13 @@ void CFG_handle_fpga(void)
     // just read first status word to save time
     SPI_DisableFpga();
 
-    if (status & 0x08) { // FF request
-      DEBUG(1,"FDD:handle request");
+    if (status & 0x08) { // FF request, move to header
+      //DEBUG(1,"FDD:handle request");
       FDD_Handle();
+    }
+    if (status & 0x80) { // HD request, move to header
+      //DEBUG(1,"HDD:handle request");
+      //FDD_Handle();
     }
 
     FDD_UpdateDriveStatus(); // TO GO - only if drive inserted/changed

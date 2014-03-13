@@ -5,15 +5,17 @@
 #include "fullfat.h"
 #define CMD_HDRID 0xAA68
 
-#define CMD_IDECMD 0x04
-#define CMD_IDEDAT 0x08
+#define CMD_IDECMD 0x04 // bits in request word
+#define CMD_IDEDAT 0x08 // bits in request word
 
+// SPI Commands
 #define CMD_IDE_REGS_RD 0x80
 #define CMD_IDE_REGS_WR 0x90
 #define CMD_IDE_DATA_WR 0xA0
 #define CMD_IDE_DATA_RD 0xB0
 #define CMD_IDE_STATUS_WR 0xF0
 
+// status bits
 #define IDE_STATUS_END 0x80
 #define IDE_STATUS_IRQ 0x10
 #define IDE_STATUS_RDY 0x08

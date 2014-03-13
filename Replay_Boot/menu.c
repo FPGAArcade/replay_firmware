@@ -995,9 +995,9 @@ void menu_insert_fd(char *path, adfTYPE *drive)
   /*if (!(drive->fSource.attributes & ATTR_READONLY)) // read-only attribute*/
     /*drive->status |= DSK_WRITABLE;*/
 
-  /*drive->sector_offset = 0;*/
-  /*drive->track = 0;*/
-  /*drive->track_prev = -1;*/
+  drive->sector_offset = 0;
+  drive->track = 0;
+  drive->track_prev = -1;
 
   // some debug info
   DEBUG(1,"Inserting floppy: <%s>", drive->name);

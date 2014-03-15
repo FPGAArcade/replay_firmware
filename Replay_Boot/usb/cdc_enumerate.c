@@ -19,7 +19,7 @@
 //                additional line marked with /* +++ */
 // 1. Sept. 2006: fixed case: board.h -> Board.h
 
-#include "Board.h"
+#include "board.h"
 #include "cdc_enumerate.h"
 
 struct _AT91S_CDC pCDC;

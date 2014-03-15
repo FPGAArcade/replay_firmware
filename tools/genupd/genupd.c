@@ -1,4 +1,7 @@
+#ifdef __linux
+#else
 #include<Windows.h>
+#endif
 #include<stdio.h>
 #include<stdint.h>
 // Checksum/Data INI-Line Generator for Replay Flash Updater

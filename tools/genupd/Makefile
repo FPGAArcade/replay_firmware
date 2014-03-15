@@ -10,5 +10,8 @@ all: genupd.exe
 genupd.exe: genupd.c 
 	gcc -o genupd.exe genupd.c $(LIBS)
 
+linux: genupd.c 
+	gcc -o genupd.elf genupd.c
+
 clean:
-	rm genupd.exe
+	rm -f genupd.exe genupd.elf

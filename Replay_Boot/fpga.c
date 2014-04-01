@@ -510,6 +510,65 @@ uint8_t FPGA_DramTrain(void)
   return (0);
 }
 
+uint8_t FPGA_DramEye(uint8_t mode)
+{
+  uint32_t stat;
+  uint32_t ram_phase;
+  uint32_t ram_ctrl;
+  uint16_t key;
+
+  DEBUG(1,"FPGA:DRAM BIST stress.... this takes a while");
+
+  ram_phase = kDRAM_PHASE;
+  ram_ctrl  = kDRAM_SEL;
+  OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase );
+
+  OSD_ConfigSendUserD(0x01000000); // enable BIST
+
+  do {
+    Timer_Wait(200);
+    stat = OSD_ConfigReadStatus();
+
+    if (mode !=0)
+      DEBUG(1,"BIST stat: %02X", stat & 0x3C);
+
+    if (mode == 0) {
+      if (((stat & 0x38) >> 3) == 2) { // two passes
+
+        if (stat & 0x04) {
+          DEBUG(1,"FPGA:DRAM BIST **** FAILED !! ****");
+        }
+        else {
+          DEBUG(1,"FPGA:DRAM BIST passed.");
+        }
+        break;
+      }
+    }
+
+    key = OSD_GetKeyCode();
+
+    if (key == KEY_LEFT) {
+      ram_phase-=8;
+      OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase );
+      OSD_ConfigSendUserD(0x00000000); // disable BIST
+      OSD_ConfigSendUserD(0x01000000); // enable BIST
+
+    }
+
+    if (key == KEY_RIGHT) {
+      ram_phase+=8;
+      OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase );
+      OSD_ConfigSendUserD(0x00000000); // disable BIST
+      OSD_ConfigSendUserD(0x01000000); // enable BIST
+    }
+
+  } while (key != KEY_MENU);
+  OSD_ConfigSendUserD(0x00000000); // disable BIST
+
+  return (0);
+}
+
+
 uint8_t FPGA_ProdTest(void)
 {
   uint32_t ram_phase;
@@ -522,17 +581,7 @@ uint8_t FPGA_ProdTest(void)
   OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase );
   FPGA_DramTrain();
 
-  DEBUG(0,"PRODTEST: phase+10");
-  ram_phase = kDRAM_PHASE + 10;
-  ram_ctrl  = kDRAM_SEL;
-  OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase );
-  FPGA_DramTrain();
-
-  DEBUG(0,"PRODTEST: phase-10");
-  ram_phase = kDRAM_PHASE - 10;
-  ram_ctrl  = kDRAM_SEL;
-  OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase );
-  FPGA_DramTrain();
+  FPGA_DramEye(0); // /=0 for interactive
 
   // return to nominal
   ram_phase = kDRAM_PHASE;

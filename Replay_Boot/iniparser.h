@@ -20,7 +20,7 @@ typedef enum {
     INI_UNKNOWN,  ///< virtual token, signals end-of-file or section change
     INI_SETUP,    ///< token for SETUP section
     INI_INFO,     ///< token for INFO line
-    INI_BIN,      ///< token for BIN keyword (FPGA config file definition) 
+    INI_BIN,      ///< token for BIN keyword (FPGA config file definition)
     INI_CLOCK,    ///< token for CLOCK keyword (PLL chip configuration)
     INI_PHASE,    ///< token for PHASE keyword (DRAM timing configuration)
     INI_CODER,    ///< token for CODER keyword (TV coder configuration)
@@ -33,8 +33,10 @@ typedef enum {
     INI_CONFIG,   ///< token for CONFIG keyword (config bits for FPGA/OSD)
     INI_CSTORE,   ///< token for CSTORE keyword (filename to store dynamic config part)
     INI_UPLOAD,   ///< token for UPLOAD section
+    INI_FILES,    ///< token for FILES section
     INI_VERIFY,   ///< token for VERIFY keyword (enables verification of any upload)
     INI_ROM,      ///< token for ROM keyword (ROM file entry for upload)
+    INI_HDD,      ///< token for HDD keyword
     INI_LAUNCH,   ///< token for LAUNCH keyword (binary download and execute)
     INI_MENU,     ///< token for MENU section
     INI_DATA,     ///< token for DATA keyword (DATA set for upload)
@@ -60,8 +62,8 @@ typedef struct {
 
     @return 0 when run was successful, others indicate the linenumber with a failure
 */
-uint8_t ParseIni(FF_FILE* pFile, 
-                uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*), 
+uint8_t ParseIni(FF_FILE* pFile,
+                uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
                 void* config);
 
 // ===========================================================
@@ -86,7 +88,7 @@ typedef struct {
 
     @param value string of comma separated list of strings and numbers
     @param valueList pointer to a data structure holding the parse result
-    @param maxlen maximum amount of entries to be stored in reserved data structure 
+    @param maxlen maximum amount of entries to be stored in reserved data structure
 
     @return number of entries found, 0 indicates an error (no list entry found)
 */

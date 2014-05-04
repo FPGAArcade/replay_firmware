@@ -11,6 +11,7 @@
 #include "twi.h"
 #include "filesel.h"
 #include "fileio_fdd.h"
+#include "fileio_hdd.h"
 
 /* ========================================================================== */
 

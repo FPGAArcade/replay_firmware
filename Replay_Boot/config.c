@@ -14,6 +14,8 @@
   not at all in this .h/.c file...
 */
 extern FF_IOMAN *pIoman;
+extern hdfTYPE hdf[2];  // in ..hdd.c
+
 extern const char version[];  // temp
 
   // y0 - FPGA DRAM
@@ -139,8 +141,8 @@ void CFG_handle_fpga(void)
       FDD_Handle();
     }
     if (status & 0x80) { // HD request, move to header
-      //DEBUG(1,"HDD:handle request");
-      //FDD_Handle();
+      /*DEBUG(1,"HDD:handle request %02X",status & 0xF0);*/
+      HDD_Handle(status);
     }
 
     FDD_UpdateDriveStatus(); // TO GO - only if drive inserted/changed
@@ -306,7 +308,7 @@ void CFG_set_coder(coder_t standard)
   }
 }
 
-uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size, 
+uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size,
                        uint8_t verify, uint8_t format)
 {
   FF_FILE *fSource = NULL;
@@ -1168,6 +1170,32 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
         }
       }
       // -------------------------------------------------------
+      if (section==INI_FILES) {
+        if (name==INI_HDD) {
+          ini_list_t valueList[8];
+          uint16_t entries = ParseList(value,valueList,8);
+          uint8_t  unit = 0;
+
+          DEBUG(1,"hdd entries %d",entries);
+          if ((entries==1) || (entries==2)) {
+            if (entries==2)
+              unit = valueList[1].intval;
+
+            if (unit > 1) {
+              DEBUG(1,"Illegal HDD unit number")
+            } else {
+              if (strlen(valueList[0].strval)) {
+                char fullname[FF_MAX_PATH];
+                // prepare filename
+                sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
+                DEBUG(1,"HDD file %s", fullname);
+                HDD_OpenHardfile(fullname, unit); // MASTER ONLY FOR NOW
+              };
+            };
+          }
+        }
+      }
+      // -------------------------------------------------------
     }
   }
   return 0;
@@ -1237,8 +1265,12 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
     }
   }
 
-  // TEMP config to 1 floppy, no hard disk
-  OSD_ConfigSendFileIO( (0x00 << 4) | 0x01);
+  // TEMP config to 1 floppy, 1 hard disk
+  uint8_t hd_mask = 0;
+  if (hdf[0].present) hd_mask |= 0x10;
+  if (hdf[1].present) hd_mask |= 0x20;
+  DEBUG(1,"HD MASK %02X",hd_mask);
+  OSD_ConfigSendFileIO(hd_mask | 0x01);
   // 0x22 write config (fileio)       W0       number of disks 2..0 FD 7..4 HD note FD is a number 0-4 HD is a MASK
 
   init_mem -= CFG_get_free_mem();

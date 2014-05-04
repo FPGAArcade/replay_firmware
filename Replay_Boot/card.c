@@ -153,14 +153,14 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
   if (numSectors == 1) {
     // single sector
     if (MMC_Command(CMD17, sector)) {
-      ERROR("SPI:Card_ReadM CMD17 - invalid response 0x%02X (lba=%lu)", response, sector);
+      WARNING("SPI:Card_ReadM CMD17 - invalid response 0x%02X (lba=%lu)", response, sector);
       SPI_DisableCard();
       return(FF_ERR_DEVICE_DRIVER_FAILED);
     }
   } else {
     // multiple sector
     if (MMC_Command(CMD18, sector)) {
-      ERROR("SPI:Card_ReadM CMD18 - invalid response 0x%02X (lba=%lu)", response, sector);
+      WARNING("SPI:Card_ReadM CMD18 - invalid response 0x%02X (lba=%lu)", response, sector);
       SPI_DisableCard();
       return(FF_ERR_DEVICE_DRIVER_FAILED);
     }
@@ -171,7 +171,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
     timeout = Timer_Get(250);      // timeout
     while (SPI(0xFF) != 0xFE) {
       if (Timer_Check(timeout)) {
-        ERROR("SPI:Card_ReadM - no data token! (lba=%lu)", sector);
+        WARNING("SPI:Card_ReadM - no data token! (lba=%lu)", sector);
         SPI_DisableCard();
         return(FF_ERR_DEVICE_DRIVER_FAILED);
       }
@@ -194,7 +194,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
     timeout = Timer_Get(100);      // 100 ms timeout
     while ( (AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {
       if (Timer_Check(timeout)) {
-        ERROR("SPI:Card_ReadM DMA Timeout! (lba=%lu)", sector);
+        WARNING("SPI:Card_ReadM DMA Timeout! (lba=%lu)", sector);
         SPI_DisableCard();
         return(FF_ERR_DEVICE_DRIVER_FAILED);
       }
@@ -233,7 +233,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
 
   while (sectorCount--) {
     if (MMC_Command(CMD24, sector)) {
-      ERROR("SPI:Card_WriteM CMD24 - invalid response 0x%02X (lba=%lu)", response, sector);
+      WARNING("SPI:Card_WriteM CMD24 - invalid response 0x%02X (lba=%lu)", response, sector);
       SPI_DisableCard();
       return(FF_ERR_DEVICE_DRIVER_FAILED);
     }
@@ -257,7 +257,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
     response &= 0x1F;
     if (response != 0x05)
     {
-      ERROR("SPI:Card_WriteM - invalid status 0x%02X (lba=%lu)", response, sector);
+      WARNING("SPI:Card_WriteM - invalid status 0x%02X (lba=%lu)", response, sector);
       SPI_DisableCard();
       return(FF_ERR_DEVICE_DRIVER_FAILED);
     }
@@ -265,7 +265,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
     timeout = Timer_Get(500);      // timeout
     while (SPI(0xFF) == 0x00) {
       if (Timer_Check(timeout)) {
-        ERROR("SPI:Card_WriteM - busy write timeout! (lba=%lu)", sector);
+        WARNING("SPI:Card_WriteM - busy write timeout! (lba=%lu)", sector);
         SPI_DisableCard();
         return(FF_ERR_DEVICE_DRIVER_FAILED);
       }
@@ -323,7 +323,7 @@ uint8_t MMC_Command12(void)
   timeout = Timer_Get(10);      // 10 ms timeout
   while (SPI(0xFF) == 0x00) {// wait until the card is not busy
     if (Timer_Check(timeout)) {
-      ERROR("SPI:Card_CMD12 (STOP) timeout!");
+      WARNING("SPI:Card_CMD12 (STOP) timeout!");
       SPI_DisableCard();
       return(0);
     }

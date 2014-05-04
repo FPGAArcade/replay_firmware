@@ -9,7 +9,7 @@
 #include "fullfat.h"
 
 #include "fileio_fdd.h"
-#include "amiga_hdd.h"
+#include "fileio_hdd.h"
 #include "iniparser.h"
 #include "config.h"
 #include "menu.h"

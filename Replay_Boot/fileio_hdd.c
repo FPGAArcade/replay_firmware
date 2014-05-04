@@ -2,7 +2,7 @@
 #include "hardware.h"
 #include "config.h"
 #include "messaging.h"
-#include "amiga_hdd.h"
+#include "fileio_hdd.h"
 
 
 /*#define HDD_DEBUG 1*/
@@ -300,7 +300,7 @@ void HDD_Handle(uint8_t spi_status)
               block_count = hdf[unit].sectors_per_block;
 
           HDD_WriteStatus(IDE_STATUS_IRQ);
-          for (int i = 0; i < block_count; ++i) // to be optimized
+          for (int cur_block = 0; cur_block < block_count; ++cur_block) // to be optimized
           {
             HDD_WaitStat(0x20, 0x20); // wait for rx ok
             HDD_FileRead(hdf[unit].fSource);
@@ -480,7 +480,23 @@ uint8_t HDD_OpenHardfile(char *filename, uint8_t unit)
 
     HDD_GetHardfileGeometry(&hdf[unit]);
     // we removed the indexing - assuming the fullfat stuff handles it good enough...
-    strncpy((char *)hdf[unit].name,filename,MAX_DISPLAY_FILENAME);
+
+    // get display name -- move to fn
+    uint16_t i = (uint16_t) strlen(filename);
+
+    while(i != 0) {
+      if(filename[i] == '\\' || filename[i] == '/') {
+        break;
+      }
+      i--;
+    }
+
+    _strncpySpace(hdf[unit].name, (filename + i + 1), MAX_DISPLAY_FILENAME);
+    hdf[unit].name[MAX_DISPLAY_FILENAME-1] = '\0';
+
+    DEBUG(1,"name %s",hdf[unit].name);
+
+    /*strncpy((char *)hdf[unit].name,filename,MAX_DISPLAY_FILENAME);*/
     hdf[unit].present = 1;
     time = Timer_Get(0) - time;
 
@@ -490,12 +506,14 @@ uint8_t HDD_OpenHardfile(char *filename, uint8_t unit)
     INFO("      --> %lu MB", ((((unsigned long) hdf[unit].cylinders) * hdf[unit].heads * hdf[unit].sectors) >> 11));
     INFO("Opened in %lu ms", time >> 20);
     return 1;
+  } else {
+    INFO("HDF (%s) open error",unit?"slave":"master");
   }
 
   return 0;
 }
 
-void HDD_FileRead(FF_FILE *fSource) 
+void HDD_FileRead(FF_FILE *fSource)
 {
 
   //#warning TODO: Read block from file and send to FPGA directly --> in mmc.c of original minimig firmware

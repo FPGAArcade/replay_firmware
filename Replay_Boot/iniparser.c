@@ -64,8 +64,10 @@ const ini_symtab_t symtab[] = {
   { "CONFIG"  ,INI_CONFIG   ,FALSE },
   { "CSTORE"  ,INI_CSTORE   ,FALSE },
   { "UPLOAD"  ,INI_UPLOAD   ,TRUE  },
+  { "FILES"   ,INI_FILES    ,TRUE  },
   { "VERIFY"  ,INI_VERIFY   ,FALSE },
   { "ROM"     ,INI_ROM      ,FALSE },
+  { "HDD"     ,INI_HDD      ,FALSE },
   { "DATA"    ,INI_DATA     ,FALSE },
   { "LAUNCH"  ,INI_LAUNCH   ,FALSE },
   { "MENU"    ,INI_MENU     ,TRUE  },
@@ -115,8 +117,8 @@ static char* FindChar(const char* s, char c) {
 
 // ==========================================================================
 
-uint8_t ParseIni(FF_FILE *pFile, 
-                uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*), 
+uint8_t ParseIni(FF_FILE *pFile,
+                uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
                 void* config) {
 
   char lineBuffer[MAX_LINE_LEN];
@@ -204,7 +206,7 @@ uint8_t ParseIni(FF_FILE *pFile,
   } while ((ch != -1) && !lineError); // -1 is EOF
   if (!lineError) {
     // call again to notify end of ini file
-    parseHandle(config, INI_UNKNOWN, INI_UNKNOWN, NULL); 
+    parseHandle(config, INI_UNKNOWN, INI_UNKNOWN, NULL);
   }
   return lineError;
 }
@@ -224,7 +226,7 @@ uint16_t ParseList(const char* value, ini_list_t *valueList, const uint16_t maxl
 
     // find start of value and end/separator (# or ; will usually not occur)
     start = FindFirstChar(end);
-    end = FindChar(start, ',');  
+    end = FindChar(start, ',');
     len = end-start;
 
     // clear array entry first, then we copy the string and convert it to decimal

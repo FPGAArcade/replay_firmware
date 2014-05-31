@@ -343,6 +343,36 @@ uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size,
   return rc;
 }
 
+uint8_t CFG_download_rom(char *filename, uint32_t base, uint32_t size)
+{
+  FF_FILE *fSource = NULL;
+  uint8_t rc=1;
+  uint32_t offset=0;
+  uint16_t filebase=0;
+
+  //DEBUG(1,"CFG_download_rom(\"%s\",%x,%x)",filename,base,size);
+
+  fSource = FF_Open(pIoman, filename,
+                    FF_MODE_WRITE|FF_MODE_CREATE|FF_MODE_TRUNCATE, NULL);
+
+  //DEBUG(1,"FF_Open(%x,\"%s\",%x,%x) --> %x",pIoman, filename,
+  //                  FF_MODE_WRITE|FF_MODE_CREATE|FF_MODE_TRUNCATE, NULL, fSource);
+
+  if (fSource) {
+    if (!size) { // auto-size does not work here!
+      return 1;
+    }
+    DEBUG(1, "%s @0x%X (0x%X),S:%d",filename, base+filebase, offset, size);
+    rc=FPGA_MemToFile(fSource, base+filebase, size, offset);
+    FF_Close(fSource);
+  } else {
+    WARNING("Could not open %s", filename);
+    return 1;
+  }
+
+  return rc;
+}
+
 uint32_t CFG_get_free_mem(void)
 {
   uint8_t  stack;
@@ -1064,7 +1094,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             if (entries==2) {
               strncpy(pStatus->menu_item_act->action_name,valueList[1].strval,
                       MAX_ITEM_STRING);
-              pStatus->menu_item_act->action_value=NULL;
+              pStatus->menu_item_act->action_value=0;
             }
             // absolute mask item or action handler with value
             if (entries==3) {

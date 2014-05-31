@@ -440,6 +440,21 @@ void CFG_card_start(status_t *currentStatus);
 uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size,
                        uint8_t verify, uint8_t format);
 
+
+/* ========================================================================== */
+
+/** @brief ROM DATA DOWNLOADER
+
+    Stores a RAM/ROM content to a file.
+
+    @param filename (absolute) filename to the binary file
+    @param base base address where to store the data on the FPGA
+    @param size size of the datafile (when 0, do auto-sizing)
+
+    @return 0 when transmission was successful, others indicate a failure
+*/
+uint8_t CFG_download_rom(char *filename, uint32_t base, uint32_t size);
+
 /* ========================================================================== */
 
 /** @brief CONFIGURE (OPTIONAL) AD723 TV CODER

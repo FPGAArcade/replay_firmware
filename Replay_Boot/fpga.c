@@ -401,6 +401,80 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size, uint3
   return(rc) ;
 }
 
+uint8_t FPGA_MemToFile(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset)
+{
+  // for debug
+  uint8_t  rc = 0;
+  uint32_t remaining_size = size;
+  unsigned long time;
+  time = Timer_Get(0);
+
+  //DEBUG(1,"FPGA_MemToFile(%x,%x,%x,%x)",pFile,base,size,offset);
+
+  DEBUG(2,"FPGA:Store Addr:%8X Size:%8X.",base,size);
+  if (offset) FF_Seek(pFile, offset, FF_SEEK_SET);
+
+  SPI_EnableFpga();
+  SPI(0x80); // set address
+  SPI((uint8_t)(base));
+  SPI((uint8_t)(base >> 8));
+  SPI((uint8_t)(base >> 16));
+  SPI((uint8_t)(base >> 24));
+  SPI_DisableFpga();
+
+  SPI_EnableFpga();
+  SPI(0x81); // set direction
+  SPI(0x80); // read
+  SPI_DisableFpga();
+
+  while (remaining_size) {
+    #if (FPGA_MEMBUF_SIZE>FILEBUF_SIZE)
+      #error "FPGA_MEMBUF_SIZE>FILEBUF_SIZE !"
+    #endif
+    uint8_t tBuf[FILEBUF_SIZE];
+    uint8_t *wPtr;
+    uint32_t buf_tx_size = FILEBUF_SIZE;
+    uint32_t bytes_written;
+    uint16_t fpgabuf_size=FPGA_MEMBUF_SIZE;
+    uint32_t fpga_read_left;
+
+    // clip to smallest of file and transfer length
+    if (remaining_size < buf_tx_size) buf_tx_size = remaining_size;
+
+    // read sector from FPGA
+    wPtr=&(tBuf[0]);
+    fpga_read_left=buf_tx_size;
+    while (fpga_read_left) {
+      if (fpga_read_left < fpgabuf_size) fpgabuf_size = fpga_read_left;
+      SPI_EnableFpga();
+      SPI(0x84); // do Read
+      SPI((uint8_t)( fpgabuf_size - 1));
+      SPI((uint8_t)((fpgabuf_size - 1) >> 8));
+      SPI_DisableFpga();
+      if (FPGA_WaitStat(0x04, 0)) { // wait for read finish
+        return(1);
+      }
+      FPGA_ReadBuffer(wPtr, fpgabuf_size);
+      wPtr+=fpgabuf_size;
+      fpga_read_left-=fpgabuf_size;
+    }
+
+    // write data sector to memory card
+    bytes_written = FF_Write(pFile, buf_tx_size, 1, tBuf);
+    if (bytes_written == 0) break;
+
+    // go on...
+    remaining_size -= buf_tx_size;
+  }
+
+  time = Timer_Get(0)-time;
+  DEBUG(1,"Save done in %d ms.", (uint32_t) (time >> 20));
+
+  if (!rc) DEBUG(2,"FPGA:File written.");
+
+  return(rc) ;
+}
+
 uint8_t FPGA_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size)
 // base - memory base address
 // size - must be <=FPGA_MEMBUF_SIZE and even

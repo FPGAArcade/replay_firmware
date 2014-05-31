@@ -72,6 +72,11 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       //nothing to do here
       return 1;
     }
+    // storeselect ---------------------------------
+    if MATCH(item->action_name,"storeselect") {
+      //nothing to do here
+      return 1;
+    }
     // backup ini ----------------------------------
     if MATCH(item->action_name,"backup") {
       strcpy(item->selected_option->option_name,"<RETURN> saves");
@@ -168,6 +173,37 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
         Filesel_ScanFirst(current_status->dir_scan);
         current_status->file_browser = 1;
         current_status->show_menu=0;
+        return 1;
+      }
+    }
+    // storeselect ----------------------------------
+    if MATCH(item->action_name,"storeselect") {
+      if ((item->option_list) && (item->option_list->option_name)) {
+        char full_filename[FF_MAX_PATH];
+        DEBUG(1,"STORE to: %s file: %s",current_status->act_dir,(item->option_list->option_name));
+        // store with given size to given adress and optional verification run
+        // conf value is the memory size to store and a 1 bit halt flag (LSB)
+        if ((item->option_list->conf_value)&1) {
+          // halt the core if requested
+          OSD_Reset(OSDCMD_CTRL_HALT);
+          Timer_Wait(1);
+        }
+        sprintf(full_filename,"%s%s",current_status->act_dir,item->option_list->option_name);
+
+        CFG_download_rom(full_filename,item->action_value,item->option_list->conf_value>>1);
+        current_status->show_menu=0;
+        current_status->file_browser=0;
+        current_status->popup_menu=0;
+        current_status->show_status=0;
+        OSD_Disable();
+        Timer_Wait(1);
+        if ((item->option_list->conf_value)&1) {
+          // continue operation of the core if requested
+          OSD_Reset(0);
+        }
+        Timer_Wait(1);
+        return 1;
+
         return 1;
       }
     }

@@ -21,6 +21,7 @@ uint8_t FPGA_ReadBuffer(uint8_t *pBuf, uint16_t buf_tx_size);
 
 uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset);
 uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset);
+uint8_t FPGA_MemToFile(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset);
 
 uint8_t FPGA_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size);
 uint8_t FPGA_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size);

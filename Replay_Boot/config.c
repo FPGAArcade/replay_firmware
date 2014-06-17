@@ -4,6 +4,8 @@
 #include "messaging.h"
 #include "menu.h"
 
+extern hdfTYPE hdf[HD_MAX_NUM];  // in ..hdd.c
+
 /** @brief extern link to sdcard i/o manager
 
   Having this here is "ugly", but ff_ioman declares this "prototype"
@@ -14,7 +16,6 @@
   not at all in this .h/.c file...
 */
 extern FF_IOMAN *pIoman;
-extern hdfTYPE hdf[2];  // in ..hdd.c
 
 extern const char version[];  // temp
 
@@ -122,31 +123,33 @@ void CFG_fatal_error(uint8_t error)
   }
 }
 
-void CFG_handle_fpga(void)
-{
-    uint8_t status;
+/*{{{*/
+/*void CFG_handle_fpga(void)*/
+/*{*/
+    /*uint8_t status;*/
 
-    SPI_EnableFpga();
-    SPI(0x10); // status update move to header
-    SPI_DisableFpga();
+    /*SPI_EnableFpga();*/
+    /*SPI(0x10); // status update move to header*/
+    /*SPI_DisableFpga();*/
 
-    SPI_EnableFpga();
-    SPI(0x00);
-    status = SPI(0); // cmd request
-    // just read first status word to save time
-    SPI_DisableFpga();
+    /*SPI_EnableFpga();*/
+    /*SPI(0x00);*/
+    /*status = SPI(0); // cmd request*/
+    /*// just read first status word to save time*/
+    /*SPI_DisableFpga();*/
 
-    if (status & 0x08) { // FF request, move to header
-      //DEBUG(1,"FDD:handle request");
-      FDD_Handle();
-    }
-    if (status & 0x80) { // HD request, move to header
+    /*if (status & 0x08) { // FF request, move to header*/
+      /*//DEBUG(1,"FDD:handle request");*/
+      /*FDD_Handle();*/
+    /*}*/
+    /*if (status & 0x80) { // HD request, move to header*/
       /*DEBUG(1,"HDD:handle request %02X",status & 0xF0);*/
-      HDD_Handle(status);
-    }
+      /*HDD_Handle(status);*/
+    /*}*/
 
-    FDD_UpdateDriveStatus(); // TO GO - only if drive inserted/changed
-}
+    /*FDD_UpdateDriveStatus(); // TO GO - only if drive inserted/changed*/
+/*}*/
+/*}}}*/
 
 // we copy the actual bootloader from flash to the RAM and call it
 // (we assume there is no collision with the actual stack)
@@ -1245,7 +1248,7 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
 
   if (OSD_ConfigReadSysconVer() != 0xA5) {
     DEBUG(1,"!! Comms failure. FPGA Syscon not detected !!");
-    // need to disable all OSD access
+    return 1; // can do no more here
   }
 
   uint32_t config_ver    = OSD_ConfigReadVer();
@@ -1295,12 +1298,23 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
     }
   }
 
+  // POLL FPGA and see how many FD/HD supported
+  uint32_t fileio_cfg = OSD_ConfigReadFileIO();
+
+  currentStatus->fd_supported =  fileio_cfg       & 0x0F;
+  currentStatus->hd_supported = (fileio_cfg >> 4) & 0x0F;
+
+  DEBUG(1,"FD supported : "BYTETOBINARYPATTERN4", HD supported : "BYTETOBINARYPATTERN4, 
+    BYTETOBINARY4(currentStatus->fd_supported), 
+    BYTETOBINARY4(currentStatus->hd_supported) );
+
+
   // TEMP config to 1 floppy, 1 hard disk
-  uint8_t hd_mask = 0;
-  if (hdf[0].present) hd_mask |= 0x10;
-  if (hdf[1].present) hd_mask |= 0x20;
-  DEBUG(1,"HD MASK %02X",hd_mask);
-  OSD_ConfigSendFileIO(hd_mask | 0x01);
+  /*uint8_t hd_mask = 0;*/
+  /*if (hdf[0].status & HD_INSERTED) hd_mask |= 0x10;*/
+  /*if (hdf[1].status & HD_INSERTED) hd_mask |= 0x20;*/
+  /*DEBUG(1,"HD MASK %02X",hd_mask);*/
+  /*OSD_ConfigSendFileIO(hd_mask | 0x01);*/
   // 0x22 write config (fileio)       W0       number of disks 2..0 FD 7..4 HD note FD is a number 0-4 HD is a MASK
 
   init_mem -= CFG_get_free_mem();

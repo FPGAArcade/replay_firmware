@@ -4,6 +4,8 @@
 #include "board.h"
 #include "fullfat.h"
 
+#define FD_MAX_NUM 4
+
 // FILE buffer size = FDD sector size
 #define FDD_BUF_SIZE 512
 
@@ -12,12 +14,12 @@
 #define CMD_WRTRK 0x02
 
 // floppy status
-#define DSK_INSERTED 0x01 /*disk is inserted*/
-#define DSK_WRITABLE 0x02 /*disk is writable*/
+#define FD_INSERTED 0x01 /*disk is inserted*/
+#define FD_WRITABLE 0x02 /*disk is writable*/
 #define MAX_DISPLAY_FILENAME 23
 
 // constants
-#define MAX_TRACKS (83*2)
+#define FD_MAX_TRACKS (83*2)
 #define TRACK_SIZE 12668
 #define HEADER_SIZE 0x40
 #define DATA_SIZE 0x400
@@ -29,13 +31,13 @@
 
 typedef struct
 {
+    uint8_t  status; /*status of floppy*/
     FF_FILE *fSource;
-    uint8_t status; /*status of floppy*/
-    uint8_t tracks; /*number of tracks*/
-    uint8_t sector_offset; /*sector offset to handle tricky loaders*/
-    uint8_t track; /*current track*/
-    uint8_t track_prev; /*previous track*/
-    char    name[MAX_DISPLAY_FILENAME]; /*floppy name*/
+    uint16_t tracks; /*number of tracks*/
+    uint8_t  sector_offset; /*sector offset to handle tricky loaders*/
+    uint8_t  track; /*current track*/
+    uint8_t  track_prev; /*previous track*/
+    char     name[MAX_DISPLAY_FILENAME]; /*floppy name*/
 } adfTYPE;
 
 //void FDD_AmigaHeader(adfTYPE *drive,  uint8_t track, uint8_t sector, uint16_t dsksync);
@@ -50,7 +52,13 @@ void FDD_AmigaRead(adfTYPE *drive);
 //void FDD_WriteTrack(adfTYPE *drive);
 void FDD_UpdateDriveStatus(void);
 void FDD_Handle(void);
-void FDD_Init(void);
 
+void FDD_Insert(uint8_t drive_number, char *path);
+void FDD_Eject(uint8_t drive_number);
+
+uint8_t FDD_Inserted(uint8_t drive_number);
+char* FDD_GetName(uint8_t drive_number);
+
+void FDD_Init(void);
 
 #endif

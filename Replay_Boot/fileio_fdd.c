@@ -4,16 +4,34 @@
 #include "messaging.h"
 #include "fileio_fdd.h"
 
+
 const uint8_t FDD_DEBUG = 1;
 
-adfTYPE df[4];        // drive 0 information structure
+extern FF_IOMAN *pIoman;
+
+adfTYPE fdf[FD_MAX_NUM];        // drive 0 information structure
 
 // localized buffer for this module, in case of cache
 uint8_t  FDD_fBuf[FDD_BUF_SIZE];
 
 //
+// FILEIO (to be moved)
+//
+
+uint8_t FDD_FileIO_GetStat(void)
+{
+  uint8_t stat;
+  SPI_EnableFpga();
+  SPI(0x00);
+  stat = SPI(0);
+  SPI_DisableFpga();
+  return stat;
+}
+
+//
 // READ
 //
+
 
 /*{{{*/
 /*void FDD_AmigaHeader(adfTYPE *drive,  uint8_t track, uint8_t sector, uint16_t dsksync)*/
@@ -758,15 +776,15 @@ void FDD_AmigaRead(adfTYPE *drive)
 
 void FDD_UpdateDriveStatus(void)
 {
-  SPI_EnableFpga();
-  SPI(0x20);
-  SPI(df[0].status | (df[1].status << 1) | (df[2].status << 2) | (df[3].status << 3));
-  SPI_DisableFpga();
+  /*SPI_EnableFpga();*/
+  /*SPI(0x20);*/
+  /*SPI(fdf[0].status | (fdf[1].status << 1) | (fdf[2].status << 2) | (fdf[3].status << 3));*/
+  /*SPI_DisableFpga();*/
 }
 
 void FDD_Handle(void)
 {
-  // request must be asserted to get here
+
 
   //if (status & 0x4) { // write
     /*ACTLED_ON;*/
@@ -781,32 +799,32 @@ void FDD_Handle(void)
   //  ACTLED_OFF;
   //}
 
-  uint8_t  status;
-  uint8_t  cmd;
-  uint16_t size;
-  uint16_t addr;
-  uint16_t user;
+  /*uint8_t  status;*/
+  /*uint8_t  cmd;*/
+  /*uint16_t size;*/
+  /*uint16_t addr;*/
+  /*uint16_t user;*/
 
-  uint8_t  sel;
+  /*uint8_t  sel;*/
   /*uint32_t addr_ts;*/
 
-  SPI_EnableFpga();
-  SPI(0x00);
-  status   = SPI(0); // cmd request
-  cmd      = SPI(0);
-  size     = SPI(0); //8 bits to be expanded
-  addr     = SPI(0) << 8;
-  addr    |= SPI(0);
-  user     = SPI(0) << 8;
-  user    |= SPI(0);
-  SPI_DisableFpga();
+  /*SPI_EnableFpga();*/
+  /*SPI(0x00);*/
+  /*status   = SPI(0); // cmd request*/
+  /*cmd      = SPI(0);*/
+  /*size     = SPI(0); //8 bits to be expanded*/
+  /*addr     = SPI(0) << 8;*/
+  /*addr    |= SPI(0);*/
+  /*user     = SPI(0) << 8;*/
+  /*user    |= SPI(0);*/
+  /*SPI_DisableFpga();*/
 
-  // ack all commands
-  SPI_EnableFpga();
-  SPI(0x18);
-  SPI_DisableFpga();
+  /*// ack all commands*/
+  /*SPI_EnableFpga();*/
+  /*SPI(0x18);*/
+  /*SPI_DisableFpga();*/
 
-  sel  = status & 0x03;
+  /*sel  = status & 0x03;*/
 
   /*size = 512; // default*/
   /*switch (req & 0x07) {*/
@@ -823,39 +841,124 @@ void FDD_Handle(void)
   /*addr_ts = (SECTOR_COUNT * SECTOR_SIZE) * (addr & 0xFF) + (SECTOR_SIZE * (addr>>8));*/
 
   // temp
-  df[sel].track = (uint8_t) (addr & 0xFF);
-  ACTLED_ON;
+  /*fdf[sel].track = (uint8_t) (addr & 0xFF);*/
+  /*ACTLED_ON;*/
 
-  if (status & 0x4) { // write
-  } else {
-    DEBUG(1,"FDD:handle request drive:%02X cmd:%02X addr:%04X user:%08X",sel,cmd,addr,user);
+  /*if (status & 0x4) { // write*/
+  /*} else {*/
+    /*DEBUG(1,"FDD:handle request drive:%02X cmd:%02X addr:%04X user:%08X",sel,cmd,addr,user);*/
 
-    FDD_AmigaRead(&df[sel]);
+    /*FDD_AmigaRead(&fdf[sel]);*/
 
 
     /*switch (cmd) {*/
-      /*// amiga floppy header*/
+      // amiga floppy header
       /*case 0x80: FDD_AmigaHeader(&df[sel], (addr & 0xFF), (addr>>8), user); break;*/
-      /*// block transfer, 512 with address from track/sector*/
+      // block transfer, 512 with address from track/sector
       /*case 0x81 : FDD_Read(&df[sel], addr_ts, 512); break;*/
 
     /*}*/
-  }
+  /*}*/
 
-  ACTLED_OFF;
+  /*ACTLED_OFF;*/
 
   // transfer complete
-  SPI_EnableFpga();
-  SPI(0x19);
-  SPI_DisableFpga();
+  /*SPI_EnableFpga();*/
+  /*SPI(0x19);*/
+  /*SPI_DisableFpga();*/
 
+}
+
+void FDD_Insert_0x00(adfTYPE *drive)
+{
+  drive->tracks = 1;
+}
+
+void FDD_Insert_0x01(adfTYPE *drive)
+{
+  uint16_t tracks;
+  tracks = drive->fSource->Filesize / (512*11);
+  if (tracks > FD_MAX_TRACKS) {
+    MSG_warning("UNSUPPORTED ADF SIZE!!! Too many tracks: %lu", tracks);
+    tracks = FD_MAX_TRACKS;
+  }
+  drive->tracks = (uint16_t)tracks;
+}
+
+void FDD_Insert(uint8_t drive_number, char *path)
+{
+  uint8_t type;
+
+  DEBUG(1,"attempting to inserting floppy <%d> : <%s> ", drive_number,path);
+
+  if (drive_number < FD_MAX_NUM) {
+    adfTYPE* drive = &fdf[drive_number];
+    drive->status = 0;
+    drive->name[0] = '\0';
+
+    drive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);
+
+    if (!drive->fSource) {
+      MSG_warning("Insert Floppy:Could not open file.");
+      return;
+    }
+    // do request read to find out FDD core request type
+    type = (FDD_FileIO_GetStat() >> 4) & 0x0F;
+    DEBUG(1,"request type <%d>", type);
+    switch (type) {
+      case 0x0: FDD_Insert_0x01(drive); break; // BODGE TO AMIGA
+      case 0x1: FDD_Insert_0x01(drive); break;
+      MSG_warning("Unknown FDD request type."); 
+      return;
+    }
+    FileDisplayName(drive->name, MAX_DISPLAY_FILENAME, path);
+
+    drive->status = FD_INSERTED;
+    /*if (!(drive->fSource.Mode & FF_MODE_WRITE)) // read-only attribute*/
+      /*drive->status |= FD_WRITABLE;*/
+
+    DEBUG(1,"Inserted floppy: <%s>", drive->name);
+    DEBUG(1,"file size   : %lu (%lu kB)", drive->fSource->Filesize, drive->fSource->Filesize >> 10);
+    DEBUG(1,"drive tracks: %u", drive->tracks);
+    DEBUG(1,"drive status: 0x%02X", drive->status);
+  }
+}
+
+void FDD_Eject(uint8_t drive_number)
+{
+  DEBUG(1,"Ejecting floppy <%d>", drive_number);
+
+  if (drive_number < FD_MAX_NUM) {
+    adfTYPE* drive = &fdf[drive_number];
+    FF_Close(drive->fSource);
+    drive->status = 0;
+  }
+}
+
+uint8_t FDD_Inserted(uint8_t drive_number)
+{
+  if (drive_number < FD_MAX_NUM) {
+    return (fdf[drive_number].status & FD_INSERTED);
+  } else
+  return FALSE;
+}
+
+char* FDD_GetName(uint8_t drive_number)
+{
+  if (drive_number < FD_MAX_NUM) {
+    return (fdf[drive_number].name);
+  }
+  return NULL; // mmmmm
 }
 
 void FDD_Init(void)
 {
   DEBUG(1,"FDD:Init");
   uint32_t i;
-  for (i=0; i<4; i++) {
-    df[i].status = 0; df[i].fSource = NULL;
+  for (i=0; i<FD_MAX_NUM; i++) {
+    fdf[i].status = 0; fdf[i].fSource = NULL;
+    fdf[i].name[0] = '\0';
+    fdf[i].tracks = 0;
+
   }
 }

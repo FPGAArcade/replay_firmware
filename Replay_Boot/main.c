@@ -87,7 +87,9 @@ int main(void)
 
   DEBUG(1,"");
 
-  FDD_Init(); // here?
+  // start up virtual drives
+  FDD_Init();
+  HDD_Init();
 
   // Loop forever
   while (TRUE) {
@@ -220,6 +222,7 @@ int main(void)
 
       // we run in here as long as there is no need to reload the FPGA
       while (current_status.fpga_load_ok) {
+        // MAIN LOOP
         uint16_t key;
 
         if (current_status.spi_osd_enabled) {
@@ -296,7 +299,11 @@ int main(void)
           current_status.fpga_load_ok = 0;
         }
 
-        CFG_handle_fpga();
+        // Handle virtual drives
+        if (current_status.fd_supported !=0)
+          FDD_Handle();
+        if (current_status.hd_supported !=0)
+          HDD_Handle();
       }
     }
 

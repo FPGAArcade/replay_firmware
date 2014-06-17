@@ -4,7 +4,6 @@
 #include "messaging.h"
 #include "fileio_hdd.h"
 
-
 /*#define HDD_DEBUG 1*/
 /*#define HDD_DEBUG_READ_MULTIPLE 1*/
 
@@ -20,7 +19,7 @@
 extern FF_IOMAN *pIoman;
 
 // hardfile structure
-hdfTYPE hdf[2];
+hdfTYPE hdf[HD_MAX_NUM];
 
 uint8_t HDD_fBuf[HDD_BUF_SIZE];
 
@@ -126,7 +125,7 @@ uint8_t HDD_WaitStat(uint8_t mask, uint8_t wanted)
   return (0);
 }
 
-void HDD_Handle(uint8_t spi_status)
+void HDD_ATA_Handle(uint8_t spi_status)
 {
     unsigned short id[256];
     unsigned char  tfr[8];
@@ -163,7 +162,7 @@ void HDD_Handle(uint8_t spi_status)
       unit = tfr[6] & 0x10 ? 1 : 0; // master/slave selection
       // unit seems to be valid for all commands
 
-      if (!hdf[unit].size)
+      if (!(hdf[unit].status & HD_INSERTED))
       {
         DEBUG(1,"HDF (%s) accessed but hardfile not present",unit?"slave":"master");
       }
@@ -469,7 +468,7 @@ unsigned char HDD_HardFileSeek(hdfTYPE *pHDF, unsigned long lba)
 uint8_t HDD_OpenHardfile(char *filename, uint8_t unit)
 {
   uint32_t time = Timer_Get(0);
-  hdf[unit].present = 0;
+  hdf[unit].status = 0;
   hdf[unit].name[0] = 0;
   hdf[unit].fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
   hdf[unit].size = 0;
@@ -481,7 +480,9 @@ uint8_t HDD_OpenHardfile(char *filename, uint8_t unit)
     HDD_GetHardfileGeometry(&hdf[unit]);
     // we removed the indexing - assuming the fullfat stuff handles it good enough...
 
-    // get display name -- move to fn
+    // get display name -- move to fn (DONE, use it!!!)
+/*void FileDisplayName(char *name, uint16_t name_len, char *path) // name_len includes /0*/
+
     uint16_t i = (uint16_t) strlen(filename);
 
     while(i != 0) {
@@ -491,13 +492,14 @@ uint8_t HDD_OpenHardfile(char *filename, uint8_t unit)
       i--;
     }
 
-    _strncpySpace(hdf[unit].name, (filename + i + 1), MAX_DISPLAY_FILENAME);
+    _strncpySpace((char*)hdf[unit].name, (filename + i + 1), MAX_DISPLAY_FILENAME);
     hdf[unit].name[MAX_DISPLAY_FILENAME-1] = '\0';
 
     DEBUG(1,"name %s",hdf[unit].name);
 
     /*strncpy((char *)hdf[unit].name,filename,MAX_DISPLAY_FILENAME);*/
-    hdf[unit].present = 1;
+    hdf[unit].status = HD_INSERTED | HD_WRITABLE;
+
     time = Timer_Get(0) - time;
 
     INFO("HDF (%s)",unit?"slave":"master");
@@ -533,3 +535,26 @@ void HDD_FileReadEx(FF_FILE *fSource, uint16_t block_count) {
 
   #warning TODO: Read blocks from file and send to FPGA --> in mmc.c of original minimig firmware
 }
+
+void HDD_Handle(void)
+{
+}
+
+uint8_t HDD_Inserted(uint8_t drive_number)
+{
+  if (drive_number < HD_MAX_NUM) {
+    return (hdf[drive_number].status & HD_INSERTED);
+  } else
+  return FALSE;
+}
+
+void HDD_Init(void)
+{
+  DEBUG(1,"HDD:Init");
+  uint32_t i;
+  for (i=0; i<HD_MAX_NUM; i++) {
+    hdf[i].status = 0; hdf[i].fSource = NULL;
+    hdf[i].name[0] = '\0';
+  }
+}
+

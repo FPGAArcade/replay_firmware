@@ -1,6 +1,8 @@
 #ifndef FILEIO_HDD_H_INCLUDED
 #define FILEIO_HDD_H_INCLUDED
 
+#define HD_MAX_NUM 2
+
 // FILE buffer size = HDD sector size
 #define HDD_BUF_SIZE 512
 
@@ -37,13 +39,16 @@
 #define ACMD_SET_MULTIPLE_MODE 0xC6
 
 
+// floppy status
+#define HD_INSERTED 0x01 /*disk is present*/
+#define HD_WRITABLE 0x02 /*disk is writable*/
 #define MAX_DISPLAY_FILENAME 23
 
 typedef struct
 {
+    uint8_t  status;
     FF_FILE *fSource;
     uint8_t  name[MAX_DISPLAY_FILENAME]; /*HDD file name*/
-    uint16_t present;
     uint16_t cylinders;
     uint16_t heads;
     uint16_t sectors;
@@ -66,5 +71,9 @@ void HDD_WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned
 void HDD_WriteStatus(unsigned char status);
 uint8_t HDD_WaitStat(uint8_t mask, uint8_t wanted);
 
-void HDD_Handle(uint8_t spi_status);
+void HDD_ATA_Handle(uint8_t spi_status);
+void HDD_Handle(void);
+uint8_t HDD_Inserted(uint8_t drive_number);
+void HDD_Init(void);
+
 #endif

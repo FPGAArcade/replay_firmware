@@ -10,6 +10,8 @@
 #include "iniparser.h"
 #include "twi.h"
 #include "filesel.h"
+
+// for insert drive from ini file
 #include "fileio_fdd.h"
 #include "fileio_hdd.h"
 
@@ -255,6 +257,11 @@ typedef struct {
   /** dynamic core configuration, set "on the fly" when changed in menu */
   uint32_t     config_d;
 
+  /** floppy / hard disks supported by the core */
+  /** note, this is a bit mask (3..0) */
+  uint8_t      fd_supported;
+  uint8_t      hd_supported;
+
   /* ======== MENU handling ======== */
 
   /** defines the on-board button function - set by ini_pre_read() */
@@ -376,13 +383,6 @@ typedef struct {
     @param error blink count to signal error
 */
 void CFG_fatal_error(uint8_t error);
-
-/* ========================================================================== */
-/** @brief HDD/FDD HANDLER FOR FPGA
-
-    Polls SPI status and updates FDD/HDD handling stuff.
-*/
-void CFG_handle_fpga(void);
 
 /* ========================================================================== */
 /** @brief INIT ARM BOOTLOADER

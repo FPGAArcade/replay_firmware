@@ -241,14 +241,6 @@ void OSD_ConfigSendUserS(uint32_t configS)
   SPI_DisableOsd();
 }
 
-void OSD_ConfigSendFileIO(uint32_t config)
-{
-  SPI_EnableOsd();
-  SPI(OSDCMD_CONFIG | 0x02); // fileio
-  SPI((uint8_t)(config));
-  SPI_DisableOsd();
-}
-
 void OSD_ConfigSendCtrl(uint32_t config)
 {
   DEBUG(1,"ram config 0x%04X",config);
@@ -257,6 +249,24 @@ void OSD_ConfigSendCtrl(uint32_t config)
   SPI(OSDCMD_CONFIG | 0x03); // ctrl
   SPI((uint8_t)(config));
   SPI((uint8_t)(config >> 8));
+  SPI_DisableOsd();
+}
+
+  //0x28 write fileio hd             W0 7..4 hd_wen, 3..0 hd_ins DYNAMIC
+void OSD_ConfigSendFileIO_HD(uint32_t config)
+{
+  SPI_EnableOsd();
+  SPI(OSDCMD_CONFIG | 0x08); // fileio
+  SPI((uint8_t)(config));
+  SPI_DisableOsd();
+}
+
+  //0x29 write fileio fd             W0 7..4 fd_wen, 3..0 fd_ins DYNAMIC
+void OSD_ConfigSendFileIO_FD(uint32_t config)
+{
+  SPI_EnableOsd();
+  SPI(OSDCMD_CONFIG | 0x09); // fileio
+  SPI((uint8_t)(config));
   SPI_DisableOsd();
 }
 
@@ -305,7 +315,7 @@ uint32_t OSD_ConfigReadStatus(void)
   return config;
 }
 
-uint32_t OSD_ConfigReadFileIO(void) // num disks etc
+uint32_t OSD_ConfigReadFileIO(void) // num disks supported
 {
   uint32_t config;
 
@@ -313,7 +323,7 @@ uint32_t OSD_ConfigReadFileIO(void) // num disks etc
   SPI(OSDCMD_READSTAT | 0x04);
   config  = (SPI(0) & 0xFF);
   SPI_DisableOsd();
-  return config;
+  return config; // HD mask & FD mask
 }
 
 uint8_t OSD_ConvASCII(uint16_t keycode)

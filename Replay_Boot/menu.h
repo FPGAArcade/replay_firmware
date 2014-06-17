@@ -111,6 +111,6 @@ void _MENU_update_bits(status_t *current_status);
 */
 uint8_t _MENU_update(status_t *current_status);
 
-void menu_insert_fd(char *path, adfTYPE *drive);
+//void menu_insert_fd(char *path, adfTYPE *drive);
 
 #endif

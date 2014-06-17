@@ -8,8 +8,8 @@
 #include "messaging.h"
 
 // TEMP
-extern adfTYPE df[4];  // in fdd.c
-extern FF_IOMAN *pIoman;
+//extern adfTYPE fdf[FD_MAX_NUM];  // in fdd.c
+/*extern FF_IOMAN *pIoman;*/
 
 // ==============================================
 // == PLATFORM DEPENDENT MENU CHANGES --> HERE !
@@ -19,26 +19,20 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
   // check first if we need to do anything...
   if (!item->action_name[0]) return 0;
 
-  // temp
-  uint32_t fileio_status = OSD_ConfigReadFileIO();
-  uint8_t  floppy_num =  fileio_status & 0x07;
-  uint8_t  hd_mask    = (fileio_status & 0xF0) >> 4;
-
-
   // INIT ====================================================================
   if (mode==255) {
     // not used yet - take care, *item is NULL for this callback
   }
   // handle display action ===================================================
   if (mode==0) {
+  /*uint8_t      fd_supported;*/
+  /*uint8_t      hd_supported;*/
+
     // fddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"fddselect") {
-      // get config bits from structure and check if we can use it
-      // NOTE: this is HARDCODED for given mask in the config settings!
-      /*if ( ((current_status->config_s&0x00000030)>>4)>=item->action_value ) {*/
-      if ( floppy_num>=item->action_value ) {
+      if ((current_status->fd_supported >> item->action_value) & 1) {
         // use inserted flag here?
-        if (!item->selected_option->option_name[0]) {
+        if (!FDD_Inserted(item->action_value)) {
           // set only if still blank
           strcpy(item->selected_option->option_name,"<RETURN> to set");
         }
@@ -47,13 +41,11 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       }
       return 1;
     }
-    // hddselect,0...1 ----------------------------------
+    // hddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"hddselect") {
-      // get config bits from structure and check if we can use it
-      // NOTE: this is HARDCODED for given mask in the config settings!
-      /*if ( ((current_status->config_s&0x0000000C)>>2) &*/
-      if ( hd_mask & (item->action_value+1) ) { // mask ???
-        if (!item->selected_option->option_name[0]) {
+      if ((current_status->hd_supported >> item->action_value) & 1) {
+
+        if (!HDD_Inserted(item->action_value)) {
           // set only if still blank
           strcpy(item->selected_option->option_name,"<RETURN> to set");
         }
@@ -99,15 +91,14 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     if MATCH(item->action_name,"fddselect") {
       // get config bits from structure and check if we can use it
       // NOTE: this is HARDCODED for given mask in the config settings!
-      if ( floppy_num>=item->action_value ) {
+      /*if ( floppy_num>=item->action_value ) {*/
         if (item->selected_option->option_name[0]!='<') {
           // deselect file
           strcpy(item->selected_option->option_name,"<RETURN> to set");
           item->selected_option=NULL;
 
-          df[item->action_value].status = 0;
-          FF_Close(df[item->action_value].fSource);
-          DEBUG(1,"Menu:floppy ejected %d",item->action_value);
+          // EJECT
+          FDD_Eject(item->action_value);
 
           return 1;
         } else {
@@ -121,14 +112,14 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           current_status->show_menu=0;
           return 1;
         }
-      }
+      /*}*/
       return 0;
     }
-    // hddselect,0...1 ----------------------------------
+    // hddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"hddselect") {
       // get config bits from structure and check if we can use it
       // NOTE: this is HARDCODED for given mask in the config settings!
-      if ( hd_mask & (item->action_value+1) ) {
+      /*if ( hd_mask & (item->action_value+1) ) {*/
         if (item->selected_option->option_name[0]!='<') {
           // deselect file
           strcpy(item->selected_option->option_name,"<RETURN> to set");
@@ -145,7 +136,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           current_status->show_menu=0;
           return 1;
         }
-      }
+      /*}*/
       return 0;
     }
     // iniselect ----------------------------------
@@ -245,18 +236,20 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     // fddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"fddselect") {
       // store selected file in option_name structure
+
       item->selected_option=item->option_list;
-      strncpy(item->option_list->option_name,
-              mydir.FileName, MAX_OPTION_STRING-1);
-      item->option_list->option_name[MAX_OPTION_STRING-1]=0;
-      current_status->show_menu=1;
-      current_status->file_browser=0;
 
 
-      /* temp*/
       char file_path[FF_MAX_PATH] = "";
       sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
-      menu_insert_fd(file_path, &df[item->action_value]);
+
+      FDD_Insert(item->action_value, file_path);
+
+      strncpy(item->option_list->option_name, FDD_GetName(item->action_value), MAX_OPTION_STRING-1);
+      item->option_list->option_name[MAX_OPTION_STRING-1]=0;
+
+      current_status->show_menu=1;
+      current_status->file_browser=0;
 
       return 1;
     }
@@ -993,54 +986,56 @@ uint8_t _MENU_update(status_t *current_status) {
   return 1;
 }
 
-void menu_insert_fd(char *path, adfTYPE *drive)
-{
-  uint16_t i;
-  uint32_t tracks;
-  DEBUG(1,"Inserting floppy: <%s>", path);
+/*{{{*/
+/*void menu_insert_fd(char *path, adfTYPE *drive)*/
+/*{*/
+  /*uint16_t i;*/
+  /*uint32_t tracks;*/
+  /*DEBUG(1,"Inserting floppy: <%s>", path);*/
 
-  drive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);
+  /*drive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);*/
 
-  if (!drive->fSource) {
-    MSG_warning("Insert Floppy:Could not open file.");
-    return;
-  }
+  /*if (!drive->fSource) {*/
+    /*MSG_warning("Insert Floppy:Could not open file.");*/
+    /*return;*/
+  /*}*/
 
-  // calculate number of tracks in the ADF image file
-  tracks = drive->fSource->Filesize / (512*11);
-  if (tracks > MAX_TRACKS) {
-    MSG_warning("UNSUPPORTED ADF SIZE!!! Too many tracks: %lu", tracks);
-    tracks = MAX_TRACKS;
-  }
-  drive->tracks = (uint16_t)tracks;
+  /*// calculate number of tracks in the ADF image file*/
+  /*tracks = drive->fSource->Filesize / (512*11);*/
+  /*if (tracks > MAX_TRACKS) {*/
+    /*MSG_warning("UNSUPPORTED ADF SIZE!!! Too many tracks: %lu", tracks);*/
+    /*tracks = MAX_TRACKS;*/
+  /*}*/
+  /*drive->tracks = (uint16_t)tracks;*/
 
-  // get display name
-  i = (uint16_t) strlen(path);
+  /*// get display name*/
+  /*i = (uint16_t) strlen(path);*/
 
-  while(i != 0) {
-    if(path[i] == '\\' || path[i] == '/') {
-      break;
-    }
-    i--;
-  }
-  _strncpySpace(drive->name, (path + i + 1), MAX_DISPLAY_FILENAME);
-  drive->name[MAX_DISPLAY_FILENAME-1] = '\0';
+  /*while(i != 0) {*/
+    /*if(path[i] == '\\' || path[i] == '/') {*/
+      /*break;*/
+    /*}*/
+    /*i--;*/
+  /*}*/
+  /*_strncpySpace(drive->name, (path + i + 1), MAX_DISPLAY_FILENAME);*/
+  /*drive->name[MAX_DISPLAY_FILENAME-1] = '\0';*/
 
-  // initialize the rest of drive struct
-  drive->status = DSK_INSERTED;
+  /*// initialize the rest of drive struct*/
+  /*drive->status = DSK_INSERTED;*/
   /*if (!(drive->fSource.attributes & ATTR_READONLY)) // read-only attribute*/
     /*drive->status |= DSK_WRITABLE;*/
 
-  drive->sector_offset = 0;
-  drive->track = 0;
-  drive->track_prev = -1;
+  /*drive->sector_offset = 0;*/
+  /*drive->track = 0;*/
+  /*drive->track_prev = -1;*/
 
-  // some debug info
-  DEBUG(1,"Inserting floppy: <%s>", drive->name);
+  /*// some debug info*/
+  /*DEBUG(1,"Inserting floppy: <%s>", drive->name);*/
 
-  DEBUG(1,"file size   : %lu (%lu kB)", drive->fSource->Filesize, drive->fSource->Filesize >> 10);
-  DEBUG(1,"drive tracks: %u", drive->tracks);
-  DEBUG(1,"drive status: 0x%02X", drive->status);
+  /*DEBUG(1,"file size   : %lu (%lu kB)", drive->fSource->Filesize, drive->fSource->Filesize >> 10);*/
+  /*DEBUG(1,"drive tracks: %u", drive->tracks);*/
+  /*DEBUG(1,"drive status: 0x%02X", drive->status);*/
 
-}
+/*}*/
+/*}}}*/
 

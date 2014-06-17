@@ -89,10 +89,8 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
   if (mode==1) {
     // fddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"fddselect") {
-      // get config bits from structure and check if we can use it
-      // NOTE: this is HARDCODED for given mask in the config settings!
-      /*if ( floppy_num>=item->action_value ) {*/
-        if (item->selected_option->option_name[0]!='<') {
+      if ((current_status->fd_supported >> item->action_value) & 1) {
+        if (FDD_Inserted(item->action_value)) {
           // deselect file
           strcpy(item->selected_option->option_name,"<RETURN> to set");
           item->selected_option=NULL;
@@ -112,7 +110,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           current_status->show_menu=0;
           return 1;
         }
-      /*}*/
+      }
       return 0;
     }
     // hddselect,0...3 ----------------------------------

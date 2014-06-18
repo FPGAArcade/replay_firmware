@@ -16,7 +16,6 @@
 // floppy status
 #define FD_INSERTED 0x01 /*disk is inserted*/
 #define FD_WRITABLE 0x02 /*disk is writable*/
-#define MAX_DISPLAY_FILENAME 23
 
 // constants
 #define FD_MAX_TRACKS (83*2)

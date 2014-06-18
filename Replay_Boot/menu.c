@@ -46,8 +46,9 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       if ((current_status->hd_supported >> item->action_value) & 1) {
 
         if (!HDD_Inserted(item->action_value)) {
-          // set only if still blank
-          strcpy(item->selected_option->option_name,"<RETURN> to set");
+          strcpy(item->selected_option->option_name,"<NOT MOUNTED>");
+        } else {
+          strncpy(item->selected_option->option_name, HDD_GetName(item->action_value), MAX_OPTION_STRING-1);
         }
       } else {
         item->selected_option->option_name[0]=0;
@@ -115,9 +116,8 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     }
     // hddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"hddselect") {
-      // get config bits from structure and check if we can use it
-      // NOTE: this is HARDCODED for given mask in the config settings!
-      /*if ( hd_mask & (item->action_value+1) ) {*/
+      if ((current_status->hd_supported >> item->action_value) & 1) {
+        /*
         if (item->selected_option->option_name[0]!='<') {
           // deselect file
           strcpy(item->selected_option->option_name,"<RETURN> to set");
@@ -134,7 +134,8 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           current_status->show_menu=0;
           return 1;
         }
-      /*}*/
+        */
+      }
       return 0;
     }
     // iniselect ----------------------------------
@@ -254,10 +255,10 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     // hddselect,0...1 ----------------------------------
     if MATCH(item->action_name,"hddselect") {
       // store selected file in option_name structure
-      item->selected_option=item->option_list;
-      strncpy(item->option_list->option_name,
-              mydir.FileName, MAX_OPTION_STRING-1);
-      item->option_list->option_name[MAX_OPTION_STRING-1]=0;
+      /*item->selected_option=item->option_list;*/
+      /*strncpy(item->option_list->option_name,*/
+              /*mydir.FileName, MAX_OPTION_STRING-1);*/
+      /*item->option_list->option_name[MAX_OPTION_STRING-1]=0;*/
       current_status->show_menu=1;
       current_status->file_browser=0;
       return 1;

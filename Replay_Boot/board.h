@@ -14,6 +14,7 @@
 #define FALSE 0
 #define TRUE 1
 #define FS_FATBUF_SIZE 2048  // must be >= 2x block size
+#define MAX_DISPLAY_FILENAME 23
 
 //#define OSD_DEBUG
 

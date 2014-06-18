@@ -4,10 +4,10 @@
 
 extern FF_IOMAN *pIoman;
 
-static char null_string[] = "";
+//static char null_string[] = "";
 FF_DIRENT dNull;
 
-// private
+/*
 char* GetExtension(char* filename)
 {
   uint32_t len = strlen(filename);
@@ -21,6 +21,7 @@ char* GetExtension(char* filename)
   }
   return pResult;
 }
+*/
 
 int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
 {

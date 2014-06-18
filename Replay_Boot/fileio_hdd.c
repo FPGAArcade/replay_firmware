@@ -419,6 +419,37 @@ void HDD_ATA_Handle(uint8_t spi_status)
     }
 }
 
+
+unsigned char HDD_HardFileSeek(hdfTYPE *pHDF, unsigned long lba)
+{
+  return FF_Seek(pHDF->fSource, lba*512, FF_SEEK_SET);
+}
+
+void HDD_FileRead(FF_FILE *fSource)
+{
+
+  //#warning TODO: Read block from file and send to FPGA directly --> in mmc.c of original minimig firmware
+  // calls MMC_READ
+  uint32_t bytes_read;
+  bytes_read = FF_Read(fSource, HDD_BUF_SIZE, 1, HDD_fBuf);
+  if (bytes_read == 0) return; // catch 0 len file error
+
+  SPI_EnableFpga();
+  SPI(CMD_IDE_DATA_WR);
+  SPI_WriteBufferSingle(HDD_fBuf, HDD_BUF_SIZE);
+  SPI_DisableFpga();
+}
+
+void HDD_FileReadEx(FF_FILE *fSource, uint16_t block_count) {
+  // calls MMC_READmultiple
+
+  #warning TODO: Read blocks from file and send to FPGA --> in mmc.c of original minimig firmware
+}
+
+//
+//
+//
+
 void HDD_GetHardfileGeometry(hdfTYPE *pHDF)
 { // this function comes from WinUAE, should return the same CHS as WinUAE
    uint32_t total;
@@ -460,12 +491,7 @@ void HDD_GetHardfileGeometry(hdfTYPE *pHDF)
     pHDF->sectors = (unsigned short)spt;
 }
 
-unsigned char HDD_HardFileSeek(hdfTYPE *pHDF, unsigned long lba)
-{
-  return FF_Seek(pHDF->fSource, lba*512, FF_SEEK_SET);
-}
-
-uint8_t HDD_OpenHardfile(char *filename, uint8_t unit)
+void HDD_OpenHardfile(uint8_t unit, char *filename)
 {
   uint32_t time = Timer_Get(0);
   hdf[unit].status = 0;
@@ -473,71 +499,59 @@ uint8_t HDD_OpenHardfile(char *filename, uint8_t unit)
   hdf[unit].fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
   hdf[unit].size = 0;
 
-  if (hdf[unit].fSource)
-  {
-    hdf[unit].size = hdf[unit].fSource ->Filesize;
-
-    HDD_GetHardfileGeometry(&hdf[unit]);
-    // we removed the indexing - assuming the fullfat stuff handles it good enough...
-
-    // get display name -- move to fn (DONE, use it!!!)
-/*void FileDisplayName(char *name, uint16_t name_len, char *path) // name_len includes /0*/
-
-    uint16_t i = (uint16_t) strlen(filename);
-
-    while(i != 0) {
-      if(filename[i] == '\\' || filename[i] == '/') {
-        break;
-      }
-      i--;
-    }
-
-    _strncpySpace((char*)hdf[unit].name, (filename + i + 1), MAX_DISPLAY_FILENAME);
-    hdf[unit].name[MAX_DISPLAY_FILENAME-1] = '\0';
-
-    DEBUG(1,"name %s",hdf[unit].name);
-
-    /*strncpy((char *)hdf[unit].name,filename,MAX_DISPLAY_FILENAME);*/
-    hdf[unit].status = HD_INSERTED | HD_WRITABLE;
-
-    time = Timer_Get(0) - time;
-
-    INFO("HDF (%s)",unit?"slave":"master");
-    INFO("SIZE: %lu (%lu MB)", hdf[unit].size, hdf[unit].size >> 20);
-    INFO("CHS : %u.%u.%u", hdf[unit].cylinders, hdf[unit].heads, hdf[unit].sectors);
-    INFO("      --> %lu MB", ((((unsigned long) hdf[unit].cylinders) * hdf[unit].heads * hdf[unit].sectors) >> 11));
-    INFO("Opened in %lu ms", time >> 20);
-    return 1;
-  } else {
+  if (!hdf[unit].fSource) {
     INFO("HDF (%s) open error",unit?"slave":"master");
+    MSG_warning("Insert HD:Could not open file.");
   }
 
-  return 0;
+  hdf[unit].size = hdf[unit].fSource ->Filesize;
+
+  HDD_GetHardfileGeometry(&hdf[unit]);
+  // we removed the indexing - assuming the fullfat stuff handles it good enough...
+
+  FileDisplayName(hdf[unit].name, MAX_DISPLAY_FILENAME, filename);
+
+  hdf[unit].status = HD_INSERTED | HD_WRITABLE;
+
+  time = Timer_Get(0) - time;
+
+  INFO("HDF (%s)",unit?"slave":"master");
+  INFO("SIZE: %lu (%lu MB)", hdf[unit].size, hdf[unit].size >> 20);
+  INFO("CHS : %u.%u.%u", hdf[unit].cylinders, hdf[unit].heads, hdf[unit].sectors);
+  INFO("      --> %lu MB", ((((unsigned long) hdf[unit].cylinders) * hdf[unit].heads * hdf[unit].sectors) >> 11));
+  INFO("Opened in %lu ms", time >> 20);
 }
 
-void HDD_FileRead(FF_FILE *fSource)
-{
-
-  //#warning TODO: Read block from file and send to FPGA directly --> in mmc.c of original minimig firmware
-  // calls MMC_READ
-  uint32_t bytes_read;
-  bytes_read = FF_Read(fSource, HDD_BUF_SIZE, 1, HDD_fBuf);
-  if (bytes_read == 0) return; // catch 0 len file error
-
-  SPI_EnableFpga();
-  SPI(CMD_IDE_DATA_WR);
-  SPI_WriteBufferSingle(HDD_fBuf, HDD_BUF_SIZE);
-  SPI_DisableFpga();
-}
-
-void HDD_FileReadEx(FF_FILE *fSource, uint16_t block_count) {
-  // calls MMC_READmultiple
-
-  #warning TODO: Read blocks from file and send to FPGA --> in mmc.c of original minimig firmware
-}
 
 void HDD_Handle(void)
 {
+}
+
+void HDD_Insert(uint8_t drive_number, char *path)
+{
+  DEBUG(1,"attempting to insert hd <%d> : <%s> ", drive_number,path);
+  if (drive_number < HD_MAX_NUM) {
+    char* pFile_ext = GetExtension(path);
+    if (strnicmp(pFile_ext, "HDF",3) == 0) {
+      // HDF
+      HDD_OpenHardfile(drive_number, path);
+    } else {
+      // generic
+      MSG_warning("Filetype not supported.");
+      return;
+    }
+  }
+}
+
+void HDD_Eject(uint8_t drive_number)
+{
+  DEBUG(1,"Ejecting hd <%d>", drive_number);
+
+  /*if (drive_number < HD_MAX_NUM) {*/
+    /*hdfTYPE* drive = &hdf[drive_number];*/
+    /*FF_Close(drive->fSource);*/
+    /*drive->status = 0;*/
+  /*}*/
 }
 
 uint8_t HDD_Inserted(uint8_t drive_number)
@@ -546,6 +560,14 @@ uint8_t HDD_Inserted(uint8_t drive_number)
     return (hdf[drive_number].status & HD_INSERTED);
   } else
   return FALSE;
+}
+
+char* HDD_GetName(uint8_t drive_number)
+{
+  if (drive_number < HD_MAX_NUM) {
+    return (hdf[drive_number].name);
+  }
+  return null_string; // in stringlight.c
 }
 
 void HDD_Init(void)

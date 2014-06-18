@@ -1,6 +1,7 @@
 
 #include "stringlight.h"
 
+
 void _strncpySpace(char* pStr1, const char* pStr2, unsigned long nCount)
 {
 // customized strncpy() function to fill remaing destination string part with spaces
@@ -85,6 +86,21 @@ void FileDisplayName(char *name, uint16_t name_len, char *path) // name_len incl
   _strncpySpace(name, (path + i + 1), name_len);
   name[name_len-1] = '\0';
 }
+
+char* GetExtension(char* filename)
+{
+  uint32_t len = strlen(filename);
+  uint32_t i = 0;
+  char* pResult = null_string;
+  for (i = len-1; i > 0; --i) {
+    if (filename[i] == '.')
+      return ((char*) filename+i+1);
+    if ((filename[i] == '/') || (filename[i] == '\\'))
+      break;
+  }
+  return pResult;
+}
+
 
 // maybe not the best place for this - from FF demo
 void FF_ExpandPath(char *acPath) {

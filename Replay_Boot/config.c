@@ -1204,6 +1204,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
       }
       // -------------------------------------------------------
       if (section==INI_FILES) {
+        // could add FDD initial load from ini file here
         if (name==INI_HDD) {
           ini_list_t valueList[8];
           uint16_t entries = ParseList(value,valueList,8);
@@ -1214,7 +1215,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             if (entries==2)
               unit = valueList[1].intval;
 
-            if (unit > 1) {
+            if (unit >= HD_MAX_NUM) {
               DEBUG(1,"Illegal HDD unit number")
             } else {
               if (strlen(valueList[0].strval)) {
@@ -1222,7 +1223,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                 // prepare filename
                 sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
                 DEBUG(1,"HDD file %s", fullname);
-                HDD_OpenHardfile(fullname, unit); // MASTER ONLY FOR NOW
+                HDD_Insert(unit, fullname);
               };
             };
           }
@@ -1278,6 +1279,17 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   uint32_t init_mem = CFG_get_free_mem();
   DEBUG(1,"Initial free MEM: %ld bytes", init_mem);
 
+  // POLL FPGA and see how many FD/HD supported
+  uint32_t fileio_cfg = OSD_ConfigReadFileIO();
+
+  currentStatus->fd_supported =  fileio_cfg       & 0x0F;
+  currentStatus->hd_supported = (fileio_cfg >> 4) & 0x0F;
+
+  DEBUG(1,"FD supported : "BYTETOBINARYPATTERN4", HD supported : "BYTETOBINARYPATTERN4,
+    BYTETOBINARY4(currentStatus->fd_supported),
+    BYTETOBINARY4(currentStatus->hd_supported) );
+
+  // PARSE INI FILE
   if (currentStatus->fs_mounted_ok) {
     FF_FILE *fIni = NULL;
     DEBUG(1,"Looking for %s (post-init)",iniFile);
@@ -1297,25 +1309,6 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
       return 1;
     }
   }
-
-  // POLL FPGA and see how many FD/HD supported
-  uint32_t fileio_cfg = OSD_ConfigReadFileIO();
-
-  currentStatus->fd_supported =  fileio_cfg       & 0x0F;
-  currentStatus->hd_supported = (fileio_cfg >> 4) & 0x0F;
-
-  DEBUG(1,"FD supported : "BYTETOBINARYPATTERN4", HD supported : "BYTETOBINARYPATTERN4, 
-    BYTETOBINARY4(currentStatus->fd_supported), 
-    BYTETOBINARY4(currentStatus->hd_supported) );
-
-
-  // TEMP config to 1 floppy, 1 hard disk
-  /*uint8_t hd_mask = 0;*/
-  /*if (hdf[0].status & HD_INSERTED) hd_mask |= 0x10;*/
-  /*if (hdf[1].status & HD_INSERTED) hd_mask |= 0x20;*/
-  /*DEBUG(1,"HD MASK %02X",hd_mask);*/
-  /*OSD_ConfigSendFileIO(hd_mask | 0x01);*/
-  // 0x22 write config (fileio)       W0       number of disks 2..0 FD 7..4 HD note FD is a number 0-4 HD is a MASK
 
   init_mem -= CFG_get_free_mem();
   DEBUG(1,"Final free MEM:   %ld bytes", CFG_get_free_mem());

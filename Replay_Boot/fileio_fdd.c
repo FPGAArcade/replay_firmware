@@ -869,12 +869,15 @@ void FDD_Handle(void)
 
 }
 
-void FDD_Insert_0x00(adfTYPE *drive)
+//
+// Generic
+//
+void FDD_InsertParse_Generic(adfTYPE *drive)
 {
   drive->tracks = 1;
 }
 
-void FDD_Insert_0x01(adfTYPE *drive)
+void FDD_InsertParse_ADF(adfTYPE *drive)
 {
   uint16_t tracks;
   tracks = drive->fSource->Filesize / (512*11);
@@ -885,11 +888,22 @@ void FDD_Insert_0x01(adfTYPE *drive)
   drive->tracks = (uint16_t)tracks;
 }
 
+//
+// Core setup
+//
+void FDD_InsertInit_0x00(adfTYPE *drive)
+{
+}
+
+void FDD_InsertInit_0x01(adfTYPE *drive)
+{
+}
+
 void FDD_Insert(uint8_t drive_number, char *path)
 {
   uint8_t type;
 
-  DEBUG(1,"attempting to inserting floppy <%d> : <%s> ", drive_number,path);
+  DEBUG(1,"attempting to insert floppy <%d> : <%s> ", drive_number,path);
 
   if (drive_number < FD_MAX_NUM) {
     adfTYPE* drive = &fdf[drive_number];
@@ -902,12 +916,23 @@ void FDD_Insert(uint8_t drive_number, char *path)
       MSG_warning("Insert Floppy:Could not open file.");
       return;
     }
+    // parse depending on file type
+    char* pFile_ext = GetExtension(path);
+    if (strnicmp(pFile_ext, "ADF",3) == 0) {
+      // adf
+      FDD_InsertParse_ADF(drive);
+    } else {
+      // generic
+      FDD_InsertParse_Generic(drive);
+    }
+
     // do request read to find out FDD core request type
+    // any data to send to core?
     type = (FDD_FileIO_GetStat() >> 4) & 0x0F;
     DEBUG(1,"request type <%d>", type);
     switch (type) {
-      case 0x0: FDD_Insert_0x01(drive); break; // BODGE TO AMIGA
-      case 0x1: FDD_Insert_0x01(drive); break;
+      case 0x0: FDD_InsertInit_0x00(drive); break;
+      case 0x1: FDD_InsertInit_0x01(drive); break;
       MSG_warning("Unknown FDD request type."); 
       return;
     }
@@ -948,7 +973,7 @@ char* FDD_GetName(uint8_t drive_number)
   if (drive_number < FD_MAX_NUM) {
     return (fdf[drive_number].name);
   }
-  return NULL; // mmmmm
+  return null_string; // in stringlight.c
 }
 
 void FDD_Init(void)

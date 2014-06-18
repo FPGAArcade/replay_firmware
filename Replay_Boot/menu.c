@@ -7,10 +7,6 @@
 #include "filesel.h"
 #include "messaging.h"
 
-// TEMP
-//extern adfTYPE fdf[FD_MAX_NUM];  // in fdd.c
-/*extern FF_IOMAN *pIoman;*/
-
 // ==============================================
 // == PLATFORM DEPENDENT MENU CHANGES --> HERE !
 // ==============================================
@@ -25,8 +21,6 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
   }
   // handle display action ===================================================
   if (mode==0) {
-  /*uint8_t      fd_supported;*/
-  /*uint8_t      hd_supported;*/
 
     // fddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"fddselect") {
@@ -984,57 +978,4 @@ uint8_t _MENU_update(status_t *current_status) {
   }
   return 1;
 }
-
-/*{{{*/
-/*void menu_insert_fd(char *path, adfTYPE *drive)*/
-/*{*/
-  /*uint16_t i;*/
-  /*uint32_t tracks;*/
-  /*DEBUG(1,"Inserting floppy: <%s>", path);*/
-
-  /*drive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);*/
-
-  /*if (!drive->fSource) {*/
-    /*MSG_warning("Insert Floppy:Could not open file.");*/
-    /*return;*/
-  /*}*/
-
-  /*// calculate number of tracks in the ADF image file*/
-  /*tracks = drive->fSource->Filesize / (512*11);*/
-  /*if (tracks > MAX_TRACKS) {*/
-    /*MSG_warning("UNSUPPORTED ADF SIZE!!! Too many tracks: %lu", tracks);*/
-    /*tracks = MAX_TRACKS;*/
-  /*}*/
-  /*drive->tracks = (uint16_t)tracks;*/
-
-  /*// get display name*/
-  /*i = (uint16_t) strlen(path);*/
-
-  /*while(i != 0) {*/
-    /*if(path[i] == '\\' || path[i] == '/') {*/
-      /*break;*/
-    /*}*/
-    /*i--;*/
-  /*}*/
-  /*_strncpySpace(drive->name, (path + i + 1), MAX_DISPLAY_FILENAME);*/
-  /*drive->name[MAX_DISPLAY_FILENAME-1] = '\0';*/
-
-  /*// initialize the rest of drive struct*/
-  /*drive->status = DSK_INSERTED;*/
-  /*if (!(drive->fSource.attributes & ATTR_READONLY)) // read-only attribute*/
-    /*drive->status |= DSK_WRITABLE;*/
-
-  /*drive->sector_offset = 0;*/
-  /*drive->track = 0;*/
-  /*drive->track_prev = -1;*/
-
-  /*// some debug info*/
-  /*DEBUG(1,"Inserting floppy: <%s>", drive->name);*/
-
-  /*DEBUG(1,"file size   : %lu (%lu kB)", drive->fSource->Filesize, drive->fSource->Filesize >> 10);*/
-  /*DEBUG(1,"drive tracks: %u", drive->tracks);*/
-  /*DEBUG(1,"drive status: 0x%02X", drive->status);*/
-
-/*}*/
-/*}}}*/
 

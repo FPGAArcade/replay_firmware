@@ -123,34 +123,6 @@ void CFG_fatal_error(uint8_t error)
   }
 }
 
-/*{{{*/
-/*void CFG_handle_fpga(void)*/
-/*{*/
-    /*uint8_t status;*/
-
-    /*SPI_EnableFpga();*/
-    /*SPI(0x10); // status update move to header*/
-    /*SPI_DisableFpga();*/
-
-    /*SPI_EnableFpga();*/
-    /*SPI(0x00);*/
-    /*status = SPI(0); // cmd request*/
-    /*// just read first status word to save time*/
-    /*SPI_DisableFpga();*/
-
-    /*if (status & 0x08) { // FF request, move to header*/
-      /*//DEBUG(1,"FDD:handle request");*/
-      /*FDD_Handle();*/
-    /*}*/
-    /*if (status & 0x80) { // HD request, move to header*/
-      /*DEBUG(1,"HDD:handle request %02X",status & 0xF0);*/
-      /*HDD_Handle(status);*/
-    /*}*/
-
-    /*FDD_UpdateDriveStatus(); // TO GO - only if drive inserted/changed*/
-/*}*/
-/*}}}*/
-
 // we copy the actual bootloader from flash to the RAM and call it
 // (we assume there is no collision with the actual stack)
 void CFG_call_bootloader(void)
@@ -1071,7 +1043,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                                         // =====================
         if (name==INI_ITEM) {           // ===> add a new menu item
           ini_list_t valueList[8];
-          uint16_t entries = ParseList(value,valueList,32);
+          uint16_t entries = ParseList(value,valueList,8);
           if ((entries==2) || (entries==3) || (entries==4)) {
             DEBUG(2,"ITEM: %s ",value);
             DEBUG(3,"I1: %lx %lx %lx ",pStatus->menu_item_act,
@@ -1153,7 +1125,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
         if (name==INI_OPTION) {         // ===> add an option to an item
           ini_list_t valueList[8];
           uint8_t nocheck=0;
-          uint16_t entries = ParseList(value,valueList,32);
+          uint16_t entries = ParseList(value,valueList,8);
           if ((entries==2)||(entries==3)) {
             DEBUG(2,"OPTION: %s ",value);
             DEBUG(3,"O1: %lx %lx",pStatus->item_opt_act,
@@ -1228,6 +1200,23 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             };
           }
         }
+
+        if (name==INI_HDD_EXT) {
+          ini_list_t valueList[1];
+          uint16_t entries = ParseList(value,valueList,1);
+          if (entries==1) {
+            _strlcpy(pStatus->hd_ext,valueList[0].strval,4);
+          }
+        }
+
+        if (name==INI_FDD_EXT) {
+          ini_list_t valueList[1];
+          uint16_t entries = ParseList(value,valueList,1);
+          if (entries==1) {
+            _strlcpy(pStatus->fd_ext,valueList[0].strval,4);
+          }
+        }
+
       }
       // -------------------------------------------------------
     }
@@ -1288,6 +1277,13 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   DEBUG(1,"FD supported : "BYTETOBINARYPATTERN4", HD supported : "BYTETOBINARYPATTERN4,
     BYTETOBINARY4(currentStatus->fd_supported),
     BYTETOBINARY4(currentStatus->hd_supported) );
+
+  _strlcpy(currentStatus->fd_ext,"ADF",4);
+  _strlcpy(currentStatus->hd_ext,"HDF",4);
+
+  // update status (all unmounted)
+  FDD_UpdateDriveStatus();
+  HDD_UpdateDriveStatus();
 
   // PARSE INI FILE
   if (currentStatus->fs_mounted_ok) {

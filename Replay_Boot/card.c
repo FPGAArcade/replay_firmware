@@ -220,7 +220,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 
 FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void *pParam)
 {
-  DEBUG(2,"SPI:Card_WriteM sector %lu num %lu",sector, numSectors);
+  DEBUG(3,"SPI:Card_WriteM sector %lu num %lu",sector, numSectors);
 
   uint32_t sectorCount = numSectors;
   uint32_t i;

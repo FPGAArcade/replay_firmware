@@ -37,6 +37,9 @@ typedef enum {
     INI_VERIFY,   ///< token for VERIFY keyword (enables verification of any upload)
     INI_ROM,      ///< token for ROM keyword (ROM file entry for upload)
     INI_HDD,      ///< token for HDD keyword
+    INI_FDD,      ///< token for FDD keyword
+    INI_HDD_EXT,  ///< token for HDD file extension
+    INI_FDD_EXT,  ///< token for FDD file extension
     INI_LAUNCH,   ///< token for LAUNCH keyword (binary download and execute)
     INI_MENU,     ///< token for MENU section
     INI_DATA,     ///< token for DATA keyword (DATA set for upload)

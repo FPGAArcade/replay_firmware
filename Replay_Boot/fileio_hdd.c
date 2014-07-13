@@ -523,6 +523,18 @@ void HDD_OpenHardfile(uint8_t unit, char *filename)
 }
 
 
+void HDD_UpdateDriveStatus(void)
+{
+  uint8_t status = 0;
+
+  for (int i=0; i<HD_MAX_NUM; ++i) {
+    if (hdf[i].status & HD_INSERTED) status |= (0x01<<i);
+    if (hdf[i].status & HD_WRITABLE) status |= (0x10<<i);
+  }
+  DEBUG(1,"HDD:update status %02X",status);
+  OSD_ConfigSendFileIO_HD(status);
+}
+
 void HDD_Handle(void)
 {
 }
@@ -541,6 +553,7 @@ void HDD_Insert(uint8_t drive_number, char *path)
       return;
     }
   }
+  HDD_UpdateDriveStatus();
 }
 
 void HDD_Eject(uint8_t drive_number)
@@ -552,6 +565,8 @@ void HDD_Eject(uint8_t drive_number)
     /*FF_Close(drive->fSource);*/
     /*drive->status = 0;*/
   /*}*/
+  HDD_UpdateDriveStatus();
+
 }
 
 uint8_t HDD_Inserted(uint8_t drive_number)

@@ -70,6 +70,7 @@ void HDD_FileReadEx(FF_FILE *fSource, uint16_t block_count);
 void HDD_GetHardfileGeometry(hdfTYPE *hdf);
 void HDD_OpenHardfile(uint8_t unit, char *filename);
 
+void HDD_UpdateDriveStatus(void);
 void HDD_Handle(void);
 
 void HDD_Insert(uint8_t drive_number, char *path);

@@ -98,7 +98,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           // open file browser
           strcpy(current_status->act_dir,current_status->ini_dir);
           // search for INI files
-          Filesel_Init(current_status->dir_scan, current_status->act_dir, "ADF");
+          Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->fd_ext);
           // initialize browser
           Filesel_ScanFirst(current_status->dir_scan);
           current_status->file_browser = 1;
@@ -121,7 +121,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           // open file browser
           strcpy(current_status->act_dir,current_status->ini_dir);
           // search for INI files
-          Filesel_Init(current_status->dir_scan, current_status->act_dir, "HDF");
+          Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->hd_ext);
           // initialize browser
           Filesel_ScanFirst(current_status->dir_scan);
           current_status->file_browser = 1;

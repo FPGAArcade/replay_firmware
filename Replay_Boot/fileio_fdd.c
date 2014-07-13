@@ -9,7 +9,7 @@ const uint8_t FDD_DEBUG = 1;
 
 extern FF_IOMAN *pIoman;
 
-adfTYPE fdf[FD_MAX_NUM];        // drive 0 information structure
+fddTYPE fdf[FD_MAX_NUM];        // drive 0 information structure
 
 // localized buffer for this module, in case of cache
 uint8_t  FDD_fBuf[FDD_BUF_SIZE];
@@ -28,13 +28,16 @@ uint8_t FDD_FileIO_GetStat(void)
   return stat;
 }
 
-//
-// READ
-//
-
+void FDD_FileIO_WriteStat(uint8_t stat)
+{
+  SPI_EnableFpga();
+  SPI(0x08);
+  SPI(stat);
+  SPI_DisableFpga();
+}
 
 /*{{{*/
-/*void FDD_AmigaHeader(adfTYPE *drive,  uint8_t track, uint8_t sector, uint16_t dsksync)*/
+/*void FDD_AmigaHeader(fddTYPE *drive,  uint8_t track, uint8_t sector, uint16_t dsksync)*/
 /*{*/
   /*uint8_t checksum[4];*/
   /*uint16_t i;*/
@@ -167,7 +170,7 @@ uint8_t FDD_FileIO_GetStat(void)
 /*}}}*/
 
 /*{{{*/
-/*void FDD_Read(adfTYPE *drive, uint32_t offset, uint16_t size)*/
+/*void FDD_Read(fddTYPE *drive, uint32_t offset, uint16_t size)*/
 /*{ // track number is updated in drive struct before calling this function*/
   /*uint16_t i;*/
   /*uint8_t *p;*/
@@ -205,6 +208,7 @@ uint8_t FDD_FileIO_GetStat(void)
 /*}*/
 /*}}}*/
 
+/*{{{*/
 void FDD_SendSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl)
 {
   //DumpBuffer(pData, 64);
@@ -314,8 +318,10 @@ void FDD_SendSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksy
   while (i--)
     SPI(*p++ | 0xAA);
 }
+/*}}}*/
 
-void FDD_AmigaRead(adfTYPE *drive)
+/*{{{*/
+void FDD_AmigaRead(fddTYPE *drive)
 { // track number is updated in drive struct before calling this function
   uint8_t  sector;
   uint8_t  track;
@@ -444,13 +450,10 @@ void FDD_AmigaRead(adfTYPE *drive)
     drive->sector_offset = sector;
   }
 }
-
-//
-// WRITE
-//
+/*}}}*/
 
 /*{{{*/
-/*uint8_t FDD_FindSync(adfTYPE *drive)*/
+/*uint8_t FDD_FindSync(fddTYPE *drive)*/
 /*// reads data from fifo till it finds sync word or fifo is empty and dma inactive (so no more data is expected)*/
 /*{*/
   /*uint8_t  c1, c2, c3, c4;*/
@@ -716,7 +719,7 @@ void FDD_AmigaRead(adfTYPE *drive)
 /*}}}*/
 
 /*{{{*/
-/*void FDD_WriteTrack(adfTYPE *drive)*/
+/*void FDD_WriteTrack(fddTYPE *drive)*/
 /*{*/
 
   /*uint8_t rx_track  = 0;*/
@@ -774,18 +777,178 @@ void FDD_AmigaRead(adfTYPE *drive)
 /*}*/
 /*}}}*/
 
+uint8_t FDD_WaitStat(uint8_t mask, uint8_t wanted)
+{
+  uint8_t  status;
+  uint32_t timeout = Timer_Get(500);      // 500 ms timeout
+  do {
+    status = FDD_FileIO_GetStat();
+
+    if (Timer_Check(timeout)) {
+      ERROR("FDD_WaitStat:Waitstat timeout.");
+      return (1);
+    }
+  } while ((status & mask) != wanted);
+  return (0);
+}
+
+
 void FDD_UpdateDriveStatus(void)
 {
-  /*SPI_EnableFpga();*/
-  /*SPI(0x20);*/
-  /*SPI(fdf[0].status | (fdf[1].status << 1) | (fdf[2].status << 2) | (fdf[3].status << 3));*/
-  /*SPI_DisableFpga();*/
+  uint8_t status = 0;
+  for (int i=0; i<FD_MAX_NUM; ++i) {
+    if (fdf[i].status & FD_INSERTED) status |= (0x01<<i);
+    if (fdf[i].status & FD_WRITABLE) status |= (0x10<<i);
+  }
+  DEBUG(1,"FDD:update status %02X",status);
+  OSD_ConfigSendFileIO_FD(status);
 }
+
 
 void FDD_Handle(void)
 {
+  uint8_t  chan = 0;
+  uint16_t size = 0;
+  uint16_t cur_size = 0;
+  uint32_t addr = 0;
+  fddTYPE* drive = NULL;
+  uint32_t act_size = 0;
 
+  uint8_t status = FDD_FileIO_GetStat();
 
+  if (status & 0x08) { // FF request, move to header
+    uint8_t type = (status >> 4) & 0x0F;
+    uint8_t dir  = (status >> 2) & 0x01; // high is write
+    switch (type) {
+      case 0x0: // generic
+        SPI_EnableFpga();
+        SPI(0x18);
+        SPI(0x00); // dummy
+        chan = SPI(0) & 0x03; // cmd request
+        SPI_DisableFpga();
+
+        SPI_EnableFpga();
+        SPI(0x1A);
+        SPI(0x00); // dummy
+        size  =  SPI(0);
+        size |= (SPI(0) << 8);
+        addr  =  SPI(0);
+        addr |= (SPI(0) << 8);
+        addr |= (SPI(0) << 16);
+        addr |= (SPI(0) << 24);
+        SPI_DisableFpga();
+
+        FDD_FileIO_WriteStat(FD_STAT_REQ_ACK); // ack
+
+        // point to drive struct
+        if (!FDD_Inserted(chan)) {
+          DEBUG(1,"FDD:request chan %d not mounted", chan);
+          FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
+          break;
+        }
+        drive = &fdf[chan];
+
+        if (!drive->fSource) {
+          DEBUG(1,"FDD:request chan %d not open", chan);
+          FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
+          break;
+        }
+
+        if (size > 0x2000) {
+          DEBUG(1,"FDD:warning large size request:%04X",size);
+        }
+
+        if (FF_Seek(drive->fSource, addr, FF_SEEK_SET)) {
+          DEBUG(1,"FDD:seek error");
+          FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_SEEK_ERR); // err
+          break;
+        }
+
+        while (size) {
+
+          cur_size = size;
+          if (cur_size > FDD_BUF_SIZE) cur_size = FDD_BUF_SIZE;
+
+          /*DEBUG(1,"FDD:handle Chan:%02X Addr:%08X Size:%04X",chan,addr,size);*/
+
+          // align to 512 byte boundaries if possible
+          uint32_t addr_offset = addr & 0x1FF;
+          if (addr_offset != 0) {
+            /*DEBUG(1,"FDD:non-aligned:%08X",addr);*/
+            addr_offset = 0x200 - addr_offset;
+            if (cur_size > addr_offset) {
+              cur_size = addr_offset;
+              /*DEBUG(1,"FDD:new size:%04X",cur_size);*/
+            }
+          }
+
+          if (dir) { // write
+            // request should not be asserted if data is not ready
+
+            SPI_EnableFpga();
+            SPI(0x20);
+            SPI_ReadBufferSingle(FDD_fBuf, cur_size);
+            SPI_DisableFpga();
+
+            /*DumpBuffer(FDD_fBuf,cur_size);*/
+
+            act_size = FF_Write(drive->fSource, cur_size, 1, FDD_fBuf);
+            if (act_size != cur_size) {
+              DEBUG(1,"FDD:!! Write Fail!!");
+              FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // truncated
+              break;
+            }
+
+          } else {
+
+            // enough faffing, do the read
+            act_size = FF_Read(drive->fSource, cur_size, 1, FDD_fBuf);
+            /*DEBUG(1,"FDD:bytes read:%04X",act_size);*/
+            /*DumpBuffer(FDD_fBuf,cur_size);*/
+
+            SPI_EnableFpga();
+            SPI(0x30);
+            SPI_WriteBufferSingle(FDD_fBuf, act_size);
+            SPI_DisableFpga();
+
+            if (act_size != cur_size) {
+              FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_TRUNC_ERR); // truncated
+              break;
+            }
+          }
+
+          addr += cur_size;
+          size -= cur_size;
+
+          // check to see if we can send/rx more
+          // NOTE, this stalls the GUI so not recommeded to use the flow control here
+          if (size) { // going again
+            if (dir) { // write
+              if (FDD_WaitStat(0x02, 0x00)) {
+                FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
+                break;
+              }
+            }
+            else {
+              if (FDD_WaitStat(0x01, 0x00)) {
+                FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
+                break;
+              }
+            }
+          }
+          // end of wait
+        }
+        FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_OK); // ok
+
+        break;
+      case 0x1: // amiga
+        break;
+      MSG_warning("Unknown FDD request type.");
+      return;
+    }
+
+  }
+/*{{{*/
   //if (status & 0x4) { // write
     /*ACTLED_ON;*/
     /*sel = (c1 >> 6) & 0x03;*/
@@ -867,17 +1030,18 @@ void FDD_Handle(void)
   /*SPI(0x19);*/
   /*SPI_DisableFpga();*/
 
+/*}}}*/
 }
 
 //
 // Generic
 //
-void FDD_InsertParse_Generic(adfTYPE *drive)
+void FDD_InsertParse_Generic(fddTYPE *drive)
 {
   drive->tracks = 1;
 }
 
-void FDD_InsertParse_ADF(adfTYPE *drive)
+void FDD_InsertParse_ADF(fddTYPE *drive)
 {
   uint16_t tracks;
   tracks = drive->fSource->Filesize / (512*11);
@@ -891,27 +1055,53 @@ void FDD_InsertParse_ADF(adfTYPE *drive)
 //
 // Core setup
 //
-void FDD_InsertInit_0x00(adfTYPE *drive)
+void FDD_InsertInit_0x00(uint8_t drive_number)
 {
+  fddTYPE* drive = &fdf[drive_number];
+  uint32_t size = drive->fSource->Filesize;
+
+  SPI_EnableFpga();
+  SPI(0x08);
+  SPI(0x00); // clear status
+  SPI_DisableFpga();
+
+  // select drive
+  SPI_EnableFpga();
+  SPI(0x10);
+  SPI(drive_number);
+  SPI_DisableFpga();
+
+  // write file size
+  SPI_EnableFpga();
+  SPI(0x14);
+  SPI((uint8_t)(size      ));
+  SPI((uint8_t)(size >>  8));
+  SPI((uint8_t)(size >> 16));
+  SPI((uint8_t)(size >> 24));
+  SPI_DisableFpga();
+
 }
 
-void FDD_InsertInit_0x01(adfTYPE *drive)
+void FDD_InsertInit_0x01(uint8_t drive_number)
 {
+
 }
 
 void FDD_Insert(uint8_t drive_number, char *path)
 {
-  uint8_t type;
+  uint8_t   type;
 
   DEBUG(1,"attempting to insert floppy <%d> : <%s> ", drive_number,path);
 
   if (drive_number < FD_MAX_NUM) {
-    adfTYPE* drive = &fdf[drive_number];
+    fddTYPE* drive = &fdf[drive_number];
     drive->status = 0;
     drive->name[0] = '\0';
 
-    drive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);
+    drive->status |= FD_WRITABLE;
 
+    // add check for file attributes first, open read only if necessary
+    drive->fSource = FF_Open(pIoman, path, FF_MODE_READ | FF_MODE_WRITE, NULL); // will not open if file is read only
     if (!drive->fSource) {
       MSG_warning("Insert Floppy:Could not open file.");
       return;
@@ -926,21 +1116,25 @@ void FDD_Insert(uint8_t drive_number, char *path)
       FDD_InsertParse_Generic(drive);
     }
 
+    SPI_EnableFpga();
+    SPI(0x08);
+    SPI(0x00); // clear status
+    SPI_DisableFpga();
+
     // do request read to find out FDD core request type
     // any data to send to core?
     type = (FDD_FileIO_GetStat() >> 4) & 0x0F;
     DEBUG(1,"request type <%d>", type);
     switch (type) {
-      case 0x0: FDD_InsertInit_0x00(drive); break;
-      case 0x1: FDD_InsertInit_0x01(drive); break;
-      MSG_warning("Unknown FDD request type."); 
+      case 0x0: FDD_InsertInit_0x00(drive_number); break;
+      case 0x1: FDD_InsertInit_0x01(drive_number); break;
+      MSG_warning("Unknown FDD request type.");
       return;
     }
     FileDisplayName(drive->name, MAX_DISPLAY_FILENAME, path);
 
-    drive->status = FD_INSERTED;
-    /*if (!(drive->fSource.Mode & FF_MODE_WRITE)) // read-only attribute*/
-      /*drive->status |= FD_WRITABLE;*/
+    drive->status |= FD_INSERTED;
+    FDD_UpdateDriveStatus();
 
     DEBUG(1,"Inserted floppy: <%s>", drive->name);
     DEBUG(1,"file size   : %lu (%lu kB)", drive->fSource->Filesize, drive->fSource->Filesize >> 10);
@@ -954,10 +1148,11 @@ void FDD_Eject(uint8_t drive_number)
   DEBUG(1,"Ejecting floppy <%d>", drive_number);
 
   if (drive_number < FD_MAX_NUM) {
-    adfTYPE* drive = &fdf[drive_number];
+    fddTYPE* drive = &fdf[drive_number];
     FF_Close(drive->fSource);
     drive->status = 0;
   }
+  FDD_UpdateDriveStatus();
 }
 
 uint8_t FDD_Inserted(uint8_t drive_number)
@@ -984,6 +1179,5 @@ void FDD_Init(void)
     fdf[i].status = 0; fdf[i].fSource = NULL;
     fdf[i].name[0] = '\0';
     fdf[i].tracks = 0;
-
   }
 }

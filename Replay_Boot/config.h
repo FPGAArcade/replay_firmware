@@ -261,6 +261,8 @@ typedef struct {
   /** note, this is a bit mask (3..0) */
   uint8_t      fd_supported;
   uint8_t      hd_supported;
+  char         fd_ext[4];
+  char         hd_ext[4];
 
   /* ======== MENU handling ======== */
 

@@ -10,8 +10,8 @@
 #define FDD_BUF_SIZE 512
 
 // floppy disk interface defs
-#define CMD_RDTRK 0x01
-#define CMD_WRTRK 0x02
+//#define CMD_RDTRK 0x01
+//#define CMD_WRTRK 0x02
 
 // floppy status
 #define FD_INSERTED 0x01 /*disk is inserted*/
@@ -23,6 +23,13 @@
 #define FD_STAT_TRANS_ACK_TRUNC_ERR 0x22
 #define FD_STAT_TRANS_ACK_ABORT_ERR 0x42
 
+// pull these out into FILEIO
+#define FILEIO_FD_STAT_R 0x00
+#define FILEIO_FD_STAT_W 0x08
+#define FILEIO_FD_CMD_W  0x10
+#define FILEIO_FD_CMD_R  0x18
+#define FILEIO_FD_FIFO_R 0x20
+#define FILEIO_FD_FIFO_W 0x30
 
 // constants
 #define FD_MAX_TRACKS (83*2)
@@ -48,25 +55,25 @@ typedef struct
     char     name[MAX_DISPLAY_FILENAME]; /*floppy name*/
 } fddTYPE;
 
-//void FDD_AmigaHeader(adfTYPE *drive,  uint8_t track, uint8_t sector, uint16_t dsksync);
-//void FDD_Read(adfTYPE *drive, uint32_t offset, uint16_t size);
 
-void FDD_SendSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl);
-void FDD_AmigaRead(fddTYPE *drive);
+uint8_t FDD_FileIO_GetStat(void);
+void    FDD_FileIO_WriteStat(uint8_t stat);
+uint8_t FDD_WaitStat(uint8_t mask, uint8_t wanted);
 
-//uint8_t FDD_FindSync(fddTYPE *drive);
-//uint8_t FDD_GetHeader(uint8_t *pTrack, uint8_t *pSector);
-//uint8_t FDD_GetData(void);
-//void FDD_WriteTrack(fddTYPE *drive);
-void FDD_UpdateDriveStatus(void);
-void FDD_Handle(void);
 
-void FDD_Insert(uint8_t drive_number, char *path);
-void FDD_Eject(uint8_t drive_number);
+void    FDD_Handle(void);
+
+void    FDD_UpdateDriveStatus(void);
+void    FDD_InsertParse_Generic(fddTYPE *drive);
+void    FDD_InsertParse_ADF(fddTYPE *drive);
+void    FDD_InsertInit_0x00(uint8_t drive_number);
+void    FDD_InsertInit_0x01(uint8_t drive_number);
+
+void    FDD_Insert(uint8_t drive_number, char *path);
+void    FDD_Eject(uint8_t drive_number);
 
 uint8_t FDD_Inserted(uint8_t drive_number);
-char* FDD_GetName(uint8_t drive_number);
-
-void FDD_Init(void);
+char*   FDD_GetName(uint8_t drive_number);
+void    FDD_Init(void);
 
 #endif

@@ -22,7 +22,7 @@ uint8_t FDD_FileIO_GetStat(void)
 {
   uint8_t stat;
   SPI_EnableFpga();
-  SPI(0x00);
+  SPI(FILEIO_FD_STAT_R);
   stat = SPI(0);
   SPI_DisableFpga();
   return stat;
@@ -31,7 +31,7 @@ uint8_t FDD_FileIO_GetStat(void)
 void FDD_FileIO_WriteStat(uint8_t stat)
 {
   SPI_EnableFpga();
-  SPI(0x08);
+  SPI(FILEIO_FD_STAT_W);
   SPI(stat);
   SPI_DisableFpga();
 }
@@ -209,247 +209,247 @@ void FDD_FileIO_WriteStat(uint8_t stat)
 /*}}}*/
 
 /*{{{*/
-void FDD_SendSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl)
-{
-  //DumpBuffer(pData, 64);
-  if (FDD_DEBUG)
-    DEBUG(1,"FDD_SendSector %04X, %04X", sector, track);
+/*void FDD_SendSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl)*/
+/*{*/
+  /*//DumpBuffer(pData, 64);*/
+  /*if (FDD_DEBUG)*/
+    /*DEBUG(1,"FDD_SendSector %04X, %04X", sector, track);*/
 
-  uint8_t checksum[4];
-  uint16_t i;
-  uint8_t x;
-  uint8_t *p;
+  /*uint8_t checksum[4];*/
+  /*uint16_t i;*/
+  /*uint8_t x;*/
+  /*uint8_t *p;*/
 
-  // preamble
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
+  /*// preamble*/
+  /*SPI(0xAA);*/
+  /*SPI(0xAA);*/
+  /*SPI(0xAA);*/
+  /*SPI(0xAA);*/
 
-  // synchronization
-  SPI(dsksynch);
-  SPI(dsksyncl);
-  SPI(dsksynch);
-  SPI(dsksyncl);
+  /*// synchronization*/
+  /*SPI(dsksynch);*/
+  /*SPI(dsksyncl);*/
+  /*SPI(dsksynch);*/
+  /*SPI(dsksyncl);*/
 
-  // odd bits of header
-  x = 0x55;
-  checksum[0] = x;
-  SPI(x);
-  x = (track >> 1) & 0x55;
-  checksum[1] = x;
-  SPI(x);
-  x = (sector >> 1) & 0x55;
-  checksum[2] = x;
-  SPI(x);
-  // subtraction has higher prio, added brackets accordingly!
-  x = ((11 - sector) >> 1) & 0x55;
-  checksum[3] = x;
-  SPI(x);
+  /*// odd bits of header*/
+  /*x = 0x55;*/
+  /*checksum[0] = x;*/
+  /*SPI(x);*/
+  /*x = (track >> 1) & 0x55;*/
+  /*checksum[1] = x;*/
+  /*SPI(x);*/
+  /*x = (sector >> 1) & 0x55;*/
+  /*checksum[2] = x;*/
+  /*SPI(x);*/
+  /*// subtraction has higher prio, added brackets accordingly!*/
+  /*x = ((11 - sector) >> 1) & 0x55;*/
+  /*checksum[3] = x;*/
+  /*SPI(x);*/
 
-  // even bits of header
-  x = 0x55;
-  checksum[0] ^= x;
-  SPI(x);
-  x = track & 0x55;
-  checksum[1] ^= x;
-  SPI(x);
-  x = sector & 0x55;
-  checksum[2] ^= x;
-  SPI(x);
-  // subtraction has higher prio, added brackets accordingly!
-  x = (11 - sector) & 0x55;
-  checksum[3] ^= x;
-  SPI(x);
+  /*// even bits of header*/
+  /*x = 0x55;*/
+  /*checksum[0] ^= x;*/
+  /*SPI(x);*/
+  /*x = track & 0x55;*/
+  /*checksum[1] ^= x;*/
+  /*SPI(x);*/
+  /*x = sector & 0x55;*/
+  /*checksum[2] ^= x;*/
+  /*SPI(x);*/
+  /*// subtraction has higher prio, added brackets accordingly!*/
+  /*x = (11 - sector) & 0x55;*/
+  /*checksum[3] ^= x;*/
+  /*SPI(x);*/
 
-  // sector label and reserved area (changes nothing to checksum)
-  i = 0x20;
-  while (i--)
-    SPI(0xAA);
+  /*// sector label and reserved area (changes nothing to checksum)*/
+  /*i = 0x20;*/
+  /*while (i--)*/
+    /*SPI(0xAA);*/
 
-  // send header checksum
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(checksum[0] | 0xAA);
-  SPI(checksum[1] | 0xAA);
-  SPI(checksum[2] | 0xAA);
-  SPI(checksum[3] | 0xAA);
+  /*// send header checksum*/
+  /*SPI(0xAA);*/
+  /*SPI(0xAA);*/
+  /*SPI(0xAA);*/
+  /*SPI(0xAA);*/
+  /*SPI(checksum[0] | 0xAA);*/
+  /*SPI(checksum[1] | 0xAA);*/
+  /*SPI(checksum[2] | 0xAA);*/
+  /*SPI(checksum[3] | 0xAA);*/
 
-  // calculate data checksum
-  checksum[0] = 0;
-  checksum[1] = 0;
-  checksum[2] = 0;
-  checksum[3] = 0;
+  /*// calculate data checksum*/
+  /*checksum[0] = 0;*/
+  /*checksum[1] = 0;*/
+  /*checksum[2] = 0;*/
+  /*checksum[3] = 0;*/
 
-  p = pData;
-  i = DATA_SIZE / 2 / 4;
-  while (i--) {
-    x = *p++;
-    checksum[0] ^= x ^ x >> 1;
-    x = *p++;
-    checksum[1] ^= x ^ x >> 1;
-    x = *p++;
-    checksum[2] ^= x ^ x >> 1;
-    x = *p++;
-    checksum[3] ^= x ^ x >> 1;
-  }
+  /*p = pData;*/
+  /*i = DATA_SIZE / 2 / 4;*/
+  /*while (i--) {*/
+    /*x = *p++;*/
+    /*checksum[0] ^= x ^ x >> 1;*/
+    /*x = *p++;*/
+    /*checksum[1] ^= x ^ x >> 1;*/
+    /*x = *p++;*/
+    /*checksum[2] ^= x ^ x >> 1;*/
+    /*x = *p++;*/
+    /*checksum[3] ^= x ^ x >> 1;*/
+  /*}*/
 
-  // send data checksum
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(checksum[0] | 0xAA);
-  SPI(checksum[1] | 0xAA);
-  SPI(checksum[2] | 0xAA);
-  SPI(checksum[3] | 0xAA);
+  /*// send data checksum*/
+  /*SPI(0xAA);*/
+  /*SPI(0xAA);*/
+  /*SPI(0xAA);*/
+  /*SPI(0xAA);*/
+  /*SPI(checksum[0] | 0xAA);*/
+  /*SPI(checksum[1] | 0xAA);*/
+  /*SPI(checksum[2] | 0xAA);*/
+  /*SPI(checksum[3] | 0xAA);*/
 
-  // odd bits of data field
-  i = DATA_SIZE / 2;
-  p = pData;
-  while (i--)
-    SPI(*p++ >> 1 | 0xAA);
+  /*// odd bits of data field*/
+  /*i = DATA_SIZE / 2;*/
+  /*p = pData;*/
+  /*while (i--)*/
+    /*SPI(*p++ >> 1 | 0xAA);*/
 
-  // even bits of data field
-  i = DATA_SIZE / 2;
-  p = pData;
-  while (i--)
-    SPI(*p++ | 0xAA);
-}
+  /*// even bits of data field*/
+  /*i = DATA_SIZE / 2;*/
+  /*p = pData;*/
+  /*while (i--)*/
+    /*SPI(*p++ | 0xAA);*/
+/*}*/
 /*}}}*/
 
 /*{{{*/
-void FDD_AmigaRead(fddTYPE *drive)
-{ // track number is updated in drive struct before calling this function
-  uint8_t  sector;
-  uint8_t  track;
- //uint16_t dsklen;
-  uint32_t offset;
+/*void FDD_AmigaRead(fddTYPE *drive)*/
+/*{ // track number is updated in drive struct before calling this function*/
+  /*uint8_t  sector;*/
+  /*uint8_t  track;*/
+ /*//uint16_t dsklen;*/
+  /*uint32_t offset;*/
 
-  uint8_t  status;
-  uint8_t  cmd;
-  uint16_t size;
-  uint16_t addr;
-  uint16_t dsksync; //user
-  uint16_t i;
+  /*uint8_t  status;*/
+  /*uint8_t  cmd;*/
+  /*uint16_t size;*/
+  /*uint16_t addr;*/
+  /*uint16_t dsksync; //user*/
+  /*uint16_t i;*/
 
-  if (drive->track >= drive->tracks) {
-    ERROR("Illegal track %u read!", drive->track);
-    drive->track = drive->tracks - 1;
-  }
+  /*if (drive->track >= drive->tracks) {*/
+    /*ERROR("Illegal track %u read!", drive->track);*/
+    /*drive->track = drive->tracks - 1;*/
+  /*}*/
 
-  // display track number: cylinder & head
-  if (FDD_DEBUG)
-    DEBUG(1,"FDD_ReadTrack #%u", drive->track);
+  /*// display track number: cylinder & head*/
+  /*if (FDD_DEBUG)*/
+    /*DEBUG(1,"FDD_ReadTrack #%u", drive->track);*/
 
-  offset = (512*11) * drive->track;
+  /*offset = (512*11) * drive->track;*/
 
-  if (drive->track != drive->track_prev) {
-    // track step or track 0, start at beginning of track
-    drive->track_prev = drive->track;
-    sector = 0;
-    drive->sector_offset = sector;
-    FF_Seek(drive->fSource, offset, FF_SEEK_SET);
-  } else {
-    // same track, start at next sector in track
-    sector = drive->sector_offset;
-    FF_Seek(drive->fSource, offset + (sector<<9), FF_SEEK_SET);
-  }
-  while (1) {
-    // note read moves on file pointer automatically
-    FF_Read(drive->fSource, FDD_BUF_SIZE, 1, FDD_fBuf);
+  /*if (drive->track != drive->track_prev) {*/
+    /*// track step or track 0, start at beginning of track*/
+    /*drive->track_prev = drive->track;*/
+    /*sector = 0;*/
+    /*drive->sector_offset = sector;*/
+    /*FF_Seek(drive->fSource, offset, FF_SEEK_SET);*/
+  /*} else {*/
+    /*// same track, start at next sector in track*/
+    /*sector = drive->sector_offset;*/
+    /*FF_Seek(drive->fSource, offset + (sector<<9), FF_SEEK_SET);*/
+  /*}*/
+  /*while (1) {*/
+    /*// note read moves on file pointer automatically*/
+    /*FF_Read(drive->fSource, FDD_BUF_SIZE, 1, FDD_fBuf);*/
 
-    SPI_EnableFpga();
-    SPI(0x00);
-    status   = SPI(0); // cmd request
-    cmd      = SPI(0);
-    size     = SPI(0); //8 bits to be expanded
-    addr     = SPI(0) << 8;
-    addr    |= SPI(0);
-    dsksync     = SPI(0) << 8;
-    dsksync    |= SPI(0);
-    SPI_DisableFpga();
+    /*SPI_EnableFpga();*/
+    /*SPI(0x00);*/
+    /*status   = SPI(0); // cmd request*/
+    /*cmd      = SPI(0);*/
+    /*size     = SPI(0); //8 bits to be expanded*/
+    /*addr     = SPI(0) << 8;*/
+    /*addr    |= SPI(0);*/
+    /*dsksync     = SPI(0) << 8;*/
+    /*dsksync    |= SPI(0);*/
+    /*SPI_DisableFpga();*/
 
 
-    track = (uint8_t) addr & 0xFF;
+    /*track = (uint8_t) addr & 0xFF;*/
 
-    // end of disk check
-    if (track >= drive->tracks)
-      track = drive->tracks - 1;
+    /*// end of disk check*/
+    /*if (track >= drive->tracks)*/
+      /*track = drive->tracks - 1;*/
 
-    // workaround for Copy Lock in Wiz'n'Liz and North&South (might brake other games)
-    if (dsksync == 0x0000 || dsksync == 0x8914 || dsksync == 0xA144)
-      dsksync = 0x4489;
+    /*// workaround for Copy Lock in Wiz'n'Liz and North&South (might brake other games)*/
+    /*if (dsksync == 0x0000 || dsksync == 0x8914 || dsksync == 0xA144)*/
+      /*dsksync = 0x4489;*/
 
-    // North&South: $A144
-    // Wiz'n'Liz (Copy Lock): $8914
-    // Prince of Persia: $4891
-    // Commando: $A245
+    /*// North&South: $A144*/
+    /*// Wiz'n'Liz (Copy Lock): $8914*/
+    /*// Prince of Persia: $4891*/
+    /*// Commando: $A245*/
 
     /*if (FDD_DEBUG)*/
       /*DEBUG(2,"#%X:%04X", sector, dsklen);*/
 
 
 
-    // some loaders stop dma if sector header isn't what they expect
-    // because we don't check dma transfer count after sending a word
-    // the track can be changed while we are sending the rest of the previous sector
-    // in this case let's start transfer from the beginning
-    if (track == drive->track) {
-      // send sector if fpga is still asking for data - not required as checked on entry
+    /*// some loaders stop dma if sector header isn't what they expect*/
+    /*// because we don't check dma transfer count after sending a word*/
+    /*// the track can be changed while we are sending the rest of the previous sector*/
+    /*// in this case let's start transfer from the beginning*/
+    /*if (track == drive->track) {*/
+      /*// send sector if fpga is still asking for data - not required as checked on entry*/
 
-         SPI_EnableFpga();
-         SPI(0x50); // enable write
-         FDD_SendSector(FDD_fBuf, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);
-         SPI_DisableFpga();
+         /*SPI_EnableFpga();*/
+         /*SPI(0x50); // enable write*/
+         /*FDD_SendSector(FDD_fBuf, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);*/
+         /*SPI_DisableFpga();*/
 
-         if (sector == LAST_SECTOR)
-         {
+         /*if (sector == LAST_SECTOR)*/
+         /*{*/
 
-          SPI_EnableFpga();
-          SPI(0x51); // temp use ch1 for gap (index)
+          /*SPI_EnableFpga();*/
+          /*SPI(0x51); // temp use ch1 for gap (index)*/
 
-           // send gap
-          i = 128;
-          while (i--)
-            SPI(0xAA);
-          SPI_DisableFpga();
-          //
-          SPI_EnableFpga();
-          SPI(0x50);
-          // send gap
-          i = GAP_SIZE-128;
-          while (i--)
-            SPI(0xAA);
-          SPI_DisableFpga();
-         }
-    }
+           /*// send gap*/
+          /*i = 128;*/
+          /*while (i--)*/
+            /*SPI(0xAA);*/
+          /*SPI_DisableFpga();*/
+          /*//*/
+          /*SPI_EnableFpga();*/
+          /*SPI(0x50);*/
+          /*// send gap*/
+          /*i = GAP_SIZE-128;*/
+          /*while (i--)*/
+            /*SPI(0xAA);*/
+          /*SPI_DisableFpga();*/
+         /*}*/
+    /*}*/
 
-    // we are done accessing FPGA
-    SPI_DisableFpga();
+    /*// we are done accessing FPGA*/
+    /*SPI_DisableFpga();*/
 
-    // track has changed
-    if (track != drive->track)
-      break;
+    /*// track has changed*/
+    /*if (track != drive->track)*/
+      /*break;*/
 
-    // read request
-    if (!(status & 0x08))
-      break;
+    /*// read request*/
+    /*if (!(status & 0x08))*/
+      /*break;*/
 
-    sector++;
-    if (sector < SECTOR_COUNT) {
-      //all is good, do nothing
-    } else {
-      // go to the start of current track
-      sector = 0;
-      FF_Seek(drive->fSource, ((512*11) * drive->track), FF_SEEK_SET);
-    }
-    // remember current sector and cluster
-    drive->sector_offset = sector;
-  }
-}
+    /*sector++;*/
+    /*if (sector < SECTOR_COUNT) {*/
+      /*//all is good, do nothing*/
+    /*} else {*/
+      /*// go to the start of current track*/
+      /*sector = 0;*/
+      /*FF_Seek(drive->fSource, ((512*11) * drive->track), FF_SEEK_SET);*/
+    /*}*/
+    /*// remember current sector and cluster*/
+    /*drive->sector_offset = sector;*/
+  /*}*/
+/*}*/
 /*}}}*/
 
 /*{{{*/
@@ -779,31 +779,18 @@ void FDD_AmigaRead(fddTYPE *drive)
 
 uint8_t FDD_WaitStat(uint8_t mask, uint8_t wanted)
 {
-  uint8_t  status;
+  uint8_t  stat;
   uint32_t timeout = Timer_Get(500);      // 500 ms timeout
   do {
-    status = FDD_FileIO_GetStat();
+    stat = FDD_FileIO_GetStat();
 
     if (Timer_Check(timeout)) {
       ERROR("FDD_WaitStat:Waitstat timeout.");
       return (1);
     }
-  } while ((status & mask) != wanted);
+  } while ((stat & mask) != wanted);
   return (0);
 }
-
-
-void FDD_UpdateDriveStatus(void)
-{
-  uint8_t status = 0;
-  for (int i=0; i<FD_MAX_NUM; ++i) {
-    if (fdf[i].status & FD_INSERTED) status |= (0x01<<i);
-    if (fdf[i].status & FD_WRITABLE) status |= (0x10<<i);
-  }
-  DEBUG(1,"FDD:update status %02X",status);
-  OSD_ConfigSendFileIO_FD(status);
-}
-
 
 void FDD_Handle(void)
 {
@@ -817,18 +804,20 @@ void FDD_Handle(void)
   uint8_t status = FDD_FileIO_GetStat();
 
   if (status & 0x08) { // FF request, move to header
+    ACTLED_ON;
+
     uint8_t type = (status >> 4) & 0x0F;
     uint8_t dir  = (status >> 2) & 0x01; // high is write
     switch (type) {
       case 0x0: // generic
         SPI_EnableFpga();
-        SPI(0x18);
+        SPI(FILEIO_FD_CMD_R | 0x0);
         SPI(0x00); // dummy
         chan = SPI(0) & 0x03; // cmd request
         SPI_DisableFpga();
 
         SPI_EnableFpga();
-        SPI(0x1A);
+        SPI(FILEIO_FD_CMD_R | 0x2);
         SPI(0x00); // dummy
         size  =  SPI(0);
         size |= (SPI(0) << 8);
@@ -864,8 +853,7 @@ void FDD_Handle(void)
           break;
         }
 
-        while (size) {
-
+        while (size) { // FIXME - break will only break out the while loop, not the case
           cur_size = size;
           if (cur_size > FDD_BUF_SIZE) cur_size = FDD_BUF_SIZE;
 
@@ -886,7 +874,7 @@ void FDD_Handle(void)
             // request should not be asserted if data is not ready
 
             SPI_EnableFpga();
-            SPI(0x20);
+            SPI(FILEIO_FD_FIFO_R);
             SPI_ReadBufferSingle(FDD_fBuf, cur_size);
             SPI_DisableFpga();
 
@@ -896,7 +884,7 @@ void FDD_Handle(void)
             if (act_size != cur_size) {
               DEBUG(1,"FDD:!! Write Fail!!");
               FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // truncated
-              break;
+              break;  // FIXME
             }
 
           } else {
@@ -907,13 +895,13 @@ void FDD_Handle(void)
             /*DumpBuffer(FDD_fBuf,cur_size);*/
 
             SPI_EnableFpga();
-            SPI(0x30);
+            SPI(FILEIO_FD_FIFO_W);
             SPI_WriteBufferSingle(FDD_fBuf, act_size);
             SPI_DisableFpga();
 
             if (act_size != cur_size) {
               FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_TRUNC_ERR); // truncated
-              break;
+              break; // FIXME
             }
           }
 
@@ -926,13 +914,13 @@ void FDD_Handle(void)
             if (dir) { // write
               if (FDD_WaitStat(0x02, 0x00)) {
                 FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
-                break;
+                break; // FIXME
               }
             }
             else {
               if (FDD_WaitStat(0x01, 0x00)) {
                 FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
-                break;
+                break; // FIXME
               }
             }
           }
@@ -944,10 +932,11 @@ void FDD_Handle(void)
       case 0x1: // amiga
         break;
       MSG_warning("Unknown FDD request type.");
-      return;
-    }
+    } // end of case
 
   }
+  ACTLED_OFF;
+
 /*{{{*/
   //if (status & 0x4) { // write
     /*ACTLED_ON;*/
@@ -1033,6 +1022,17 @@ void FDD_Handle(void)
 /*}}}*/
 }
 
+void FDD_UpdateDriveStatus(void)
+{
+  uint8_t status = 0;
+  for (int i=0; i<FD_MAX_NUM; ++i) {
+    if (fdf[i].status & FD_INSERTED) status |= (0x01<<i);
+    if (fdf[i].status & FD_WRITABLE) status |= (0x10<<i);
+  }
+  DEBUG(1,"FDD:update status %02X",status);
+  OSD_ConfigSendFileIO_FD(status);
+}
+
 //
 // Generic
 //
@@ -1061,19 +1061,19 @@ void FDD_InsertInit_0x00(uint8_t drive_number)
   uint32_t size = drive->fSource->Filesize;
 
   SPI_EnableFpga();
-  SPI(0x08);
+  SPI(FILEIO_FD_STAT_W);
   SPI(0x00); // clear status
   SPI_DisableFpga();
 
   // select drive
   SPI_EnableFpga();
-  SPI(0x10);
+  SPI(FILEIO_FD_CMD_W | 0x0);
   SPI(drive_number);
   SPI_DisableFpga();
 
   // write file size
   SPI_EnableFpga();
-  SPI(0x14);
+  SPI(FILEIO_FD_CMD_W | 0x4);
   SPI((uint8_t)(size      ));
   SPI((uint8_t)(size >>  8));
   SPI((uint8_t)(size >> 16));
@@ -1117,7 +1117,7 @@ void FDD_Insert(uint8_t drive_number, char *path)
     }
 
     SPI_EnableFpga();
-    SPI(0x08);
+    SPI(FILEIO_FD_STAT_W);
     SPI(0x00); // clear status
     SPI_DisableFpga();
 

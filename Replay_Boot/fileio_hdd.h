@@ -1,13 +1,18 @@
 #ifndef FILEIO_HDD_H_INCLUDED
 #define FILEIO_HDD_H_INCLUDED
 
+#include "board.h"
+#include "fullfat.h"
+
 #define HD_MAX_NUM 2
 
 // FILE buffer size = HDD sector size
 #define HDD_BUF_SIZE 512
 
-#include "board.h"
-#include "fullfat.h"
+//hd status
+#define HD_INSERTED 0x01 /*disk is present*/
+#define HD_WRITABLE 0x02 /*disk is writable*/
+
 #define CMD_HDRID 0xAA68
 
 #define CMD_IDECMD 0x80 // bits in request word
@@ -15,11 +20,19 @@
 #define CMD_IDETX  0x10 // bits in request word
 
 // SPI Commands
-#define CMD_IDE_DATA_RD 0x60
-#define CMD_IDE_DATA_WR 0x70
-#define CMD_IDE_REGS_RD 0x61
-#define CMD_IDE_REGS_WR 0x71
-#define CMD_IDE_STATUS_WR 0x21
+//#define CMD_IDE_DATA_RD 0x60
+//#define CMD_IDE_DATA_WR 0x70
+//#define CMD_IDE_REGS_RD 0x61
+//#define CMD_IDE_REGS_WR 0x71
+//#define CMD_IDE_STATUS_WR 0x21
+
+// pull these out into FILEIO
+#define FILEIO_HD_STAT_R 0x40
+#define FILEIO_HD_STAT_W 0x48
+#define FILEIO_HD_CMD_W  0x50
+#define FILEIO_HD_CMD_R  0x58
+#define FILEIO_HD_FIFO_R 0x60
+#define FILEIO_HD_FIFO_W 0x70
 
 // status bits
 #define IDE_STATUS_END 0x80
@@ -28,6 +41,7 @@
 #define IDE_STATUS_REQ 0x04
 #define IDE_STATUS_ERR 0x01
 
+// IDE commands
 #define ACMD_RECALIBRATE 0x10
 #define ACMD_EXECUTE_DEVICE_DIAGNOSTIC 0x90
 #define ACMD_IDENTIFY_DEVICE 0xEC
@@ -38,10 +52,6 @@
 #define ACMD_WRITE_MULTIPLE 0xC5
 #define ACMD_SET_MULTIPLE_MODE 0xC6
 
-
-// floppy status
-#define HD_INSERTED 0x01 /*disk is present*/
-#define HD_WRITABLE 0x02 /*disk is writable*/
 
 typedef struct
 {
@@ -70,9 +80,9 @@ void HDD_FileReadEx(FF_FILE *fSource, uint16_t block_count);
 void HDD_GetHardfileGeometry(hdfTYPE *hdf);
 void HDD_OpenHardfile(uint8_t unit, char *filename);
 
-void HDD_UpdateDriveStatus(void);
 void HDD_Handle(void);
 
+void HDD_UpdateDriveStatus(void);
 void HDD_Insert(uint8_t drive_number, char *path);
 void HDD_Eject(uint8_t drive_number);
 

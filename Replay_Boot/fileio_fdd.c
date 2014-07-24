@@ -5,7 +5,7 @@
 #include "fileio_fdd.h"
 
 
-const uint8_t FDD_DEBUG = 1;
+const uint8_t FDD_DEBUG = 0;
 
 extern FF_IOMAN *pIoman;
 
@@ -209,115 +209,113 @@ void FDD_FileIO_WriteStat(uint8_t stat)
 /*}}}*/
 
 /*{{{*/
-/*void FDD_SendSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl)*/
-/*{*/
-  /*//DumpBuffer(pData, 64);*/
-  /*if (FDD_DEBUG)*/
-    /*DEBUG(1,"FDD_SendSector %04X, %04X", sector, track);*/
+void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl)
+{
+  //DumpBuffer(pData, 64);
 
-  /*uint8_t checksum[4];*/
-  /*uint16_t i;*/
-  /*uint8_t x;*/
-  /*uint8_t *p;*/
+  uint8_t checksum[4];
+  uint16_t i;
+  uint8_t x;
+  uint8_t *p;
 
-  /*// preamble*/
-  /*SPI(0xAA);*/
-  /*SPI(0xAA);*/
-  /*SPI(0xAA);*/
-  /*SPI(0xAA);*/
+  // preamble
+  SPI(0xAA);
+  SPI(0xAA);
+  SPI(0xAA);
+  SPI(0xAA);
 
-  /*// synchronization*/
-  /*SPI(dsksynch);*/
-  /*SPI(dsksyncl);*/
-  /*SPI(dsksynch);*/
-  /*SPI(dsksyncl);*/
+  // synchronization
+  SPI(dsksynch);
+  SPI(dsksyncl);
+  SPI(dsksynch);
+  SPI(dsksyncl);
 
-  /*// odd bits of header*/
-  /*x = 0x55;*/
-  /*checksum[0] = x;*/
-  /*SPI(x);*/
-  /*x = (track >> 1) & 0x55;*/
-  /*checksum[1] = x;*/
-  /*SPI(x);*/
-  /*x = (sector >> 1) & 0x55;*/
-  /*checksum[2] = x;*/
-  /*SPI(x);*/
-  /*// subtraction has higher prio, added brackets accordingly!*/
-  /*x = ((11 - sector) >> 1) & 0x55;*/
-  /*checksum[3] = x;*/
-  /*SPI(x);*/
+  // odd bits of header
+  x = 0x55;
+  checksum[0] = x;
+  SPI(x);
+  x = (track >> 1) & 0x55;
+  checksum[1] = x;
+  SPI(x);
+  x = (sector >> 1) & 0x55;
+  checksum[2] = x;
+  SPI(x);
+  // subtraction has higher prio, added brackets accordingly!
+  x = ((11 - sector) >> 1) & 0x55;
+  checksum[3] = x;
+  SPI(x);
 
-  /*// even bits of header*/
-  /*x = 0x55;*/
-  /*checksum[0] ^= x;*/
-  /*SPI(x);*/
-  /*x = track & 0x55;*/
-  /*checksum[1] ^= x;*/
-  /*SPI(x);*/
-  /*x = sector & 0x55;*/
-  /*checksum[2] ^= x;*/
-  /*SPI(x);*/
-  /*// subtraction has higher prio, added brackets accordingly!*/
-  /*x = (11 - sector) & 0x55;*/
-  /*checksum[3] ^= x;*/
-  /*SPI(x);*/
+  // even bits of header
+  x = 0x55;
+  checksum[0] ^= x;
+  SPI(x);
+  x = track & 0x55;
+  checksum[1] ^= x;
+  SPI(x);
+  x = sector & 0x55;
+  checksum[2] ^= x;
+  SPI(x);
+  // subtraction has higher prio, added brackets accordingly!
+  x = (11 - sector) & 0x55;
+  checksum[3] ^= x;
+  SPI(x);
 
-  /*// sector label and reserved area (changes nothing to checksum)*/
-  /*i = 0x20;*/
-  /*while (i--)*/
-    /*SPI(0xAA);*/
+  // sector label and reserved area (changes nothing to checksum)
+  i = 0x20;
+  while (i--)
+    SPI(0xAA);
 
-  /*// send header checksum*/
-  /*SPI(0xAA);*/
-  /*SPI(0xAA);*/
-  /*SPI(0xAA);*/
-  /*SPI(0xAA);*/
-  /*SPI(checksum[0] | 0xAA);*/
-  /*SPI(checksum[1] | 0xAA);*/
-  /*SPI(checksum[2] | 0xAA);*/
-  /*SPI(checksum[3] | 0xAA);*/
+  // send header checksum
+  SPI(0xAA);
+  SPI(0xAA);
+  SPI(0xAA);
+  SPI(0xAA);
+  SPI(checksum[0] | 0xAA);
+  SPI(checksum[1] | 0xAA);
+  SPI(checksum[2] | 0xAA);
+  SPI(checksum[3] | 0xAA);
 
-  /*// calculate data checksum*/
-  /*checksum[0] = 0;*/
-  /*checksum[1] = 0;*/
-  /*checksum[2] = 0;*/
-  /*checksum[3] = 0;*/
+  // calculate data checksum
+  checksum[0] = 0;
+  checksum[1] = 0;
+  checksum[2] = 0;
+  checksum[3] = 0;
 
-  /*p = pData;*/
-  /*i = DATA_SIZE / 2 / 4;*/
-  /*while (i--) {*/
-    /*x = *p++;*/
-    /*checksum[0] ^= x ^ x >> 1;*/
-    /*x = *p++;*/
-    /*checksum[1] ^= x ^ x >> 1;*/
-    /*x = *p++;*/
-    /*checksum[2] ^= x ^ x >> 1;*/
-    /*x = *p++;*/
-    /*checksum[3] ^= x ^ x >> 1;*/
-  /*}*/
+  p = pData;
+  i = DATA_SIZE / 2 / 4;
+  while (i--) {
+    x = *p++;
+    checksum[0] ^= x ^ x >> 1;
+    x = *p++;
+    checksum[1] ^= x ^ x >> 1;
+    x = *p++;
+    checksum[2] ^= x ^ x >> 1;
+    x = *p++;
+    checksum[3] ^= x ^ x >> 1;
+  }
 
-  /*// send data checksum*/
-  /*SPI(0xAA);*/
-  /*SPI(0xAA);*/
-  /*SPI(0xAA);*/
-  /*SPI(0xAA);*/
-  /*SPI(checksum[0] | 0xAA);*/
-  /*SPI(checksum[1] | 0xAA);*/
-  /*SPI(checksum[2] | 0xAA);*/
-  /*SPI(checksum[3] | 0xAA);*/
+  // send data checksum
+  SPI(0xAA);
+  SPI(0xAA);
+  SPI(0xAA);
+  SPI(0xAA);
+  SPI(checksum[0] | 0xAA);
+  SPI(checksum[1] | 0xAA);
+  SPI(checksum[2] | 0xAA);
+  SPI(checksum[3] | 0xAA);
 
-  /*// odd bits of data field*/
-  /*i = DATA_SIZE / 2;*/
-  /*p = pData;*/
-  /*while (i--)*/
-    /*SPI(*p++ >> 1 | 0xAA);*/
+  // odd bits of data field
+  i = DATA_SIZE / 2;
+  p = pData;
+  while (i--)
+    SPI(*p++ >> 1 | 0xAA);
 
-  /*// even bits of data field*/
-  /*i = DATA_SIZE / 2;*/
-  /*p = pData;*/
-  /*while (i--)*/
-    /*SPI(*p++ | 0xAA);*/
-/*}*/
+  // even bits of data field
+  i = DATA_SIZE / 2;
+  p = pData;
+  while (i--)
+    SPI(*p++ | 0xAA);
+}
 /*}}}*/
 
 /*{{{*/
@@ -785,15 +783,16 @@ uint8_t FDD_WaitStat(uint8_t mask, uint8_t wanted)
     stat = FDD_FileIO_GetStat();
 
     if (Timer_Check(timeout)) {
-      ERROR("FDD_WaitStat:Waitstat timeout.");
+      WARNING("FDD_WaitStat:Waitstat timeout.");
       return (1);
     }
   } while ((stat & mask) != wanted);
   return (0);
 }
 
-void FDD_Handle(void)
+void FDD_Handle_0x00(uint8_t status) // generic
 {
+  uint8_t  dir  = (status >> 2) & 0x01; // high is write
   uint8_t  chan = 0;
   uint16_t size = 0;
   uint16_t cur_size = 0;
@@ -801,225 +800,252 @@ void FDD_Handle(void)
   fddTYPE* drive = NULL;
   uint32_t act_size = 0;
 
+  SPI_EnableFpga();
+  SPI(FILEIO_FD_CMD_R | 0x0);
+  SPI(0x00); // dummy
+  chan = SPI(0) & 0x03; // cmd request
+  SPI_DisableFpga();
+
+  SPI_EnableFpga();
+  SPI(FILEIO_FD_CMD_R | 0x2);
+  SPI(0x00); // dummy
+  size  =  SPI(0);
+  size |= (SPI(0) << 8);
+  addr  =  SPI(0);
+  addr |= (SPI(0) << 8);
+  addr |= (SPI(0) << 16);
+  addr |= (SPI(0) << 24);
+  SPI_DisableFpga();
+
+  FDD_FileIO_WriteStat(FD_STAT_REQ_ACK); // ack
+
+  // move to validate chan function
+  // point to drive struct
+  if (!FDD_Inserted(chan)) {
+    DEBUG(1,"FDD:request chan %d not mounted", chan);
+    FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
+    return;
+  }
+  drive = &fdf[chan];
+
+  if (!drive->fSource) {
+    DEBUG(1,"FDD:request chan %d not open", chan);
+    FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
+    return;
+  }
+  // end validate chan
+  if (size > 0x2000) {
+    DEBUG(1,"FDD:warning large size request:%04X",size);
+  }
+
+  if (FF_Seek(drive->fSource, addr, FF_SEEK_SET)) {
+    DEBUG(1,"FDD:seek error");
+    FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_SEEK_ERR); // err
+    return;
+  }
+
+  while (size) {
+    cur_size = size;
+    if (cur_size > FDD_BUF_SIZE) cur_size = FDD_BUF_SIZE;
+
+    /*DEBUG(1,"FDD:handle Chan:%02X Addr:%08X Size:%04X",chan,addr,size);*/
+
+    // align to 512 byte boundaries if possible
+    uint32_t addr_offset = addr & 0x1FF;
+    if (addr_offset != 0) {
+      /*DEBUG(1,"FDD:non-aligned:%08X",addr);*/
+      addr_offset = 0x200 - addr_offset;
+      if (cur_size > addr_offset) {
+        cur_size = addr_offset;
+        /*DEBUG(1,"FDD:new size:%04X",cur_size);*/
+      }
+    }
+
+    if (dir) { // write
+      // request should not be asserted if data is not ready
+
+      SPI_EnableFpga();
+      SPI(FILEIO_FD_FIFO_R);
+      SPI_ReadBufferSingle(FDD_fBuf, cur_size);
+      SPI_DisableFpga();
+
+      /*DumpBuffer(FDD_fBuf,cur_size);*/
+
+      act_size = FF_Write(drive->fSource, cur_size, 1, FDD_fBuf);
+      if (act_size != cur_size) {
+        DEBUG(1,"FDD:!! Write Fail!!");
+        FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // truncated
+        return;
+      }
+
+    } else {
+
+      // enough faffing, do the read
+      act_size = FF_Read(drive->fSource, cur_size, 1, FDD_fBuf);
+      /*DEBUG(1,"FDD:bytes read:%04X",act_size);*/
+      /*DumpBuffer(FDD_fBuf,cur_size);*/
+
+      SPI_EnableFpga();
+      SPI(FILEIO_FD_FIFO_W);
+      SPI_WriteBufferSingle(FDD_fBuf, act_size);
+      SPI_DisableFpga();
+
+      if (act_size != cur_size) {
+        FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_TRUNC_ERR); // truncated
+        return;
+      }
+    }
+
+    addr += cur_size;
+    size -= cur_size;
+
+    // check to see if we can send/rx more
+    // NOTE, this stalls the GUI so not recommeded to use the flow control here
+    if (size) { // going again
+      if (dir) { // write to arm
+        if (FDD_WaitStat(FILEIO_FD_REQ_OK_TO_ARM, FILEIO_FD_REQ_OK_TO_ARM)) {
+          FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
+          return;
+        }
+      }
+      else {
+        if (FDD_WaitStat(FILEIO_FD_REQ_OK_FM_ARM, FILEIO_FD_REQ_OK_FM_ARM)) {
+          FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
+          return;
+        }
+      }
+    }
+    // end of wait
+  }
+  FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_OK); // ok
+}
+
+void FDD_Handle_0x01(uint8_t status) // amiga
+{
+  uint8_t  dir     = (status >> 2) & 0x01; // high is write
+  uint8_t  chan    = 0;
+  uint8_t  sector  = 0;
+  uint8_t  track   = 0;
+  uint16_t dsksync = 0;
+  uint32_t offset  = 0;
+  uint32_t i       = 0;
+
+  /*if (FDD_DEBUG)*/
+    DEBUG(1,"FDD:Amiga handler");
+
+  do {
+
+  SPI_EnableFpga();
+  SPI(FILEIO_FD_CMD_R | 0x0);
+  SPI(0x00); // dummy
+
+  sector   = SPI(0);
+    chan   = sector & 0x03;
+    sector = (sector >> 4) & 0x0F;
+  track    = SPI(0);
+  dsksync  = SPI(0) << 8;
+  dsksync |= SPI(0);
+  SPI_DisableFpga();
+
+  FDD_FileIO_WriteStat(FD_STAT_REQ_ACK); // ack
+
+  fddTYPE* drive = NULL;
+  if (!FDD_Inserted(chan)) {
+    DEBUG(1,"FDD:request chan %d not mounted", chan);
+    FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
+    return;
+  }
+  drive = &fdf[chan];
+
+  if (!drive->fSource) {
+    DEBUG(1,"FDD:request chan %d not open", chan);
+    FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
+    return;
+  }
+
+  if (track >= drive->tracks) {
+    ERROR("Illegal track %u read!", drive->track);
+    track = drive->tracks - 1;
+  }
+
+  // workaround for Copy Lock in Wiz'n'Liz and North&South (might brake other games)
+  if (dsksync == 0x0000 || dsksync == 0x8914 || dsksync == 0xA144)
+    dsksync = 0x4489;
+
+  // North&South: $A144
+  // Wiz'n'Liz (Copy Lock): $8914
+  // Prince of Persia: $4891
+  // Commando: $A245
+
+  if (FDD_DEBUG)
+    DEBUG(1,"FDD:handle Chan:%02X Dsksync:%04X Track:%02X Sector:%01X",chan,dsksync,track,sector);
+
+  // sector size hard coded as 512 bytes
+  offset  = (512*11) * track;
+  offset += (sector<<9);
+
+  if (FF_Seek(drive->fSource, offset, FF_SEEK_SET)) {
+    DEBUG(1,"FDD:seek error");
+    FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_SEEK_ERR); // err
+    return;
+  }
+  FF_Read(drive->fSource, 512, 1, FDD_fBuf);
+
+  // send sector
+  SPI_EnableFpga();
+  SPI(FILEIO_FD_FIFO_W);
+  FDD_SendAmigaSector(FDD_fBuf, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);
+  SPI_DisableFpga();
+
+  if (sector == LAST_SECTOR)
+  {
+
+    if (FDD_DEBUG)
+      DEBUG(1,"FDD:Sending gap");
+
+    // send gap
+    SPI_EnableFpga();
+    SPI(FILEIO_FD_FIFO_W | 0x1);
+    i = 128;
+    while (i--)
+      SPI(0xAA);
+    SPI_DisableFpga();
+
+    SPI_EnableFpga();
+    SPI(FILEIO_FD_FIFO_W);
+    i = GAP_SIZE-128;
+    while (i--)
+      SPI(0xAA);
+    SPI_DisableFpga();
+  }
+
+  FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_OK); // ok
+
+  status = FDD_FileIO_GetStat();
+  } while (status & FILEIO_FD_REQ_ACT);
+}
+
+void FDD_Handle(void)
+{
+
   uint8_t status = FDD_FileIO_GetStat();
 
-  if (status & 0x08) { // FF request, move to header
+  if (status & FILEIO_FD_REQ_ACT) { // FF request, move to header
     ACTLED_ON;
 
     uint8_t type = (status >> 4) & 0x0F;
-    uint8_t dir  = (status >> 2) & 0x01; // high is write
     switch (type) {
       case 0x0: // generic
-        SPI_EnableFpga();
-        SPI(FILEIO_FD_CMD_R | 0x0);
-        SPI(0x00); // dummy
-        chan = SPI(0) & 0x03; // cmd request
-        SPI_DisableFpga();
-
-        SPI_EnableFpga();
-        SPI(FILEIO_FD_CMD_R | 0x2);
-        SPI(0x00); // dummy
-        size  =  SPI(0);
-        size |= (SPI(0) << 8);
-        addr  =  SPI(0);
-        addr |= (SPI(0) << 8);
-        addr |= (SPI(0) << 16);
-        addr |= (SPI(0) << 24);
-        SPI_DisableFpga();
-
-        FDD_FileIO_WriteStat(FD_STAT_REQ_ACK); // ack
-
-        // point to drive struct
-        if (!FDD_Inserted(chan)) {
-          DEBUG(1,"FDD:request chan %d not mounted", chan);
-          FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
-          break;
-        }
-        drive = &fdf[chan];
-
-        if (!drive->fSource) {
-          DEBUG(1,"FDD:request chan %d not open", chan);
-          FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
-          break;
-        }
-
-        if (size > 0x2000) {
-          DEBUG(1,"FDD:warning large size request:%04X",size);
-        }
-
-        if (FF_Seek(drive->fSource, addr, FF_SEEK_SET)) {
-          DEBUG(1,"FDD:seek error");
-          FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_SEEK_ERR); // err
-          break;
-        }
-
-        while (size) { // FIXME - break will only break out the while loop, not the case
-          cur_size = size;
-          if (cur_size > FDD_BUF_SIZE) cur_size = FDD_BUF_SIZE;
-
-          /*DEBUG(1,"FDD:handle Chan:%02X Addr:%08X Size:%04X",chan,addr,size);*/
-
-          // align to 512 byte boundaries if possible
-          uint32_t addr_offset = addr & 0x1FF;
-          if (addr_offset != 0) {
-            /*DEBUG(1,"FDD:non-aligned:%08X",addr);*/
-            addr_offset = 0x200 - addr_offset;
-            if (cur_size > addr_offset) {
-              cur_size = addr_offset;
-              /*DEBUG(1,"FDD:new size:%04X",cur_size);*/
-            }
-          }
-
-          if (dir) { // write
-            // request should not be asserted if data is not ready
-
-            SPI_EnableFpga();
-            SPI(FILEIO_FD_FIFO_R);
-            SPI_ReadBufferSingle(FDD_fBuf, cur_size);
-            SPI_DisableFpga();
-
-            /*DumpBuffer(FDD_fBuf,cur_size);*/
-
-            act_size = FF_Write(drive->fSource, cur_size, 1, FDD_fBuf);
-            if (act_size != cur_size) {
-              DEBUG(1,"FDD:!! Write Fail!!");
-              FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // truncated
-              break;  // FIXME
-            }
-
-          } else {
-
-            // enough faffing, do the read
-            act_size = FF_Read(drive->fSource, cur_size, 1, FDD_fBuf);
-            /*DEBUG(1,"FDD:bytes read:%04X",act_size);*/
-            /*DumpBuffer(FDD_fBuf,cur_size);*/
-
-            SPI_EnableFpga();
-            SPI(FILEIO_FD_FIFO_W);
-            SPI_WriteBufferSingle(FDD_fBuf, act_size);
-            SPI_DisableFpga();
-
-            if (act_size != cur_size) {
-              FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_TRUNC_ERR); // truncated
-              break; // FIXME
-            }
-          }
-
-          addr += cur_size;
-          size -= cur_size;
-
-          // check to see if we can send/rx more
-          // NOTE, this stalls the GUI so not recommeded to use the flow control here
-          if (size) { // going again
-            if (dir) { // write
-              if (FDD_WaitStat(0x02, 0x00)) {
-                FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
-                break; // FIXME
-              }
-            }
-            else {
-              if (FDD_WaitStat(0x01, 0x00)) {
-                FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
-                break; // FIXME
-              }
-            }
-          }
-          // end of wait
-        }
-        FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_OK); // ok
-
+        FDD_Handle_0x00(status);
         break;
       case 0x1: // amiga
+        FDD_Handle_0x01(status);
         break;
       MSG_warning("Unknown FDD request type.");
     } // end of case
 
   }
   ACTLED_OFF;
-
-/*{{{*/
-  //if (status & 0x4) { // write
-    /*ACTLED_ON;*/
-    /*sel = (c1 >> 6) & 0x03;*/
-    /*df[sel].track = c2;*/
-    /*FDD_WriteTrack(&df[sel]);*/
-    /*ACTLED_OFF;*/
-  //} else {
-   // ACTLED_ON;
-  //  df[sel].track = (uint8_t) (addr & 0xFF);
-  //  FDD_ReadTrack(&df[sel]);
-  //  ACTLED_OFF;
-  //}
-
-  /*uint8_t  status;*/
-  /*uint8_t  cmd;*/
-  /*uint16_t size;*/
-  /*uint16_t addr;*/
-  /*uint16_t user;*/
-
-  /*uint8_t  sel;*/
-  /*uint32_t addr_ts;*/
-
-  /*SPI_EnableFpga();*/
-  /*SPI(0x00);*/
-  /*status   = SPI(0); // cmd request*/
-  /*cmd      = SPI(0);*/
-  /*size     = SPI(0); //8 bits to be expanded*/
-  /*addr     = SPI(0) << 8;*/
-  /*addr    |= SPI(0);*/
-  /*user     = SPI(0) << 8;*/
-  /*user    |= SPI(0);*/
-  /*SPI_DisableFpga();*/
-
-  /*// ack all commands*/
-  /*SPI_EnableFpga();*/
-  /*SPI(0x18);*/
-  /*SPI_DisableFpga();*/
-
-  /*sel  = status & 0x03;*/
-
-  /*size = 512; // default*/
-  /*switch (req & 0x07) {*/
-    /*case 0 : size =   32; break;*/
-    /*case 1 : size =   64; break;*/
-    /*case 2 : size =  128; break;*/
-    /*case 3 : size =  256; break;*/
-    /*case 4 : size =  512; break;*/
-    /*case 5 : size = 1024; break;*/
-    /*case 6 : break; // not defined*/
-    /*case 7 : break; // not defined*/
-  /*}*/
-
-  /*addr_ts = (SECTOR_COUNT * SECTOR_SIZE) * (addr & 0xFF) + (SECTOR_SIZE * (addr>>8));*/
-
-  // temp
-  /*fdf[sel].track = (uint8_t) (addr & 0xFF);*/
-  /*ACTLED_ON;*/
-
-  /*if (status & 0x4) { // write*/
-  /*} else {*/
-    /*DEBUG(1,"FDD:handle request drive:%02X cmd:%02X addr:%04X user:%08X",sel,cmd,addr,user);*/
-
-    /*FDD_AmigaRead(&fdf[sel]);*/
-
-
-    /*switch (cmd) {*/
-      // amiga floppy header
-      /*case 0x80: FDD_AmigaHeader(&df[sel], (addr & 0xFF), (addr>>8), user); break;*/
-      // block transfer, 512 with address from track/sector
-      /*case 0x81 : FDD_Read(&df[sel], addr_ts, 512); break;*/
-
-    /*}*/
-  /*}*/
-
-  /*ACTLED_OFF;*/
-
-  // transfer complete
-  /*SPI_EnableFpga();*/
-  /*SPI(0x19);*/
-  /*SPI_DisableFpga();*/
-
-/*}}}*/
 }
 
 void FDD_UpdateDriveStatus(void)
@@ -1101,7 +1127,8 @@ void FDD_Insert(uint8_t drive_number, char *path)
     drive->status |= FD_WRITABLE;
 
     // add check for file attributes first, open read only if necessary
-    drive->fSource = FF_Open(pIoman, path, FF_MODE_READ | FF_MODE_WRITE, NULL); // will not open if file is read only
+    /*drive->fSource = FF_Open(pIoman, path, FF_MODE_READ | FF_MODE_WRITE, NULL); // will not open if file is read only*/
+    drive->fSource = FF_Open(pIoman, path, FF_MODE_READ , NULL); // will not open if file is read only
     if (!drive->fSource) {
       MSG_warning("Insert Floppy:Could not open file.");
       return;

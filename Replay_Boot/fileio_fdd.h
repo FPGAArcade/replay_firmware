@@ -17,6 +17,7 @@
 #define FD_INSERTED 0x01 /*disk is inserted*/
 #define FD_WRITABLE 0x02 /*disk is writable*/
 
+
 #define FD_STAT_REQ_ACK             0x01
 #define FD_STAT_TRANS_ACK_OK        0x02
 #define FD_STAT_TRANS_ACK_SEEK_ERR  0x12
@@ -24,6 +25,11 @@
 #define FD_STAT_TRANS_ACK_ABORT_ERR 0x42
 
 // pull these out into FILEIO
+#define FILEIO_FD_REQ_ACT         0x08
+#define FILEIO_FD_REQ_DIR_TO_ARM  0x04
+#define FILEIO_FD_REQ_OK_FM_ARM   0x02  /* read from arm */
+#define FILEIO_FD_REQ_OK_TO_ARM   0x01
+
 #define FILEIO_FD_STAT_R 0x00
 #define FILEIO_FD_STAT_W 0x08
 #define FILEIO_FD_CMD_W  0x10
@@ -60,7 +66,10 @@ uint8_t FDD_FileIO_GetStat(void);
 void    FDD_FileIO_WriteStat(uint8_t stat);
 uint8_t FDD_WaitStat(uint8_t mask, uint8_t wanted);
 
+void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl);
 
+void    FDD_Handle_0x00(uint8_t status);
+void    FDD_Handle_0x01(uint8_t status);
 void    FDD_Handle(void);
 
 void    FDD_UpdateDriveStatus(void);

@@ -19,12 +19,11 @@
 #define CMD_IDERX  0x20 // bits in request word
 #define CMD_IDETX  0x10 // bits in request word
 
-// SPI Commands
-//#define CMD_IDE_DATA_RD 0x60
-//#define CMD_IDE_DATA_WR 0x70
-//#define CMD_IDE_REGS_RD 0x61
-//#define CMD_IDE_REGS_WR 0x71
-//#define CMD_IDE_STATUS_WR 0x21
+// pull these out into FILEIO
+#define FILEIO_HD_REQ_ACT         0x08
+#define FILEIO_HD_REQ_DIR_TO_ARM  0x04
+#define FILEIO_HD_REQ_OK_FM_ARM   0x02  /* read from arm */
+#define FILEIO_HD_REQ_OK_TO_ARM   0x01
 
 // pull these out into FILEIO
 #define FILEIO_HD_STAT_R 0x40
@@ -71,7 +70,7 @@ void HDD_WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned
 void HDD_WriteStatus(unsigned char status);
 uint8_t HDD_WaitStat(uint8_t mask, uint8_t wanted);
 
-void HDD_ATA_Handle(uint8_t spi_status);
+void HDD_ATA_Handle(void);
 
 unsigned char HDD_HardFileSeek(hdfTYPE *pHDF, unsigned long lba);
 void HDD_FileRead(FF_FILE *fSource);

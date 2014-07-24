@@ -211,7 +211,7 @@ uint8_t FPGA_WaitStat(uint8_t mask, uint8_t wanted)
     SPI_DisableFpga();
 
     if (Timer_Check(timeout)) {
-      ERROR("FPGA:Waitstat timeout.");
+      WARNING("FPGA:Waitstat timeout.");
       return (1);
     }
   } while ((stat & mask) != wanted);
@@ -379,7 +379,7 @@ uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size, uint3
 
     // compare
     if (memcmp(fBuf,tBuf, buf_tx_size)) {
-      ERROR("!!Compare fail!! Block Addr:%8X", base);
+      WARNING("!!Compare fail!! Block Addr:%8X", base);
 
       DEBUG(2,"Source:", base);
       DumpBuffer(fBuf,buf_tx_size);

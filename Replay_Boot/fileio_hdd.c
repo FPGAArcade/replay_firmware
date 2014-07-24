@@ -4,7 +4,7 @@
 #include "messaging.h"
 #include "fileio_hdd.h"
 
-/*#define HDD_DEBUG 1*/
+// #define HDD_DEBUG 1
 /*#define HDD_DEBUG_READ_MULTIPLE 1*/
 
 /** @brief extern link to sdcard i/o manager
@@ -135,14 +135,14 @@ uint8_t HDD_WaitStat(uint8_t mask, uint8_t wanted)
     stat = HDD_FileIO_GetStat();
 
     if (Timer_Check(timeout)) {
-      ERROR("HDD_WaitStat:Waitstat timeout.");
+      WARNING("HDD_WaitStat:Waitstat timeout.");
       return (1);
     }
   } while ((stat & mask) != wanted);
   return (0);
 }
 
-void HDD_ATA_Handle(uint8_t spi_status)
+void HDD_ATA_Handle(void)
 {
     unsigned short id[256];
     unsigned char  tfr[8];
@@ -204,14 +204,14 @@ void HDD_ATA_Handle(uint8_t spi_status)
       HDD_IdentifyDevice(id, unit);
       HDD_WriteTaskFile(0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
       HDD_WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
-      /*SPI_EnableFpga();*/
-      /*SPI(CMD_IDE_DATA_WR); // write data command*/
-      /*for (i = 0; i < 256; i++)*/
-      /*{*/
-          /*SPI((uint8_t) id[i]);*/
-          /*SPI((uint8_t)(id[i] >> 8));*/
-      /*}*/
-      /*SPI_DisableFpga();*/
+      SPI_EnableFpga();
+      SPI(FILEIO_HD_FIFO_W); // write data command
+      for (i = 0; i < 256; i++)
+      {
+          SPI((uint8_t) id[i]);
+          SPI((uint8_t)(id[i] >> 8));
+      }
+      SPI_DisableFpga();
       HDD_WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
     }
     else if (tfr[7] == ACMD_INITIALIZE_DEVICE_PARAMETERS) // Initiallize Device Parameters
@@ -267,7 +267,7 @@ void HDD_ATA_Handle(uint8_t spi_status)
       while (sector_count)
       {
           HDD_WriteStatus(IDE_STATUS_IRQ); //
-          HDD_WaitStat(0x20, 0x20); // wait for above command to enable FIFO
+          HDD_WaitStat(FILEIO_HD_REQ_OK_FM_ARM, FILEIO_HD_REQ_OK_FM_ARM); // wait for above command to enable FIFO
           HDD_FileRead(hdf[unit].fSource);
           sector_count--; // decrease sector count
       }
@@ -314,7 +314,7 @@ void HDD_ATA_Handle(uint8_t spi_status)
         HDD_WriteStatus(IDE_STATUS_IRQ);
         for (int cur_block = 0; cur_block < block_count; ++cur_block) // to be optimized
         {
-          HDD_WaitStat(0x20, 0x20); // wait for rx ok
+          HDD_WaitStat(FILEIO_HD_REQ_OK_FM_ARM, FILEIO_HD_REQ_OK_FM_ARM); // wait for rx ok
           HDD_FileRead(hdf[unit].fSource);
         /*HDD_FileReadEx(hdf[unit].fSource, block_count);*/
 
@@ -325,6 +325,7 @@ void HDD_ATA_Handle(uint8_t spi_status)
     }
     else if (tfr[7] == ACMD_WRITE_SECTORS) // write sectors
     {
+      DEBUG(1,"HDD write single");
       HDD_WriteStatus(IDE_STATUS_REQ); // pio out (class 2) command type
 
       sector = tfr[3];
@@ -334,7 +335,7 @@ void HDD_ATA_Handle(uint8_t spi_status)
       if (tfr[6] & 0x40)
          lba = head<<24 | cylinder<<8 | sector;
       else
-          lba =  HDD_chs2lba(cylinder, head, sector, unit);
+         lba =  HDD_chs2lba(cylinder, head, sector, unit);
 
       sector_count = tfr[2];
       if (sector_count == 0)
@@ -344,19 +345,12 @@ void HDD_ATA_Handle(uint8_t spi_status)
 
       while (sector_count)
       {
-        #warning TODO - FPGA_Status
-        //while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
+        HDD_WaitStat(FILEIO_HD_REQ_OK_TO_ARM, FILEIO_HD_REQ_OK_TO_ARM);
 
-        /*SPI_EnableFpga();*/
-        /*SPI(CMD_IDE_DATA_RD); // read data command*/
-        /*SPI(0x00);*/
-        /*SPI(0x00);*/
-        /*SPI(0x00);*/
-        /*SPI(0x00);*/
-        /*SPI(0x00);*/
-        /*for (i = 0; i < 512; i++)*/
-          /*sector_buffer[i] = SPI(0xFF);*/
-        /*SPI_DisableFpga();*/
+        SPI_EnableFpga();
+        SPI(FILEIO_HD_FIFO_R);
+        SPI_ReadBufferSingle(HDD_fBuf, HDD_BUF_SIZE);
+        SPI_DisableFpga();
 
         sector_count--; // decrease sector count
 
@@ -365,11 +359,13 @@ void HDD_ATA_Handle(uint8_t spi_status)
         else
           HDD_WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
 
-        FF_Write(hdf[unit].fSource,512,1,sector_buffer);
+        FF_Write(hdf[unit].fSource,HDD_BUF_SIZE,1,HDD_fBuf);
       }
     }
     else if (tfr[7] == ACMD_WRITE_MULTIPLE) // write sectors
     {
+      DEBUG(1,"HDD write multiple");
+
       HDD_WriteStatus(IDE_STATUS_REQ); // pio out (class 2) command type
 
       sector = tfr[3];
@@ -395,20 +391,14 @@ void HDD_ATA_Handle(uint8_t spi_status)
 
         while (block_count)
         {
-          #warning TODO - FPGA_Status
-          //while (!(GetFPGAStatus() & CMD_IDEDAT)); // wait for full write buffer
+          HDD_WaitStat(FILEIO_HD_REQ_OK_TO_ARM, FILEIO_HD_REQ_OK_TO_ARM);
 
-          /*SPI_EnableFpga();*/
-          /*SPI(CMD_IDE_DATA_RD); // read data command*/
-          /*SPI(0x00);*/
-          /*SPI(0x00);*/
-          /*SPI(0x00);*/
-          /*SPI(0x00);*/
-          /*SPI(0x00);*/
-          /*for (i = 0; i < 512; i++)*/
-              /*sector_buffer[i] = SPI(0xFF);*/
-          /*SPI_DisableFpga();*/
-          FF_Write(hdf[unit].fSource,512,1,sector_buffer);
+          SPI_EnableFpga();
+          SPI(FILEIO_HD_FIFO_R);
+          SPI_ReadBufferSingle(HDD_fBuf, HDD_BUF_SIZE);
+          SPI_DisableFpga();
+
+          FF_Write(hdf[unit].fSource,HDD_BUF_SIZE,1,HDD_fBuf);
 
           block_count--;  // decrease block count
           sector_count--; // decrease sector count
@@ -446,10 +436,10 @@ void HDD_FileRead(FF_FILE *fSource)
   bytes_read = FF_Read(fSource, HDD_BUF_SIZE, 1, HDD_fBuf);
   if (bytes_read == 0) return; // catch 0 len file error
 
-  /*SPI_EnableFpga();*/
-  /*SPI(CMD_IDE_DATA_WR);*/
-  /*SPI_WriteBufferSingle(HDD_fBuf, HDD_BUF_SIZE);*/
-  /*SPI_DisableFpga();*/
+  SPI_EnableFpga();
+  SPI(FILEIO_HD_FIFO_W);
+  SPI_WriteBufferSingle(HDD_fBuf, HDD_BUF_SIZE);
+  SPI_DisableFpga();
 }
 
 void HDD_FileReadEx(FF_FILE *fSource, uint16_t block_count) {
@@ -508,12 +498,13 @@ void HDD_OpenHardfile(uint8_t unit, char *filename)
   uint32_t time = Timer_Get(0);
   hdf[unit].status = 0;
   hdf[unit].name[0] = 0;
-  hdf[unit].fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
+  hdf[unit].fSource = FF_Open(pIoman, filename, FF_MODE_READ | FF_MODE_WRITE, NULL);
   hdf[unit].size = 0;
 
   if (!hdf[unit].fSource) {
     INFO("HDF (%s) open error",unit?"slave":"master");
     MSG_warning("Insert HD:Could not open file.");
+    return;
   }
 
   hdf[unit].size = hdf[unit].fSource ->Filesize;
@@ -539,7 +530,10 @@ void HDD_Handle(void)
 {
   uint8_t status = HDD_FileIO_GetStat();
   // cheat for now
-  HDD_ATA_Handle(status);
+
+  if (status & FILEIO_HD_REQ_ACT) {
+    HDD_ATA_Handle();
+  }
 }
 
 void HDD_UpdateDriveStatus(void)

@@ -977,7 +977,7 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   // Prince of Persia: $4891
   // Commando: $A245
 
-  /*if (FDD_DEBUG)*/
+  if (FDD_DEBUG)
     DEBUG(1,"FDD:handle Chan:%02X Dsksync:%04X Track:%02X Sector:%01X",chan,dsksync,track,sector);
 
   // sector size hard coded as 512 bytes
@@ -1000,9 +1000,6 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   if (sector == LAST_SECTOR)
   {
 
-    if (FDD_DEBUG)
-      DEBUG(1,"FDD:Sending gap");
-
     // send gap
     SPI_EnableFpga();
     SPI(FILEIO_FD_FIFO_W | 0x1);
@@ -1023,15 +1020,6 @@ void FDD_Handle_0x01(uint8_t status) // amiga
 
   status = FDD_FileIO_GetStat();
   } while (status & FILEIO_FD_REQ_ACT);
-
-  uint8_t err = 0;
-  SPI_EnableFpga();
-  SPI(FILEIO_FD_CMD_R | 0x7);
-  SPI(0x00); // dummy
-  err  =  SPI(0);
-  SPI_DisableFpga();
-  DEBUG(1,"FDD:errstat %02x",err);
-
 
 }
 

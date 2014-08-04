@@ -930,6 +930,8 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   uint32_t offset  = 0;
   uint32_t i       = 0;
 
+  fddTYPE* drive   = NULL;
+
   if (FDD_DEBUG)
     DEBUG(1,"FDD:Amiga handler");
 
@@ -939,17 +941,15 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   SPI(FILEIO_FD_CMD_R | 0x0);
   SPI(0x00); // dummy
 
-  sector   = SPI(0);
-    chan   = sector & 0x03;
-    sector = (sector >> 4) & 0x0F;
+  chan     = SPI(0);
+  chan     = chan & 0x03;
   track    = SPI(0);
   dsksync  = SPI(0) << 8;
   dsksync |= SPI(0);
   SPI_DisableFpga();
 
-  FDD_FileIO_WriteStat(FD_STAT_REQ_ACK); // ack
 
-  fddTYPE* drive = NULL;
+  // move drive validation out of request loop
   if (!FDD_Inserted(chan)) {
     DEBUG(1,"FDD:request chan %d not mounted", chan);
     FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_ABORT_ERR); // err
@@ -968,6 +968,14 @@ void FDD_Handle_0x01(uint8_t status) // amiga
     track = drive->tracks - 1;
   }
 
+  sector = drive->cur_sector;
+  if (drive->cur_sector == LAST_SECTOR)
+    drive->cur_sector=0;
+  else
+    drive->cur_sector++;
+
+  FDD_FileIO_WriteStat(FD_STAT_REQ_ACK); // ack
+
   // workaround for Copy Lock in Wiz'n'Liz and North&South (might brake other games)
   if (dsksync == 0x0000 || dsksync == 0x8914 || dsksync == 0xA144)
     dsksync = 0x4489;
@@ -977,7 +985,7 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   // Prince of Persia: $4891
   // Commando: $A245
 
-  if (FDD_DEBUG)
+  /*if (FDD_DEBUG)*/
     DEBUG(1,"FDD:handle Chan:%02X Dsksync:%04X Track:%02X Sector:%01X",chan,dsksync,track,sector);
 
   // sector size hard coded as 512 bytes
@@ -1001,16 +1009,15 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   {
 
     // send gap
+
     SPI_EnableFpga();
     SPI(FILEIO_FD_FIFO_W | 0x1);
-    i = 128;
-    while (i--)
-      SPI(0xAA);
+    SPI(0xAA);
     SPI_DisableFpga();
 
     SPI_EnableFpga();
     SPI(FILEIO_FD_FIFO_W);
-    i = GAP_SIZE-128;
+    i = GAP_SIZE-1;
     while (i--)
       SPI(0xAA);
     SPI_DisableFpga();
@@ -1123,6 +1130,7 @@ void FDD_Insert(uint8_t drive_number, char *path)
     drive->name[0] = '\0';
 
     drive->status |= FD_WRITABLE;
+    drive->cur_sector = 0;
 
     // add check for file attributes first, open read only if necessary
     /*drive->fSource = FF_Open(pIoman, path, FF_MODE_READ | FF_MODE_WRITE, NULL); // will not open if file is read only*/
@@ -1204,5 +1212,6 @@ void FDD_Init(void)
     fdf[i].status = 0; fdf[i].fSource = NULL;
     fdf[i].name[0] = '\0';
     fdf[i].tracks = 0;
+    fdf[i].cur_sector = 0;
   }
 }

@@ -53,7 +53,7 @@ typedef struct
     FF_FILE *fSource;
     // adf
     uint16_t tracks; /*number of tracks*/
-    uint8_t  sector_offset; /*sector offset to handle tricky loaders*/
+    uint8_t  cur_sector;
     uint8_t  track; /*current track*/
     uint8_t  track_prev; /*previous track*/
     //

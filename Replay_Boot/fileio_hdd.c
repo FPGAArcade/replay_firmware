@@ -17,9 +17,10 @@
   not at all in this .h/.c file...
 */
 extern FF_IOMAN *pIoman;
+uint8_t chb_driver_type = 0; // temp
 
 // hardfile structure
-hdfTYPE hdf[HD_MAX_NUM];
+hdfTYPE hdf[CHB_MAX_NUM];
 
 uint8_t HDD_fBuf[HDD_BUF_SIZE];
 
@@ -540,18 +541,18 @@ void HDD_UpdateDriveStatus(void)
 {
   uint8_t status = 0;
 
-  for (int i=0; i<HD_MAX_NUM; ++i) {
+  for (int i=0; i<CHB_MAX_NUM; ++i) {
     if (hdf[i].status & HD_INSERTED) status |= (0x01<<i);
     if (hdf[i].status & HD_WRITABLE) status |= (0x10<<i);
   }
   DEBUG(1,"HDD:update status %02X",status);
-  OSD_ConfigSendFileIO_HD(status);
+  OSD_ConfigSendFileIO_CHB(status);
 }
 
 void HDD_Insert(uint8_t drive_number, char *path)
 {
   DEBUG(1,"attempting to insert hd <%d> : <%s> ", drive_number,path);
-  if (drive_number < HD_MAX_NUM) {
+  if (drive_number < CHB_MAX_NUM) {
     char* pFile_ext = GetExtension(path);
     if (strnicmp(pFile_ext, "HDF",3) == 0) {
       // HDF
@@ -580,7 +581,7 @@ void HDD_Eject(uint8_t drive_number)
 
 uint8_t HDD_Inserted(uint8_t drive_number)
 {
-  if (drive_number < HD_MAX_NUM) {
+  if (drive_number < CHB_MAX_NUM) {
     return (hdf[drive_number].status & HD_INSERTED);
   } else
   return FALSE;
@@ -588,17 +589,22 @@ uint8_t HDD_Inserted(uint8_t drive_number)
 
 char* HDD_GetName(uint8_t drive_number)
 {
-  if (drive_number < HD_MAX_NUM) {
+  if (drive_number < CHB_MAX_NUM) {
     return (hdf[drive_number].name);
   }
   return null_string; // in stringlight.c
+}
+
+void HDD_SetDriver(uint8_t type)
+{
+  chb_driver_type = type;
 }
 
 void HDD_Init(void)
 {
   DEBUG(1,"HDD:Init");
   uint32_t i;
-  for (i=0; i<HD_MAX_NUM; i++) {
+  for (i=0; i<CHB_MAX_NUM; i++) {
     hdf[i].status = 0; hdf[i].fSource = NULL;
     hdf[i].name[0] = '\0';
   }

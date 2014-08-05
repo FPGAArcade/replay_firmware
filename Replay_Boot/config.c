@@ -4,8 +4,6 @@
 #include "messaging.h"
 #include "menu.h"
 
-extern hdfTYPE hdf[HD_MAX_NUM];  // in ..hdd.c
-
 /** @brief extern link to sdcard i/o manager
 
   Having this here is "ugly", but ff_ioman declares this "prototype"
@@ -1177,18 +1175,18 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
       // -------------------------------------------------------
       if (section==INI_FILES) {
         // could add FDD initial load from ini file here
-        if (name==INI_HDD) {
+        if (name==INI_CHB) { // HD
           ini_list_t valueList[8];
           uint16_t entries = ParseList(value,valueList,8);
           uint8_t  unit = 0;
 
-          DEBUG(1,"hdd entries %d",entries);
+          DEBUG(1,"FileIO CHB entries %d",entries);
           if ((entries==1) || (entries==2)) {
             if (entries==2)
               unit = valueList[1].intval;
 
-            if (unit >= HD_MAX_NUM) {
-              DEBUG(1,"Illegal HDD unit number")
+            if (unit >= CHB_MAX_NUM) {
+              DEBUG(1,"Illegal Fileio CHB number")
             } else {
               if (strlen(valueList[0].strval)) {
                 char fullname[FF_MAX_PATH];
@@ -1201,19 +1199,19 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
           }
         }
 
-        if (name==INI_HDD_EXT) {
+        if (name==INI_CHA_EXT) {
           ini_list_t valueList[1];
           uint16_t entries = ParseList(value,valueList,1);
           if (entries==1) {
-            _strlcpy(pStatus->hd_ext,valueList[0].strval,4);
+            _strlcpy(pStatus->fileio_cha_ext,valueList[0].strval,4);
           }
         }
 
-        if (name==INI_FDD_EXT) {
+        if (name==INI_CHB_EXT) {
           ini_list_t valueList[1];
           uint16_t entries = ParseList(value,valueList,1);
           if (entries==1) {
-            _strlcpy(pStatus->fd_ext,valueList[0].strval,4);
+            _strlcpy(pStatus->fileio_chb_ext,valueList[0].strval,4);
           }
         }
 
@@ -1241,9 +1239,11 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
     return 1; // can do no more here
   }
 
-  uint32_t config_ver    = OSD_ConfigReadVer();
-  uint32_t config_stat   = OSD_ConfigReadStatus();
-  uint32_t config_fileio = OSD_ConfigReadFileIO();
+  uint32_t config_ver        = OSD_ConfigReadVer();
+  uint32_t config_stat       = OSD_ConfigReadStatus();
+
+  uint32_t init_mem = CFG_get_free_mem();
+  DEBUG(1,"Initial free MEM: %ld bytes", init_mem);
 
   if (!currentStatus->dram_phase) {
     OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
@@ -1265,25 +1265,31 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
     FPGA_DramTrain();
   }
 
-  uint32_t init_mem = CFG_get_free_mem();
-  DEBUG(1,"Initial free MEM: %ld bytes", init_mem);
 
-  // POLL FPGA and see how many FD/HD supported
-  uint32_t fileio_cfg = OSD_ConfigReadFileIO();
+  // PollL FPGA and see how many drives are supported
+  uint32_t config_fileio_ena = OSD_ConfigReadFileIO_Ena();
+  uint32_t config_fileio_drv = OSD_ConfigReadFileIO_Drv();
 
-  currentStatus->fd_supported =  fileio_cfg       & 0x0F;
-  currentStatus->hd_supported = (fileio_cfg >> 4) & 0x0F;
+  currentStatus->fileio_cha_ena =  config_fileio_ena       & 0x0F;
+  currentStatus->fileio_cha_drv =  config_fileio_drv       & 0x0F;
+  currentStatus->fileio_chb_ena = (config_fileio_ena >> 4) & 0x0F;
+  currentStatus->fileio_chb_drv = (config_fileio_drv >> 4) & 0x0F;
 
-  DEBUG(1,"FD supported : "BYTETOBINARYPATTERN4", HD supported : "BYTETOBINARYPATTERN4,
-    BYTETOBINARY4(currentStatus->fd_supported),
-    BYTETOBINARY4(currentStatus->hd_supported) );
+  DEBUG(1,"FileIO CHA supported : "BYTETOBINARYPATTERN4", Driver : %01X",
+    BYTETOBINARY4(currentStatus->fileio_cha_ena), currentStatus->fileio_cha_drv);
 
-  _strlcpy(currentStatus->fd_ext,"ADF",4);
-  _strlcpy(currentStatus->hd_ext,"HDF",4);
+  DEBUG(1,"FileIO CHB supported : "BYTETOBINARYPATTERN4", Driver : %01X",
+    BYTETOBINARY4(currentStatus->fileio_chb_ena), currentStatus->fileio_chb_drv);
+
+  _strlcpy(currentStatus->fileio_cha_ext,"ADF",4);
+  _strlcpy(currentStatus->fileio_chb_ext,"HDF",4);
 
   // update status (all unmounted)
   FDD_UpdateDriveStatus();
+  FDD_SetDriver(currentStatus->fileio_cha_drv); // temp
+
   HDD_UpdateDriveStatus();
+  HDD_SetDriver(currentStatus->fileio_chb_drv); // temp
 
   // PARSE INI FILE
   if (currentStatus->fs_mounted_ok) {
@@ -1310,13 +1316,14 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   DEBUG(1,"Final free MEM:   %ld bytes", CFG_get_free_mem());
   if (init_mem) DEBUG(0,"Menu requires %ld bytes", init_mem);
 
-  sprintf(currentStatus->status[0], "ARM |FW:%s (%ldkB free)", version,
-                                      CFG_get_free_mem()>>10);
+  // for OSD
+  sprintf(currentStatus->status[0], "ARM |FW:%s", version);
   sprintf(currentStatus->status[1], "FPGA|FW:%04X STAT:%04x IO:%04X",
-                                      config_ver, config_stat, config_fileio);
+                                      config_ver, config_stat, ((config_fileio_drv << 8) | config_fileio_ena));
 
   // TODO: ini path may exceed length and crash system here!
   sprintf(currentStatus->status[2], "INI |%s", iniFile);
+
 
   // check all config bits
   _MENU_update_bits(currentStatus);

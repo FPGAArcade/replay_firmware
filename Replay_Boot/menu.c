@@ -24,7 +24,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
 
     // fddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"fddselect") {
-      if ((current_status->fd_supported >> item->action_value) & 1) {
+      if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
         // use inserted flag here?
         if (!FDD_Inserted(item->action_value)) {
           // set only if still blank
@@ -37,7 +37,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     }
     // hddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"hddselect") {
-      if ((current_status->hd_supported >> item->action_value) & 1) {
+      if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
 
         if (!HDD_Inserted(item->action_value)) {
           strcpy(item->selected_option->option_name,"<NOT MOUNTED>");
@@ -84,7 +84,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
   if (mode==1) {
     // fddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"fddselect") {
-      if ((current_status->fd_supported >> item->action_value) & 1) {
+      if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
         if (FDD_Inserted(item->action_value)) {
           // deselect file
           strcpy(item->selected_option->option_name,"<RETURN> to set");
@@ -98,7 +98,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           // open file browser
           strcpy(current_status->act_dir,current_status->ini_dir);
           // search for INI files
-          Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->fd_ext);
+          Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->fileio_cha_ext);
           // initialize browser
           Filesel_ScanFirst(current_status->dir_scan);
           current_status->file_browser = 1;
@@ -110,7 +110,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     }
     // hddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"hddselect") {
-      if ((current_status->hd_supported >> item->action_value) & 1) {
+      if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
         /*
         if (item->selected_option->option_name[0]!='<') {
           // deselect file
@@ -121,7 +121,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           // open file browser
           strcpy(current_status->act_dir,current_status->ini_dir);
           // search for INI files
-          Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->hd_ext);
+          Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->fileio_chb_ext);
           // initialize browser
           Filesel_ScanFirst(current_status->dir_scan);
           current_status->file_browser = 1;

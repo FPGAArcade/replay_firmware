@@ -257,12 +257,14 @@ typedef struct {
   /** dynamic core configuration, set "on the fly" when changed in menu */
   uint32_t     config_d;
 
-  /** floppy / hard disks supported by the core */
   /** note, this is a bit mask (3..0) */
-  uint8_t      fd_supported;
-  uint8_t      hd_supported;
-  char         fd_ext[4];
-  char         hd_ext[4];
+  uint8_t      fileio_cha_ena;
+  uint8_t      fileio_cha_drv;
+  char         fileio_cha_ext[4];
+
+  uint8_t      fileio_chb_ena;
+  uint8_t      fileio_chb_drv;
+  char         fileio_chb_ext[4];
 
   /* ======== MENU handling ======== */
 

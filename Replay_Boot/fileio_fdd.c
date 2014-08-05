@@ -8,8 +8,9 @@
 const uint8_t FDD_DEBUG = 0;
 
 extern FF_IOMAN *pIoman;
+uint8_t cha_driver_type = 0; // temp
 
-fddTYPE fdf[FD_MAX_NUM];        // drive 0 information structure
+fddTYPE fdf[CHA_MAX_NUM];        // drive 0 information structure
 
 // localized buffer for this module, in case of cache
 uint8_t  FDD_fBuf[FDD_BUF_SIZE];
@@ -793,7 +794,8 @@ uint8_t FDD_WaitStat(uint8_t mask, uint8_t wanted)
 void FDD_Handle_0x00(uint8_t status) // generic
 {
   uint8_t  dir  = (status >> 2) & 0x01; // high is write
-  uint8_t  chan = 0;
+  uint8_t  chan = (status >> 4) & 0x03;
+
   uint16_t size = 0;
   uint16_t cur_size = 0;
   uint32_t addr = 0;
@@ -802,12 +804,6 @@ void FDD_Handle_0x00(uint8_t status) // generic
 
   SPI_EnableFpga();
   SPI(FILEIO_FD_CMD_R | 0x0);
-  SPI(0x00); // dummy
-  chan = SPI(0) & 0x03; // cmd request
-  SPI_DisableFpga();
-
-  SPI_EnableFpga();
-  SPI(FILEIO_FD_CMD_R | 0x2);
   SPI(0x00); // dummy
   size  =  SPI(0);
   size |= (SPI(0) << 8);
@@ -923,7 +919,8 @@ void FDD_Handle_0x00(uint8_t status) // generic
 void FDD_Handle_0x01(uint8_t status) // amiga
 {
   uint8_t  dir     = (status >> 2) & 0x01; // high is write
-  uint8_t  chan    = 0;
+  uint8_t  chan    = (status >> 4) & 0x03;
+
   uint8_t  sector  = 0;
   uint8_t  track   = 0;
   uint16_t dsksync = 0;
@@ -941,8 +938,7 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   SPI(FILEIO_FD_CMD_R | 0x0);
   SPI(0x00); // dummy
 
-  chan     = SPI(0);
-  chan     = chan & 0x03;
+  SPI(0);  // spare
   track    = SPI(0);
   dsksync  = SPI(0) << 8;
   dsksync |= SPI(0);
@@ -985,7 +981,7 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   // Prince of Persia: $4891
   // Commando: $A245
 
-  /*if (FDD_DEBUG)*/
+  if (FDD_DEBUG)
     DEBUG(1,"FDD:handle Chan:%02X Dsksync:%04X Track:%02X Sector:%01X",chan,dsksync,track,sector);
 
   // sector size hard coded as 512 bytes
@@ -1013,11 +1009,12 @@ void FDD_Handle_0x01(uint8_t status) // amiga
     SPI_EnableFpga();
     SPI(FILEIO_FD_FIFO_W | 0x1);
     SPI(0xAA);
+    SPI(0xAA);
     SPI_DisableFpga();
 
     SPI_EnableFpga();
     SPI(FILEIO_FD_FIFO_W);
-    i = GAP_SIZE-1;
+    i = GAP_SIZE-2;
     while (i--)
       SPI(0xAA);
     SPI_DisableFpga();
@@ -1032,14 +1029,12 @@ void FDD_Handle_0x01(uint8_t status) // amiga
 
 void FDD_Handle(void)
 {
-
   uint8_t status = FDD_FileIO_GetStat();
 
   if (status & FILEIO_FD_REQ_ACT) { // FF request, move to header
     ACTLED_ON;
 
-    uint8_t type = (status >> 4) & 0x0F;
-    switch (type) {
+    switch (cha_driver_type) {
       case 0x0: // generic
         FDD_Handle_0x00(status);
         break;
@@ -1056,12 +1051,12 @@ void FDD_Handle(void)
 void FDD_UpdateDriveStatus(void)
 {
   uint8_t status = 0;
-  for (int i=0; i<FD_MAX_NUM; ++i) {
+  for (int i=0; i<CHA_MAX_NUM; ++i) {
     if (fdf[i].status & FD_INSERTED) status |= (0x01<<i);
     if (fdf[i].status & FD_WRITABLE) status |= (0x10<<i);
   }
   DEBUG(1,"FDD:update status %02X",status);
-  OSD_ConfigSendFileIO_FD(status);
+  OSD_ConfigSendFileIO_CHA(status);
 }
 
 //
@@ -1120,11 +1115,9 @@ void FDD_InsertInit_0x01(uint8_t drive_number)
 
 void FDD_Insert(uint8_t drive_number, char *path)
 {
-  uint8_t   type;
-
   DEBUG(1,"attempting to insert floppy <%d> : <%s> ", drive_number,path);
 
-  if (drive_number < FD_MAX_NUM) {
+  if (drive_number < CHA_MAX_NUM) {
     fddTYPE* drive = &fdf[drive_number];
     drive->status = 0;
     drive->name[0] = '\0';
@@ -1156,9 +1149,8 @@ void FDD_Insert(uint8_t drive_number, char *path)
 
     // do request read to find out FDD core request type
     // any data to send to core?
-    type = (FDD_FileIO_GetStat() >> 4) & 0x0F;
-    DEBUG(1,"request type <%d>", type);
-    switch (type) {
+    DEBUG(1,"driver type <%d>", cha_driver_type);
+    switch (cha_driver_type) {
       case 0x0: FDD_InsertInit_0x00(drive_number); break;
       case 0x1: FDD_InsertInit_0x01(drive_number); break;
       MSG_warning("Unknown FDD request type.");
@@ -1180,7 +1172,7 @@ void FDD_Eject(uint8_t drive_number)
 {
   DEBUG(1,"Ejecting floppy <%d>", drive_number);
 
-  if (drive_number < FD_MAX_NUM) {
+  if (drive_number < CHA_MAX_NUM) {
     fddTYPE* drive = &fdf[drive_number];
     FF_Close(drive->fSource);
     drive->status = 0;
@@ -1190,7 +1182,7 @@ void FDD_Eject(uint8_t drive_number)
 
 uint8_t FDD_Inserted(uint8_t drive_number)
 {
-  if (drive_number < FD_MAX_NUM) {
+  if (drive_number < CHA_MAX_NUM) {
     return (fdf[drive_number].status & FD_INSERTED);
   } else
   return FALSE;
@@ -1198,17 +1190,22 @@ uint8_t FDD_Inserted(uint8_t drive_number)
 
 char* FDD_GetName(uint8_t drive_number)
 {
-  if (drive_number < FD_MAX_NUM) {
+  if (drive_number < CHA_MAX_NUM) {
     return (fdf[drive_number].name);
   }
   return null_string; // in stringlight.c
+}
+
+void FDD_SetDriver(uint8_t type)
+{
+  cha_driver_type = type;
 }
 
 void FDD_Init(void)
 {
   DEBUG(1,"FDD:Init");
   uint32_t i;
-  for (i=0; i<FD_MAX_NUM; i++) {
+  for (i=0; i<CHA_MAX_NUM; i++) {
     fdf[i].status = 0; fdf[i].fSource = NULL;
     fdf[i].name[0] = '\0';
     fdf[i].tracks = 0;

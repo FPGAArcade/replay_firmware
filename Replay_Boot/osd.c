@@ -253,7 +253,7 @@ void OSD_ConfigSendCtrl(uint32_t config)
 }
 
   //0x28 write fileio hd             W0 7..4 hd_wen, 3..0 hd_ins DYNAMIC
-void OSD_ConfigSendFileIO_HD(uint32_t config)
+void OSD_ConfigSendFileIO_CHA(uint32_t config)
 {
   SPI_EnableOsd();
   SPI(OSDCMD_CONFIG | 0x08); // fileio
@@ -262,7 +262,7 @@ void OSD_ConfigSendFileIO_HD(uint32_t config)
 }
 
   //0x29 write fileio fd             W0 7..4 fd_wen, 3..0 fd_ins DYNAMIC
-void OSD_ConfigSendFileIO_FD(uint32_t config)
+void OSD_ConfigSendFileIO_CHB(uint32_t config)
 {
   SPI_EnableOsd();
   SPI(OSDCMD_CONFIG | 0x09); // fileio
@@ -315,12 +315,24 @@ uint32_t OSD_ConfigReadStatus(void)
   return config;
 }
 
-uint32_t OSD_ConfigReadFileIO(void) // num disks supported
+uint32_t OSD_ConfigReadFileIO_Ena(void) // num disks supported
 {
   uint32_t config;
 
   SPI_EnableOsd();
   SPI(OSDCMD_READSTAT | 0x04);
+  config  = (SPI(0) & 0xFF);
+  SPI_DisableOsd();
+  return config; // HD mask & FD mask
+}
+
+
+uint32_t OSD_ConfigReadFileIO_Drv(void) // driver
+{
+  uint32_t config;
+
+  SPI_EnableOsd();
+  SPI(OSDCMD_READSTAT | 0x05);
   config  = (SPI(0) & 0xFF);
   SPI_DisableOsd();
   return config; // HD mask & FD mask

@@ -4,7 +4,7 @@
 #include "board.h"
 #include "fullfat.h"
 
-#define HD_MAX_NUM 2
+#define CHB_MAX_NUM 2
 
 // FILE buffer size = HDD sector size
 #define HDD_BUF_SIZE 512
@@ -88,6 +88,7 @@ void HDD_Eject(uint8_t drive_number);
 uint8_t HDD_Inserted(uint8_t drive_number);
 char* HDD_GetName(uint8_t drive_number);
 
+void HDD_SetDriver(uint8_t type);
 void HDD_Init(void);
 
 #endif

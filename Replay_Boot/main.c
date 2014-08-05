@@ -300,9 +300,9 @@ int main(void)
         }
 
         // Handle virtual drives
-        if (current_status.fd_supported !=0)
+        if (current_status.fileio_cha_ena !=0)
           FDD_Handle();
-        if (current_status.hd_supported !=0)
+        if (current_status.fileio_chb_ena !=0)
           HDD_Handle();
       }
     }

@@ -4,7 +4,7 @@
 #include "board.h"
 #include "fullfat.h"
 
-#define FD_MAX_NUM 4
+#define CHA_MAX_NUM 4
 
 // FILE buffer size = FDD sector size
 #define FDD_BUF_SIZE 512
@@ -82,6 +82,8 @@ void    FDD_Eject(uint8_t drive_number);
 
 uint8_t FDD_Inserted(uint8_t drive_number);
 char*   FDD_GetName(uint8_t drive_number);
+
+void    FDD_SetDriver(uint8_t type);
 void    FDD_Init(void);
 
 #endif

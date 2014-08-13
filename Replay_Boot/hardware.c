@@ -403,12 +403,12 @@ void SPI_DisableCard(void)
   SPI_Wait4XferEnd();
 }
 
-void SPI_EnableFpga(void)
+void SPI_EnableFileIO(void)
 {
   AT91C_BASE_PIOA->PIO_CODR = PIN_FPGA_CTRL0;
 }
 
-void SPI_DisableFpga(void)
+void SPI_DisableFileIO(void)
 {
   SPI_Wait4XferEnd();
   AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL0;

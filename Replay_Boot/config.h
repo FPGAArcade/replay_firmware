@@ -1,19 +1,10 @@
 /** @file config.h */
 
+#include "filesel.h" // tDirScan
+#include "iniparser.h" // MAX_LINE_LEN
+
 #ifndef CONFIG_H_INCLUDED
 #define CONFIG_H_INCLUDED
-
-#include "fpga.h"
-#include "osd.h"
-#include "card.h"
-#include "hardware.h"
-#include "iniparser.h"
-#include "twi.h"
-#include "filesel.h"
-
-// for insert drive from ini file
-#include "fileio_fdd.h"
-#include "fileio_hdd.h"
 
 /* ========================================================================== */
 

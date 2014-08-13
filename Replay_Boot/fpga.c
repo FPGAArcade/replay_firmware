@@ -2,10 +2,11 @@
 // Support routines for the FPGA including file transfer, system control and DRAM test
 //
 
+#include "fpga.h"
+#include "fileio.h"
 #include "hardware.h"
 #include "osd.h"  // for keyboard input to DRAM debug only
 #include "config.h"
-#include "fpga.h"
 #include "messaging.h"
 
 // Bah! But that's how it is proposed by this lib...
@@ -197,354 +198,6 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
 }
 
 //
-// FILEIO
-//
-
-uint8_t FPGA_WaitStat(uint8_t mask, uint8_t wanted)
-{
-  uint8_t  stat;
-  uint32_t timeout = Timer_Get(100);      // 100 ms timeout
-  do {
-    SPI_EnableFpga();
-    SPI(0x87); // do Read
-    stat = SPI(0);
-    SPI_DisableFpga();
-
-    if (Timer_Check(timeout)) {
-      WARNING("FPGA:Waitstat timeout.");
-      return (1);
-    }
-  } while ((stat & mask) != wanted);
-  return (0);
-}
-
-uint8_t FPGA_SendBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
-{
-  DEBUG(3,"FPGA:send buffer :%4x.",buf_tx_size);
-  if (FPGA_WaitStat(0x02, 0)) // !HF
-    return (1); // timeout
-
-  SPI_EnableFpga();
-  SPI(0xB0);
-  SPI_WriteBufferSingle(pBuf, buf_tx_size);
-  SPI_DisableFpga();
-
-  return (0);
-}
-
-uint8_t FPGA_ReadBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
-{
-  // we assume read has completed and FIFO contains complete transfer
-  DEBUG(3,"FPGA:read buffer :%4x.",buf_tx_size);
-  SPI_EnableFpga();
-  SPI(0xA0); // should check status
-  SPI_ReadBufferSingle(pBuf, buf_tx_size);
-  SPI_DisableFpga();
-  return (0);
-}
-
-uint8_t FPGA_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset)
-// this function sends given file to FPGA's memory
-// base - memory base address (bits 23..16)
-// size - memory size (bits 23..16)
-{
-  uint8_t  rc = 0;
-  uint32_t remaining_size = size;
-  unsigned long time;
-  time = Timer_Get(0);
-
-  DEBUG(3,"FPGA:Uploading file Addr:%8X Size:%8X.",base,size);
-  FF_Seek(pFile, offset, FF_SEEK_SET);
-
-  SPI_EnableFpga();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
-  SPI_DisableFpga();
-
-  SPI_EnableFpga();
-  SPI(0x81); // set direction
-  SPI(0x00); // write
-  SPI_DisableFpga();
-
-  while (remaining_size) {
-    #if (FPGA_MEMBUF_SIZE>FILEBUF_SIZE)
-      #error "FPGA_MEMBUF_SIZE>FILEBUF_SIZE !"
-    #endif
-    uint8_t fBuf[FILEBUF_SIZE];
-    uint8_t *wPtr;
-    uint32_t buf_tx_size = FILEBUF_SIZE;
-    uint32_t bytes_read;
-    uint16_t fpgabuf_size=FPGA_MEMBUF_SIZE;
-
-    // read data sector from memory card
-    bytes_read = FF_Read(pFile, FILEBUF_SIZE, 1, fBuf);
-    if (bytes_read == 0) break; // catch 0 len file error
-
-    // clip to smallest of file and transfer length
-    if (remaining_size < buf_tx_size) buf_tx_size = remaining_size;
-    if (bytes_read     < buf_tx_size) buf_tx_size = bytes_read;
-    remaining_size -= buf_tx_size;
-
-    // send file buffer
-    wPtr = &(fBuf[0]);
-    while(buf_tx_size) {
-      if (FPGA_WaitStat(0x01, 0)) // wait for finish, it is a little faster doing that way
-        return(1);
-      if (buf_tx_size < fpgabuf_size) fpgabuf_size = buf_tx_size;
-      rc |= FPGA_SendBuffer(wPtr, fpgabuf_size);
-      wPtr += fpgabuf_size;
-      buf_tx_size -= fpgabuf_size;
-    }
-  }
-
-  if (FPGA_WaitStat(0x01, 0)) // wait for finish (final)
-    return(1);
-  time = Timer_Get(0)-time;
-  DEBUG(1,"Upload done in %d ms.", (uint32_t) (time >> 20));
-
-  if (remaining_size != 0) {
-    WARNING("FPGA: Sent file truncated. Requested :%8X Sent :%8X.",
-                                               size, size - remaining_size);
-    rc = 2;
-  } else
-    DEBUG(2,"FPGA:File uploaded.");
-
-  return(rc) ;// no error
-}
-
-uint8_t FPGA_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset)
-{
-  // for debug
-  uint8_t  rc = 0;
-  uint32_t remaining_size = size;
-  unsigned long time;
-  time = Timer_Get(0);
-
-  DEBUG(2,"FPGA:Verifying Addr:%8X Size:%8X.",base,size);
-  FF_Seek(pFile, offset, FF_SEEK_SET);
-
-  SPI_EnableFpga();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
-  SPI_DisableFpga();
-
-  SPI_EnableFpga();
-  SPI(0x81); // set direction
-  SPI(0x80); // read
-  SPI_DisableFpga();
-
-  while (remaining_size) {
-    #if (FPGA_MEMBUF_SIZE>FILEBUF_SIZE)
-      #error "FPGA_MEMBUF_SIZE>FILEBUF_SIZE !"
-    #endif
-    uint8_t fBuf[FILEBUF_SIZE];
-    uint8_t tBuf[FILEBUF_SIZE];
-    uint8_t *wPtr;
-    uint32_t buf_tx_size = FILEBUF_SIZE;
-    uint32_t bytes_read;
-    uint16_t fpgabuf_size=FPGA_MEMBUF_SIZE;
-    uint32_t fpga_read_left;
-
-    // read data sector from memory card
-    bytes_read = FF_Read(pFile, FILEBUF_SIZE, 1, fBuf);
-    if (bytes_read == 0) break;
-
-    // clip to smallest of file and transfer length
-    if (remaining_size < buf_tx_size) buf_tx_size = remaining_size;
-    if (bytes_read     < buf_tx_size) buf_tx_size = bytes_read;
-
-    // read same sector from FPGA
-    wPtr=&(tBuf[0]);
-    fpga_read_left=buf_tx_size;
-    while (fpga_read_left) {
-      if (fpga_read_left < fpgabuf_size) fpgabuf_size = fpga_read_left;
-      SPI_EnableFpga();
-      SPI(0x84); // do Read
-      SPI((uint8_t)( fpgabuf_size - 1));
-      SPI((uint8_t)((fpgabuf_size - 1) >> 8));
-      SPI_DisableFpga();
-      if (FPGA_WaitStat(0x04, 0)) { // wait for read finish
-        return(1);
-      }
-      FPGA_ReadBuffer(wPtr, fpgabuf_size);
-      wPtr+=fpgabuf_size;
-      fpga_read_left-=fpgabuf_size;
-    }
-
-    // compare
-    if (memcmp(fBuf,tBuf, buf_tx_size)) {
-      WARNING("!!Compare fail!! Block Addr:%8X", base);
-
-      DEBUG(2,"Source:", base);
-      DumpBuffer(fBuf,buf_tx_size);
-      DEBUG(2,"Memory:", base);
-      DumpBuffer(tBuf,buf_tx_size);
-
-      rc = 1;
-      break;
-    }
-    base += buf_tx_size;
-    remaining_size -= buf_tx_size;
-  }
-
-  time = Timer_Get(0)-time;
-  DEBUG(1,"Verify done in %d ms.", (uint32_t) (time >> 20));
-
-  if (!rc) DEBUG(2,"FPGA:File verified complete.");
-
-  return(rc) ;
-}
-
-uint8_t FPGA_MemToFile(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset)
-{
-  // for debug
-  uint8_t  rc = 0;
-  uint32_t remaining_size = size;
-  unsigned long time;
-  time = Timer_Get(0);
-
-  //DEBUG(1,"FPGA_MemToFile(%x,%x,%x,%x)",pFile,base,size,offset);
-
-  DEBUG(2,"FPGA:Store Addr:%8X Size:%8X.",base,size);
-  if (offset) FF_Seek(pFile, offset, FF_SEEK_SET);
-
-  SPI_EnableFpga();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
-  SPI_DisableFpga();
-
-  SPI_EnableFpga();
-  SPI(0x81); // set direction
-  SPI(0x80); // read
-  SPI_DisableFpga();
-
-  while (remaining_size) {
-    #if (FPGA_MEMBUF_SIZE>FILEBUF_SIZE)
-      #error "FPGA_MEMBUF_SIZE>FILEBUF_SIZE !"
-    #endif
-    uint8_t tBuf[FILEBUF_SIZE];
-    uint8_t *wPtr;
-    uint32_t buf_tx_size = FILEBUF_SIZE;
-    uint32_t bytes_written;
-    uint16_t fpgabuf_size=FPGA_MEMBUF_SIZE;
-    uint32_t fpga_read_left;
-
-    // clip to smallest of file and transfer length
-    if (remaining_size < buf_tx_size) buf_tx_size = remaining_size;
-
-    // read sector from FPGA
-    wPtr=&(tBuf[0]);
-    fpga_read_left=buf_tx_size;
-    while (fpga_read_left) {
-      if (fpga_read_left < fpgabuf_size) fpgabuf_size = fpga_read_left;
-      SPI_EnableFpga();
-      SPI(0x84); // do Read
-      SPI((uint8_t)( fpgabuf_size - 1));
-      SPI((uint8_t)((fpgabuf_size - 1) >> 8));
-      SPI_DisableFpga();
-      if (FPGA_WaitStat(0x04, 0)) { // wait for read finish
-        return(1);
-      }
-      FPGA_ReadBuffer(wPtr, fpgabuf_size);
-      wPtr+=fpgabuf_size;
-      fpga_read_left-=fpgabuf_size;
-    }
-
-    // write data sector to memory card
-    bytes_written = FF_Write(pFile, buf_tx_size, 1, tBuf);
-    if (bytes_written == 0) break;
-
-    // go on...
-    remaining_size -= buf_tx_size;
-  }
-
-  time = Timer_Get(0)-time;
-  DEBUG(1,"Save done in %d ms.", (uint32_t) (time >> 20));
-
-  if (!rc) DEBUG(2,"FPGA:File written.");
-
-  return(rc) ;
-}
-
-uint8_t FPGA_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size)
-// base - memory base address
-// size - must be <=FPGA_MEMBUF_SIZE and even
-{
-  uint32_t buf_tx_size = size;
-  DEBUG(3,"FPGA:BufToMem Addr:%8X.",base);
-  // uses write gate to get burst
-  SPI_EnableFpga();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
-  SPI_DisableFpga();
-
-  SPI_EnableFpga();
-  SPI(0x81); // set direction
-  SPI(0x00); // write
-  SPI_DisableFpga();
-
-  if (size>FPGA_MEMBUF_SIZE) { // arb limit while debugging
-    buf_tx_size = FPGA_MEMBUF_SIZE;
-    WARNING("FPGA:Max BufToMem size is %d bytes.",FPGA_MEMBUF_SIZE);
-  }
-  FPGA_SendBuffer(pBuf, buf_tx_size);
-
-  if (FPGA_WaitStat(0x01, 0)) // wait for finish
-    return(1);
-
-  return 0 ;// no error
-}
-
-uint8_t FPGA_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size)
-// base - memory base address
-// size - must be <=FPGA_MEMBUF_SIZE and even
-{
-  uint32_t buf_tx_size = size;
-
-  SPI_EnableFpga();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
-  SPI_DisableFpga();
-
-  SPI_EnableFpga();
-  SPI(0x81); // set direction
-  SPI(0x80); // read
-  SPI_DisableFpga();
-
-  if (size>FPGA_MEMBUF_SIZE) { // arb limit while debugging
-    buf_tx_size = FPGA_MEMBUF_SIZE;
-    WARNING("FPGA:Max MemToBuf size is %d bytes.",FPGA_MEMBUF_SIZE);
-  }
-  SPI_EnableFpga();
-  SPI(0x84); // do Read
-  SPI((uint8_t)( buf_tx_size - 1)     );
-  SPI((uint8_t)((buf_tx_size - 1) >> 8));
-  SPI_DisableFpga();
-
-  if (FPGA_WaitStat(0x04, 0)) // wait for read finish
-    return(1);
-
-  FPGA_ReadBuffer(pBuf, buf_tx_size);
-
-  return (0) ;// no error
-}
-
-//
 // Memory Test
 //
 
@@ -565,14 +218,14 @@ uint8_t FPGA_DramTrain(void)
   addr = 0;
   for (i=0;i<19;i++){
     mBuf[127] = (uint8_t) i;
-    FPGA_BufToMem(mBuf, addr, 128);
+    FileIO_MCh_BufToMem(mBuf, addr, 128);
     addr = (0x100 << i);
   }
 
   addr = 0;
   for (i=0;i<19;i++){
     memset(mBuf, 0xAA, 512);
-    FPGA_MemToBuf(mBuf, addr, 128);
+    FileIO_MCh_MemToBuf(mBuf, addr, 128);
     if (memcmp(mBuf,&kMemtest[0],127) || (mBuf[127] != (uint8_t) i) ) {
       WARNING("!!Match fail Addr:%8X", addr);
       DumpBuffer(mBuf,128);
@@ -790,8 +443,8 @@ uint8_t FPGA_ProdTest(void)
 //  we need this local/inline to avoid function calls in this stage
 // ----------------------------------------------------------------
 
-#define _SPI_EnableFpga() { AT91C_BASE_PIOA->PIO_CODR=PIN_FPGA_CTRL0; }
-#define _SPI_DisableFpga() { while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY)); AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL0; }
+#define _SPI_EnableFileIO() { AT91C_BASE_PIOA->PIO_CODR=PIN_FPGA_CTRL0; }
+#define _SPI_DisableFileIO() { while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY)); AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL0; }
 
 inline uint8_t _SPI(uint8_t outByte)
 {
@@ -805,12 +458,12 @@ inline uint8_t _SPI(uint8_t outByte)
 inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
 {
   do {
-    _SPI_EnableFpga();
+    _SPI_EnableFileIO();
     _SPI(0x87); // do Read
     if ((_SPI(0) & mask) == wanted) break;
-    _SPI_DisableFpga();
+    _SPI_DisableFileIO();
   } while (1);
-  _SPI_DisableFpga();
+  _SPI_DisableFileIO();
 }
 
 inline void _SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
@@ -836,33 +489,33 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     WARNING("FPGA: Not enough memory, processor may crash!");
   }
 
-  SPI_EnableFpga();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
-  SPI_DisableFpga();
+  _SPI_EnableFileIO();
+  _SPI(0x80); // set address
+  _SPI((uint8_t)(base));
+  _SPI((uint8_t)(base >> 8));
+  _SPI((uint8_t)(base >> 16));
+  _SPI((uint8_t)(base >> 24));
+  _SPI_DisableFileIO();
 
-  SPI_EnableFpga();
-  SPI(0x81); // set direction
-  SPI(0x80); // read
-  SPI_DisableFpga();
+  _SPI_EnableFileIO();
+  _SPI(0x81); // set direction
+  _SPI(0x80); // read
+  _SPI_DisableFileIO();
 
   // LOOP FOR BLOCKS TO READ TO SRAM
   for(i=0;i<(len/512)+1;++i) {
     uint32_t buf[128];
     uint32_t *ptr = &(buf[0]);
-    _SPI_EnableFpga();
+    _SPI_EnableFileIO();
     _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
     _SPI((uint8_t)( 512 - 1));
     _SPI((uint8_t)((512 - 1) >> 8));
-    _SPI_DisableFpga();
+    _SPI_DisableFileIO();
     _FPGA_WaitStat(0x04, 0);
-    _SPI_EnableFpga();
+    _SPI_EnableFileIO();
     _SPI(0xA0); // should check status
     _SPI_ReadBufferSingle(buf, 512);
-    _SPI_DisableFpga();
+    _SPI_DisableFileIO();
     for(j=0;j<128;++j) {
       // avoid summing up undefined data in the last block
       if (l<len) sum += *ptr++;
@@ -890,31 +543,31 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
   DEBUG(0,"FPGA: SRAM start: 0x%lx (%d blocks)",(uint32_t)dest,1+len/512);
   Timer_Wait(500); // take care we can send this message before we go on!
 
-  SPI_EnableFpga();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
-  SPI_DisableFpga();
+  _SPI_EnableFileIO();
+  _SPI(0x80); // set address
+  _SPI((uint8_t)(base));
+  _SPI((uint8_t)(base >> 8));
+  _SPI((uint8_t)(base >> 16));
+  _SPI((uint8_t)(base >> 24));
+  _SPI_DisableFileIO();
 
-  SPI_EnableFpga();
-  SPI(0x81); // set direction
-  SPI(0x80); // read
-  SPI_DisableFpga();
+  _SPI_EnableFileIO();
+  _SPI(0x81); // set direction
+  _SPI(0x80); // read
+  _SPI_DisableFileIO();
 
   // LOOP FOR BLOCKS TO READ TO SRAM
   for(i=0;i<(len/512)+1;++i) {
-    _SPI_EnableFpga();
+    _SPI_EnableFileIO();
     _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
     _SPI((uint8_t)( 512 - 1));
     _SPI((uint8_t)((512 - 1) >> 8));
-    _SPI_DisableFpga();
+    _SPI_DisableFileIO();
     _FPGA_WaitStat(0x04, 0);
-    _SPI_EnableFpga();
+    _SPI_EnableFileIO();
     _SPI(0xA0); // should check status
     _SPI_ReadBufferSingle((void *)dest, 512);
-    _SPI_DisableFpga();
+    _SPI_DisableFileIO();
     for(j=0;j<128;++j) *dest++;
   }
   // execute from SRAM the code we just pushed in

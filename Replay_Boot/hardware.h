@@ -30,8 +30,8 @@ void SPI_ReadBufferSingle(void *pBuffer, uint32_t length);
 void SPI_Wait4XferEnd(void) __attribute__ ((section (".fastrun")));
 void SPI_EnableCard(void) __attribute__ ((section (".fastrun")));
 void SPI_DisableCard(void) __attribute__ ((section (".fastrun")));
-void SPI_EnableFpga(void);
-void SPI_DisableFpga(void);
+void SPI_EnableFileIO(void);
+void SPI_DisableFileIO(void);
 void SPI_EnableOsd(void);
 void SPI_DisableOsd(void);
 //

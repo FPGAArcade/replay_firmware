@@ -54,8 +54,6 @@ typedef struct
     // adf
     uint16_t tracks; /*number of tracks*/
     uint8_t  cur_sector;
-    uint8_t  track; /*current track*/
-    uint8_t  track_prev; /*previous track*/
     //
     char     name[MAX_DISPLAY_FILENAME]; /*floppy name*/
 } fddTYPE;

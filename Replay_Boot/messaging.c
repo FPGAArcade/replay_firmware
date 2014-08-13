@@ -1,22 +1,23 @@
 /** @file messaging.c */
 
-#include"messaging.h"
+#include "hardware.h" // actled
+#include "messaging.h"
 
 /** @brief status pointer for messaging via OSD
 
   We use this pointer only for the messaging functions,
   it needs to be initialized once at startup via MSG_init()!
-*/ 
+*/
 static status_t *msg_status=NULL;
 
 /** @brief flag for messaging via serial
 
   We use this flag to enable serial messaging functions,
   it needs to be initialized once at startup via MSG_init()!
-*/ 
+*/
 static uint8_t msg_serial=0;
 
-void MSG_init(status_t *status, uint8_t serial_on) 
+void MSG_init(status_t *status, uint8_t serial_on)
 {
   msg_status=status;
   msg_serial=serial_on;
@@ -27,7 +28,7 @@ static void _MSG_putcp(void* p,char c)
   *(*((char**)p))++ = c;
 }
 
-static void _MSG_to_osd(char *s,char t) 
+static void _MSG_to_osd(char *s,char t)
 {
   // cut string to visible range
   s[MAX_MENU_STRING-2]=0;
@@ -39,10 +40,10 @@ static void _MSG_to_osd(char *s,char t)
   msg_status->update=1;
 }
 
-void MSG_debug(uint8_t do_osd, char *fmt, ...) 
+void MSG_debug(uint8_t do_osd, char *fmt, ...)
 { char s[256]; // take "enough" size here, not to get any overflow problems...
   char *sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
-  
+
   // process initial printf (nearly) w/o size limit...
   va_list argptr;
   va_start(argptr,fmt);
@@ -57,10 +58,10 @@ void MSG_debug(uint8_t do_osd, char *fmt, ...)
   if (do_osd && msg_status) _MSG_to_osd(s,'D');
 }
 
-void MSG_info(char *fmt, ...) 
+void MSG_info(char *fmt, ...)
 { char s[256]; // take "enough" size here, not to get any overflow problems...
   char *sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
-  
+
   // process initial printf (nearly) w/o size limit...
   va_list argptr;
   va_start(argptr,fmt);
@@ -76,10 +77,10 @@ void MSG_info(char *fmt, ...)
   if (msg_status) _MSG_to_osd(s,'I');
 }
 
-void MSG_warning(char *fmt, ...) 
+void MSG_warning(char *fmt, ...)
 { char s[256]; // take "enough" size here, not to get any overflow problems...
   char *sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
-  
+
   // process initial printf (nearly) w/o size limit...
   va_list argptr;
   va_start(argptr,fmt);
@@ -95,7 +96,7 @@ void MSG_warning(char *fmt, ...)
   if (msg_status) _MSG_to_osd(s,'W');
 }
 
-void MSG_error(char *fmt, ...) 
+void MSG_error(char *fmt, ...)
 { char s[256]; // take "enough" size here, not to get any overflow problems...
   char *sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
   int i;

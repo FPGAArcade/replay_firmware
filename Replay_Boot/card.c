@@ -1,6 +1,6 @@
 //
-#include "hardware.h"
 #include "card.h"
+#include "hardware.h"
 #include "messaging.h"
 
 /*variables*/

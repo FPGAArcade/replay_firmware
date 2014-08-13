@@ -1,6 +1,7 @@
+
+#include "osd.h"
 #include "hardware.h"
 #include "config.h"
-#include "osd.h"
 #include "messaging.h"
 
 // nasty globals ...

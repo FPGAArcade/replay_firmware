@@ -1,8 +1,18 @@
 /** @file config.c */
 
 #include "config.h"
-#include "messaging.h"
+
+#include "fileio.h"
+#include "fpga.h"
+#include "osd.h"
+#include "card.h"
+#include "hardware.h"
+#include "twi.h"
+#include "fileio_fdd.h"
+#include "fileio_hdd.h"
 #include "menu.h"
+
+#include "messaging.h"
 
 /** @brief extern link to sdcard i/o manager
 
@@ -301,9 +311,9 @@ uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size,
       size=FF_BytesLeft(fSource);
     }
     DEBUG(1, "%s @0x%X (0x%X),S:%d",filename, base+filebase, offset, size);
-    FPGA_FileToMem(fSource, base+filebase, size, offset);
+    FileIO_MCh_FileToMem(fSource, base+filebase, size, offset);
     if (verify) {
-      rc=FPGA_FileToMemVerify(fSource, base+filebase, size, offset);
+      rc=FileIO_MCh_FileToMemVerify(fSource, base+filebase, size, offset);
     } else {
       rc=0;
     }
@@ -336,7 +346,7 @@ uint8_t CFG_download_rom(char *filename, uint32_t base, uint32_t size)
       return 1;
     }
     DEBUG(1, "%s @0x%X (0x%X),S:%d",filename, base+filebase, offset, size);
-    rc=FPGA_MemToFile(fSource, base+filebase, size, offset);
+    rc=FileIO_MCh_MemToFile(fSource, base+filebase, size, offset);
     FF_Close(fSource);
   } else {
     WARNING("Could not open %s", filename);
@@ -950,7 +960,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               for(int i=0;i<(entries-2);buf[i]=valueList[i].intval,i++);
               DEBUG(2,"Data upload @ 0x%08lX (%ld byte)",
                       valueList[entries-2].intval,entries-2);
-              if (FPGA_BufToMem(buf, valueList[entries-2].intval,
+              if (FileIO_MCh_BufToMem(buf, valueList[entries-2].intval,
                                      valueList[entries-1].intval)) {
                 MSG_error("DATA upload to FPGA failed");
                 return 1;
@@ -958,7 +968,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               if (pStatus->verify_dl) {
                 // required to readback data and check it again...
                 uint8_t tmpbuf[16];
-                FPGA_MemToBuf(tmpbuf, valueList[entries-2].intval,
+                FileIO_MCh_MemToBuf(tmpbuf, valueList[entries-2].intval,
                                       valueList[entries-1].intval);
                 for(int i=0;i<(entries-2);i++) {
                   if (tmpbuf[i]!=buf[i]) {
@@ -969,7 +979,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                 }
               }
               else {
-                return FPGA_BufToMem(buf, valueList[entries-2].intval,
+                return FileIO_MCh_BufToMem(buf, valueList[entries-2].intval,
                                           valueList[entries-1].intval);
               }
             }
@@ -1180,13 +1190,13 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
           uint16_t entries = ParseList(value,valueList,8);
           uint8_t  unit = 0;
 
-          DEBUG(1,"FileIO CHB entries %d",entries);
+          DEBUG(1,"FileIO ChB entries %d",entries);
           if ((entries==1) || (entries==2)) {
             if (entries==2)
               unit = valueList[1].intval;
 
             if (unit >= CHB_MAX_NUM) {
-              DEBUG(1,"Illegal Fileio CHB number")
+              DEBUG(1,"Illegal FileIO ChB number")
             } else {
               if (strlen(valueList[0].strval)) {
                 char fullname[FF_MAX_PATH];
@@ -1275,10 +1285,10 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   currentStatus->fileio_chb_ena = (config_fileio_ena >> 4) & 0x0F;
   currentStatus->fileio_chb_drv = (config_fileio_drv >> 4) & 0x0F;
 
-  DEBUG(1,"FileIO CHA supported : "BYTETOBINARYPATTERN4", Driver : %01X",
+  DEBUG(1,"FileIO ChA supported : "BYTETOBINARYPATTERN4", Driver : %01X",
     BYTETOBINARY4(currentStatus->fileio_cha_ena), currentStatus->fileio_cha_drv);
 
-  DEBUG(1,"FileIO CHB supported : "BYTETOBINARYPATTERN4", Driver : %01X",
+  DEBUG(1,"FileIO ChB supported : "BYTETOBINARYPATTERN4", Driver : %01X",
     BYTETOBINARY4(currentStatus->fileio_chb_ena), currentStatus->fileio_chb_drv);
 
   _strlcpy(currentStatus->fileio_cha_ext,"ADF",4);

@@ -95,7 +95,7 @@ void HDD_IdentifyDevice(uint16_t *pBuffer, uint8_t unit)
 
 void HDD_WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned char sector_number, unsigned char cylinder_low, unsigned char cylinder_high, unsigned char drive_head)
 {
-    SPI_EnableFpga();
+    SPI_EnableFileIO();
 
     SPI(FILEIO_HD_CMD_W); // write task file registers command
     SPI(0x00);
@@ -105,7 +105,7 @@ void HDD_WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned
     SPI(cylinder_low); // cylinder low
     SPI(cylinder_high); // cylinder high
     SPI(drive_head); // drive/head
-    SPI_DisableFpga();
+    SPI_DisableFileIO();
 }
 
 // note : now FDD /HDD are identical driver (bar address), functions should be moved to common fileio file
@@ -113,19 +113,19 @@ void HDD_WriteTaskFile(unsigned char error, unsigned char sector_count, unsigned
 uint8_t HDD_FileIO_GetStat(void)
 {
   uint8_t stat;
-  SPI_EnableFpga();
+  SPI_EnableFileIO();
   SPI(FILEIO_HD_STAT_R);
   stat = SPI(0);
-  SPI_DisableFpga();
+  SPI_DisableFileIO();
   return stat;
 }
 
 void HDD_WriteStatus(uint8_t status)
 {
-    SPI_EnableFpga();
+    SPI_EnableFileIO();
     SPI(FILEIO_HD_STAT_W);
     SPI(status);
-    SPI_DisableFpga();
+    SPI_DisableFileIO();
 }
 
 uint8_t HDD_WaitStat(uint8_t mask, uint8_t wanted)
@@ -159,14 +159,14 @@ void HDD_ATA_Handle(void)
 
 
     ACTLED_ON;
-    SPI_EnableFpga();
+    SPI_EnableFileIO();
     SPI(FILEIO_HD_CMD_R); // read task file registers
     SPI(0); // dummy
     for (i = 0; i < 8; i++)
     {
       tfr[i] = SPI(0);
     }
-    SPI_DisableFpga();
+    SPI_DisableFileIO();
 
     #ifdef HDD_DEBUG
     DEBUG(1,"IDE: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X",
@@ -205,14 +205,14 @@ void HDD_ATA_Handle(void)
       HDD_IdentifyDevice(id, unit);
       HDD_WriteTaskFile(0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
       HDD_WriteStatus(IDE_STATUS_RDY); // pio in (class 1) command type
-      SPI_EnableFpga();
+      SPI_EnableFileIO();
       SPI(FILEIO_HD_FIFO_W); // write data command
       for (i = 0; i < 256; i++)
       {
           SPI((uint8_t) id[i]);
           SPI((uint8_t)(id[i] >> 8));
       }
-      SPI_DisableFpga();
+      SPI_DisableFileIO();
       HDD_WriteStatus(IDE_STATUS_END | IDE_STATUS_IRQ);
     }
     else if (tfr[7] == ACMD_INITIALIZE_DEVICE_PARAMETERS) // Initiallize Device Parameters
@@ -348,10 +348,10 @@ void HDD_ATA_Handle(void)
       {
         HDD_WaitStat(FILEIO_HD_REQ_OK_TO_ARM, FILEIO_HD_REQ_OK_TO_ARM);
 
-        SPI_EnableFpga();
+        SPI_EnableFileIO();
         SPI(FILEIO_HD_FIFO_R);
         SPI_ReadBufferSingle(HDD_fBuf, HDD_BUF_SIZE);
-        SPI_DisableFpga();
+        SPI_DisableFileIO();
 
         sector_count--; // decrease sector count
 
@@ -394,10 +394,10 @@ void HDD_ATA_Handle(void)
         {
           HDD_WaitStat(FILEIO_HD_REQ_OK_TO_ARM, FILEIO_HD_REQ_OK_TO_ARM);
 
-          SPI_EnableFpga();
+          SPI_EnableFileIO();
           SPI(FILEIO_HD_FIFO_R);
           SPI_ReadBufferSingle(HDD_fBuf, HDD_BUF_SIZE);
-          SPI_DisableFpga();
+          SPI_DisableFileIO();
 
           FF_Write(hdf[unit].fSource,HDD_BUF_SIZE,1,HDD_fBuf);
 
@@ -437,10 +437,10 @@ void HDD_FileRead(FF_FILE *fSource)
   bytes_read = FF_Read(fSource, HDD_BUF_SIZE, 1, HDD_fBuf);
   if (bytes_read == 0) return; // catch 0 len file error
 
-  SPI_EnableFpga();
+  SPI_EnableFileIO();
   SPI(FILEIO_HD_FIFO_W);
   SPI_WriteBufferSingle(HDD_fBuf, HDD_BUF_SIZE);
-  SPI_DisableFpga();
+  SPI_DisableFileIO();
 }
 
 void HDD_FileReadEx(FF_FILE *fSource, uint16_t block_count) {

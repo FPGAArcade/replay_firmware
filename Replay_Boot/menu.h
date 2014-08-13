@@ -4,6 +4,7 @@
 #define MENU_H_INCLUDED
 
 #include "board.h"
+#include "config.h"
 
 /** number of lines used for menu (starting at line 2) */
 #define MENU_HEIGHT 12

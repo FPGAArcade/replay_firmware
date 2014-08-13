@@ -22,19 +22,19 @@ uint8_t  FDD_fBuf[FDD_BUF_SIZE];
 uint8_t FDD_FileIO_GetStat(void)
 {
   uint8_t stat;
-  SPI_EnableFpga();
+  SPI_EnableFileIO();
   SPI(FILEIO_FD_STAT_R);
   stat = SPI(0);
-  SPI_DisableFpga();
+  SPI_DisableFileIO();
   return stat;
 }
 
 void FDD_FileIO_WriteStat(uint8_t stat)
 {
-  SPI_EnableFpga();
+  SPI_EnableFileIO();
   SPI(FILEIO_FD_STAT_W);
   SPI(stat);
-  SPI_DisableFpga();
+  SPI_DisableFileIO();
 }
 
 /*{{{*/
@@ -76,7 +76,7 @@ void FDD_FileIO_WriteStat(uint8_t stat)
   /*uint8_t dsksynch = (uint8_t)(dsksync >> 8);*/
   /*uint8_t dsksyncl = (uint8_t)(dsksync);*/
 
-  /*SPI_EnableFpga();*/
+  /*SPI_EnableFileIO();*/
   /*SPI(0x50); // enable write*/
 
   /*// preamble*/
@@ -165,7 +165,7 @@ void FDD_FileIO_WriteStat(uint8_t stat)
   /*SPI(checksum[2] | 0xAA);*/
   /*SPI(checksum[3] | 0xAA);*/
 
-  /*SPI_DisableFpga();*/
+  /*SPI_DisableFileIO();*/
 
 /*}*/
 /*}}}*/
@@ -196,7 +196,7 @@ void FDD_FileIO_WriteStat(uint8_t stat)
   /*time = Timer_Get(0) - time;*/
   /*INFO("block read in %lu ms", time >> 20);*/
 
-  /*SPI_EnableFpga();*/
+  /*SPI_EnableFileIO();*/
   /*SPI(0x50); // enable write*/
 
   /*i = size;*/
@@ -205,7 +205,7 @@ void FDD_FileIO_WriteStat(uint8_t stat)
   /*while (i--)*/
     /*SPI(*p++);*/
 
-  /*SPI_DisableFpga();*/
+  /*SPI_DisableFileIO();*/
 /*}*/
 /*}}}*/
 
@@ -360,7 +360,7 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
     /*// note read moves on file pointer automatically*/
     /*FF_Read(drive->fSource, FDD_BUF_SIZE, 1, FDD_fBuf);*/
 
-    /*SPI_EnableFpga();*/
+    /*SPI_EnableFileIO();*/
     /*SPI(0x00);*/
     /*status   = SPI(0); // cmd request*/
     /*cmd      = SPI(0);*/
@@ -369,7 +369,7 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
     /*addr    |= SPI(0);*/
     /*dsksync     = SPI(0) << 8;*/
     /*dsksync    |= SPI(0);*/
-    /*SPI_DisableFpga();*/
+    /*SPI_DisableFileIO();*/
 
 
     /*track = (uint8_t) addr & 0xFF;*/
@@ -399,35 +399,35 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
     /*if (track == drive->track) {*/
       /*// send sector if fpga is still asking for data - not required as checked on entry*/
 
-         /*SPI_EnableFpga();*/
+         /*SPI_EnableFileIO();*/
          /*SPI(0x50); // enable write*/
          /*FDD_SendSector(FDD_fBuf, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);*/
-         /*SPI_DisableFpga();*/
+         /*SPI_DisableFileIO();*/
 
          /*if (sector == LAST_SECTOR)*/
          /*{*/
 
-          /*SPI_EnableFpga();*/
+          /*SPI_EnableFileIO();*/
           /*SPI(0x51); // temp use ch1 for gap (index)*/
 
            /*// send gap*/
           /*i = 128;*/
           /*while (i--)*/
             /*SPI(0xAA);*/
-          /*SPI_DisableFpga();*/
+          /*SPI_DisableFileIO();*/
           /*//*/
-          /*SPI_EnableFpga();*/
+          /*SPI_EnableFileIO();*/
           /*SPI(0x50);*/
           /*// send gap*/
           /*i = GAP_SIZE-128;*/
           /*while (i--)*/
             /*SPI(0xAA);*/
-          /*SPI_DisableFpga();*/
+          /*SPI_DisableFileIO();*/
          /*}*/
     /*}*/
 
     /*// we are done accessing FPGA*/
-    /*SPI_DisableFpga();*/
+    /*SPI_DisableFileIO();*/
 
     /*// track has changed*/
     /*if (track != drive->track)*/
@@ -459,7 +459,7 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
   /*uint16_t n;*/
 
   /*while (1) {*/
-    /*SPI_EnableFpga();*/
+    /*SPI_EnableFileIO();*/
     /*c1 = SPI(0); // write request signal*/
     /*c2 = SPI(0); // track number (cylinder & head)*/
     /*if (!(c1 & CMD_WRTRK))*/
@@ -480,15 +480,15 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
       /*c3 = SPI(0);*/
       /*c4 = SPI(0);*/
       /*if (c3 == 0x44 && c4 == 0x89) {*/
-        /*SPI_DisableFpga();*/
+        /*SPI_DisableFileIO();*/
         /*if (FDD_DEBUG)*/
           /*DEBUG(1,"#SYNC");*/
         /*return 1;*/
       /*}*/
     /*}*/
-    /*SPI_DisableFpga();*/
+    /*SPI_DisableFileIO();*/
   /*}*/
-  /*SPI_DisableFpga();*/
+  /*SPI_DisableFileIO();*/
   /*return 0;*/
 /*}*/
 /*}}}*/
@@ -503,7 +503,7 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
   /*uint8_t error = 0;*/
 
   /*while (1) {*/
-    /*SPI_EnableFpga();*/
+    /*SPI_EnableFileIO();*/
     /*c1 = SPI(0); // write request signal*/
     /*c2 = SPI(0); // track number (cylinder & head)*/
     /*if (!(c1 & CMD_WRTRK))*/
@@ -590,7 +590,7 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
          /*break;*/
       /*}*/
 
-      /*SPI_DisableFpga();*/
+      /*SPI_DisableFileIO();*/
       /*return 1;*/
     /*} else if ((c3 & 0x80) == 0) {*/
       /*// not enough data for header and write dma is not active*/
@@ -598,9 +598,9 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
       /*break;*/
     /*}*/
 
-    /*SPI_DisableFpga();*/
+    /*SPI_DisableFileIO();*/
   /*}*/
-  /*SPI_DisableFpga();*/
+  /*SPI_DisableFileIO();*/
 
   /*if (error) {*/
     /*ERROR("GetHeader: error %u", error);*/
@@ -621,7 +621,7 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
 
   /*uint8_t error = 0;*/
   /*while (1) {*/
-    /*SPI_EnableFpga();*/
+    /*SPI_EnableFileIO();*/
     /*c1 = SPI(0); // write request signal*/
     /*c2 = SPI(0); // track number (cylinder & head)*/
     /*if (!(c1 & CMD_WRTRK))*/
@@ -697,7 +697,7 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
          /*break;*/
        /*}*/
 
-       /*SPI_DisableFpga();*/
+       /*SPI_DisableFileIO();*/
        /*return 1;*/
      /*} else if ((c3 & 0x80) == 0) {*/
        /*// not enough data in fifo and write dma is not active*/
@@ -705,9 +705,9 @@ void FDD_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track, uint8_t 
        /*break;*/
      /*}*/
 
-    /*SPI_DisableFpga();*/
+    /*SPI_DisableFileIO();*/
   /*}*/
-  /*SPI_DisableFpga();*/
+  /*SPI_DisableFileIO();*/
 
   /*if (error) {*/
     /*ERROR("GetData: error %u", error);*/
@@ -802,7 +802,7 @@ void FDD_Handle_0x00(uint8_t status) // generic
   fddTYPE* drive = NULL;
   uint32_t act_size = 0;
 
-  SPI_EnableFpga();
+  SPI_EnableFileIO();
   SPI(FILEIO_FD_CMD_R | 0x0);
   SPI(0x00); // dummy
   size  =  SPI(0);
@@ -811,7 +811,7 @@ void FDD_Handle_0x00(uint8_t status) // generic
   addr |= (SPI(0) << 8);
   addr |= (SPI(0) << 16);
   addr |= (SPI(0) << 24);
-  SPI_DisableFpga();
+  SPI_DisableFileIO();
 
   FDD_FileIO_WriteStat(FD_STAT_REQ_ACK); // ack
 
@@ -860,10 +860,10 @@ void FDD_Handle_0x00(uint8_t status) // generic
     if (dir) { // write
       // request should not be asserted if data is not ready
 
-      SPI_EnableFpga();
+      SPI_EnableFileIO();
       SPI(FILEIO_FD_FIFO_R);
       SPI_ReadBufferSingle(FDD_fBuf, cur_size);
-      SPI_DisableFpga();
+      SPI_DisableFileIO();
 
       /*DumpBuffer(FDD_fBuf,cur_size);*/
 
@@ -881,10 +881,10 @@ void FDD_Handle_0x00(uint8_t status) // generic
       /*DEBUG(1,"FDD:bytes read:%04X",act_size);*/
       /*DumpBuffer(FDD_fBuf,cur_size);*/
 
-      SPI_EnableFpga();
+      SPI_EnableFileIO();
       SPI(FILEIO_FD_FIFO_W);
       SPI_WriteBufferSingle(FDD_fBuf, act_size);
-      SPI_DisableFpga();
+      SPI_DisableFileIO();
 
       if (act_size != cur_size) {
         FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_TRUNC_ERR); // truncated
@@ -934,7 +934,7 @@ void FDD_Handle_0x01(uint8_t status) // amiga
 
   do {
 
-  SPI_EnableFpga();
+  SPI_EnableFileIO();
   SPI(FILEIO_FD_CMD_R | 0x0);
   SPI(0x00); // dummy
 
@@ -942,7 +942,7 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   track    = SPI(0);
   dsksync  = SPI(0) << 8;
   dsksync |= SPI(0);
-  SPI_DisableFpga();
+  SPI_DisableFileIO();
 
 
   // move drive validation out of request loop
@@ -960,7 +960,7 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   }
 
   if (track >= drive->tracks) {
-    ERROR("Illegal track %u read!", drive->track);
+    WARNING("Illegal track %u read!", track);
     track = drive->tracks - 1;
   }
 
@@ -996,28 +996,28 @@ void FDD_Handle_0x01(uint8_t status) // amiga
   FF_Read(drive->fSource, 512, 1, FDD_fBuf);
 
   // send sector
-  SPI_EnableFpga();
+  SPI_EnableFileIO();
   SPI(FILEIO_FD_FIFO_W);
   FDD_SendAmigaSector(FDD_fBuf, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);
-  SPI_DisableFpga();
+  SPI_DisableFileIO();
 
   if (sector == LAST_SECTOR)
   {
 
     // send gap
 
-    SPI_EnableFpga();
+    SPI_EnableFileIO();
     SPI(FILEIO_FD_FIFO_W | 0x1);
     SPI(0xAA);
     SPI(0xAA);
-    SPI_DisableFpga();
+    SPI_DisableFileIO();
 
-    SPI_EnableFpga();
+    SPI_EnableFileIO();
     SPI(FILEIO_FD_FIFO_W);
     i = GAP_SIZE-2;
     while (i--)
       SPI(0xAA);
-    SPI_DisableFpga();
+    SPI_DisableFileIO();
   }
 
   FDD_FileIO_WriteStat(FD_STAT_TRANS_ACK_OK); // ok
@@ -1086,25 +1086,25 @@ void FDD_InsertInit_0x00(uint8_t drive_number)
   fddTYPE* drive = &fdf[drive_number];
   uint32_t size = drive->fSource->Filesize;
 
-  SPI_EnableFpga();
+  SPI_EnableFileIO();
   SPI(FILEIO_FD_STAT_W);
   SPI(0x00); // clear status
-  SPI_DisableFpga();
+  SPI_DisableFileIO();
 
   // select drive
-  SPI_EnableFpga();
+  SPI_EnableFileIO();
   SPI(FILEIO_FD_CMD_W | 0x0);
   SPI(drive_number);
-  SPI_DisableFpga();
+  SPI_DisableFileIO();
 
   // write file size
-  SPI_EnableFpga();
+  SPI_EnableFileIO();
   SPI(FILEIO_FD_CMD_W | 0x4);
   SPI((uint8_t)(size      ));
   SPI((uint8_t)(size >>  8));
   SPI((uint8_t)(size >> 16));
   SPI((uint8_t)(size >> 24));
-  SPI_DisableFpga();
+  SPI_DisableFileIO();
 
 }
 
@@ -1142,10 +1142,10 @@ void FDD_Insert(uint8_t drive_number, char *path)
       FDD_InsertParse_Generic(drive);
     }
 
-    SPI_EnableFpga();
+    SPI_EnableFileIO();
     SPI(FILEIO_FD_STAT_W);
     SPI(0x00); // clear status
-    SPI_DisableFpga();
+    SPI_DisableFileIO();
 
     // do request read to find out FDD core request type
     // any data to send to core?

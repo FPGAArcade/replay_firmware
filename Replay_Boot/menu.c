@@ -1,10 +1,12 @@
 /** @file menu.c */
 
-#include "config.h"
+#include "menu.h"
+
 #include "osd.h"
 #include "hardware.h"
-#include "menu.h"
 #include "filesel.h"
+#include "fileio_fdd.h"
+#include "fileio_hdd.h"
 #include "messaging.h"
 
 // ==============================================

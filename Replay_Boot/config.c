@@ -8,8 +8,7 @@
 #include "card.h"
 #include "hardware.h"
 #include "twi.h"
-#include "fileio_fdd.h"
-#include "fileio_hdd.h"
+#include "fileio.h"
 #include "menu.h"
 
 #include "messaging.h"
@@ -1195,17 +1194,18 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             if (entries==2)
               unit = valueList[1].intval;
 
-            if (unit >= CHB_MAX_NUM) {
-              DEBUG(1,"Illegal FileIO ChB number")
-            } else {
+            if (unit < FCH_MAX_NUM) {
               if (strlen(valueList[0].strval)) {
                 char fullname[FF_MAX_PATH];
                 // prepare filename
                 sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
                 DEBUG(1,"HDD file %s", fullname);
-                HDD_Insert(unit, fullname);
+                FileIO_FCh_Insert(1,unit, fullname);
               };
+            } else {
+              DEBUG(1,"Illegal FileIO ChB number")
             };
+
           }
         }
 
@@ -1295,11 +1295,11 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   _strlcpy(currentStatus->fileio_chb_ext,"HDF",4);
 
   // update status (all unmounted)
-  FDD_UpdateDriveStatus();
-  FDD_SetDriver(currentStatus->fileio_cha_drv); // temp
+  FileIO_FCh_UpdateDriveStatus(0);
+  FileIO_FCh_SetDriver(0,currentStatus->fileio_cha_drv); // temp
 
-  HDD_UpdateDriveStatus();
-  HDD_SetDriver(currentStatus->fileio_chb_drv); // temp
+  FileIO_FCh_UpdateDriveStatus(1);
+  FileIO_FCh_SetDriver(1,currentStatus->fileio_chb_drv); // temp
 
   // PARSE INI FILE
   if (currentStatus->fs_mounted_ok) {

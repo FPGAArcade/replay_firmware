@@ -5,8 +5,7 @@
 #include "osd.h"
 #include "hardware.h"
 #include "filesel.h"
-#include "fileio_fdd.h"
-#include "fileio_hdd.h"
+#include "fileio.h"
 #include "messaging.h"
 
 // ==============================================
@@ -27,8 +26,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     // fddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"fddselect") {
       if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
-        // use inserted flag here?
-        if (!FDD_Inserted(item->action_value)) {
+        if (!FileIO_FCh_GetInserted(0,item->action_value)) {
           // set only if still blank
           strcpy(item->selected_option->option_name,"<RETURN> to set");
         }
@@ -41,10 +39,10 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     if MATCH(item->action_name,"hddselect") {
       if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
 
-        if (!HDD_Inserted(item->action_value)) {
-          strcpy(item->selected_option->option_name,"<NOT MOUNTED>");
+        if (!FileIO_FCh_GetInserted(1,item->action_value)) {
+          strcpy(item->selected_option->option_name,"Not mounted");
         } else {
-          strncpy(item->selected_option->option_name, HDD_GetName(item->action_value), MAX_OPTION_STRING-1);
+          strncpy(item->selected_option->option_name, FileIO_FCh_GetName(1,item->action_value), MAX_OPTION_STRING-1);
         }
       } else {
         item->selected_option->option_name[0]=0;
@@ -87,13 +85,13 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     // fddselect,0...3 ----------------------------------
     if MATCH(item->action_name,"fddselect") {
       if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
-        if (FDD_Inserted(item->action_value)) {
+        if (FileIO_FCh_GetInserted(0,item->action_value)) {
           // deselect file
           strcpy(item->selected_option->option_name,"<RETURN> to set");
           item->selected_option=NULL;
 
           // EJECT
-          FDD_Eject(item->action_value);
+          FileIO_FCh_Eject(0,item->action_value);
 
           return 1;
         } else {
@@ -238,9 +236,9 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       char file_path[FF_MAX_PATH] = "";
       sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
 
-      FDD_Insert(item->action_value, file_path);
+      FileIO_FCh_Insert(0,item->action_value, file_path);
 
-      strncpy(item->option_list->option_name, FDD_GetName(item->action_value), MAX_OPTION_STRING-1);
+      strncpy(item->option_list->option_name, FileIO_FCh_GetName(0,item->action_value), MAX_OPTION_STRING-1);
       item->option_list->option_name[MAX_OPTION_STRING-1]=0;
 
       current_status->show_menu=1;
@@ -347,8 +345,9 @@ void MENU_init_ui(status_t *current_status)
   OSD_Clear();
   OSD_SetPage(1);
   OSD_Clear();
+
   OSD_SetDisplay(0);
-  OSD_SetPage(0);
+  OSD_SetPage(1);
 
   // clean up display flags
   current_status->update=0;
@@ -385,12 +384,14 @@ void _MENU_update_ui(status_t *current_status)
 
   // clear OSD area and set the minimum header/footer lines we always need
   OSD_Clear();
-  OSD_Write  (0,    "      ***              ***      ", 0);
-  OSD_WriteRC(1, 0, "                                ", 0, 0, 0x01);
+  OSD_Write  ( 0,    "      ***              ***      ", 0);
+  OSD_WriteRC( 1, 0, "                                ", 0, 0, 0x01);
   OSD_WriteRC(14, 0, "                                ", 0, 0, 0x01);
 
   if (current_status->show_status) {
+    //
     // STATUS SCREEN
+    //
     int i,j;
 
     // print status header
@@ -431,8 +432,9 @@ void _MENU_update_ui(status_t *current_status)
     OSD_WriteRC(MENU_STATUS, 0, " LEFT/RIGHT - F12/replaybtn/ESC", 0, 0x0f, 0);
   }
   else if (current_status->popup_menu) {
+    //
     // POP UP MESSAGE HANDLER
-
+    //
     uint8_t startline=(16-MENU_POPUP_HEIGHT)>>1;
     uint8_t startcol=(32-MENU_POPUP_WIDTH)>>1;
     uint8_t row;
@@ -466,7 +468,9 @@ void _MENU_update_ui(status_t *current_status)
 
   }
   else {
+    //
     // SETUP and FILEBROWSER HANDLER
+    //
     menuitem_t *pItem=current_status->item_first;
     uint8_t line=0, row=2;
 
@@ -493,22 +497,25 @@ void _MENU_update_ui(status_t *current_status)
         memset(s, ' ', OSDMAXLEN); // clear line buffer
         entry = Filesel_GetLine(current_status->dir_scan, i);
         filename = entry.FileName;
-
         len = strlen(filename);
+
         if (i==sel) {
           // FIX ME for really long names
-          if (len > OSDLINELEN) { // enable scroll if long name
-            OSD_SetHOffset(i+2, 0, 0);
-            current_status->scroll_pos=i+2;
-          }
+          /*if (len > OSDLINELEN) { // enable scroll if long name*/
+            /*len = OSDLINELEN;*/
+            /*OSD_SetHOffset(i+2, 0, 0);*/
+            /*current_status->scroll_pos=i+2;*/
+          //}
         }
         if (entry.Attrib & FF_FAT_ATTR_DIR) {
           // a directory
-          strncpy(s + 1, filename, len);
+          /*strncpy (s + 1, filename, OSDMAXLEN);*/
+          strncpy (s, filename, OSDMAXLEN);
           OSD_WriteRC(i+2, 0, s, i==sel, 0xA, 0);
         } else {
           // a file
-          strncpy(s + 1, filename, len);
+          /*strncpy (s + 1, filename, OSDMAXLEN);*/
+          strncpy (s, filename, OSDMAXLEN);
           OSD_WriteRC(i+2, 0, s, i==sel, 0xB, 0);
         }
 
@@ -520,7 +527,9 @@ void _MENU_update_ui(status_t *current_status)
       // print status line
       OSD_WriteRC(MENU_STATUS, 0, " UP/DOWN/RET/ESC - F12/replaybtn",0,0x0f,0);
     } else {
-      // handling replay setup part
+      //
+      // handling replay setup part (general menus)
+      //
       OSD_WriteRC(0, 10, "REPLAY SETUP", 0, 0xC, 0);
       if (!pItem) {
         // print  "selected" menu title (we pan through menus)
@@ -535,15 +544,24 @@ void _MENU_update_ui(status_t *current_status)
       }
       // show the item_name list to browse
       while (pItem && ((line++)<(MENU_HEIGHT-1))) {
-        OSD_WriteRC(row++, MENU_ITEM_INDENT, pItem->item_name, 0, 0xB, 0);
+        OSD_WriteRCt(row++, MENU_ITEM_INDENT, pItem->item_name, MENU_OPTION_INDENT-MENU_ITEM_INDENT, 0, 0xB, 0);
+
+        // temp bodge
+        if MATCH(pItem->action_name,"fddselect") {
+          if (FileIO_FCh_GetReadOnly(0,pItem->action_value)) {
+            OSD_WriteRC(row-1, 0, "R", 0, 0xA, 0); // Green>
+          }
+        }
+
         // no selection yet set, set to first option in list as default
         if (!pItem->selected_option) pItem->selected_option=pItem->option_list;
         // check for action before displaying
         _MENU_action(pItem,current_status,0);
         // check if we really have an option_name, otherwise show placeholder
         if (pItem->selected_option->option_name[0])
-          OSD_WriteRC(row-1, MENU_OPTION_INDENT,
+          OSD_WriteRCt(row-1, MENU_OPTION_INDENT,
                       pItem->selected_option->option_name,
+                      MENU_WIDTH-MENU_OPTION_INDENT, // len limit
                       pItem==current_status->menu_item_act?1:0, 0xA, 0);
         else
           OSD_WriteRC(row-1, MENU_OPTION_INDENT, " ",
@@ -882,10 +900,10 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
   // update menu if needed
   if (update) {
     _MENU_update_ui(current_status);
-    // for testing pg 0 is enabled, in pg 1 scroll seems to be broken (in FPGA)
-    // --> can check this by setting next two parameters directly to 1
-    OSD_SetDisplay(0); //  OSD_GetPage());
-    OSD_SetPage(0); //     OSD_NextPage());
+
+    OSD_SetDisplay(OSD_GetPage()); //  OSD_GetPage());
+    OSD_SetPage(OSD_NextPage());   //  OSD_NextPage());
+
     scroll_timer = Timer_Get(20); // restart scroll timer
     scroll_offset = 0; // reset scroll position
     if ((current_status->show_menu || current_status->popup_menu ||
@@ -898,10 +916,10 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
           scroll_timer = Timer_Get(20); // restart scroll timer
           scroll_offset= (scroll_offset+1) & ((OSDMAXLEN<<4)-1); // scrolling
-          OSD_WaitVBL();
-          OSD_SetHOffset(current_status->scroll_pos,
-                         (uint8_t) (scroll_offset >> 4),
-                         (uint8_t) (scroll_offset & 0xF));
+          /*OSD_WaitVBL();*/
+          /*OSD_SetHOffset(current_status->scroll_pos,*/
+                         /*(uint8_t) (scroll_offset >> 4),*/
+                         /*(uint8_t) (scroll_offset & 0xF));*/
           DEBUG(3, "Offset: %d",scroll_offset);
       }
     }

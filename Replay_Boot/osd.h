@@ -4,7 +4,7 @@
 #include "board.h"
 //#define OSD_DEBUG
 
-#define OSDMAXLEN         64          // for printing
+#define OSDMAXLEN         32          // (64 if both pages are used)
 
 // some constants
 #define OSDNLINE          16          // number of lines of OSD
@@ -82,7 +82,8 @@
 /*functions*/
 void OSD_Write(uint8_t row, const char *s, uint8_t invert);
 void OSD_WriteRC(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint8_t fg_col, uint8_t bg_col );
-void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint8_t fg_col, uint8_t bg_col, uint8_t clear );
+void OSD_WriteRCt(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, uint8_t fg_col, uint8_t bg_col ); // truncate
+void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, uint8_t fg_col, uint8_t bg_col, uint8_t clear );
 
 void OSD_SetHOffset(uint8_t row, uint8_t col, uint8_t pix);
 void OSD_SetVOffset(uint8_t row);

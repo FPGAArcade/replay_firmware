@@ -25,6 +25,9 @@
 /// ERROR MESSAGES, can't be disabled
 #define ERROR(fmt...) MSG_error(fmt)
 
+/// comment out to remove asserts
+#define ASSERT 1
+
 /** @brief INIT MESSAGE SYSTEM
 
     Set up structure required for OSD, call once after reset.
@@ -71,5 +74,14 @@ void MSG_warning(char *fmt, ...);
     @param fmt printf conform arguments
 */
 void MSG_error(char *fmt, ...);
+
+// ASSERT
+#ifdef ASSERT
+  void AssertionFailure(char *exp, char *file, char *baseFile, int line);
+  #define Assert(exp)  if (exp) ; \
+        else AssertionFailure( #exp, __FILE__, __BASE_FILE__, __LINE__ )
+#else
+  #define Assert(exp)
+#endif
 
 #endif

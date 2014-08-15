@@ -6,7 +6,6 @@
 #include <ctype.h>
 #include <string.h>
 //
-static char null_string[] = "";
 
 // FIX FOR COMMON NAMEING SCHEME
 #define BYTETOBINARYPATTERN4 "%d%d%d%d"

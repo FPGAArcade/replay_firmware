@@ -138,3 +138,18 @@ void MSG_error(char *fmt, ...)
   asm("ldr r3, = 0x00000000\n");
   asm("bx  r3\n");
 }
+
+#ifdef ASSERT
+
+void AssertionFailure(char *exp, char *file, char *baseFile, int line)
+{
+    if (!strcmp(file, baseFile)) {
+      if (msg_serial) printf("Assert(%s) failed in file %s, line %d\r\n", exp, file, line);
+    } else {
+      if (msg_serial) printf("Assert(%s) failed in file %s (included from %s), line %d\r\n", 
+        exp, file, baseFile, line);
+    }
+}
+
+#endif
+

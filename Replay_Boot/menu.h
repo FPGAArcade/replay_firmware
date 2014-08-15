@@ -21,6 +21,9 @@
 /** indentation for options of actual item */
 #define MENU_OPTION_INDENT 17
 
+/** menu total width */
+#define MENU_WIDTH 32
+
 /** pop-up window height */
 #define MENU_POPUP_HEIGHT 5
 

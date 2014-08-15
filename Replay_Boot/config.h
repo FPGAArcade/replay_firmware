@@ -13,7 +13,8 @@
 #define MAX_MENU_STRING (32+1)
 
 /** maximum length of an item string to be used in the INI file
-    including limiter character - usually half OSD width is fine  */
+    including limiter character - usually half OSD width is fine 
+    Note, the indent is 2 which limits both item and option to be 15 */
 #define MAX_ITEM_STRING (16+1)
 
 /** maximum length of an option string to be used in the INI file

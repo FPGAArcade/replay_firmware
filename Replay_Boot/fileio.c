@@ -1,10 +1,16 @@
-
-// MCh is memory chanel <> DRAM
-
 #include "fileio.h"
+#include "fileio_drv.h"
 #include "hardware.h"
 #include "messaging.h"
 
+extern FF_IOMAN *pIoman;
+
+fch_arr_t fch_handle;
+uint8_t   fch_driver[2] = {0,0};
+
+//
+// MCh is memory chanel <> DRAM
+//
 
 uint8_t FileIO_MCh_WaitStat(uint8_t mask, uint8_t wanted)
 {
@@ -349,4 +355,198 @@ uint8_t FileIO_MCh_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size)
   return (0) ;// no error
 }
 
+//
+// FCh is file channel, used for floppy, hard disk etc
+//
+// support functions
+//
+// local, assume ch is validated
+inline uint8_t FCH_CMD(uint8_t ch, uint8_t cmd)
+{
+  if (ch == 0)
+    return cmd;
+  else
+    return cmd + 0x40;
+}
+
+inline uint8_t FileIO_FCh_GetStat(uint8_t ch)
+{
+  uint8_t stat;
+  SPI_EnableFileIO();
+  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_STAT_R));
+  stat = SPI(0);
+  SPI_DisableFileIO();
+  return stat;
+}
+
+inline void FileIO_FCh_WriteStat(uint8_t ch, uint8_t stat)
+{
+  SPI_EnableFileIO();
+  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_STAT_W));
+  SPI(stat);
+  SPI_DisableFileIO();
+}
+
+inline uint8_t FileIO_FCh_WaitStat(uint8_t ch, uint8_t mask, uint8_t wanted)
+{
+  uint8_t  stat;
+  uint32_t timeout = Timer_Get(500);      // 500 ms timeout
+  do {
+    stat = FileIO_FCh_GetStat(ch);
+
+    if (Timer_Check(timeout)) {
+      WARNING("FCh:Waitstat timeout.");
+      return (1);
+    }
+  } while ((stat & mask) != wanted);
+  return (0);
+}
+
+//
+// FCh interface
+//
+void FileIO_FCh_Process(uint8_t ch)
+{
+  Assert(ch < 2);
+  uint8_t status = FileIO_FCh_GetStat(ch);
+  if (status & FILEIO_REQ_ACT) {
+    ACTLED_ON;
+    // do stuff
+    switch (fch_driver[ch]) {
+      /*case 0x0: FDD_InsertInit_0x00(drive_number); break;*/
+      case 0x1: FileIO_Drv01_Process(ch, &fch_handle, status); break;
+      default : MSG_warning("FCh:Unknown driver");
+    }
+
+    ACTLED_OFF;
+  }
+}
+
+void FileIO_FCh_UpdateDriveStatus(uint8_t ch)
+{
+  Assert(ch < 2);
+  uint8_t status = 0;
+  for (int i=0; i<FCH_MAX_NUM; ++i) {
+    if (fch_handle[ch][i].status & FILEIO_STAT_INSERTED) status |= (0x01<<i);
+    if (fch_handle[ch][i].status & FILEIO_STAT_WRITABLE) status |= (0x10<<i);
+  }
+  DEBUG(1,"FCh:update status Ch:%d %02X",ch, status);
+  if (ch==0)
+    OSD_ConfigSendFileIO_CHA(status);
+  else
+    OSD_ConfigSendFileIO_CHB(status);
+}
+
+void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char *path)
+{
+  Assert(ch < 2);
+  Assert(drive_number < FCH_MAX_NUM);
+  DEBUG(1,"FCh:Insert Ch:%d;Drive:%d : <%s> ", ch,drive_number,path);
+
+  fch_t* drive = &fch_handle[ch][drive_number];
+  drive->status = FILEIO_STAT_WRITABLE; // initial assumption
+  drive->name[0] = '\0';
+
+  // try to open file.
+  // **ADD CHECK IF SD CARD IS WRITE PROTECTED
+  drive->fSource = FF_Open(pIoman, path, FF_MODE_READ | FF_MODE_WRITE, NULL); // will not open if file is read only
+  if (!drive->fSource) {
+    drive->status  = 0; // clear writable
+    drive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);
+    if (!drive->fSource) {
+      MSG_warning("FCh:Could not open file."); // give up
+      return;
+    }
+  }
+
+  FileIO_FCh_WriteStat(ch, 0x00); // clear status
+  char* pFile_ext = GetExtension(path);
+
+  uint8_t fail=0;
+  // call driver insert
+  DEBUG(1,"FCh:driver %d", fch_driver[ch]);
+
+  switch (fch_driver[ch]) {
+    /*case 0x0: FDD_InsertInit_0x00(drive_number); break;*/
+    case 0x1: fail=FileIO_Drv01_InsertInit(ch, drive, pFile_ext); break;
+    default : fail=1; MSG_warning("FCh:Unknown driver");
+  }
+  if (fail) {
+    FF_Close(drive->fSource);
+    return;
+  }
+
+  // if ok
+  FileDisplayName(drive->name, MAX_DISPLAY_FILENAME, path);
+  drive->status |= FILEIO_STAT_INSERTED;
+  FileIO_FCh_UpdateDriveStatus(ch);
+  DEBUG(1,"FCh:Inserted <%s>", drive->name);
+}
+
+void FileIO_FCh_Eject(uint8_t ch, uint8_t drive_number)
+{
+  Assert(ch < 2);
+  Assert(drive_number < FCH_MAX_NUM);
+  DEBUG(1,"FCh:Ejecting Ch:%d;Drive:%d",ch,drive_number);
+
+  fch_t* drive = &fch_handle[ch][drive_number];
+  FF_Close(drive->fSource);
+
+  if (drive->pDesc) {
+    free(drive->pDesc);
+    }
+  else
+    DEBUG(1,"FCh:Eject desc pointer is null. Odd.");
+
+  drive->status = 0;
+  drive->name[0] = '\0';
+  FileIO_FCh_UpdateDriveStatus(ch);
+}
+
+uint8_t FileIO_FCh_GetInserted(uint8_t ch,uint8_t drive_number)
+{
+  Assert(ch < 2);
+  Assert(drive_number < FCH_MAX_NUM);
+  return (fch_handle[ch][drive_number].status & FILEIO_STAT_INSERTED);
+}
+
+uint8_t FileIO_FCh_GetReadOnly(uint8_t ch,uint8_t drive_number) // and inserted!
+{
+  Assert(ch < 2);
+  Assert(drive_number < FCH_MAX_NUM);
+  if (fch_handle[ch][drive_number].status & FILEIO_STAT_INSERTED) {
+    if (!(fch_handle[ch][drive_number].status & FILEIO_STAT_WRITABLE)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+char* FileIO_FCh_GetName(uint8_t ch,uint8_t drive_number)
+{
+  Assert(ch < 2);
+  Assert(drive_number < FCH_MAX_NUM);
+  return (fch_handle[ch][drive_number].name);
+}
+
+void FileIO_FCh_SetDriver(uint8_t ch,uint8_t type)
+{
+  Assert(ch < 2);
+  DEBUG(1,"FCh:SetDriver Ch:%d Type:%02X",ch,type);
+  fch_driver[ch] = type;
+}
+
+void FileIO_FCh_Init(void)
+{
+  DEBUG(1,"FCh:Init");
+  uint32_t i,j;
+  for (j=0; j<2; j++) {
+    for (i=0; i<FCH_MAX_NUM; i++) {
+      fch_handle[j][i].status  = 0;
+      fch_handle[j][i].fSource = NULL;
+      fch_handle[j][i].pDesc   = NULL;
+      fch_handle[j][i].name[0] = '\0';
+    }
+  }
+}
 

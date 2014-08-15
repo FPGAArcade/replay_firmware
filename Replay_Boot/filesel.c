@@ -4,7 +4,7 @@
 
 extern FF_IOMAN *pIoman;
 
-//static char null_string[] = "";
+/*static char null_string[] = "";*/
 FF_DIRENT dNull;
 
 /*

@@ -7,9 +7,7 @@
 #include "fpga.h"
 #include "twi.h"
 #include "fullfat.h"
-
-#include "fileio_fdd.h"
-#include "fileio_hdd.h"
+#include "fileio.h"
 #include "iniparser.h"
 #include "config.h"
 #include "menu.h"
@@ -88,8 +86,7 @@ int main(void)
   DEBUG(1,"");
 
   // start up virtual drives
-  FDD_Init();
-  HDD_Init();
+  FileIO_FCh_Init();
 
   // Loop forever
   while (TRUE) {
@@ -301,9 +298,9 @@ int main(void)
 
         // Handle virtual drives
         if (current_status.fileio_cha_ena !=0)
-          FDD_Handle();
+          FileIO_FCh_Process(0);
         if (current_status.fileio_chb_ena !=0)
-          HDD_Handle();
+          FileIO_FCh_Process(1);
       }
     }
 

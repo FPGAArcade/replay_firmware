@@ -26,21 +26,29 @@ const char keycode_table[128] =
 void OSD_Write(uint8_t row, const char *s, uint8_t invert)
 {
   // clears until end of line
-  OSD_WriteBase(row, 0 , s, invert, 0xF, 0, 1);
+  OSD_WriteBase(row, 0 , s, 0, invert, 0xF, 0, 1);
 }
 
 void OSD_WriteRC(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint8_t fg_col, uint8_t bg_col )
 {
   //
-  OSD_WriteBase(row, col, s, invert, fg_col, bg_col, 0);
+  OSD_WriteBase(row, col, s, 0, invert, fg_col, bg_col, 0);
 }
 
-// write a null-terminated string <s> to the OSD buffer starting at line row, col
-void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint8_t fg_col, uint8_t bg_col, uint8_t clear )
+void OSD_WriteRCt(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, uint8_t fg_col, uint8_t bg_col ) // truncate
+{
+  //
+  OSD_WriteBase(row, col, s, maxlen, invert, fg_col, bg_col, 0);
+}
+
+
+// write a null-terminated string <s> to the OSD buffer starting at line row, col. If maxlen non zero, truncate string to maxlen chars
+void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, uint8_t fg_col, uint8_t bg_col, uint8_t clear )
 {
     uint16_t i;
     uint8_t b;
     uint8_t attrib = (fg_col & 0xF) | ((bg_col & 0xF) << 4);
+    /*uint8_t col_track;*/
 
     if (invert)
       attrib = (fg_col & 0xF) | (0x4 << 4);
@@ -59,6 +67,7 @@ void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint
     SPI(col + osd_page * OSDLINELEN);
 
     i = 0;
+    /*col_track = col;*/
     // send all characters in string to OSD
     while (1)
     {
@@ -78,15 +87,19 @@ void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint
           SPI(col + osd_page * OSDLINELEN);
         }
         else { // normal character
+          /*if (col_track >= OSDLINELEN) {*/
+           /*DEBUG(1,"OSD WRAP row %d", row);*/
+          /*}*/
           SPI(b);
           SPI(attrib); // attrib
           i++;
+          if (i==maxlen) break;
+          col_track++;
         }
     }
 
     if (clear) {
       for (; i < OSDLINELEN; i++) { // clear end of line
-         /*SPI(0x20 | (invert ? 0x80 : 0) );*/
          SPI(0x20);
          SPI(attrib);
       }
@@ -148,7 +161,7 @@ void OSD_WriteScroll(uint8_t row, uint8_t col, const char *s, uint8_t invert, ui
   osd_vscroll++;
   OSD_WaitVBL();
   OSD_SetVOffset(osd_vscroll);
-  OSD_WriteBase( (row + osd_vscroll) & 0xF,col,s,invert,fg_col,bg_col,clear);
+  OSD_WriteBase( (row + osd_vscroll) & 0xF,col,s,0,invert,fg_col,bg_col,clear);
 }
 
 // clear OSD frame buffer

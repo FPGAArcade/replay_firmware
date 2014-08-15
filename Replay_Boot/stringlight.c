@@ -1,6 +1,7 @@
 
 #include "stringlight.h"
 
+static char null_string[] = "";
 
 void _strncpySpace(char* pStr1, const char* pStr2, unsigned long nCount)
 {

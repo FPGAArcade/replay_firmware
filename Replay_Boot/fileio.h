@@ -4,6 +4,8 @@
 #include "board.h"
 #include "fullfat.h"
 
+#define FILEIO_PROCESS_LIMIT   0x08
+
 #define FILEIO_STAT_INSERTED 0x01 /*disk is inserted*/
 #define FILEIO_STAT_WRITABLE 0x02 /*disk is writable*/
 

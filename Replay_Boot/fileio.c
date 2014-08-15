@@ -413,7 +413,7 @@ void FileIO_FCh_Process(uint8_t ch)
     ACTLED_ON;
     // do stuff
     switch (fch_driver[ch]) {
-      /*case 0x0: FDD_InsertInit_0x00(drive_number); break;*/
+      case 0x0: FileIO_Drv00_Process(ch, &fch_handle, status); break;
       case 0x1: FileIO_Drv01_Process(ch, &fch_handle, status); break;
       default : MSG_warning("FCh:Unknown driver");
     }
@@ -467,8 +467,8 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char *path)
   DEBUG(1,"FCh:driver %d", fch_driver[ch]);
 
   switch (fch_driver[ch]) {
-    /*case 0x0: FDD_InsertInit_0x00(drive_number); break;*/
-    case 0x1: fail=FileIO_Drv01_InsertInit(ch, drive, pFile_ext); break;
+    case 0x0: fail=FileIO_Drv00_InsertInit(ch, drive_number, drive, pFile_ext); break;
+    case 0x1: fail=FileIO_Drv01_InsertInit(ch, drive_number, drive, pFile_ext); break;
     default : fail=1; MSG_warning("FCh:Unknown driver");
   }
   if (fail) {

@@ -90,6 +90,7 @@ SRC += fpga.c
 SRC += twi.c
 SRC += filesel.c
 SRC += config.c
+SRC += fileio_drv00_generic.c
 SRC += fileio_drv01_floppy.c
 SRC += fileio.c
 SRC += osd.c

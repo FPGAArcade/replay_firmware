@@ -94,7 +94,7 @@ void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint
           SPI(attrib); // attrib
           i++;
           if (i==maxlen) break;
-          col_track++;
+          /*col_track++;*/
         }
     }
 

@@ -3,7 +3,7 @@
 #include "hardware.h"
 #include "messaging.h"
 
-const uint8_t FDD_DEBUG = 0;
+const uint8_t DRV01_DEBUG = 0;
 
 #define ADF_MAX_TRACKS (83*2)
 
@@ -144,7 +144,7 @@ void FileIO_Drv01_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track,
     SPI(*p++ | 0xAA);
 }
 
-void FileIO_Drv01_Process(uint8_t ch, fch_arr_t *handle, uint8_t status) // amiga
+void FileIO_Drv01_Process(uint8_t ch, fch_arr_t *pHandle, uint8_t status) // amiga
 {
   // add format check...
 
@@ -158,6 +158,8 @@ void FileIO_Drv01_Process(uint8_t ch, fch_arr_t *handle, uint8_t status) // amig
   uint16_t dsksync = 0;
   uint32_t offset  = 0;
   uint32_t i       = 0;
+
+  uint8_t  goes = FILEIO_PROCESS_LIMIT; // limit number of requests.
 
   do {
     dir          = (status >> 2) & 0x01; // high is write
@@ -183,7 +185,7 @@ void FileIO_Drv01_Process(uint8_t ch, fch_arr_t *handle, uint8_t status) // amig
 
     FileIO_FCh_WriteStat(ch, DRV01_STAT_REQ_ACK); // ack
 
-    fch_t* drive = (fch_t*) &handle[ch][drive_number]; // get base
+    fch_t* drive = (fch_t*) &pHandle[ch][drive_number]; // get base
     drv01_desc_t* pDesc = drive->pDesc;
 
     if (track >= pDesc->tracks) {
@@ -207,7 +209,7 @@ void FileIO_Drv01_Process(uint8_t ch, fch_arr_t *handle, uint8_t status) // amig
     // Prince of Persia: $4891
     // Commando: $A245
 
-    if (FDD_DEBUG)
+    if (DRV01_DEBUG)
       DEBUG(1,"Drv01:Process Ch%d Drive:%02X Dsksync:%04X Track:%02X Sector:%01X",ch,drive_number,dsksync,track,sector);
 
     // sector size hard coded as 512 bytes
@@ -247,22 +249,23 @@ void FileIO_Drv01_Process(uint8_t ch, fch_arr_t *handle, uint8_t status) // amig
     FileIO_FCh_WriteStat(ch, DRV01_STAT_TRANS_ACK_OK); // ok
     // any more to do?
     status = FileIO_FCh_GetStat(ch);
-  } while (status & FILEIO_REQ_ACT);
+    goes --;
+  } while ((status & FILEIO_REQ_ACT) && goes);
 
 }
 
-uint8_t FileIO_Drv01_InsertInit(uint8_t ch, fch_t* drive, char *ext)
+uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive, char *ext)
 {
   DEBUG(1,"Drv01:InsertInit");
 
-  drive->pDesc = calloc(1, sizeof(drv01_desc_t)); // 0 everything
-  drv01_desc_t* pDesc = drive->pDesc;
+  pDrive->pDesc = calloc(1, sizeof(drv01_desc_t)); // 0 everything
+  drv01_desc_t* pDesc = pDrive->pDesc;
 
   pDesc->format = (drv01_format_t)XXX;
   if (strnicmp(ext, "ADF",3) == 0) {
 
     pDesc->format = (drv01_format_t)ADF;
-    pDesc->file_size =  drive->fSource->Filesize;
+    pDesc->file_size =  pDrive->fSource->Filesize;
     uint16_t tracks = pDesc->file_size / (512*11);
     if (tracks > ADF_MAX_TRACKS) {
       MSG_warning("UNSUPPORTED ADF SIZE!!! Too many tracks: %d", tracks);

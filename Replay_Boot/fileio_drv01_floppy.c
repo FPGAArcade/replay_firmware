@@ -5,6 +5,7 @@
 
 const uint8_t DRV01_DEBUG = 0;
 
+// to do, tidy constants
 #define ADF_MAX_TRACKS (83*2)
 
 #define TRACK_SIZE 12668
@@ -144,7 +145,7 @@ void FileIO_Drv01_SendAmigaSector(uint8_t *pData, uint8_t sector, uint8_t track,
     SPI(*p++ | 0xAA);
 }
 
-void FileIO_Drv01_Process(uint8_t ch, fch_arr_t *pHandle, uint8_t status) // amiga
+void FileIO_Drv01_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t status) // amiga
 {
   // add format check...
 
@@ -185,8 +186,8 @@ void FileIO_Drv01_Process(uint8_t ch, fch_arr_t *pHandle, uint8_t status) // ami
 
     FileIO_FCh_WriteStat(ch, DRV01_STAT_REQ_ACK); // ack
 
-    fch_t* drive = (fch_t*) &pHandle[ch][drive_number]; // get base
-    drv01_desc_t* pDesc = drive->pDesc;
+    fch_t* pDrive = (fch_t*) &handle[ch][drive_number]; // get base
+    drv01_desc_t* pDesc = pDrive->pDesc;
 
     if (track >= pDesc->tracks) {
       DEBUG(0,"Illegal track %d read!", track); // no warning, happens quite a bit
@@ -216,12 +217,12 @@ void FileIO_Drv01_Process(uint8_t ch, fch_arr_t *pHandle, uint8_t status) // ami
     offset  = (512*11) * track;
     offset += (sector<<9);
 
-    if (FF_Seek(drive->fSource, offset, FF_SEEK_SET)) {
+    if (FF_Seek(pDrive->fSource, offset, FF_SEEK_SET)) {
       DEBUG(1,"Drv01:seek error");
       FileIO_FCh_WriteStat(ch, DRV01_STAT_TRANS_ACK_SEEK_ERR); // err
       return;
     }
-    FF_Read(drive->fSource, 512, 1, fbuf);
+    FF_Read(pDrive->fSource, 512, 1, fbuf);
 
     // send sector
     SPI_EnableFileIO();
@@ -263,9 +264,10 @@ uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
 
   pDesc->format = (drv01_format_t)XXX;
   if (strnicmp(ext, "ADF",3) == 0) {
-
-    pDesc->format = (drv01_format_t)ADF;
+    //
+    pDesc->format    = (drv01_format_t)ADF;
     pDesc->file_size =  pDrive->fSource->Filesize;
+    //
     uint16_t tracks = pDesc->file_size / (512*11);
     if (tracks > ADF_MAX_TRACKS) {
       MSG_warning("UNSUPPORTED ADF SIZE!!! Too many tracks: %d", tracks);

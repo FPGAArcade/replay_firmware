@@ -1,5 +1,4 @@
 
-
 #include "fileio_drv.h"
 #include "hardware.h"
 #include "messaging.h"
@@ -19,7 +18,7 @@ typedef struct
     uint32_t file_size;
 } drv00_desc_t;
 
-void FileIO_Drv00_Process(uint8_t ch, fch_arr_t *pHandle, uint8_t status) // amiga
+void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t status) // amiga
 {
   // file buffer
   uint8_t  fbuf[DRV00_BUF_SIZE];
@@ -45,7 +44,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_arr_t *pHandle, uint8_t status) // ami
       return;
     }
 
-    fch_t* drive = (fch_t*) &pHandle[ch][drive_number]; // get base
+    fch_t* pDrive = (fch_t*) &handle[ch][drive_number]; // get base
 
     SPI_EnableFileIO();
     SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
@@ -64,7 +63,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_arr_t *pHandle, uint8_t status) // ami
       DEBUG(1,"Drv00:warning large size request:%04X",size);
     }
 
-    if (FF_Seek(drive->fSource, addr, FF_SEEK_SET)) {
+    if (FF_Seek(pDrive->fSource, addr, FF_SEEK_SET)) {
       DEBUG(1,"FDD:seek error");
       FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_SEEK_ERR);
       return;
@@ -98,7 +97,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_arr_t *pHandle, uint8_t status) // ami
         SPI_DisableFileIO();
         /*DumpBuffer(FDD_fBuf,cur_size);*/
 
-        act_size = FF_Write(drive->fSource, cur_size, 1, fbuf);
+        act_size = FF_Write(pDrive->fSource, cur_size, 1, fbuf);
         if (act_size != cur_size) {
           DEBUG(1,"Drv00:!! Write Fail!!");
           FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_TRUNC_ERR); // truncated
@@ -106,7 +105,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_arr_t *pHandle, uint8_t status) // ami
         }
       } else {
         // enough faffing, do the read
-        act_size = FF_Read(drive->fSource, cur_size, 1, fbuf);
+        act_size = FF_Read(pDrive->fSource, cur_size, 1, fbuf);
         if (DRV00_DEBUG) DEBUG(1,"Drv00:bytes read:%04X",act_size);
         /*DumpBuffer(FDD_fBuf,cur_size);*/
 
@@ -179,5 +178,4 @@ uint8_t FileIO_Drv00_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
 
   return (0);
 }
-
 

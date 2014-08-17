@@ -5,7 +5,7 @@
 
 extern FF_IOMAN *pIoman;
 
-fch_arr_t fch_handle;
+fch_t fch_handle[2][FCH_MAX_NUM];
 uint8_t   fch_driver[2] = {0,0};
 
 //
@@ -412,9 +412,11 @@ void FileIO_FCh_Process(uint8_t ch)
   if (status & FILEIO_REQ_ACT) {
     ACTLED_ON;
     // do stuff
+    // note, the array is just a pointer passed ...
     switch (fch_driver[ch]) {
-      case 0x0: FileIO_Drv00_Process(ch, &fch_handle, status); break;
-      case 0x1: FileIO_Drv01_Process(ch, &fch_handle, status); break;
+      case 0x0: FileIO_Drv00_Process(ch, fch_handle, status); break;
+      case 0x1: FileIO_Drv01_Process(ch, fch_handle, status); break;
+      case 0x8: FileIO_Drv08_Process(ch, fch_handle, status); break;
       default : MSG_warning("FCh:Unknown driver");
     }
 
@@ -443,17 +445,17 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char *path)
   Assert(drive_number < FCH_MAX_NUM);
   DEBUG(1,"FCh:Insert Ch:%d;Drive:%d : <%s> ", ch,drive_number,path);
 
-  fch_t* drive = &fch_handle[ch][drive_number];
-  drive->status = FILEIO_STAT_WRITABLE; // initial assumption
-  drive->name[0] = '\0';
+  fch_t* pDrive = &fch_handle[ch][drive_number];
+  pDrive->status = FILEIO_STAT_WRITABLE; // initial assumption
+  pDrive->name[0] = '\0';
 
   // try to open file.
   // **ADD CHECK IF SD CARD IS WRITE PROTECTED
-  drive->fSource = FF_Open(pIoman, path, FF_MODE_READ | FF_MODE_WRITE, NULL); // will not open if file is read only
-  if (!drive->fSource) {
-    drive->status  = 0; // clear writable
-    drive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);
-    if (!drive->fSource) {
+  pDrive->fSource = FF_Open(pIoman, path, FF_MODE_READ | FF_MODE_WRITE, NULL); // will not open if file is read only
+  if (!pDrive->fSource) {
+    pDrive->status  = 0; // clear writable
+    pDrive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);
+    if (!pDrive->fSource) {
       MSG_warning("FCh:Could not open file."); // give up
       return;
     }
@@ -467,20 +469,21 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char *path)
   DEBUG(1,"FCh:driver %d", fch_driver[ch]);
 
   switch (fch_driver[ch]) {
-    case 0x0: fail=FileIO_Drv00_InsertInit(ch, drive_number, drive, pFile_ext); break;
-    case 0x1: fail=FileIO_Drv01_InsertInit(ch, drive_number, drive, pFile_ext); break;
+    case 0x0: fail=FileIO_Drv00_InsertInit(ch, drive_number, pDrive, pFile_ext); break;
+    case 0x1: fail=FileIO_Drv01_InsertInit(ch, drive_number, pDrive, pFile_ext); break;
+    case 0x8: fail=FileIO_Drv08_InsertInit(ch, drive_number, pDrive, pFile_ext); break;
     default : fail=1; MSG_warning("FCh:Unknown driver");
   }
   if (fail) {
-    FF_Close(drive->fSource);
+    FF_Close(pDrive->fSource);
     return;
   }
 
   // if ok
-  FileDisplayName(drive->name, MAX_DISPLAY_FILENAME, path);
-  drive->status |= FILEIO_STAT_INSERTED;
+  FileDisplayName(pDrive->name, MAX_DISPLAY_FILENAME, path);
+  pDrive->status |= FILEIO_STAT_INSERTED;
   FileIO_FCh_UpdateDriveStatus(ch);
-  DEBUG(1,"FCh:Inserted <%s>", drive->name);
+  DEBUG(1,"FCh:Inserted <%s>", pDrive->name);
 }
 
 void FileIO_FCh_Eject(uint8_t ch, uint8_t drive_number)
@@ -489,17 +492,17 @@ void FileIO_FCh_Eject(uint8_t ch, uint8_t drive_number)
   Assert(drive_number < FCH_MAX_NUM);
   DEBUG(1,"FCh:Ejecting Ch:%d;Drive:%d",ch,drive_number);
 
-  fch_t* drive = &fch_handle[ch][drive_number];
-  FF_Close(drive->fSource);
+  fch_t* pDrive = &fch_handle[ch][drive_number];
+  FF_Close(pDrive->fSource);
 
-  if (drive->pDesc) {
-    free(drive->pDesc);
+  if (pDrive->pDesc) {
+    free(pDrive->pDesc);
     }
   else
     DEBUG(1,"FCh:Eject desc pointer is null. Odd.");
 
-  drive->status = 0;
-  drive->name[0] = '\0';
+  pDrive->status = 0;
+  pDrive->name[0] = '\0';
   FileIO_FCh_UpdateDriveStatus(ch);
 }
 

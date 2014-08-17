@@ -39,8 +39,6 @@ typedef struct
     char     name[MAX_DISPLAY_FILENAME];
 } fch_t;
 
-typedef fch_t fch_arr_t[2][FCH_MAX_NUM];
-
 uint8_t FileIO_MCh_WaitStat(uint8_t mask, uint8_t wanted);
 uint8_t FileIO_MCh_SendBuffer(uint8_t *pBuf, uint16_t buf_tx_size);
 uint8_t FileIO_MCh_ReadBuffer(uint8_t *pBuf, uint16_t buf_tx_size);

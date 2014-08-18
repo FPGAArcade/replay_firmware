@@ -3,8 +3,8 @@
 #include "hardware.h"
 #include "messaging.h"
 
-const uint8_t DRV08_DEBUG = 1;
-#define DRV08_PARAM_DEBUG 1;
+const uint8_t DRV08_DEBUG = 0;
+/*#define DRV08_PARAM_DEBUG 1;*/
 
 #define DRV08_BUF_SIZE 512 // THIS must be = or > than BLK SIZE
 #define DRV08_BLK_SIZE 512
@@ -298,7 +298,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
     //
     if (DRV08_DEBUG)
-      DEBUG(1,"Drv08: CMD %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X",
+      DEBUG(1,"Drv08:CMD %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X",
             tfr[0],tfr[1],tfr[2],tfr[3],tfr[4],tfr[5],tfr[6],tfr[7]);
 
     unit = tfr[6] & 0x10 ? 1 : 0; // master/slave selection

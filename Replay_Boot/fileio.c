@@ -490,6 +490,8 @@ void FileIO_FCh_Eject(uint8_t ch, uint8_t drive_number)
 {
   Assert(ch < 2);
   Assert(drive_number < FCH_MAX_NUM);
+
+  // REJECT eject of fixed drive ?
   DEBUG(1,"FCh:Ejecting Ch:%d;Drive:%d",ch,drive_number);
 
   fch_t* pDrive = &fch_handle[ch][drive_number];

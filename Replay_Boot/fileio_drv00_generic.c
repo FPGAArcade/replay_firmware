@@ -64,7 +64,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
     }
 
     if (FF_Seek(pDrive->fSource, addr, FF_SEEK_SET)) {
-      DEBUG(1,"FDD:seek error");
+      DEBUG(1,"Drv00:seek error");
       FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_SEEK_ERR);
       return;
     }

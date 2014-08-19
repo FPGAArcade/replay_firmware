@@ -16,36 +16,36 @@
 
 /// our tokens we map the INI keywords to
 typedef enum {
-    INI_START,    ///< virtual token, signals start-of-file
-    INI_UNKNOWN,  ///< virtual token, signals end-of-file or section change
-    INI_SETUP,    ///< token for SETUP section
-    INI_INFO,     ///< token for INFO line
-    INI_BIN,      ///< token for BIN keyword (FPGA config file definition)
-    INI_CLOCK,    ///< token for CLOCK keyword (PLL chip configuration)
-    INI_PHASE,    ///< token for PHASE keyword (DRAM timing configuration)
-    INI_CODER,    ///< token for CODER keyword (TV coder configuration)
-    INI_VFILTER,  ///< token for VFILTER keyword (video filter configuration)
-    INI_EN_TWI,   ///< token for EN_TWI keyword (enables post-TWI usage)
-    INI_EN_SPI,   ///< token for EN_SPI keyword (enables post-SPI usage)
-    INI_SPI_CLK,  ///< token for INI_SPI_CLK keyword (sets SPI speed)
-    INI_BUTTON,   ///< token for EN_BUTTON keyword (replay button behavior)
-    INI_VIDEO,    ///< token for VIDEO keyword (video DAC configuration)
-    INI_CONFIG,   ///< token for CONFIG keyword (config bits for FPGA/OSD)
-    INI_CSTORE,   ///< token for CSTORE keyword (filename to store dynamic config part)
-    INI_UPLOAD,   ///< token for UPLOAD section
-    INI_FILES,    ///< token for FILES section
-    INI_VERIFY,   ///< token for VERIFY keyword (enables verification of any upload)
-    INI_ROM,      ///< token for ROM keyword (ROM file entry for upload)
-    INI_CHA,      ///< token for fileio CHA keyword
-    INI_CHB,      ///< token for fileio CHB keyword
-    INI_CHA_EXT,  ///< token for fileio CHA extension
-    INI_CHB_EXT,  ///< token for fileio CHB extension
-    INI_LAUNCH,   ///< token for LAUNCH keyword (binary download and execute)
-    INI_MENU,     ///< token for MENU section
-    INI_DATA,     ///< token for DATA keyword (DATA set for upload)
-    INI_TITLE,    ///< token for TITLE keyword (menu title)
-    INI_ITEM,     ///< token for ITEM keyword (menu item for a title)
-    INI_OPTION,   ///< token for OPTION keyword (option for menu item)
+    INI_START,     ///< virtual token, signals start-of-file
+    INI_UNKNOWN,   ///< virtual token, signals end-of-file or section change
+    INI_SETUP,     ///< token for SETUP section
+    INI_INFO,      ///< token for INFO line
+    INI_BIN,       ///< token for BIN keyword (FPGA config file definition)
+    INI_CLOCK,     ///< token for CLOCK keyword (PLL chip configuration)
+    INI_PHASE,     ///< token for PHASE keyword (DRAM timing configuration)
+    INI_CODER,     ///< token for CODER keyword (TV coder configuration)
+    INI_VFILTER,   ///< token for VFILTER keyword (video filter configuration)
+    INI_EN_TWI,    ///< token for EN_TWI keyword (enables post-TWI usage)
+    INI_EN_SPI,    ///< token for EN_SPI keyword (enables post-SPI usage)
+    INI_SPI_CLK,   ///< token for INI_SPI_CLK keyword (sets SPI speed)
+    INI_BUTTON,    ///< token for EN_BUTTON keyword (replay button behavior)
+    INI_VIDEO,     ///< token for VIDEO keyword (video DAC configuration)
+    INI_CONFIG,    ///< token for CONFIG keyword (config bits for FPGA/OSD)
+    INI_CSTORE,    ///< token for CSTORE keyword (filename to store dynamic config part)
+    INI_UPLOAD,    ///< token for UPLOAD section
+    INI_FILES,     ///< token for FILES section
+    INI_VERIFY,    ///< token for VERIFY keyword (enables verification of any upload)
+    INI_ROM,       ///< token for ROM keyword (ROM file entry for upload)
+    INI_CHA_MOUNT, ///< token for fileio CHA keyword
+    INI_CHB_MOUNT, ///< token for fileio CHB keyword
+    INI_CHA_CFG,   ///< token for fileio CHA config
+    INI_CHB_CFG,   ///< token for fileio CHB config
+    INI_LAUNCH,    ///< token for LAUNCH keyword (binary download and execute)
+    INI_MENU,      ///< token for MENU section
+    INI_DATA,      ///< token for DATA keyword (DATA set for upload)
+    INI_TITLE,     ///< token for TITLE keyword (menu title)
+    INI_ITEM,      ///< token for ITEM keyword (menu item for a title)
+    INI_OPTION,    ///< token for OPTION keyword (option for menu item)
 } ini_symbols_t;
 
 /// used as LUT for mapping keywords to tokens

@@ -1183,13 +1183,12 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
       }
       // -------------------------------------------------------
       if (section==INI_FILES) {
-        // could add FDD initial load from ini file here
-        if (name==INI_CHB) { // HD
-          ini_list_t valueList[8];
-          uint16_t entries = ParseList(value,valueList,8);
+
+        if (name==INI_CHA_MOUNT) {
+          ini_list_t valueList[2];
+          uint16_t entries = ParseList(value,valueList,2);
           uint8_t  unit = 0;
 
-          DEBUG(1,"FileIO ChB entries %d",entries);
           if ((entries==1) || (entries==2)) {
             if (entries==2)
               unit = valueList[1].intval;
@@ -1199,7 +1198,49 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                 char fullname[FF_MAX_PATH];
                 // prepare filename
                 sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
-                DEBUG(1,"HDD file %s", fullname);
+                FileIO_FCh_Insert(0,unit, fullname);
+              };
+            } else {
+              DEBUG(1,"Illegal FileIO ChA number")
+            };
+
+          }
+        }
+
+        if (name==INI_CHA_CFG) {
+          ini_list_t valueList[5];
+          uint16_t entries = ParseList(value,valueList,5);
+
+          if (entries>0) {
+            if        (MATCH(valueList[0].strval,"REMOVABLE")) {
+              pStatus->fileio_cha_mode = (fileio_mode_t) REMOVABLE;
+              DEBUG(1,"ChA Removable");
+            } else if (MATCH(valueList[0].strval,"FIXED")) {
+              pStatus->fileio_cha_mode = (fileio_mode_t) FIXED;
+              DEBUG(1,"ChA Fixed");
+            } else {
+              MSG_error("ChA bad drive type - use 'removable' or fixed");
+            }
+          }
+          if (entries>1) {
+            _strlcpy(pStatus->fileio_cha_ext,valueList[1].strval,4);
+          }
+        }
+
+        if (name==INI_CHB_MOUNT) {
+          ini_list_t valueList[2];
+          uint16_t entries = ParseList(value,valueList,2);
+          uint8_t  unit = 0;
+
+          if ((entries==1) || (entries==2)) {
+            if (entries==2)
+              unit = valueList[1].intval;
+
+            if (unit < FCH_MAX_NUM) {
+              if (strlen(valueList[0].strval)) {
+                char fullname[FF_MAX_PATH];
+                // prepare filename
+                sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
                 FileIO_FCh_Insert(1,unit, fullname);
               };
             } else {
@@ -1209,19 +1250,25 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
           }
         }
 
-        if (name==INI_CHA_EXT) {
-          ini_list_t valueList[1];
-          uint16_t entries = ParseList(value,valueList,1);
-          if (entries==1) {
-            _strlcpy(pStatus->fileio_cha_ext,valueList[0].strval,4);
-          }
-        }
 
-        if (name==INI_CHB_EXT) {
+        if (name==INI_CHB_CFG) {
           ini_list_t valueList[1];
-          uint16_t entries = ParseList(value,valueList,1);
-          if (entries==1) {
-            _strlcpy(pStatus->fileio_chb_ext,valueList[0].strval,4);
+          uint16_t entries = ParseList(value,valueList,5);
+
+          if (entries>0) {
+            if        (MATCH(valueList[0].strval,"REMOVABLE")) {
+              pStatus->fileio_chb_mode = (fileio_mode_t) REMOVABLE;
+              DEBUG(1,"ChB Removable");
+            } else if (MATCH(valueList[0].strval,"FIXED")) {
+              pStatus->fileio_chb_mode = (fileio_mode_t) FIXED;
+              DEBUG(1,"ChB Fixed");
+            } else {
+              MSG_error("ChB bad drive type - use 'removable' or fixed");
+            }
+          }
+
+          if (entries>1) {
+            _strlcpy(pStatus->fileio_chb_ext,valueList[1].strval,4);
           }
         }
 
@@ -1280,10 +1327,13 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   uint32_t config_fileio_ena = OSD_ConfigReadFileIO_Ena();
   uint32_t config_fileio_drv = OSD_ConfigReadFileIO_Drv();
 
-  currentStatus->fileio_cha_ena =  config_fileio_ena       & 0x0F;
-  currentStatus->fileio_cha_drv =  config_fileio_drv       & 0x0F;
+  currentStatus->fileio_cha_ena  =  config_fileio_ena       & 0x0F;
+  currentStatus->fileio_cha_drv  =  config_fileio_drv       & 0x0F;
+  currentStatus->fileio_cha_mode = (fileio_mode_t) REMOVABLE;
+
   currentStatus->fileio_chb_ena = (config_fileio_ena >> 4) & 0x0F;
   currentStatus->fileio_chb_drv = (config_fileio_drv >> 4) & 0x0F;
+  currentStatus->fileio_chb_mode = (fileio_mode_t) REMOVABLE;
 
   DEBUG(1,"FileIO ChA supported : "BYTETOBINARYPATTERN4", Driver : %01X",
     BYTETOBINARY4(currentStatus->fileio_cha_ena), currentStatus->fileio_cha_drv);
@@ -1291,8 +1341,8 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   DEBUG(1,"FileIO ChB supported : "BYTETOBINARYPATTERN4", Driver : %01X",
     BYTETOBINARY4(currentStatus->fileio_chb_ena), currentStatus->fileio_chb_drv);
 
-  _strlcpy(currentStatus->fileio_cha_ext,"ADF",4);
-  _strlcpy(currentStatus->fileio_chb_ext,"HDF",4);
+  _strlcpy(currentStatus->fileio_cha_ext,"*",4);
+  _strlcpy(currentStatus->fileio_chb_ext,"*",4);
 
   // update status (all unmounted)
   FileIO_FCh_UpdateDriveStatus(0);
@@ -1342,7 +1392,7 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   OSD_Reset(OSDCMD_CTRL_RES);
   Timer_Wait(100);
 
-  DEBUG(2,"POST-INI processing done");
+  DEBUG(1,"POST-INI processing done, core started");
 
   // temp
   if (config_ver == 0x80FF ) {

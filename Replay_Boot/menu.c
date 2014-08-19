@@ -23,24 +23,30 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
   // handle display action ===================================================
   if (mode==0) {
 
-    // fddselect,0...3 ----------------------------------
-    if MATCH(item->action_name,"fddselect") {
-      if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
+    // cha select,0...3 ----------------------------------
+    if MATCH(item->action_name,"cha_select") {
+      if ((current_status->fileio_cha_ena >> item->action_value) & 1) { // protects agains illegal values also
         if (!FileIO_FCh_GetInserted(0,item->action_value)) {
-          // set only if still blank
-          strcpy(item->selected_option->option_name,"<RETURN> to set");
+          if (current_status->fileio_cha_mode == REMOVABLE)
+            strcpy(item->selected_option->option_name,"<RETURN> to set");
+          else
+            strcpy(item->selected_option->option_name,"Not mounted");
+        } else {
+          strncpy(item->selected_option->option_name, FileIO_FCh_GetName(0,item->action_value), MAX_OPTION_STRING-1);
         }
       } else {
         item->selected_option->option_name[0]=0;
       }
       return 1;
     }
-    // hddselect,0...3 ----------------------------------
-    if MATCH(item->action_name,"hddselect") {
-      if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
-
+    // chb select,0...3 ----------------------------------
+    if MATCH(item->action_name,"chb_select") {
+      if ((current_status->fileio_chb_ena >> item->action_value) & 1) { // protects agains illegal values also
         if (!FileIO_FCh_GetInserted(1,item->action_value)) {
-          strcpy(item->selected_option->option_name,"Not mounted");
+          if (current_status->fileio_chb_mode == REMOVABLE)
+            strcpy(item->selected_option->option_name,"<RETURN> to set");
+          else
+            strcpy(item->selected_option->option_name,"Not mounted");
         } else {
           strncpy(item->selected_option->option_name, FileIO_FCh_GetName(1,item->action_value), MAX_OPTION_STRING-1);
         }
@@ -82,18 +88,19 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
   }
   // menu execute action =====================================================
   if (mode==1) {
-    // fddselect,0...3 ----------------------------------
-    if MATCH(item->action_name,"fddselect") {
+    // fileio cha select
+    if MATCH(item->action_name,"cha_select") {
       if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
         if (FileIO_FCh_GetInserted(0,item->action_value)) {
-          // deselect file
-          strcpy(item->selected_option->option_name,"<RETURN> to set");
-          item->selected_option=NULL;
-
-          // EJECT
-          FileIO_FCh_Eject(0,item->action_value);
-
-          return 1;
+          if (current_status->fileio_cha_mode == REMOVABLE) {
+            // deselect file
+            strcpy(item->selected_option->option_name,"<RETURN> to set");
+            item->selected_option=NULL;
+            FileIO_FCh_Eject(0,item->action_value);
+            return 1;
+          } else {
+            // tried to eject fixed drive... nothing for now.
+          }
         } else {
           // open file browser
           strcpy(current_status->act_dir,current_status->ini_dir);
@@ -108,15 +115,20 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       }
       return 0;
     }
-    // hddselect,0...3 ----------------------------------
-    if MATCH(item->action_name,"hddselect") {
+
+    // fileio chb select
+    if MATCH(item->action_name,"chb_select") {
       if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
-        /*
-        if (item->selected_option->option_name[0]!='<') {
+        if (FileIO_FCh_GetInserted(1,item->action_value)) {
+          if (current_status->fileio_chb_mode == REMOVABLE) {
           // deselect file
-          strcpy(item->selected_option->option_name,"<RETURN> to set");
-          item->selected_option=NULL;
-          return 1;
+            strcpy(item->selected_option->option_name,"<RETURN> to set");
+            item->selected_option=NULL;
+            FileIO_FCh_Eject(1,item->action_value);
+            return 1;
+          } else {
+            // tried to eject fixed drive... nothing for now.
+          }
         } else {
           // open file browser
           strcpy(current_status->act_dir,current_status->ini_dir);
@@ -128,10 +140,10 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           current_status->show_menu=0;
           return 1;
         }
-        */
       }
       return 0;
     }
+
     // iniselect ----------------------------------
     if MATCH(item->action_name,"iniselect") {
       // open file browser
@@ -226,37 +238,42 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
   if (mode==2) { // *****
     FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan,
                                        current_status->dir_scan->sel);
-    // fddselect,0...3 ----------------------------------
-    if MATCH(item->action_name,"fddselect") {
-      // store selected file in option_name structure
+    // insert is ok for fixed or removable
+    // cha_select
+    if MATCH(item->action_name,"cha_select") {
+      if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
+        item->selected_option=item->option_list;
 
-      item->selected_option=item->option_list;
+        char file_path[FF_MAX_PATH] = "";
+        sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
+        FileIO_FCh_Insert(0,item->action_value, file_path);
 
+        strncpy(item->option_list->option_name, FileIO_FCh_GetName(0,item->action_value), MAX_OPTION_STRING-1);
+        item->option_list->option_name[MAX_OPTION_STRING-1]=0;
 
-      char file_path[FF_MAX_PATH] = "";
-      sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
-
-      FileIO_FCh_Insert(0,item->action_value, file_path);
-
-      strncpy(item->option_list->option_name, FileIO_FCh_GetName(0,item->action_value), MAX_OPTION_STRING-1);
-      item->option_list->option_name[MAX_OPTION_STRING-1]=0;
-
-      current_status->show_menu=1;
-      current_status->file_browser=0;
-
-      return 1;
+        current_status->show_menu=1;
+        current_status->file_browser=0;
+        return 1;
+      }
     }
-    // hddselect,0...1 ----------------------------------
-    if MATCH(item->action_name,"hddselect") {
-      // store selected file in option_name structure
-      /*item->selected_option=item->option_list;*/
-      /*strncpy(item->option_list->option_name,*/
-              /*mydir.FileName, MAX_OPTION_STRING-1);*/
-      /*item->option_list->option_name[MAX_OPTION_STRING-1]=0;*/
-      current_status->show_menu=1;
-      current_status->file_browser=0;
-      return 1;
+    // chb_select
+    if MATCH(item->action_name,"chb_select") {
+      if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
+        item->selected_option=item->option_list;
+
+        char file_path[FF_MAX_PATH] = "";
+        sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
+        FileIO_FCh_Insert(1,item->action_value, file_path);
+
+        strncpy(item->option_list->option_name, FileIO_FCh_GetName(1,item->action_value), MAX_OPTION_STRING-1);
+        item->option_list->option_name[MAX_OPTION_STRING-1]=0;
+
+        current_status->show_menu=1;
+        current_status->file_browser=0;
+        return 1;
+      }
     }
+
     // iniselect ----------------------------------
     if MATCH(item->action_name,"iniselect") {
       // set new INI file and force reload of FPGA configuration
@@ -546,10 +563,20 @@ void _MENU_update_ui(status_t *current_status)
       while (pItem && ((line++)<(MENU_HEIGHT-1))) {
         OSD_WriteRCt(row++, MENU_ITEM_INDENT, pItem->item_name, MENU_OPTION_INDENT-MENU_ITEM_INDENT, 0, 0xB, 0);
 
-        // temp bodge
-        if MATCH(pItem->action_name,"fddselect") {
-          if (FileIO_FCh_GetReadOnly(0,pItem->action_value)) {
-            OSD_WriteRC(row-1, 0, "R", 0, 0xA, 0); // Green>
+        // temp bodge to show read only flags
+        if MATCH(pItem->action_name,"cha_select") {
+          if ((current_status->fileio_cha_ena >> pItem->action_value) & 1) {
+            if (FileIO_FCh_GetReadOnly(0,pItem->action_value)) {
+              OSD_WriteRC(row-1, 0, "R", 0, 0xA, 0); // Green>
+            }
+          }
+        }
+
+        if MATCH(pItem->action_name,"chb_select") {
+          if ((current_status->fileio_chb_ena >> pItem->action_value) & 1) {
+            if (FileIO_FCh_GetReadOnly(1,pItem->action_value)) {
+              OSD_WriteRC(row-1, 0, "R", 0, 0xA, 0); // Green>
+            }
           }
         }
 

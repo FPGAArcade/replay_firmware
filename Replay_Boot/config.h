@@ -13,7 +13,7 @@
 #define MAX_MENU_STRING (32+1)
 
 /** maximum length of an item string to be used in the INI file
-    including limiter character - usually half OSD width is fine 
+    including limiter character - usually half OSD width is fine
     Note, the indent is 2 which limits both item and option to be 15 */
 #define MAX_ITEM_STRING (16+1)
 
@@ -59,6 +59,10 @@ typedef enum {
   BUTTON_RESET
 } button_t;
 
+typedef enum {
+    REMOVABLE,
+    FIXED
+} fileio_mode_t;
 
 /* ========================================================================== */
 
@@ -250,13 +254,15 @@ typedef struct {
   uint32_t     config_d;
 
   /** note, this is a bit mask (3..0) */
-  uint8_t      fileio_cha_ena;
-  uint8_t      fileio_cha_drv;
-  char         fileio_cha_ext[4];
+  uint8_t       fileio_cha_ena;
+  uint8_t       fileio_cha_drv;
+  fileio_mode_t fileio_cha_mode;
+  char          fileio_cha_ext[4];
 
-  uint8_t      fileio_chb_ena;
-  uint8_t      fileio_chb_drv;
-  char         fileio_chb_ext[4];
+  uint8_t       fileio_chb_ena;
+  uint8_t       fileio_chb_drv;
+  fileio_mode_t fileio_chb_mode;
+  char          fileio_chb_ext[4];
 
   /* ======== MENU handling ======== */
 

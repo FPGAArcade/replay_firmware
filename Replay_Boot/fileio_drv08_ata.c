@@ -122,45 +122,6 @@ inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count,
     SPI_DisableFileIO();
 }
 
-void Drv08_GetHardfileGeometry(fch_t *pDrive, drv08_desc_t *pDesc)
-{ // this function comes from WinUAE, should return the same CHS as WinUAE
-   uint32_t total;
-   uint32_t i;
-   uint32_t head = 0;
-   uint32_t cyl  = 0;
-   uint32_t spt  = 0;
-   uint32_t sptt[] = { 63, 127, 255, 0 };
-   uint32_t size = pDesc->file_size;
-
-   if (size == 0)
-     return;
-
-    total = size / 512;
-
-    for (i = 0; sptt[i] !=0; i++) {
-        spt = sptt[i];
-        for (head = 4; head <= 16; head++) {
-            cyl = total / (head * spt);
-            if (size <= 512 * 1024 * 1024) {
-              if (cyl <= 1023)
-                 break;
-            } else {
-              if (cyl < 16383)
-                break;
-              if (cyl < 32767 && head >= 5)
-                break;
-              if (cyl <= 65535)
-                break;
-            }
-        }
-        if (head <= 16)
-          break;
-    }
-    pDesc->cylinders         = (unsigned short)cyl;
-    pDesc->heads             = (unsigned short)head;
-    pDesc->sectors           = (unsigned short)spt;
-    pDesc->sectors_per_block = 0; // catch if not set to !=0
-}
 
 FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, uint32_t lba)
 {
@@ -271,6 +232,9 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 {
 
     // file buffer
+    // to do, check how expensive this allocation is every time.
+    // static buffer?
+
     uint16_t  fbuf16[DRV08_BUF_SIZE/2]; // to get 16 bit alignment for id.
     uint8_t  *fbuf = (uint8_t*) fbuf16; // reuse the buffer
 
@@ -528,6 +492,72 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
     }
 }
 
+// insert functions
+void Drv08_GetHardfileType(fch_t *pDrive, drv08_desc_t *pDesc)
+{
+  uint8_t fbuf[DRV08_BLK_SIZE];
+  uint32_t i = 0;
+
+  FF_Seek(pDrive->fSource, 0, FF_SEEK_SET);
+  for (i = 0; i < 16; ++i) { // check first 16 blocks
+    FF_Read(pDrive->fSource, DRV08_BLK_SIZE, 1, fbuf);
+
+    /*DumpBuffer(fbuf, 32);*/
+
+    if (!memcmp(fbuf, "RDSK", 4)) {
+      INFO("Drv08:RDB OK");
+      return;
+    }
+
+    if ( (!memcmp(fbuf, "DOS", 3)) || (!memcmp(fbuf, "PFS", 3)) || (!memcmp(fbuf, "SFS", 3)) ) {
+      WARNING("Drv08:RDB MISSING");
+      return;
+    }
+  }
+  WARNING("Drv08:Unknown HDF format");
+}
+
+void Drv08_GetHardfileGeometry(fch_t *pDrive, drv08_desc_t *pDesc)
+{ // this function comes from WinUAE, should return the same CHS as WinUAE
+   uint32_t total;
+   uint32_t i;
+   uint32_t head = 0;
+   uint32_t cyl  = 0;
+   uint32_t spt  = 0;
+   uint32_t sptt[] = { 63, 127, 255, 0 };
+   uint32_t size = pDesc->file_size;
+
+   if (size == 0)
+     return;
+
+    total = size / 512;
+
+    for (i = 0; sptt[i] !=0; i++) {
+        spt = sptt[i];
+        for (head = 4; head <= 16; head++) {
+            cyl = total / (head * spt);
+            if (size <= 512 * 1024 * 1024) {
+              if (cyl <= 1023)
+                 break;
+            } else {
+              if (cyl < 16383)
+                break;
+              if (cyl < 32767 && head >= 5)
+                break;
+              if (cyl <= 65535)
+                break;
+            }
+        }
+        if (head <= 16)
+          break;
+    }
+    pDesc->cylinders         = (unsigned short)cyl;
+    pDesc->heads             = (unsigned short)head;
+    pDesc->sectors           = (unsigned short)spt;
+    pDesc->sectors_per_block = 0; // catch if not set to !=0
+}
+
+
 //
 // interface
 //
@@ -562,6 +592,7 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
   }
   // common stuff (as only HDF supported for now...
 
+  Drv08_GetHardfileType(pDrive, pDesc);
   Drv08_GetHardfileGeometry(pDrive, pDesc);
 
   time = Timer_Get(0) - time;

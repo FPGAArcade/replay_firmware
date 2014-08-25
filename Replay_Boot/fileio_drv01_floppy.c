@@ -3,7 +3,7 @@
 #include "hardware.h"
 #include "messaging.h"
 
-const uint8_t DRV01_DEBUG = 1;
+const uint8_t DRV01_DEBUG = 0;
 
 // to do, tidy constants
 #define ADF_MAX_TRACKS (83*2)
@@ -212,7 +212,7 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer, uint8_t
       if (sync) *write_state = 1;
       // store track?
 
-      DEBUG(1,"Drv01:sync %u count %u",sync,count);
+      if (DRV01_DEBUG) DEBUG(1,"Drv01:sync %u count %u",sync,count);
       break;
 
     // 25 words for header (2nd dskync to end header cs)
@@ -222,7 +222,7 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer, uint8_t
     case 1 : // check header
 
       if (reqsize < DRV01_ADF_WRITE_LEN) { // note, in WORDs 1024+58=1082 bytes
-        DEBUG(1,"Drv01:Write underrun");
+        if (DRV01_DEBUG) DEBUG(1,"Drv01:Write underrun");
         *write_state = 0;
         break;
       }
@@ -232,7 +232,6 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer, uint8_t
       SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
       rx  = SPI(0) << 8; rx |= SPI(0);
       SPI_DisableFileIO();
-      DEBUG(1,"Drv01:sync2 %04x",rx);
 
       if (rx != 0x4489) {
         WARNING("Drv01:W 2nd sync word missing");
@@ -250,7 +249,7 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer, uint8_t
       // note, start of rxbuf is offset 0x08 in the header
       // extract sector/track params
       for (i=0; i<4; ++i) p[i] = MFMDecode(rxbuf+i, rxbuf+i+4);
-      DEBUG(1,"Drv01:Write param %u.%u.%u.%u",p[0], p[1], p[2], p[3]);
+      if (DRV01_DEBUG) DEBUG(1,"Drv01:Write param %u.%u.%u.%u",p[0], p[1], p[2], p[3]);
 
       // p[0] always 0xFF, p[1] track, p[2] sector (0-10) p[3] number to gap (1-11)
       if ((p[0] != 0xFF) || (p[1] >= pDesc->tracks) || (p[2] > 10) || (p[3] > 11) || (p[3] ==0)) {
@@ -331,12 +330,10 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer, uint8_t
 
     default :
       *write_state = 0;
-
   }
 
   // signal transfer done
   FileIO_FCh_WriteStat(ch, DRV01_STAT_TRANS_ACK_OK); // no error reporting
-
 }
 
 void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)

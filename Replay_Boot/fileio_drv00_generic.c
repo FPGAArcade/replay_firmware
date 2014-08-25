@@ -64,7 +64,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
     }
 
     if (FF_Seek(pDrive->fSource, addr, FF_SEEK_SET)) {
-      DEBUG(1,"Drv00:seek error");
+      WARNING("Drv00:Seek error");
       FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_SEEK_ERR);
       return;
     }
@@ -99,7 +99,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
 
         act_size = FF_Write(pDrive->fSource, cur_size, 1, fbuf);
         if (act_size != cur_size) {
-          DEBUG(1,"Drv00:!! Write Fail!!");
+          WARNING("Drv00:!! Write Fail!!");
           FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_TRUNC_ERR); // truncated
           return;
         }
@@ -150,7 +150,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
   } while ((status & FILEIO_REQ_ACT) && goes);
 }
 
-uint8_t FileIO_Drv00_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive, char *ext)
+uint8_t FileIO_Drv00_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive, char *ext)
 {
   DEBUG(1,"Drv00:InsertInit");
 

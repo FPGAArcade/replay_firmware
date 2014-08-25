@@ -648,10 +648,10 @@ void Timer_Wait(uint32_t time)
 //
 void DumpBuffer(const uint8_t *pBuffer, uint32_t size)
 {
-    DEBUG(2,"DumpBuffer:");
+    DEBUG(1,"DumpBuffer:");
     uint32_t i;
     for (i=0; i < size; i+=16) {
-      DEBUG(2,"0x%08X: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", i,
+      DEBUG(1,"0x%08X: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", i,
       pBuffer[i+0], pBuffer[i+1],pBuffer[i+2], pBuffer[i+3],pBuffer[i+4], pBuffer[i+5],pBuffer[i+6], pBuffer[i+7],
       pBuffer[i+8], pBuffer[i+9],pBuffer[i+10], pBuffer[i+11],pBuffer[i+12], pBuffer[i+13],pBuffer[i+14], pBuffer[i+15]);
     }

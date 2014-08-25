@@ -123,12 +123,12 @@ inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count,
 }
 
 
-FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, uint32_t lba)
+FF_ERROR Drv08_HardFileSeek(fch_t *pDrive, uint32_t lba)
 {
   return FF_Seek(pDrive->fSource, lba*512, FF_SEEK_SET);  // TO DO, REPLACE with <<
 }
 
-void Drv08_FileReadSend(uint8_t ch, fch_t* pDrive, uint8_t *pBuffer)
+void Drv08_FileReadSend(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
 {
 
   uint32_t bytes_r = FF_Read(pDrive->fSource, DRV08_BLK_SIZE, 1, pBuffer);
@@ -144,7 +144,7 @@ void Drv08_FileReadSend(uint8_t ch, fch_t* pDrive, uint8_t *pBuffer)
   SPI_DisableFileIO();
 }
 
-void Drv08_FileWrite(uint8_t ch, fch_t* pDrive, uint8_t *pBuffer)
+void Drv08_FileWrite(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
 {
   // fix error handling
   uint32_t bytes_w = FF_Write(pDrive->fSource, DRV08_BLK_SIZE, 1, pBuffer);
@@ -569,7 +569,7 @@ void FileIO_Drv08_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
   Drv08_ATA_Handle(ch, handle);
 }
 
-uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive, char *ext)
+uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive, char *ext)
 {
   DEBUG(1,"Drv08:InsertInit");
 

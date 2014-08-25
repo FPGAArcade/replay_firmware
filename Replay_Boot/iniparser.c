@@ -147,7 +147,6 @@ uint8_t ParseIni(FF_FILE *pFile,
     while (( ch != -1) && (ch !='\n')) {
       ch = FF_GetC(pFile);
     }
-
     start = FindFirstChar(StripTrailingSpaces(lineBuffer));
 
     if (*start == '[') {

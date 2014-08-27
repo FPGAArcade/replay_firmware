@@ -27,13 +27,15 @@ unsigned char SPI(unsigned char outByte) __attribute__ ((section (".fastrun")));
 void SPI_WriteBufferSingle(void *pBuffer, uint32_t length);
 void SPI_ReadBufferSingle(void *pBuffer, uint32_t length);
 
-void SPI_Wait4XferEnd(void) __attribute__ ((section (".fastrun")));
-void SPI_EnableCard(void) __attribute__ ((section (".fastrun")));
+void SPI_Wait4XferEnd(void);
+void SPI_EnableCard(void);
 void SPI_DisableCard(void) __attribute__ ((section (".fastrun")));
 void SPI_EnableFileIO(void);
-void SPI_DisableFileIO(void);
+void SPI_DisableFileIO(void) __attribute__ ((section (".fastrun")));
 void SPI_EnableOsd(void);
 void SPI_DisableOsd(void);
+void SPI_EnableDirect(void);
+void SPI_DisableDirect(void);
 //
 void SSC_Configure_Boot(void);
 void SSC_EnableTxRx(void);

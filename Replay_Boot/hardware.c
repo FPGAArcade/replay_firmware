@@ -385,12 +385,12 @@ void SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
   }
 }
 
-void SPI_Wait4XferEnd(void)
+inline void SPI_Wait4XferEnd(void)
 {
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY));
 }
 
-void SPI_EnableCard(void)
+inline void SPI_EnableCard(void)
 {
   AT91C_BASE_PIOA->PIO_CODR = PIN_CARD_CS_L;
 }
@@ -403,7 +403,7 @@ void SPI_DisableCard(void)
   SPI_Wait4XferEnd();
 }
 
-void SPI_EnableFileIO(void)
+inline void SPI_EnableFileIO(void)
 {
   AT91C_BASE_PIOA->PIO_CODR = PIN_FPGA_CTRL0;
 }
@@ -414,15 +414,28 @@ void SPI_DisableFileIO(void)
   AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL0;
 }
 
-void SPI_EnableOsd(void)
+inline void SPI_EnableOsd(void)
 {
   AT91C_BASE_PIOA->PIO_CODR = PIN_FPGA_CTRL1;
 }
 
-void SPI_DisableOsd(void)
+inline void SPI_DisableOsd(void)
 {
   SPI_Wait4XferEnd();
   AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL1;
+}
+
+inline void SPI_EnableDirect(void)
+{
+  // used for direct card -> FPGA transfer
+  // must be asserted before SPI cs is disabled
+  // swaps rx/tx pins on FPGA.
+  AT91C_BASE_PIOA->PIO_CODR = PIN_CONF_DIN;
+}
+
+inline void SPI_DisableDirect(void)
+{
+  AT91C_BASE_PIOA->PIO_SODR = PIN_CONF_DIN;
 }
 
 // SSC
@@ -475,22 +488,18 @@ void SSC_EnableTxRx(void)
   AT91C_BASE_SSC->SSC_CR = AT91C_SSC_TXEN |  AT91C_SSC_RXEN;
 
   // Assign clock and data to SSC (peripheral A)
-  /*
   AT91C_BASE_PIOA->PIO_ASR = PIN_CONF_DIN;
   AT91C_BASE_PIOA->PIO_PDR = PIN_CONF_DIN;
-  */
 }
 
 void SSC_DisableTxRx(void)
 {
   AT91C_BASE_SSC->SSC_CR = AT91C_SSC_TXDIS | AT91C_SSC_RXDIS;
 
-  /*
   // drive DIN high
   AT91C_BASE_PIOA->PIO_SODR = PIN_CONF_DIN;
   AT91C_BASE_PIOA->PIO_PER  = PIN_CONF_DIN;
   AT91C_BASE_PIOA->PIO_OER  = PIN_CONF_DIN;
-  */
 }
 
 void SSC_Write(uint32_t frame)

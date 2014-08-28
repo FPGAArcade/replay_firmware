@@ -49,6 +49,7 @@
  *      buffers. It also defines the public interfaces for Creating and
  *      Destroying a FullFAT IO object.
  **/
+#include "../messaging.h"
 
 #include <time.h>
 #include <string.h>
@@ -344,7 +345,6 @@ FF_BUFFER *FF_GetBuffer(FF_IOMAN *pIoman, FF_T_UINT32 Sector, FF_T_UINT8 Mode) {
 	if (cacheSize <= 0) {
 		return NULL;
 	}
-
 	while(!pBufMatch) {
 		if (!--LoopCount) {
 			//
@@ -363,6 +363,8 @@ FF_BUFFER *FF_GetBuffer(FF_IOMAN *pIoman, FF_T_UINT32 Sector, FF_T_UINT8 Mode) {
 			}
 
 			if(pBufMatch) {
+				/*DEBUG(1,"FF_GetBuffer cache hit : %lu",Sector);*/
+
 				// A Match was found process!
 				if(Mode == FF_MODE_READ && pBufMatch->Mode == FF_MODE_READ) {
 					pBufMatch->NumHandles += 1;
@@ -535,6 +537,7 @@ FF_ERROR FF_RegisterBlkDevice(FF_IOMAN *pIoman, FF_T_UINT16 BlkSize, FF_WRITE_BL
 
 FF_T_SINT32 FF_BlockRead(FF_IOMAN *pIoman, FF_T_UINT32 ulSectorLBA, FF_T_UINT32 ulNumSectors, void *pBuffer, FF_T_BOOL aSemLocked) {
 	FF_T_SINT32 slRetVal = 0;
+	/*DEBUG(1,"FF_BlockRead:lba %lu num %lu",ulSectorLBA,ulNumSectors);*/
 
 	if(pIoman->pPartition->TotalSectors) {
 		if((ulSectorLBA + ulNumSectors) > (pIoman->pPartition->TotalSectors + pIoman->pPartition->BeginLBA)) {

@@ -63,6 +63,7 @@
 #else
 #define wcsicmp wcscasecmp
 #include <ctype.h>  // tolower()
+#ifndef FF_NOSTRCASECMP
 int strcasecmp(const char *s1, const char *s2)
 {
   unsigned char c1,c2;
@@ -75,6 +76,7 @@ int strcasecmp(const char *s1, const char *s2)
   while((c1 == c2) && (c1 != '\0'));
   return (int) c1-c2;
 }
+#endif
 #endif
 
 
@@ -1662,7 +1664,9 @@ FF_ERROR FF_FindNext(FF_IOMAN *pIoman, FF_DIRENT *pDirent) {
 	FF_ERROR	Error;
 	FF_T_UINT8	numLFNs;
 	FF_T_UINT8	EntryBuffer[32];
+#ifdef FF_FINDAPI_ALLOW_WILDCARDS
 	FF_T_BOOL	b;
+#endif
 
 	if(!pIoman) {
 		return FF_ERR_NULL_POINTER | FF_FINDNEXT;
@@ -1897,7 +1901,7 @@ FF_ERROR FF_PutEntry(FF_IOMAN *pIoman, FF_T_UINT16 Entry, FF_T_UINT32 DirCluster
 			if(FF_isERR(Error)) {
 				goto cleanup;
 			}
-		
+
 			FF_putChar(EntryBuffer,  FF_FAT_DIRENT_ATTRIB,    pDirent->Attrib);
 			FF_putShort(EntryBuffer, FF_FAT_DIRENT_CLUS_HIGH, (FF_T_UINT16)(pDirent->ObjectCluster >> 16));
 			FF_putShort(EntryBuffer, FF_FAT_DIRENT_CLUS_LOW,  (FF_T_UINT16)(pDirent->ObjectCluster));
@@ -1923,9 +1927,7 @@ cleanup:
 FF_T_BOOL FF_ValidShortChar (FF_T_INT8 Chr)
 {
 	return (Chr >= 'A' && Chr <= 'Z') ||
-#if defined(FF_SHORTNAME_CASE)
 		(Chr >= 'a' && Chr <= 'z') ||	// lower-case can be stored using NT/XP attribute
-#endif
 		(Chr >= '0' && Chr <= '9') ||
 		strchr ("$%-_@~`!(){}^#&", Chr) != NULL;
 }

@@ -40,6 +40,9 @@
 #ifndef _FF_CONFIG_H_
 #define _FF_CONFIG_H_
 
+#ifdef FF_BITTHUNDER_CONFIG
+#include <fs/fullfat/ff.config.h>
+#else
 #ifdef WIN32
 #define snprintf _snprintf
 #endif

@@ -49,10 +49,10 @@
  *      buffers. It also defines the public interfaces for Creating and
  *      Destroying a FullFAT IO object.
  **/
-#include "../messaging.h"
 
 #include <time.h>
 #include <string.h>
+
 
 #include "ff_ioman.h"   // Includes ff_types.h, ff_safety.h, <stdio.h>
 #include "ff_fatdef.h"
@@ -363,8 +363,6 @@ FF_BUFFER *FF_GetBuffer(FF_IOMAN *pIoman, FF_T_UINT32 Sector, FF_T_UINT8 Mode) {
 			}
 
 			if(pBufMatch) {
-				/*DEBUG(1,"FF_GetBuffer cache hit : %lu",Sector);*/
-
 				// A Match was found process!
 				if(Mode == FF_MODE_READ && pBufMatch->Mode == FF_MODE_READ) {
 					pBufMatch->NumHandles += 1;

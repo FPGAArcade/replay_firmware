@@ -8,6 +8,8 @@ const uint8_t DRV08_DEBUG = 0;
 
 #define DRV08_BUF_SIZE 512 // THIS must be = or > than BLK SIZE
 #define DRV08_BLK_SIZE 512
+#define DRV08_MAX_READ_BURST 7 // number of sectors FIFO can hold from AF de-asserted (could have <1 sector in FIFO still)
+/*#define DRV08_MAX_READ_BURST 1 // number of sectors FIFO can hold from AF de-asserted (could have <1 sector in FIFO still)*/
 
 // status bits
 #define DRV08_STATUS_END 0x80
@@ -27,6 +29,7 @@ const uint8_t DRV08_DEBUG = 0;
 #define DRV08_CMD_RECALIBRATE                  0x10  //1X
 #define DRV08_CMD_READ_SECTORS                 0x20
 #define DRV08_CMD_WRITE_SECTORS                0x30
+#define DRV08_CMD_READ_VERIFY                  0x40
 #define DRV08_CMD_EXECUTE_DEVICE_DIAGNOSTIC    0x90
 #define DRV08_CMD_INITIALIZE_DEVICE_PARAMETERS 0x91
 #define DRV08_CMD_READ_MULTIPLE                0xC4
@@ -133,6 +136,8 @@ void Drv08_FileReadSend(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
 
   uint32_t bytes_r = FF_Read(pDrive->fSource, DRV08_BLK_SIZE, 1, pBuffer);
 
+  /*DumpBuffer(pBuffer,DRV08_BLK_SIZE);*/
+
   // add error handling
   if (bytes_r != DRV08_BLK_SIZE) {
     DEBUG(1,"Drv08:!! Read Fail!!");
@@ -142,6 +147,26 @@ void Drv08_FileReadSend(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
   SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
   SPI_WriteBufferSingle(pBuffer, DRV08_BLK_SIZE);
   SPI_DisableFileIO();
+}
+
+void Drv08_FileReadSendDirect(uint8_t ch, fch_t *pDrive, uint8_t sector_count)
+{
+  // on entry assumes file is in correct position
+  // no flow control check, FPGA must be able to sync entire transfer.
+  SPI_EnableFileIO();
+  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+  SPI_EnableDirect();
+  SPI_DisableFileIO();
+
+  uint32_t bytes_r = FF_ReadDirect(pDrive->fSource, DRV08_BLK_SIZE, sector_count);
+
+  SPI_DisableDirect();
+
+  // add error handling
+  if (bytes_r != (DRV08_BLK_SIZE * sector_count)) {
+    DEBUG(1,"Drv08:!! Direct Read Fail!!");
+  }
+
 }
 
 void Drv08_FileWrite(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
@@ -335,7 +360,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
       while (sector_count)
       {
         FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
-        FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM); // wait for empty buffer
+        FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM); // wait for nearly empty buffer
         FileIO_FCh_WriteStat(ch, DRV08_STATUS_IRQ);
 
         if (!first) {
@@ -344,7 +369,9 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         }
         first = 0;
 
-        Drv08_FileReadSend(ch, pDrive, fbuf);
+        /*Drv08_FileReadSend(ch, pDrive, fbuf);*/
+        Drv08_FileReadSendDirect(ch, pDrive,1); // read and send block
+
 
         sector_count--; // decrease sector count
       }
@@ -370,26 +397,38 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         if (block_count > pDesc->sectors_per_block)
             block_count = pDesc->sectors_per_block;
 
-        /*FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM); // wait for empty buffer*/
         FileIO_FCh_WriteStat(ch, DRV08_STATUS_IRQ);
 
-        while (block_count--) {
-          // safe version for now, FIFO is not big enough for max block transfer
-          FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM);
-
-          if (!first) {
-            Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
-          }
+        // calc final sector number in block
+        i = block_count;
+        while (i--) {
+          if (!first) Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
           first = 0;
-          // update on last sector in block
-          if (!block_count) Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
+        }
+        // update, this should be done at the end really, but we need to make sure the transfer has not completed
+        Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
 
-          Drv08_FileReadSend(ch, pDrive, fbuf); // read and send block
+        // do transfer
+        while (block_count) {
+          i = block_count;
+          if (i > DRV08_MAX_READ_BURST) i = DRV08_MAX_READ_BURST;
+          FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM);
+          Drv08_FileReadSendDirect(ch, pDrive, i); // read and send block(s)
 
-          sector_count--;
+          sector_count-= i;
+          block_count -= i;
         } // end block
+
       }  // end sector
       //
+    } else if (tfr[7] == DRV08_CMD_READ_VERIFY) { // Read verify
+      //
+      if (DRV08_DEBUG) DEBUG(1,"Drv08:Read Verify");
+      //
+      Drv08_WriteTaskFile (ch,0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+
+      FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ); // IRQ or not?
+
     } else if (tfr[7] == DRV08_CMD_WRITE_SECTORS) {  // write sectors
       // ADD CHECK FOR READ ONLY FILE
       //

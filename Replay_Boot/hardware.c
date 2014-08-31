@@ -340,9 +340,9 @@ void SPI_Init(void)
 
 }
 
-unsigned char SPI(unsigned char outByte)
+unsigned char SPI(unsigned char outByte)  // inline?
 {
-  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // warning, but is a must!
+  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // warning, but is a must! Clear previous rubbish
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
   AT91C_BASE_SPI->SPI_TDR = outByte;
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));
@@ -368,6 +368,8 @@ void SPI_WriteBufferSingle(void *pBuffer, uint32_t length)
 
 void SPI_ReadBufferSingle(void *pBuffer, uint32_t length)
 {
+  // assume spi rx buffer is flushed on entry (previous SPI command)
+
   // we do not care what we send out (current buffer contents), the FPGA will ignore
   AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
   AT91C_BASE_SPI->SPI_TCR  = length;

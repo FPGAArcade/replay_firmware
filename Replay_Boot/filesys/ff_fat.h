@@ -37,9 +37,9 @@
  *  James Walmsley for integration into the main development branch.         *
  *****************************************************************************/
 /**
- *	@file		ff_fat.h
- *	@author		James Walmsley
- *	@ingroup	FAT
+ *      @file           ff_fat.h
+ *      @author         James Walmsley
+ *      @ingroup        FAT
  **/
 
 #ifndef _FF_FAT_H_
@@ -79,30 +79,30 @@ typedef struct _FatBuffers {
 	FF_T_UINT8 Mode; // FF_MODE_READ or WRITE
 } FF_FatBuffers;
 
-		FF_T_UINT32 FF_getRealLBA			(FF_IOMAN *pIoman, FF_T_UINT32 LBA);
-		FF_T_UINT32 FF_Cluster2LBA			(FF_IOMAN *pIoman, FF_T_UINT32 Cluster);
-		FF_T_UINT32 FF_LBA2Cluster			(FF_IOMAN *pIoman, FF_T_UINT32 Address);
-		FF_T_UINT32 FF_getFatEntry			(FF_IOMAN *pIoman, FF_T_UINT32 nCluster, FF_ERROR *pError, FF_FatBuffers *pFatBuf);
-		FF_ERROR	FF_putFatEntry			(FF_IOMAN *pIoman, FF_T_UINT32 nCluster, FF_T_UINT32 Value, FF_FatBuffers *pFatBuf);
-		FF_T_BOOL	FF_isEndOfChain			(FF_IOMAN *pIoman, FF_T_UINT32 fatEntry);
-		FF_T_UINT32 FF_FindFreeCluster		(FF_IOMAN *pIoman, FF_ERROR *pError);
-		FF_T_UINT32	FF_ExtendClusterChain	(FF_IOMAN *pIoman, FF_T_UINT32 StartCluster, FF_T_UINT32 Count);
-		FF_ERROR	FF_UnlinkClusterChain	(FF_IOMAN *pIoman, FF_T_UINT32 StartCluster, FF_T_BOOL bTruncate);
-		FF_T_UINT32	FF_TraverseFAT			(FF_IOMAN *pIoman, FF_T_UINT32 Start, FF_T_UINT32 Count, FF_ERROR *pError);
-		FF_T_UINT32 FF_CreateClusterChain	(FF_IOMAN *pIoman, FF_ERROR *pError);
-		FF_T_UINT32 FF_GetChainLength		(FF_IOMAN *pIoman, FF_T_UINT32 pa_nStartCluster, FF_T_UINT32 *piEndOfChain, FF_ERROR *pError);
-		FF_T_UINT32 FF_FindEndOfChain		(FF_IOMAN *pIoman, FF_T_UINT32 Start, FF_ERROR *pError);
-		FF_ERROR	FF_ClearCluster			(FF_IOMAN *pIoman, FF_T_UINT32 nCluster);
+		FF_T_UINT32 FF_getRealLBA                       (FF_IOMAN *pIoman, FF_T_UINT32 LBA);
+		FF_T_UINT32 FF_Cluster2LBA                      (FF_IOMAN *pIoman, FF_T_UINT32 Cluster);
+		FF_T_UINT32 FF_LBA2Cluster                      (FF_IOMAN *pIoman, FF_T_UINT32 Address);
+		FF_T_UINT32 FF_getFatEntry                      (FF_IOMAN *pIoman, FF_T_UINT32 nCluster, FF_ERROR *pError, FF_FatBuffers *pFatBuf);
+		FF_ERROR        FF_putFatEntry                  (FF_IOMAN *pIoman, FF_T_UINT32 nCluster, FF_T_UINT32 Value, FF_FatBuffers *pFatBuf);
+		FF_T_BOOL       FF_isEndOfChain                 (FF_IOMAN *pIoman, FF_T_UINT32 fatEntry);
+		FF_T_UINT32 FF_FindFreeCluster          (FF_IOMAN *pIoman, FF_ERROR *pError);
+		FF_T_UINT32     FF_ExtendClusterChain   (FF_IOMAN *pIoman, FF_T_UINT32 StartCluster, FF_T_UINT32 Count);
+		FF_ERROR        FF_UnlinkClusterChain   (FF_IOMAN *pIoman, FF_T_UINT32 StartCluster, FF_T_BOOL bTruncate);
+		FF_T_UINT32     FF_TraverseFAT                  (FF_IOMAN *pIoman, FF_T_UINT32 Start, FF_T_UINT32 Count, FF_ERROR *pError);
+		FF_T_UINT32 FF_CreateClusterChain       (FF_IOMAN *pIoman, FF_ERROR *pError);
+		FF_T_UINT32 FF_GetChainLength           (FF_IOMAN *pIoman, FF_T_UINT32 pa_nStartCluster, FF_T_UINT32 *piEndOfChain, FF_ERROR *pError);
+		FF_T_UINT32 FF_FindEndOfChain           (FF_IOMAN *pIoman, FF_T_UINT32 Start, FF_ERROR *pError);
+		FF_ERROR        FF_ClearCluster                 (FF_IOMAN *pIoman, FF_T_UINT32 nCluster);
 #ifdef FF_64_NUM_SUPPORT
-		FF_T_UINT64 FF_GetFreeSize			(FF_IOMAN *pIoman, FF_ERROR *pError);
+		FF_T_UINT64 FF_GetFreeSize                      (FF_IOMAN *pIoman, FF_ERROR *pError);
 #else
-		FF_T_UINT32 FF_GetFreeSize			(FF_IOMAN *pIoman, FF_ERROR *pError);
+		FF_T_UINT32 FF_GetFreeSize                      (FF_IOMAN *pIoman, FF_ERROR *pError);
 #endif
-		FF_T_UINT32 FF_CountFreeClusters	(FF_IOMAN *pIoman, FF_ERROR *pError);	// WARNING: If this protoype changes, it must be updated in ff_ioman.c also!
-		void		FF_lockFAT				(FF_IOMAN *pIoman);
-		void		FF_unlockFAT			(FF_IOMAN *pIoman);
+		FF_T_UINT32 FF_CountFreeClusters        (FF_IOMAN *pIoman, FF_ERROR *pError);   // WARNING: If this protoype changes, it must be updated in ff_ioman.c also!
+		void            FF_lockFAT                              (FF_IOMAN *pIoman);
+		void            FF_unlockFAT                    (FF_IOMAN *pIoman);
 
-FF_T_UINT32 FF_FindFreeCluster(FF_IOMAN *pIoman, FF_ERROR *pError);
+//FF_T_UINT32 FF_FindFreeCluster(FF_IOMAN *pIoman, FF_ERROR *pError); // REDUNDANT DEF??
 FF_ERROR FF_ReleaseFatBuffer (FF_IOMAN *pIoman, FF_FatBuffers *pFatBuf);
 
 FF_INLINE void FF_InitFatBuffer (FF_FatBuffers *pBuffer, unsigned aMode)

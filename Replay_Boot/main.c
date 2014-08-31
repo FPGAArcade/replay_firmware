@@ -297,10 +297,12 @@ int main(void)
         }
 
         // Handle virtual drives
+
         if (current_status.fileio_cha_ena !=0)
           FileIO_FCh_Process(0);
         if (current_status.fileio_chb_ena !=0)
           FileIO_FCh_Process(1);
+
       }
     }
 

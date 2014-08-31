@@ -38,65 +38,67 @@
  *****************************************************************************/
 
 /**
- *	@file		ff_file.c
- *	@author		James Walmsley
- *	@ingroup	FILEIO
+ *      @file           ff_file.c
+ *      @author         James Walmsley
+ *      @ingroup        FILEIO
  *
- *	@defgroup	FILEIO FILE I/O Access
- *	@brief		Provides an interface to allow File I/O on a mounted IOMAN.
+ *      @defgroup       FILEIO FILE I/O Access
+ *      @brief          Provides an interface to allow File I/O on a mounted IOMAN.
  *
- *	Provides file-system interfaces for the FAT file-system.
+ *      Provides file-system interfaces for the FAT file-system.
  **/
 
 #include "ff_file.h"
 #include "ff_string.h"
 #include "ff_config.h"
 
+#include "../messaging.h"
+
 #ifdef FF_UNICODE_SUPPORT
 #include <wchar.h>
 #endif
 
 /**
- *	@public
- *	@brief	Converts STDIO mode strings into the equivalent FullFAT mode.
+ *      @public
+ *      @brief  Converts STDIO mode strings into the equivalent FullFAT mode.
  *
- *	@param	Mode	The mode string e.g. "rb" "rb+" "w" "a" "r" "w+" "a+" etc
+ *      @param  Mode    The mode string e.g. "rb" "rb+" "w" "a" "r" "w+" "a+" etc
  *
- *	@return	Returns the mode bits that should be passed to the FF_Open function.
+ *      @return Returns the mode bits that should be passed to the FF_Open function.
  **/
 FF_T_UINT8 FF_GetModeBits(FF_T_INT8 *Mode) {
 	FF_T_UINT8 ModeBits = 0x00;
 	while(*Mode) {
 		switch(*Mode) {
-			case 'r':	// Allow Read
+			case 'r':   // Allow Read
 			case 'R':
 				ModeBits |= FF_MODE_READ;
 				break;
 
-			case 'w':	// Allow Write
+			case 'w':   // Allow Write
 			case 'W':
 				ModeBits |= FF_MODE_WRITE;
-				ModeBits |= FF_MODE_CREATE;	// Create if not exist.
+				ModeBits |= FF_MODE_CREATE;     // Create if not exist.
 				ModeBits |= FF_MODE_TRUNCATE;
 				break;
 
-			case 'a':	// Append new writes to the end of the file.
+			case 'a':   // Append new writes to the end of the file.
 			case 'A':
 				ModeBits |= FF_MODE_WRITE;
 				ModeBits |= FF_MODE_APPEND;
-				ModeBits |= FF_MODE_CREATE;	// Create if not exist.
+				ModeBits |= FF_MODE_CREATE;     // Create if not exist.
 				break;
 
-			case '+':	// Update the file, don't Append!
-				ModeBits |= FF_MODE_READ;	// RW Mode
-				ModeBits |= FF_MODE_WRITE;	// RW Mode
+			case '+':   // Update the file, don't Append!
+				ModeBits |= FF_MODE_READ;       // RW Mode
+				ModeBits |= FF_MODE_WRITE;      // RW Mode
 				break;
 
-			/*case 'D':	// Internal use only!
+			/*case 'D': // Internal use only!
 				ModeBits |= FF_MODE_DIR;
 				break;*/
 
-			default:	// b|B flags not supported (Binary mode is native anyway).
+			default:    // b|B flags not supported (Binary mode is native anyway).
 				break;
 		}
 		Mode++;
@@ -121,7 +123,7 @@ FF_T_UINT8 FF_GetModeBits(FF_T_INT8 *Mode) {
  *   *
  * - FF_MODE_APPEND
  *   - Causes all writes to occur at the end of the file. (Its impossible to overwrite other data in a file with this flag set).
- *   . 
+ *   .
  * .
  *
  * Some sample modes:
@@ -143,37 +145,37 @@ FF_T_UINT8 FF_GetModeBits(FF_T_INT8 *Mode) {
 
 
 /**
- *	@public
- *	@brief	Opens a File for Access
+ *      @public
+ *      @brief  Opens a File for Access
  *
- *	@param	pIoman		FF_IOMAN object that was created by FF_CreateIOMAN().
- *	@param	path		Path to the File or object.
- *	@param	Mode		Access Mode required. Modes are a little complicated, the function FF_GetModeBits()
- *	@param	Mode		will convert a stdio Mode string into the equivalent Mode bits for this parameter.
- *	@param	pError		Pointer to a signed byte for error checking. Can be NULL if not required.
- *	@param	pError		To be checked when a NULL pointer is returned.
+ *      @param  pIoman          FF_IOMAN object that was created by FF_CreateIOMAN().
+ *      @param  path            Path to the File or object.
+ *      @param  Mode            Access Mode required. Modes are a little complicated, the function FF_GetModeBits()
+ *      @param  Mode            will convert a stdio Mode string into the equivalent Mode bits for this parameter.
+ *      @param  pError          Pointer to a signed byte for error checking. Can be NULL if not required.
+ *      @param  pError          To be checked when a NULL pointer is returned.
  *
- *	@return	NULL pointer on Error, in which case pError should be checked for more information.
- *	@return	pError can be:
+ *      @return NULL pointer on Error, in which case pError should be checked for more information.
+ *      @return pError can be:
  **/
 #ifdef FF_UNICODE_SUPPORT
 FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_WCHAR *path, FF_T_UINT8 Mode, FF_ERROR *pError) {
 #else
 FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_T_UINT8 Mode, FF_ERROR *pError) {
 #endif
-	FF_FILE		*pFile;
-	FF_FILE		*pFileChain;
-	FF_DIRENT	Object;
+	FF_FILE             *pFile;
+	FF_FILE             *pFileChain;
+	FF_DIRENT   Object;
 	FF_T_UINT32 DirCluster, FileCluster;
 
 #ifdef FF_UNICODE_SUPPORT
-	FF_T_WCHAR	filename[FF_MAX_FILENAME];
+	FF_T_WCHAR  filename[FF_MAX_FILENAME];
 #else
-	FF_T_INT8	filename[FF_MAX_FILENAME];
+	FF_T_INT8   filename[FF_MAX_FILENAME];
 #endif
-	FF_ERROR	Error;
+	FF_ERROR    Error;
 
-	FF_T_UINT16	i;
+	FF_T_UINT16 i;
 
 	if(pError) {
 		*pError = FF_ERR_NONE;
@@ -210,7 +212,7 @@ FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_T_UINT8 Mode, FF_ER
 
 #ifdef FF_UNICODE_SUPPORT
 	i = (FF_T_UINT16) wcslen(path);
-#else 
+#else
 	i = (FF_T_UINT16) strlen(path);
 #endif
 
@@ -254,7 +256,7 @@ FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_T_UINT8 Mode, FF_ER
 		goto out;
 	}
 
-	if(!FileCluster) {	// If 0 was returned, it might be because the file has no allocated cluster
+	if(!FileCluster) {  // If 0 was returned, it might be because the file has no allocated cluster
 #ifdef FF_UNICODE_SUPPORT
 		if(wcslen(filename) == wcslen(Object.FileName)) {
 			if(Object.Filesize == 0 && FF_strmatch(filename, Object.FileName, (FF_T_UINT16) wcslen(filename)) == FF_TRUE) {
@@ -264,7 +266,7 @@ FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_T_UINT8 Mode, FF_ER
 #endif
 				// The file really was found!
 				FileCluster = 1;
-			} 
+			}
 		}
 	}
 
@@ -310,19 +312,19 @@ FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_T_UINT8 Mode, FF_ER
 			goto out;
 		}
 	}
-	pFile->pIoman				= pIoman;
-	pFile->FilePointer			= 0;
-	pFile->ObjectCluster		= Object.ObjectCluster;
-	pFile->Filesize				= Object.Filesize;
-	pFile->CurrentCluster		= 0;
-	pFile->AddrCurrentCluster	= pFile->ObjectCluster;
-	//pFile->Mode					= Mode;
-	pFile->Next					= NULL;
-	pFile->DirCluster			= DirCluster;
-	pFile->DirEntry				= Object.CurrentItem - 1;
-	pFile->iChainLength			= 0;
-	pFile->iEndOfChain			= 0;
-	pFile->ValidFlags			&= ~(FF_VALID_FLAG_DELETED); //FF_FALSE;
+	pFile->pIoman                               = pIoman;
+	pFile->FilePointer                  = 0;
+	pFile->ObjectCluster                = Object.ObjectCluster;
+	pFile->Filesize                             = Object.Filesize;
+	pFile->CurrentCluster               = 0;
+	pFile->AddrCurrentCluster   = pFile->ObjectCluster;
+	//pFile->Mode                                       = Mode;
+	pFile->Next                                 = NULL;
+	pFile->DirCluster                   = DirCluster;
+	pFile->DirEntry                             = Object.CurrentItem - 1;
+	pFile->iChainLength                 = 0;
+	pFile->iEndOfChain                  = 0;
+	pFile->ValidFlags                   &= ~(FF_VALID_FLAG_DELETED); //FF_FALSE;
 
 	// File Permission Processing
 	// Only "w" and "w+" mode strings can erase a file's contents.
@@ -376,10 +378,10 @@ out:
 
 
 /**
- *	@public
- *	@brief	Tests if a Directory contains any other files or folders.
+ *      @public
+ *      @brief  Tests if a Directory contains any other files or folders.
  *
- *	@param	pIoman	FF_IOMAN object returned from the FF_CreateIOMAN() function.
+ *      @param  pIoman  FF_IOMAN object returned from the FF_CreateIOMAN() function.
  *
  **/
 #ifdef FF_UNICODE_SUPPORT
@@ -388,9 +390,9 @@ FF_T_BOOL FF_isDirEmpty(FF_IOMAN *pIoman, const FF_T_WCHAR *Path) {
 FF_T_BOOL FF_isDirEmpty(FF_IOMAN *pIoman, const FF_T_INT8 *Path) {
 #endif
 
-	FF_DIRENT	MyDir;
-	FF_ERROR	RetVal = FF_ERR_NONE;
-	FF_T_UINT8	i = 0;
+	FF_DIRENT   MyDir;
+	FF_ERROR    RetVal = FF_ERR_NONE;
+	FF_T_UINT8  i = 0;
 
 	if(!pIoman) {
 		return FF_FALSE;
@@ -413,11 +415,11 @@ FF_ERROR FF_RmDir(FF_IOMAN *pIoman, const FF_T_WCHAR *path) {
 #else
 FF_ERROR FF_RmDir(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
 #endif
-	FF_FILE 			*pFile;
-	FF_ERROR 			Error = FF_ERR_NONE;
-	FF_T_UINT8 			EntryBuffer[32];
-	FF_FETCH_CONTEXT	FetchContext;
-	FF_ERROR 			RetVal = FF_ERR_NONE;
+	FF_FILE                     *pFile;
+	FF_ERROR                    Error = FF_ERR_NONE;
+	FF_T_UINT8                  EntryBuffer[32];
+	FF_FETCH_CONTEXT    FetchContext;
+	FF_ERROR                    RetVal = FF_ERR_NONE;
 #ifdef FF_PATH_CACHE
 	FF_T_UINT32 i;
 #endif
@@ -429,7 +431,7 @@ FF_ERROR FF_RmDir(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
 	pFile = FF_Open(pIoman, path, FF_MODE_DIR, &Error);
 
 	if(!pFile) {
-		return Error;	// File in use or File not found!
+		return Error;   // File in use or File not found!
 	}
 
 	pFile->ValidFlags |= FF_VALID_FLAG_DELETED;//FF_TRUE;
@@ -439,7 +441,7 @@ FF_ERROR FF_RmDir(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
 		if(FF_isDirEmpty(pIoman, path)) {
 			FF_lockFAT(pIoman);
 			{
-				Error = FF_UnlinkClusterChain(pIoman, pFile->ObjectCluster, 0);	// 0 to delete the entire chain!
+				Error = FF_UnlinkClusterChain(pIoman, pFile->ObjectCluster, 0); // 0 to delete the entire chain!
 			}
 			FF_unlockFAT(pIoman);
 
@@ -461,14 +463,14 @@ FF_ERROR FF_RmDir(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
 			// Edit the Directory Entry! (So it appears as deleted);
 			Error = FF_RmLFNs(pIoman, pFile->DirEntry, &FetchContext);
 			if(FF_isERR(Error)) {
-				FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+				FF_CleanupEntryFetch(pIoman, &FetchContext);    // Don't override error!
 				FF_unlockDIR(pIoman);
 				FF_Close(pFile);
 				return Error;
 			}
 			Error = FF_FetchEntryWithContext(pIoman, pFile->DirEntry, &FetchContext, EntryBuffer);
 			if(FF_isERR(Error)) {
-				FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+				FF_CleanupEntryFetch(pIoman, &FetchContext);    // Don't override error!
 				FF_unlockDIR(pIoman);
 				FF_Close(pFile);
 				return Error;
@@ -476,13 +478,13 @@ FF_ERROR FF_RmDir(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
 			EntryBuffer[0] = 0xE5;
 			Error = FF_PushEntryWithContext(pIoman, pFile->DirEntry, &FetchContext, EntryBuffer);
 			if(FF_isERR(Error)) {
-				FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+				FF_CleanupEntryFetch(pIoman, &FetchContext);    // Don't override error!
 				FF_unlockDIR(pIoman);
 				FF_Close(pFile);
 				return Error;
 			}
 #ifdef FF_PATH_CACHE
-			FF_PendSemaphore(pIoman->pSemaphore);	// Thread safety on shared object!
+			FF_PendSemaphore(pIoman->pSemaphore);       // Thread safety on shared object!
 			{
 				for(i = 0; i < FF_PATH_CACHE_DEPTH; i++) {
 #ifdef FF_UNICODE_SUPPORT
@@ -501,7 +503,7 @@ FF_ERROR FF_RmDir(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
 
 			Error = FF_IncreaseFreeClusters(pIoman, pFile->iChainLength);
 			if(FF_isERR(Error)) {
-				FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+				FF_CleanupEntryFetch(pIoman, &FetchContext);    // Don't override error!
 				FF_unlockDIR(pIoman);
 				FF_Close(pFile);
 				return Error;
@@ -547,15 +549,15 @@ FF_ERROR FF_RmFile(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
 	pFile = FF_Open(pIoman, path, FF_MODE_WRITE, &Error);
 
 	if(!pFile) {
-		return Error;	// File in use or File not found!
+		return Error;   // File in use or File not found!
 	}
 
 	pFile->ValidFlags |= FF_VALID_FLAG_DELETED;//FF_TRUE;
 
-	if(pFile->ObjectCluster) {	// Ensure there is actually a cluster chain to delete!
-		FF_lockFAT(pIoman);	// Lock the FAT so its thread-safe.
+	if(pFile->ObjectCluster) {  // Ensure there is actually a cluster chain to delete!
+		FF_lockFAT(pIoman);     // Lock the FAT so its thread-safe.
 		{
-			Error = FF_UnlinkClusterChain(pIoman, pFile->ObjectCluster, 0);	// 0 to delete the entire chain!
+			Error = FF_UnlinkClusterChain(pIoman, pFile->ObjectCluster, 0);     // 0 to delete the entire chain!
 		}
 		FF_unlockFAT(pIoman);
 
@@ -576,14 +578,14 @@ FF_ERROR FF_RmFile(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
 		}
 		Error = FF_RmLFNs(pIoman, (FF_T_UINT16)pFile->DirEntry, &FetchContext);
 		if(FF_isERR(Error)) {
-			FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+			FF_CleanupEntryFetch(pIoman, &FetchContext);        // Don't override error!
 			FF_unlockDIR(pIoman);
 			FF_Close(pFile);
 			return Error;
 		}
 		Error = FF_FetchEntryWithContext(pIoman, pFile->DirEntry, &FetchContext, EntryBuffer);
 		if(FF_isERR(Error)) {
-			FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+			FF_CleanupEntryFetch(pIoman, &FetchContext);        // Don't override error!
 			FF_unlockDIR(pIoman);
 			FF_Close(pFile);
 			return Error;
@@ -592,7 +594,7 @@ FF_ERROR FF_RmFile(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
 
 		Error = FF_PushEntryWithContext(pIoman, pFile->DirEntry, &FetchContext, EntryBuffer);
 		if(FF_isERR(Error)) {
-			FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+			FF_CleanupEntryFetch(pIoman, &FetchContext);        // Don't override error!
 			FF_unlockDIR(pIoman);
 			FF_Close(pFile);
 			return Error;
@@ -619,18 +621,18 @@ FF_ERROR FF_RmFile(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
 }
 
 /**
- *	@public
- *	@brief	Moves a file or directory from source to destination.
+ *      @public
+ *      @brief  Moves a file or directory from source to destination.
  *
- *	@param	pIoman				The FF_IOMAN object pointer.
- *	@param	szSourceFile		String of the source file to be moved or renamed.
- *	@param	szDestinationFile	String of the destination file to where the source should be moved or renamed.
+ *      @param  pIoman                          The FF_IOMAN object pointer.
+ *      @param  szSourceFile            String of the source file to be moved or renamed.
+ *      @param  szDestinationFile       String of the destination file to where the source should be moved or renamed.
  *
- *	@return	FF_ERR_NONE on success.
- *	@return FF_ERR_FILE_DESTINATION_EXISTS if the destination file exists.
- *	@return FF_ERR_FILE_COULD_NOT_CREATE_DIRENT if dirent creation failed (fatal error!).
- *	@return FF_ERR_FILE_DIR_NOT_FOUND if destination directory was not found.
- *	@return FF_ERR_FILE_SOURCE_NOT_FOUND if the source file was not found.
+ *      @return FF_ERR_NONE on success.
+ *      @return FF_ERR_FILE_DESTINATION_EXISTS if the destination file exists.
+ *      @return FF_ERR_FILE_COULD_NOT_CREATE_DIRENT if dirent creation failed (fatal error!).
+ *      @return FF_ERR_FILE_DIR_NOT_FOUND if destination directory was not found.
+ *      @return FF_ERR_FILE_SOURCE_NOT_FOUND if the source file was not found.
  *
  **/
 #ifdef FF_UNICODE_SUPPORT
@@ -638,13 +640,13 @@ FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_WCHAR *szSourceFile, const FF_T_WC
 #else
 FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT8 *szDestinationFile) {
 #endif
-	FF_ERROR	Error;
-	FF_FILE		*pSrcFile, *pDestFile;
-	FF_DIRENT	MyFile;
-	FF_T_UINT8	EntryBuffer[32];
+	FF_ERROR    Error;
+	FF_FILE             *pSrcFile, *pDestFile;
+	FF_DIRENT   MyFile;
+	FF_T_UINT8  EntryBuffer[32];
 	FF_T_UINT16 i;
-	FF_T_UINT32	DirCluster;
-	FF_FETCH_CONTEXT	FetchContext;
+	FF_T_UINT32 DirCluster;
+	FF_FETCH_CONTEXT    FetchContext;
 
 	if(!pIoman) {
 		return (FF_ERR_NULL_POINTER | FF_MOVE);
@@ -658,7 +660,7 @@ FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT
 			FF_Close(pDestFile);
 		}
 
-		return (FF_ERR_FILE_DESTINATION_EXISTS | FF_MOVE);	// YES -- FAIL
+		return (FF_ERR_FILE_DESTINATION_EXISTS | FF_MOVE);      // YES -- FAIL
 	}
 
 	pSrcFile = FF_Open(pIoman, szSourceFile, FF_MODE_READ, &Error);
@@ -681,14 +683,14 @@ FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT
 	Error = FF_FetchEntryWithContext(pIoman, pSrcFile->DirEntry, &FetchContext, EntryBuffer);
 	if(FF_isERR(Error)) {
 		FF_Close(pSrcFile);
-		FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+		FF_CleanupEntryFetch(pIoman, &FetchContext);    // Don't override error!
 		return Error;
 	}
 	//FF_FetchEntry(pIoman, pSrcFile->DirCluster, pSrcFile->DirEntry, EntryBuffer);
-	MyFile.Attrib			= FF_getChar(EntryBuffer,  (FF_T_UINT16)(FF_FAT_DIRENT_ATTRIB));
-	MyFile.Filesize			= pSrcFile->Filesize;
-	MyFile.ObjectCluster	= pSrcFile->ObjectCluster;
-	MyFile.CurrentItem		= 0;
+	MyFile.Attrib                       = FF_getChar(EntryBuffer,  (FF_T_UINT16)(FF_FAT_DIRENT_ATTRIB));
+	MyFile.Filesize                     = pSrcFile->Filesize;
+	MyFile.ObjectCluster        = pSrcFile->ObjectCluster;
+	MyFile.CurrentItem          = 0;
 
 #ifdef FF_UNICODE_SUPPORT
 	i = (FF_T_UINT16) wcslen(szDestinationFile);
@@ -717,7 +719,7 @@ FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT
 	DirCluster = FF_FindDir(pIoman, szDestinationFile, i, &Error);
 	if(FF_isERR(Error)) {
 		FF_Close(pSrcFile);
-		FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+		FF_CleanupEntryFetch(pIoman, &FetchContext);    // Don't override error!
 		return Error;
 	}
 
@@ -732,8 +734,8 @@ FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT
 		Error = FF_CreateDirent(pIoman, DirCluster, &MyFile);
 		if(FF_isERR(Error)) {
 			FF_Close(pSrcFile);
-			FF_CleanupEntryFetch(pIoman, &FetchContext);	// TODO: Is this required??
-			return Error;	// FAILED
+			FF_CleanupEntryFetch(pIoman, &FetchContext);        // TODO: Is this required??
+			return Error;       // FAILED
 		}
 
 		// Edit the Directory Entry! (So it appears as deleted);
@@ -744,14 +746,14 @@ FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT
 			if(FF_isERR(Error)) {
 				FF_unlockDIR(pIoman);
 				FF_Close(pSrcFile);
-				FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+				FF_CleanupEntryFetch(pIoman, &FetchContext);    // Don't override error!
 				return Error;
 			}
 			Error = FF_FetchEntryWithContext(pIoman, pSrcFile->DirEntry, &FetchContext, EntryBuffer);
 			if(FF_isERR(Error)) {
 				FF_unlockDIR(pIoman);
 				FF_Close(pSrcFile);
-				FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+				FF_CleanupEntryFetch(pIoman, &FetchContext);    // Don't override error!
 				return Error;
 			}
 			EntryBuffer[0] = 0xE5;
@@ -760,7 +762,7 @@ FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT
 			if(FF_isERR(Error)) {
 				FF_unlockDIR(pIoman);
 				FF_Close(pSrcFile);
-				FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
+				FF_CleanupEntryFetch(pIoman, &FetchContext);    // Don't override error!
 				return Error;
 			}
 			Error = FF_CleanupEntryFetch(pIoman, &FetchContext);
@@ -786,13 +788,13 @@ FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT
 
 
 /**
- *	@public
- *	@brief	Get's the next Entry based on the data recorded in the FF_DIRENT object.
+ *      @public
+ *      @brief  Get's the next Entry based on the data recorded in the FF_DIRENT object.
  *
- *	@param	pFile	FF_FILE object that was created by FF_Open().
+ *      @param  pFile   FF_FILE object that was created by FF_Open().
  *
- *	@return FF_TRUE if End of File was reached. FF_FALSE if not.
- *	@return FF_FALSE if a null pointer was provided.
+ *      @return FF_TRUE if End of File was reached. FF_FALSE if not.
+ *      @return FF_FALSE if a null pointer was provided.
  *
  **/
 FF_T_BOOL FF_isEOF(FF_FILE *pFile) {
@@ -807,13 +809,13 @@ FF_T_BOOL FF_isEOF(FF_FILE *pFile) {
 }
 
 /**
- *	@public
- *	@brief	Checks the number of bytes left on a read handle
+ *      @public
+ *      @brief  Checks the number of bytes left on a read handle
  *
- *	@param	pFile		An open file handle
+ *      @param  pFile           An open file handle
  *
- *	@return	Less than zero: an error code
- *	@return	Number of bytes left to read from handle
+ *      @return Less than zero: an error code
+ *      @return Number of bytes left to read from handle
  **/
 FF_T_SINT32 FF_BytesLeft(FF_FILE *pFile) {
 	if(!pFile) {
@@ -869,7 +871,7 @@ static FF_ERROR FF_ReadClusters(FF_FILE *pFile, FF_T_UINT32 Count, FF_T_UINT8 *b
 	FF_T_UINT32 SequentialClusters = 0;
 	FF_T_UINT32 nItemLBA;
 	FF_T_SINT32 slRetVal;
-	FF_ERROR	Error;
+	FF_ERROR    Error;
 
 	while(Count != 0) {
 		if((Count - 1) > 0) {
@@ -893,7 +895,11 @@ static FF_ERROR FF_ReadClusters(FF_FILE *pFile, FF_T_UINT32 Count, FF_T_UINT8 *b
 			return Error;
 		}
 		pFile->CurrentCluster += (SequentialClusters + 1);
-		buffer += ulSectors * pFile->pIoman->BlkSize;
+		// mikej mod
+		if (buffer) { // if null, stay null
+		// end mikemod
+		  buffer += ulSectors * pFile->pIoman->BlkSize;
+		}
 		SequentialClusters = 0;
 	}
 
@@ -902,21 +908,21 @@ static FF_ERROR FF_ReadClusters(FF_FILE *pFile, FF_T_UINT32 Count, FF_T_UINT8 *b
 
 
 static FF_ERROR FF_ExtendFile(FF_FILE *pFile, FF_T_UINT32 Size) {
-	FF_IOMAN	*pIoman = pFile->pIoman;
+	FF_IOMAN    *pIoman = pFile->pIoman;
 	FF_T_UINT32 nBytesPerCluster = pIoman->pPartition->BlkSize * pIoman->pPartition->SectorsPerCluster;
 	FF_T_UINT32 nTotalClustersNeeded = (Size + nBytesPerCluster-1) / nBytesPerCluster;
-	FF_T_UINT32 nClusterToExtend; 
+	FF_T_UINT32 nClusterToExtend;
 	FF_T_UINT32 CurrentCluster, NextCluster;
-	FF_T_UINT32	i;
-	FF_DIRENT	OriginalEntry;
-	FF_ERROR	Error = FF_ERR_NONE;
+	FF_T_UINT32 i;
+	FF_DIRENT   OriginalEntry;
+	FF_ERROR    Error = FF_ERR_NONE;
 	FF_FatBuffers FatBuf;
 
 	if((pFile->Mode & FF_MODE_WRITE) != FF_MODE_WRITE) {
 		return (FF_ERR_FILE_NOT_OPENED_IN_WRITE_MODE | FF_EXTENDFILE);
 	}
 
-	if(pFile->Filesize == 0 && pFile->ObjectCluster == 0) {	// No Allocated clusters.
+	if(pFile->Filesize == 0 && pFile->ObjectCluster == 0) {     // No Allocated clusters.
 		// Create a Cluster chain!
 		pFile->AddrCurrentCluster = FF_CreateClusterChain(pFile->pIoman, &Error);
 
@@ -941,7 +947,7 @@ static FF_ERROR FF_ExtendFile(FF_FILE *pFile, FF_T_UINT32 Size) {
 		pFile->iEndOfChain = pFile->AddrCurrentCluster;
 	}
 
-	if(pFile->iChainLength == 0) {	// First extension requiring the chain length, 
+	if(pFile->iChainLength == 0) {      // First extension requiring the chain length,
 		pFile->iChainLength = FF_GetChainLength(pIoman, pFile->ObjectCluster, &pFile->iEndOfChain, &Error);
 		if(FF_isERR(Error)) {
 			return Error;
@@ -994,16 +1000,16 @@ static FF_ERROR FF_ExtendFile(FF_FILE *pFile, FF_T_UINT32 Size) {
 		}
 		FF_unlockFAT(pIoman);
 		pFile->iChainLength += i;
-		Error = FF_DecreaseFreeClusters(pIoman, i);	// Keep Tab of Numbers for fast FreeSize()
+		Error = FF_DecreaseFreeClusters(pIoman, i);     // Keep Tab of Numbers for fast FreeSize()
 		if(FF_isERR(Error)) {
 			return Error;
 		}
 
 		/**
-		 *	We must ensure that the AddrCurrentCluster is not out-of-sync with the CurrentCluster number.
-		 *	This could have occured in append mode, where the file was opened with a filesize % clustersize == 0
-		 *	because of a seek, where the AddrCurrentCluster was not updated after extending. This caused the data to
-		 *	be written to the previous cluster(s).
+		 *      We must ensure that the AddrCurrentCluster is not out-of-sync with the CurrentCluster number.
+		 *      This could have occured in append mode, where the file was opened with a filesize % clustersize == 0
+		 *      because of a seek, where the AddrCurrentCluster was not updated after extending. This caused the data to
+		 *      be written to the previous cluster(s).
 		 **/
 		if(pFile->CurrentCluster == pFile->iChainLength-1 && pFile->AddrCurrentCluster != pFile->iEndOfChain) {
 			pFile->AddrCurrentCluster = pFile->iEndOfChain;
@@ -1023,7 +1029,7 @@ static FF_ERROR FF_WriteClusters(FF_FILE *pFile, FF_T_UINT32 Count, FF_T_UINT8 *
 	FF_T_UINT32 SequentialClusters = 0;
 	FF_T_UINT32 nItemLBA;
 	FF_T_SINT32 slRetVal;
-	FF_ERROR	Error;
+	FF_ERROR    Error;
 
 	while(Count != 0) {
 		if((Count - 1) > 0) {
@@ -1056,12 +1062,12 @@ static FF_ERROR FF_WriteClusters(FF_FILE *pFile, FF_T_UINT32 Count, FF_T_UINT8 *
 }
 
 /**
- *	@private
- *	@brief	Calculate the Logical Block Address (LBA)
+ *      @private
+ *      @brief  Calculate the Logical Block Address (LBA)
  *
- *	@param	pFile       The file handle
+ *      @param  pFile       The file handle
  *
- *	@return	LBA
+ *      @return LBA
  *
  *  Must be set:
  *    - pFile->FilePointer        : byte offset in file
@@ -1077,14 +1083,14 @@ static FF_T_UINT32 FF_FileLBA (FF_FILE *pFile) {
 }
 
 /**
- *	@private
- *	@brief	Depending on FilePointer, calculate CurrentCluster
- *  @brief	and traverse the FAT to find the right AddrCurrentCluster
+ *      @private
+ *      @brief  Depending on FilePointer, calculate CurrentCluster
+ *  @brief      and traverse the FAT to find the right AddrCurrentCluster
  *
- *	@param	pFile       The file handle
+ *      @param  pFile       The file handle
  *
- *	@return	FF_ERR_NONE on success
- *	@return	Possible error returned by FF_TraverseFAT() or END_OF_DIR
+ *      @return FF_ERR_NONE on success
+ *      @return Possible error returned by FF_TraverseFAT() or END_OF_DIR
  *
  *  Side effects:
  *    - pFile->CurrentCluster     : relative cluster number (0 <= Num < ulChainLength)
@@ -1092,7 +1098,7 @@ static FF_T_UINT32 FF_FileLBA (FF_FILE *pFile) {
  **/
 
 static FF_T_UINT32 FF_SetCluster (FF_FILE *pFile, FF_ERROR  *pError) {
-	FF_IOMAN	*pIoman = pFile->pIoman;
+	FF_IOMAN    *pIoman = pFile->pIoman;
 	FF_T_UINT32 nNewCluster = FF_getClusterChainNumber(pIoman, pFile->FilePointer, 1);
 	int bTraverse = 0;
 
@@ -1112,32 +1118,32 @@ static FF_T_UINT32 FF_SetCluster (FF_FILE *pFile, FF_ERROR  *pError) {
 }
 
 /**
- *	@public
- *	@brief	Equivalent to fread()
+ *      @public
+ *      @brief  Equivalent to fread()
  *
- *	@param	pFile		FF_FILE object that was created by FF_Open().
- *	@param	ElementSize	The size of an element to read.
- *	@param	Count		The number of elements to read.
- *	@param	buffer		A pointer to a buffer of adequate size to be filled with the requested data.
+ *      @param  pFile           FF_FILE object that was created by FF_Open().
+ *      @param  ElementSize     The size of an element to read.
+ *      @param  Count           The number of elements to read.
+ *      @param  buffer          A pointer to a buffer of adequate size to be filled with the requested data.
  *
- *	@return Number of bytes read.
+ *      @return Number of bytes read.
  *
  **/
 FF_T_SINT32 FF_Read(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, FF_T_UINT8 *buffer) {
 	FF_T_UINT32 nBytes = ElementSize * Count;
-	FF_T_UINT32	nBytesRead = 0;
+	FF_T_UINT32 nBytesRead = 0;
 	FF_T_UINT32 nBytesToRead;
-	FF_IOMAN	*pIoman;
+	FF_IOMAN    *pIoman;
 #ifndef FF_OPTIMISE_UNALIGNED_ACCESS
-	FF_BUFFER	*pBuffer;
+	FF_BUFFER   *pBuffer;
 #endif
 	FF_T_UINT32 nRelBlockPos;
-	FF_T_UINT32	nItemLBA;
-	FF_T_SINT32	RetVal = 0;
-	FF_T_UINT16	sSectors;
+	FF_T_UINT32 nItemLBA;
+	FF_T_SINT32 RetVal = 0;
+	FF_T_UINT16 sSectors;
 	FF_T_UINT32 nRelClusterPos;
 	FF_T_UINT32 nBytesPerCluster;
-	FF_ERROR	Error;
+	FF_ERROR    Error;
 
 	if(!pFile) {
 		return (FF_ERR_NULL_POINTER | FF_READ);
@@ -1166,7 +1172,7 @@ FF_T_SINT32 FF_Read(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, 
 
 	nRelBlockPos = FF_getMinorBlockEntry(pIoman, pFile->FilePointer, 1); // Get the position within a block.
 
-	if((nRelBlockPos + nBytes) < pIoman->BlkSize) {	// Bytes to read are within a block and less than a block size.
+	if((nRelBlockPos + nBytes) < pIoman->BlkSize) {     // Bytes to read are within a block and less than a block size.
 #ifdef FF_OPTIMISE_UNALIGNED_ACCESS
 		if(!(pFile->ucState & FF_BUFSTATE_VALID)) {
 			Error = FF_BlockRead(pIoman, nItemLBA, 1, pFile->pBuf, FF_FALSE);
@@ -1189,11 +1195,11 @@ FF_T_SINT32 FF_Read(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, 
 
 #endif
 		pFile->FilePointer += nBytes;
-		return nBytes;		// Return the number of bytes read.
+		return nBytes;          // Return the number of bytes read.
 	}
 
 	//---------- Read (memcpy) to a Sector Boundary
-	if(nRelBlockPos != 0) {	// Not on a sector boundary, at this point the LBA is known.
+	if(nRelBlockPos != 0) {     // Not on a sector boundary, at this point the LBA is known.
 		nBytesToRead = pIoman->BlkSize - nRelBlockPos;
 #ifdef FF_OPTIMISE_UNALIGNED_ACCESS
 		if(!(pFile->ucState & FF_BUFSTATE_VALID)) {
@@ -1226,10 +1232,10 @@ FF_T_SINT32 FF_Read(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, 
 			return Error;
 		}
 #endif
-		nBytes				-= nBytesToRead;
-		nBytesRead			+= nBytesToRead;
-		pFile->FilePointer	+= nBytesToRead;
-		buffer				+= nBytesToRead;
+		nBytes                          -= nBytesToRead;
+		nBytesRead                      += nBytesToRead;
+		pFile->FilePointer      += nBytesToRead;
+		buffer                          += nBytesToRead;
 
 	}
 
@@ -1250,11 +1256,11 @@ FF_T_SINT32 FF_Read(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, 
 			return RetVal;
 		}
 
-		nBytesToRead		 = sSectors * pIoman->BlkSize;
-		nBytes				-= nBytesToRead;
-		buffer				+= nBytesToRead;
-		nBytesRead			+= nBytesToRead;
-		pFile->FilePointer	+= nBytesToRead;
+		nBytesToRead             = sSectors * pIoman->BlkSize;
+		nBytes                          -= nBytesToRead;
+		buffer                          += nBytesToRead;
+		nBytesRead                      += nBytesToRead;
+		pFile->FilePointer      += nBytesToRead;
 
 	}
 
@@ -1273,11 +1279,11 @@ FF_T_SINT32 FF_Read(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, 
 		}
 		nBytesToRead = (nBytesPerCluster *  (nBytes / nBytesPerCluster));
 
-		pFile->FilePointer	+= nBytesToRead;
+		pFile->FilePointer      += nBytesToRead;
 
-		nBytes			-= nBytesToRead;
-		buffer			+= nBytesToRead;
-		nBytesRead		+= nBytesToRead;
+		nBytes                  -= nBytesToRead;
+		buffer                  += nBytesToRead;
+		nBytesRead              += nBytesToRead;
 	}
 
 	//---------- Read Remaining Blocks
@@ -1306,10 +1312,10 @@ FF_T_SINT32 FF_Read(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, 
 		}
 
 		nBytesToRead = sSectors * pIoman->BlkSize;
-		pFile->FilePointer	+= nBytesToRead;
-		nBytes				-= nBytesToRead;
-		buffer				+= nBytesToRead;
-		nBytesRead			+= nBytesToRead;
+		pFile->FilePointer      += nBytesToRead;
+		nBytes                          -= nBytesToRead;
+		buffer                          += nBytesToRead;
+		nBytesRead                      += nBytesToRead;
 	}
 
 	//---------- Read (memcpy) Remaining Bytes
@@ -1342,10 +1348,10 @@ FF_T_SINT32 FF_Read(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, 
 		}
 #endif
 		nBytesToRead = nBytes;
-		pFile->FilePointer	+= nBytesToRead;
-		nBytes				-= nBytesToRead;
-		buffer				+= nBytesToRead;
-		nBytesRead			+= nBytesToRead;
+		pFile->FilePointer      += nBytesToRead;
+		nBytes                          -= nBytesToRead;
+		buffer                          += nBytesToRead;
+		nBytesRead                      += nBytesToRead;
 
 	}
 
@@ -1356,28 +1362,28 @@ FF_T_SINT32 FF_Read(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, 
 
 
 /**
- *	@public
- *	@brief	Equivalent to fgetc()
+ *      @public
+ *      @brief  Equivalent to fgetc()
  *
- *	@param	pFile		FF_FILE object that was created by FF_Open().
+ *      @param  pFile           FF_FILE object that was created by FF_Open().
  *
- *	@return The character that was read (cast as a 32-bit interger). -1 on EOF.
- *	@return FF_ERROR code. (Check with if(FF_isERR(RetVal)) {}).
- *	@return -1 EOF (end of file).
+ *      @return The character that was read (cast as a 32-bit interger). -1 on EOF.
+ *      @return FF_ERROR code. (Check with if(FF_isERR(RetVal)) {}).
+ *      @return -1 EOF (end of file).
  *
  **/
 FF_T_SINT32 FF_GetC(FF_FILE *pFile) {
-	FF_T_UINT32		fileLBA;
+	FF_T_UINT32         fileLBA;
 #ifndef FF_OPTIMISE_UNALIGNED_ACCESS
-	FF_BUFFER		*pBuffer;
+	FF_BUFFER           *pBuffer;
 #endif
-	FF_T_UINT8		retChar;
-	FF_T_UINT32		relMinorBlockPos;
-	FF_ERROR			Error;
+	FF_T_UINT8          retChar;
+	FF_T_UINT32         relMinorBlockPos;
+	FF_ERROR                    Error;
 
 
 	if(!pFile) {
-		return (FF_ERR_NULL_POINTER | FF_GETC);	// Ensure this is a signed error.
+		return (FF_ERR_NULL_POINTER | FF_GETC); // Ensure this is a signed error.
 	}
 
 	if(!(pFile->Mode & FF_MODE_READ)) {
@@ -1388,7 +1394,7 @@ FF_T_SINT32 FF_GetC(FF_FILE *pFile) {
 		return -1; // EOF!
 	}
 
-	relMinorBlockPos	= FF_getMinorBlockEntry(pFile->pIoman, pFile->FilePointer, 1);
+	relMinorBlockPos    = FF_getMinorBlockEntry(pFile->pIoman, pFile->FilePointer, 1);
 
 	fileLBA = FF_SetCluster (pFile, &Error);
 	if(FF_isERR(Error)) {
@@ -1401,7 +1407,7 @@ FF_T_SINT32 FF_GetC(FF_FILE *pFile) {
 		if(FF_isERR(Error)) return Error;
 		pFile->ucState |= FF_BUFSTATE_VALID;
 	}
-	retChar = pFile->pBuf[relMinorBlockPos]; 
+	retChar = pFile->pBuf[relMinorBlockPos];
 #else
 	pBuffer = FF_GetBuffer(pFile->pIoman, fileLBA, FF_MODE_READ);
 	{
@@ -1415,7 +1421,7 @@ FF_T_SINT32 FF_GetC(FF_FILE *pFile) {
 	pFile->FilePointer += 1;
 
 #ifdef FF_OPTIMISE_UNALIGNED_ACCESS
-	relMinorBlockPos	= FF_getMinorBlockEntry(pFile->pIoman, pFile->FilePointer, 1);
+	relMinorBlockPos    = FF_getMinorBlockEntry(pFile->pIoman, pFile->FilePointer, 1);
 	if(!relMinorBlockPos) {
 		if(pFile->ucState & FF_BUFSTATE_WRITTEN) {
 			Error = FF_BlockWrite(pFile->pIoman, fileLBA, 1, pFile->pBuf, FF_FALSE);
@@ -1431,20 +1437,20 @@ FF_T_SINT32 FF_GetC(FF_FILE *pFile) {
 
 /**
  * @public
- * @brief	Gets a Line from a Text File, but no more than ulLimit charachters. The line will be NULL terminated.
+ * @brief       Gets a Line from a Text File, but no more than ulLimit charachters. The line will be NULL terminated.
  *
- *			The behaviour of this function is undefined when called on a binary file.
- *			It should just read in ulLimit bytes of binary, and ZERO terminate the line.
+ *                      The behaviour of this function is undefined when called on a binary file.
+ *                      It should just read in ulLimit bytes of binary, and ZERO terminate the line.
  *
- *			This function works for both UNIX line feeds, and Windows CRLF type files.
+ *                      This function works for both UNIX line feeds, and Windows CRLF type files.
  *
- * @param	pFile	The FF_FILE object pointer.
- * @param	szLine	The charachter buffer where the line should be stored.
- * @param	ulLimit	This should be the max number of charachters that szLine can hold.
+ * @param       pFile   The FF_FILE object pointer.
+ * @param       szLine  The charachter buffer where the line should be stored.
+ * @param       ulLimit This should be the max number of charachters that szLine can hold.
  *
- * @return	The number of charachters read from the line, on success.
- * @return	0 when no more lines are available, or when ulLimit is 0.
- * @return	FF_ERR_NULL_POINTER if pFile or szLine are NULL;
+ * @return      The number of charachters read from the line, on success.
+ * @return      0 when no more lines are available, or when ulLimit is 0.
+ * @return      FF_ERR_NULL_POINTER if pFile or szLine are NULL;
  *
  **/
 FF_T_SINT32 FF_GetLine(FF_FILE *pFile, FF_T_INT8 *szLine, FF_T_UINT32 ulLimit) {
@@ -1463,11 +1469,11 @@ FF_T_SINT32 FF_GetLine(FF_FILE *pFile, FF_T_INT8 *szLine, FF_T_UINT32 ulLimit) {
 		}
 	}
 
-	szLine[i] = '\0';	// Always do this before sending the err, we don't know what the user will
+	szLine[i] = '\0';   // Always do this before sending the err, we don't know what the user will
 						// do with this buffer if they don't see the error.
 
 	if(FF_isERR(c)) {
-		return c;		// Return 'c' as an error code.
+		return c;               // Return 'c' as an error code.
 	}
 
 	return i;
@@ -1484,31 +1490,31 @@ FF_T_SINT32 FF_GetLine(FF_FILE *pFile, FF_T_INT8 *szLine, FF_T_UINT32 ulLimit) {
 
 
 /**
- *	@public
- *	@brief	Writes data to a File.
+ *      @public
+ *      @brief  Writes data to a File.
  *
- *	@param	pFile			FILE Pointer.
- *	@param	ElementSize		Size of an Element of Data to be copied. (in bytes). 
- *	@param	Count			Number of Elements of Data to be copied. (ElementSize * Count must not exceed ((2^31)-1) bytes. (2GB). For best performance, multiples of 512 bytes or Cluster sizes are best.
- *	@param	buffer			Byte-wise buffer containing the data to be written.
+ *      @param  pFile                   FILE Pointer.
+ *      @param  ElementSize             Size of an Element of Data to be copied. (in bytes).
+ *      @param  Count                   Number of Elements of Data to be copied. (ElementSize * Count must not exceed ((2^31)-1) bytes. (2GB). For best performance, multiples of 512 bytes or Cluster sizes are best.
+ *      @param  buffer                  Byte-wise buffer containing the data to be written.
  *
- *	@return
+ *      @return
  **/
 FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, FF_T_UINT8 *buffer) {
 	FF_T_UINT32 nBytes = ElementSize * Count;
-	FF_T_UINT32	nBytesWritten = 0;
+	FF_T_UINT32 nBytesWritten = 0;
 	FF_T_UINT32 nBytesToWrite;
-	FF_IOMAN	*pIoman;
+	FF_IOMAN    *pIoman;
 #ifndef FF_OPTIMISE_UNALIGNED_ACCESS
-	FF_BUFFER	*pBuffer;
+	FF_BUFFER   *pBuffer;
 #endif
 	FF_T_UINT32 nRelBlockPos;
-	FF_T_UINT32	nItemLBA;
-	FF_T_SINT32	slRetVal = 0;
-	FF_T_UINT16	sSectors;
+	FF_T_UINT32 nItemLBA;
+	FF_T_SINT32 slRetVal = 0;
+	FF_T_UINT16 sSectors;
 	FF_T_UINT32 nRelClusterPos;
 	FF_T_UINT32 nBytesPerCluster, nClusters;
-	FF_ERROR	Error;
+	FF_ERROR    Error;
 
 	if(!pFile) {
 		return (FF_ERR_NULL_POINTER | FF_WRITE);
@@ -1552,7 +1558,7 @@ FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count,
 		return Error;
 	}
 
-	if((nRelBlockPos + nBytes) < pIoman->BlkSize) {	// Bytes to write are within a block and less than a block size.
+	if((nRelBlockPos + nBytes) < pIoman->BlkSize) {     // Bytes to write are within a block and less than a block size.
 #ifdef FF_OPTIMISE_UNALIGNED_ACCESS
 		/**
 		 * In this case we are within a block, and the write finishes within the block.
@@ -1594,11 +1600,11 @@ FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count,
 		if(pFile->FilePointer > pFile->Filesize) {
 			pFile->Filesize = pFile->FilePointer;
 		}
-		return nBytes;		// Return the number of bytes written.
+		return nBytes;          // Return the number of bytes written.
 	}
 
 	//---------- Write (memcpy) to a Sector Boundary
-	if(nRelBlockPos != 0) {	// Not on a sector boundary, at this point the LBA is known.
+	if(nRelBlockPos != 0) {     // Not on a sector boundary, at this point the LBA is known.
 		nBytesToWrite = pIoman->BlkSize - nRelBlockPos;
 #ifdef FF_OPTIMISE_UNALIGNED_ACCESS
 		/**
@@ -1629,10 +1635,10 @@ FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count,
 			return Error;
 		}
 #endif
-		nBytes				-= nBytesToWrite;
-		nBytesWritten		+= nBytesToWrite;
-		pFile->FilePointer	+= nBytesToWrite;
-		buffer				+= nBytesToWrite;
+		nBytes                          -= nBytesToWrite;
+		nBytesWritten           += nBytesToWrite;
+		pFile->FilePointer      += nBytesToWrite;
+		buffer                          += nBytesToWrite;
 	}
 
 	//---------- Write to a Cluster Boundary
@@ -1651,11 +1657,11 @@ FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count,
 			return slRetVal;
 		}
 
-		nBytesToWrite		 = sSectors * pIoman->BlkSize;
-		nBytes				-= nBytesToWrite;
-		buffer				+= nBytesToWrite;
-		nBytesWritten		+= nBytesToWrite;
-		pFile->FilePointer	+= nBytesToWrite;
+		nBytesToWrite            = sSectors * pIoman->BlkSize;
+		nBytes                          -= nBytesToWrite;
+		buffer                          += nBytesToWrite;
+		nBytesWritten           += nBytesToWrite;
+		pFile->FilePointer      += nBytesToWrite;
 
 	}
 
@@ -1677,11 +1683,11 @@ FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count,
 
 		nBytesToWrite = (nBytesPerCluster *  nClusters);
 
-		pFile->FilePointer	+= nBytesToWrite;
+		pFile->FilePointer      += nBytesToWrite;
 
-		nBytes				-= nBytesToWrite;
-		buffer				+= nBytesToWrite;
-		nBytesWritten		+= nBytesToWrite;
+		nBytes                          -= nBytesToWrite;
+		buffer                          += nBytesToWrite;
+		nBytesWritten           += nBytesToWrite;
 	}
 
 	//---------- Write Remaining Blocks
@@ -1689,12 +1695,12 @@ FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count,
 		sSectors = (FF_T_UINT16) (nBytes / pIoman->BlkSize);
 		{
 			// HT: I'd leave these pPart/ucOffset for readability...
-			FF_PARTITION *pPart				= pIoman->pPartition;
+			FF_PARTITION *pPart                         = pIoman->pPartition;
 			FF_T_UINT8 ucOffset = (pFile->FilePointer / pIoman->BlkSize) % pPart->SectorsPerCluster;
 			FF_T_UINT ucRemain = pPart->SectorsPerCluster - ucOffset;
 			if (sSectors > ucRemain) {
-//					logPrintf ("FF_Write: fp = %lu ofs %u sSectors %u remain %u (correcting)\n",
-//						pFile->FilePointer, offset, sSectors, remain);
+//                                      logPrintf ("FF_Write: fp = %lu ofs %u sSectors %u remain %u (correcting)\n",
+//                                              pFile->FilePointer, offset, sSectors, remain);
 				sSectors = ucRemain;
 			}
 		}
@@ -1710,10 +1716,10 @@ FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count,
 		}
 
 		nBytesToWrite = sSectors * pIoman->BlkSize;
-		pFile->FilePointer	+= nBytesToWrite;
-		nBytes				-= nBytesToWrite;
-		buffer				+= nBytesToWrite;
-		nBytesWritten		+= nBytesToWrite;
+		pFile->FilePointer      += nBytesToWrite;
+		nBytes                          -= nBytesToWrite;
+		buffer                          += nBytesToWrite;
+		nBytesWritten           += nBytesToWrite;
 	}
 
 	//---------- Write (memcpy) Remaining Bytes
@@ -1756,10 +1762,10 @@ FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count,
 #endif
 
 		nBytesToWrite = nBytes;
-		pFile->FilePointer	+= nBytesToWrite;
-		nBytes				-= nBytesToWrite;
-		buffer				+= nBytesToWrite;
-		nBytesWritten		+= nBytesToWrite;
+		pFile->FilePointer      += nBytesToWrite;
+		nBytes                          -= nBytesToWrite;
+		buffer                          += nBytesToWrite;
+		nBytesWritten           += nBytesToWrite;
 
 	}
 
@@ -1772,24 +1778,24 @@ FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count,
 
 
 /**
- *	@public
- *	@brief	Writes a char to a FILE.
+ *      @public
+ *      @brief  Writes a char to a FILE.
  *
- *	@param	pFile		FILE Pointer.
- *	@param	pa_cValue	Char to be placed in the file.
+ *      @param  pFile           FILE Pointer.
+ *      @param  pa_cValue       Char to be placed in the file.
  *
- *	@return	Returns the value written to the file, or a value less than 0.
+ *      @return Returns the value written to the file, or a value less than 0.
  *
  **/
 FF_T_SINT32 FF_PutC(FF_FILE *pFile, FF_T_UINT8 pa_cValue) {
 #ifndef FF_OPTIMISE_UNALIGNED_ACCESS
-	FF_BUFFER	*pBuffer;
+	FF_BUFFER   *pBuffer;
 #endif
 	FF_T_UINT32 iItemLBA;
 	FF_T_UINT32 iRelPos;
-	FF_ERROR	Error;
+	FF_ERROR    Error;
 
-	if(!pFile) {	// Ensure we don't have a Null file pointer on a Public interface.
+	if(!pFile) {        // Ensure we don't have a Null file pointer on a Public interface.
 		return (FF_ERR_NULL_POINTER | FF_PUTC);
 	}
 
@@ -1862,22 +1868,22 @@ FF_T_SINT32 FF_PutC(FF_FILE *pFile, FF_T_UINT8 pa_cValue) {
 
 
 /**
- *	@public
- *	@brief	Equivalent to fseek()
+ *      @public
+ *      @brief  Equivalent to fseek()
  *
- *	@param	pFile		FF_FILE object that was created by FF_Open().
- *	@param	Offset		An integer (+/-) to seek to, from the specified origin.
- *	@param	Origin		Where to seek from. (FF_SEEK_SET seek from start, FF_SEEK_CUR seek from current position, or FF_SEEK_END seek from end of file).
+ *      @param  pFile           FF_FILE object that was created by FF_Open().
+ *      @param  Offset          An integer (+/-) to seek to, from the specified origin.
+ *      @param  Origin          Where to seek from. (FF_SEEK_SET seek from start, FF_SEEK_CUR seek from current position, or FF_SEEK_END seek from end of file).
  *
- *	@return 0 on Sucess, 
- *	@return -2 if offset results in an invalid position in the file. 
- *	@return FF_ERR_NULL_POINTER if a FF_FILE pointer was not recieved.
- *	@return -3 if an invalid origin was provided.
+ *      @return 0 on Sucess,
+ *      @return -2 if offset results in an invalid position in the file.
+ *      @return FF_ERR_NULL_POINTER if a FF_FILE pointer was not recieved.
+ *      @return -3 if an invalid origin was provided.
  *
  **/
 FF_ERROR FF_Seek(FF_FILE *pFile, FF_T_SINT32 Offset, FF_T_INT8 Origin) {
 
-	FF_ERROR	Error;
+	FF_ERROR    Error;
 
 	if(!pFile) {
 		return (FF_ERR_NULL_POINTER | FF_SEEK);
@@ -1948,26 +1954,26 @@ FF_ERROR FF_Seek(FF_FILE *pFile, FF_T_SINT32 Offset, FF_T_INT8 Origin) {
 
 #ifdef FF_REMOVABLE_MEDIA
 /**
- *	@public
- *	@brief	Invalidate all file handles belonging to pIoman
+ *      @public
+ *      @brief  Invalidate all file handles belonging to pIoman
  *
- *	@param	pIoMan		FF_IOMAN object that was created by FF_CreateIOMAN().
+ *      @param  pIoMan          FF_IOMAN object that was created by FF_CreateIOMAN().
  *
- *	@return 0 if no handles were open
- *	@return >0 the amount of handles that were invalidated
- *	@return <0 probably an invalid FF_IOMAN pointer
+ *      @return 0 if no handles were open
+ *      @return >0 the amount of handles that were invalidated
+ *      @return <0 probably an invalid FF_IOMAN pointer
  *
  **/
-FF_T_SINT32	 FF_Invalidate (FF_IOMAN *pIoman) ///< Invalidate all handles belonging to pIoman
+FF_T_SINT32      FF_Invalidate (FF_IOMAN *pIoman) ///< Invalidate all handles belonging to pIoman
 {
-	FF_T_SINT32	 Result;
+	FF_T_SINT32  Result;
 	FF_FILE *pFileChain;
 	if (!pIoman) {
 		return (FF_ERR_NULL_POINTER | FF_INVALIDATE);
 	}
 	Result = 0;
 	FF_PendSemaphore(pIoman->pSemaphore);
-	{	// Semaphore is required, or linked list might change
+	{   // Semaphore is required, or linked list might change
 
 		pFileChain = (FF_FILE *) pIoman->FirstFile;
 		if (pFileChain) {
@@ -1982,18 +1988,18 @@ FF_T_SINT32	 FF_Invalidate (FF_IOMAN *pIoman) ///< Invalidate all handles belong
 	FF_ReleaseSemaphore(pIoman->pSemaphore);
 	return Result;
 }
-#endif	// FF_REMOVABLE_MEDIA
+#endif  // FF_REMOVABLE_MEDIA
 
 /**
- *	@public
- *	@brief	Check validity of file handle
+ *      @public
+ *      @brief  Check validity of file handle
  *
- *	@param	pFile		FF_FILE object that was created by FF_Open().
+ *      @param  pFile           FF_FILE object that was created by FF_Open().
  *
- *	@return 0 on sucess.
- *	@return FF_ERR_NULL_POINTER       if a null pointer was provided.
- *	@return FF_ERR_FILE_BAD_HANDLE    if handle is not recognized
- *	@return FF_ERR_FILE_MEDIA_REMOVED please call FF_Close
+ *      @return 0 on sucess.
+ *      @return FF_ERR_NULL_POINTER       if a null pointer was provided.
+ *      @return FF_ERR_FILE_BAD_HANDLE    if handle is not recognized
+ *      @return FF_ERR_FILE_MEDIA_REMOVED please call FF_Close
  *
  **/
 FF_ERROR FF_CheckValid (FF_FILE *pFile)
@@ -2021,19 +2027,19 @@ FF_ERROR FF_CheckValid (FF_FILE *pFile)
 
 #ifdef FF_TIME_SUPPORT
 /**
- *	@public
- *	@brief	Set the time-stamp(s) of a file entry
+ *      @public
+ *      @brief  Set the time-stamp(s) of a file entry
  *
- *	@param	pFile		FF_FILE object that was created by FF_Open().
- *	@param	pTime       FF_SYSTEMTIME the time stamp
- *	@param	aWhat       FF_T_UINT a combination of enum ETimeMask
+ *      @param  pFile           FF_FILE object that was created by FF_Open().
+ *      @param  pTime       FF_SYSTEMTIME the time stamp
+ *      @param  aWhat       FF_T_UINT a combination of enum ETimeMask
  *
- *	@return 0 or FF_ERROR
+ *      @return 0 or FF_ERROR
  *
  **/
 FF_ERROR FF_SetFileTime(FF_FILE *pFile, FF_SYSTEMTIME *pTime, FF_T_UINT aWhat) {
-	FF_DIRENT	OriginalEntry;
-	FF_ERROR	Error;
+	FF_DIRENT   OriginalEntry;
+	FF_ERROR    Error;
 	Error = FF_CheckValid (pFile);
 	if (Error)
 		return Error;
@@ -2047,27 +2053,27 @@ FF_ERROR FF_SetFileTime(FF_FILE *pFile, FF_SYSTEMTIME *pTime, FF_T_UINT aWhat) {
 	// Update the Dirent!
 	Error = FF_GetEntry(pFile->pIoman, pFile->DirEntry, pFile->DirCluster, &OriginalEntry);
 	if (!FF_isERR(Error)) {
-		if (aWhat & ETimeCreate) OriginalEntry.CreateTime = *pTime;		///< Date and Time Created.
-		if (aWhat & ETimeMod)    OriginalEntry.ModifiedTime = *pTime;	///< Date and Time Modified.
-		if (aWhat & ETimeAccess) OriginalEntry.AccessedTime = *pTime;	///< Date of Last Access.
+		if (aWhat & ETimeCreate) OriginalEntry.CreateTime = *pTime;             ///< Date and Time Created.
+		if (aWhat & ETimeMod)    OriginalEntry.ModifiedTime = *pTime;   ///< Date and Time Modified.
+		if (aWhat & ETimeAccess) OriginalEntry.AccessedTime = *pTime;   ///< Date of Last Access.
 		Error = FF_PutEntry(pFile->pIoman, pFile->DirEntry, pFile->DirCluster, &OriginalEntry);
 	}
 	if (!FF_isERR(Error)) {
-		Error = FF_FlushCache(pFile->pIoman);		// Ensure all modfied blocks are flushed to disk!
+		Error = FF_FlushCache(pFile->pIoman);           // Ensure all modfied blocks are flushed to disk!
 	}
 	return Error;
 }
 
 /**
- *	@public
- *	@brief	Set the time-stamp(s) of a file entry (by name)
+ *      @public
+ *      @brief  Set the time-stamp(s) of a file entry (by name)
  *
- *	@param	pIoman		FF_IOMAN device handle
- *	@param	path		FF_T_INT8/FF_T_WCHAR name of the file
- *	@param	pTime       FF_SYSTEMTIME the time stamp
- *	@param	aWhat       FF_T_UINT a combination of enum ETimeMask
+ *      @param  pIoman          FF_IOMAN device handle
+ *      @param  path            FF_T_INT8/FF_T_WCHAR name of the file
+ *      @param  pTime       FF_SYSTEMTIME the time stamp
+ *      @param  aWhat       FF_T_UINT a combination of enum ETimeMask
  *
- *	@return 0 or FF_ERROR
+ *      @return 0 or FF_ERROR
  *
  **/
 #ifdef FF_UNICODE_SUPPORT
@@ -2076,20 +2082,20 @@ FF_ERROR FF_SetTime(FF_IOMAN *pIoman, const FF_T_WCHAR *path, FF_SYSTEMTIME *pTi
 FF_ERROR FF_SetTime(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_SYSTEMTIME *pTime, FF_T_UINT aWhat)
 #endif
 {
-	FF_DIRENT	OriginalEntry;
-	FF_ERROR	Error;
+	FF_DIRENT   OriginalEntry;
+	FF_ERROR    Error;
 	FF_T_UINT32     DirCluster;
 	FF_T_UINT32     FileCluster;
 	FF_T_UINT        i;
 #ifdef FF_UNICODE_SUPPORT
-	FF_T_WCHAR	filename[FF_MAX_FILENAME];
+	FF_T_WCHAR  filename[FF_MAX_FILENAME];
 #else
-	FF_T_INT8	filename[FF_MAX_FILENAME];
+	FF_T_INT8   filename[FF_MAX_FILENAME];
 #endif
 
 #ifdef FF_UNICODE_SUPPORT
 	i = (FF_T_UINT16) wcslen(path);
-#else 
+#else
 	i = (FF_T_UINT16) strlen(path);
 #endif
 
@@ -2127,13 +2133,13 @@ FF_ERROR FF_SetTime(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_SYSTEMTIME *pTim
 	}
 
 	// Update the Dirent!
-	if (aWhat & ETimeCreate) OriginalEntry.CreateTime = *pTime;		///< Date and Time Created.
-	if (aWhat & ETimeMod)    OriginalEntry.ModifiedTime = *pTime;	///< Date and Time Modified.
-	if (aWhat & ETimeAccess) OriginalEntry.AccessedTime = *pTime;	///< Date of Last Access.
+	if (aWhat & ETimeCreate) OriginalEntry.CreateTime = *pTime;         ///< Date and Time Created.
+	if (aWhat & ETimeMod)    OriginalEntry.ModifiedTime = *pTime;       ///< Date and Time Modified.
+	if (aWhat & ETimeAccess) OriginalEntry.AccessedTime = *pTime;       ///< Date of Last Access.
 	Error = FF_PutEntry(pIoman, OriginalEntry.CurrentItem-1, DirCluster, &OriginalEntry);
 
 	if (!FF_isERR(Error)) {
-		Error = FF_FlushCache(pIoman);		// Ensure all modfied blocks are flushed to disk!
+		Error = FF_FlushCache(pIoman);          // Ensure all modfied blocks are flushed to disk!
 	}
 	return Error;
 }
@@ -2141,27 +2147,27 @@ FF_ERROR FF_SetTime(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_SYSTEMTIME *pTim
 #endif // FF_TIME_SUPPORT
 
 /**
- *	@public
- *	@brief	Equivalent to fclose()
+ *      @public
+ *      @brief  Equivalent to fclose()
  *
- *	@param	pFile		FF_FILE object that was created by FF_Open().
+ *      @param  pFile           FF_FILE object that was created by FF_Open().
  *
- *	@return 0 on sucess.
- *	@return -1 if a null pointer was provided.
+ *      @return 0 on sucess.
+ *      @return -1 if a null pointer was provided.
  *
  **/
 FF_ERROR FF_Close(FF_FILE *pFile) {
 
-	FF_FILE		*pFileChain;
-	FF_DIRENT	OriginalEntry;
-	FF_ERROR	Error;
+	FF_FILE             *pFileChain;
+	FF_DIRENT   OriginalEntry;
+	FF_ERROR    Error;
 
 	if(!pFile) {
 		return (FF_ERR_NULL_POINTER | FF_CLOSE);
 	}
 
 	/*
-     * HT thinks:
+	 * HT thinks:
 	 * It is important to check that:
 	 * user doesn't supply invalid handle
 	 * or a handle invalid because of "media removed"
@@ -2180,10 +2186,10 @@ FF_ERROR FF_Close(FF_FILE *pFile) {
 						pFileChain->Next = pFile->Next;
 						break;
 					}
-					pFileChain = pFileChain->Next;	// Forgot this one
+					pFileChain = pFileChain->Next;      // Forgot this one
 				}
 			}
-		}	// Semaphore released, linked list was shortened!
+		}       // Semaphore released, linked list was shortened!
 		FF_ReleaseSemaphore(pFile->pIoman->pSemaphore);
 #ifdef FF_OPTIMISE_UNALIGNED_ACCESS
 		FF_FREE(pFile->pBuf);
@@ -2197,12 +2203,12 @@ FF_ERROR FF_Close(FF_FILE *pFile) {
 	}
 
 	/*
-     * So here we have a normal valid file handle
+	 * So here we have a normal valid file handle
 	 */
 
 	/*
-	 *	Sometimes FullFAT will leave a trailing cluster on the end of a cluster chain.
-	 * 	To ensure we're compliant we shall now check for this condition and truncate it.
+	 *  Sometimes FullFAT will leave a trailing cluster on the end of a cluster chain.
+	 *  To ensure we're compliant we shall now check for this condition and truncate it.
 	 */
 
 
@@ -2213,8 +2219,8 @@ FF_ERROR FF_Close(FF_FILE *pFile) {
 
 		if(pFile->Filesize % (pFile->pIoman->pPartition->BlkSize * pFile->pIoman->pPartition->SectorsPerCluster) == 0) {
 			/*
-			 *	The file meets the conditions, because it is of either 0 size, or is a perfect multiple
-			 *	of the size of 1 cluster.
+			 *  The file meets the conditions, because it is of either 0 size, or is a perfect multiple
+			 *  of the size of 1 cluster.
 			 */
 			// Calculate how many cluster we should require:
 
@@ -2262,12 +2268,12 @@ skip_truncate:
 		}
 	}
 	if (!FF_isERR(Error)) {
-		Error = FF_FlushCache(pFile->pIoman);		// Ensure all modfied blocks are flushed to disk!
+		Error = FF_FlushCache(pFile->pIoman);           // Ensure all modfied blocks are flushed to disk!
 	}
 
 	// Handle Linked list!
 	FF_PendSemaphore(pFile->pIoman->pSemaphore);
-	{	// Semaphore is required, or linked list could become corrupted.
+	{   // Semaphore is required, or linked list could become corrupted.
 		pFileChain = (FF_FILE *) pFile->pIoman->FirstFile;
 		if(pFileChain == pFile) {
 			pFile->pIoman->FirstFile = pFile->Next;
@@ -2277,10 +2283,10 @@ skip_truncate:
 					pFileChain->Next = pFile->Next;
 					break;
 				}
-				pFileChain = pFileChain->Next;	// Forgot this one
+				pFileChain = pFileChain->Next;  // Forgot this one
 			}
 		}
-	}	// Semaphore released, linked list was shortened!
+	}   // Semaphore released, linked list was shortened!
 	FF_ReleaseSemaphore(pFile->pIoman->pSemaphore);
 
 #ifdef FF_OPTIMISE_UNALIGNED_ACCESS
@@ -2299,3 +2305,219 @@ skip_truncate:
 
 	return Error;
 }
+
+FF_T_SINT32 FF_ReadDirect(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count) {
+	// note, no buffer (is NULL)
+	// this function will do other block reads to do the FAT traversal.
+	// note, FF_GetBuffer only ever reads 1 block
+
+	FF_T_UINT32 nBytes = ElementSize * Count;
+	FF_T_UINT32 nBytesRead = 0;
+	FF_T_UINT32 nBytesToRead;
+	FF_IOMAN    *pIoman;
+	FF_BUFFER   *pBuffer;
+	FF_T_UINT32 nRelBlockPos;
+	FF_T_UINT32 nItemLBA;
+	FF_T_SINT32 RetVal = 0;
+	FF_T_UINT16 sSectors;
+	FF_T_UINT32 nRelClusterPos;
+	FF_T_UINT32 nBytesPerCluster;
+	FF_ERROR    Error;
+
+	if(!pFile) {
+		return (FF_ERR_NULL_POINTER | FF_READ);
+	}
+	Error = FF_CheckValid (pFile);
+	if (Error)
+		return Error;
+
+	if(!(pFile->Mode & FF_MODE_READ)) {
+		return (FF_ERR_FILE_NOT_OPENED_IN_READ_MODE | FF_READ);
+	}
+
+	pIoman = pFile->pIoman;
+
+	if(pFile->FilePointer >= pFile->Filesize) {
+		return 0;
+	}
+
+	if((pFile->FilePointer + nBytes) > pFile->Filesize) {
+		nBytes = pFile->Filesize - pFile->FilePointer;
+	}
+	nItemLBA = FF_SetCluster (pFile, &Error);
+	if(FF_isERR(Error)) {
+		return Error;
+	}
+
+	nRelBlockPos = FF_getMinorBlockEntry(pIoman, pFile->FilePointer, 1); // Get the position within a block.
+
+	if((nRelBlockPos + nBytes) < pIoman->BlkSize) {     // Bytes to read are within a block and less than a block size.
+	  WARNING("FF_FILE:Direct tx not aligned");
+
+	  return FF_ERR_DEVICE_DRIVER_FAILED;
+		/*
+		pBuffer = FF_GetBuffer(pIoman, nItemLBA, FF_MODE_READ);
+		{
+			if(!pBuffer) {
+				return (FF_ERR_DEVICE_DRIVER_FAILED | FF_READ);
+			}
+			memcpy(buffer, (pBuffer->pBuffer + nRelBlockPos), nBytes);
+		}
+		Error = FF_ReleaseBuffer(pIoman, pBuffer);
+		if(FF_isERR(Error)) {
+			return Error;
+		}
+
+		pFile->FilePointer += nBytes;
+		return nBytes;          // Return the number of bytes read.
+		*/
+	}
+
+	//---------- Read (memcpy) to a Sector Boundary
+	if(nRelBlockPos != 0) {     // Not on a sector boundary fail
+	  WARNING("FF_FILE:Direct tx not aligned");
+
+	  return FF_ERR_DEVICE_DRIVER_FAILED;
+
+	  // we can fix this if required
+	  // option1, assert direct part way through the block read
+	  // option2, dma from buffer in non direct moed
+	  /*
+	  nBytesToRead = pIoman->BlkSize - nRelBlockPos;
+
+	  pBuffer = FF_GetBuffer(pIoman, nItemLBA, FF_MODE_READ);   // note, need to remove cache here or call block read
+	  {
+		  if(!pBuffer) {
+			  return (FF_ERR_DEVICE_DRIVER_FAILED | FF_READ);
+		  }
+		  memcpy(buffer, (pBuffer->pBuffer + nRelBlockPos), nBytes);
+	  }
+	  Error = FF_ReleaseBuffer(pIoman, pBuffer);
+	  if(FF_isERR(Error)) {
+		  return Error;
+	  }
+
+	  pFile->FilePointer += nBytes;
+	  return nBytes;          // Return the number of bytes read.
+	  */
+	}
+
+	//---------- Read to a Cluster Boundary
+
+	nRelClusterPos = FF_getClusterPosition(pIoman, pFile->FilePointer, 1);
+	nBytesPerCluster = (pIoman->pPartition->SectorsPerCluster * pIoman->BlkSize);
+	if(nRelClusterPos != 0 && nRelClusterPos + nBytes >= nBytesPerCluster) { // Need to get to cluster boundary
+		nItemLBA = FF_SetCluster (pFile, &Error);
+		if(FF_isERR(Error)) {
+			return Error;
+		}
+
+		sSectors = (FF_T_UINT16) (pIoman->pPartition->SectorsPerCluster - (nRelClusterPos / pIoman->BlkSize));
+
+		/*RetVal = FF_BlockRead(pIoman, nItemLBA, (FF_T_UINT32) sSectors, buffer, FF_FALSE);*/
+		RetVal = FF_BlockRead(pIoman, nItemLBA, (FF_T_UINT32) sSectors, NULL, FF_FALSE);
+		if(RetVal < 0) {
+			return RetVal;
+		}
+
+		nBytesToRead             = sSectors * pIoman->BlkSize;
+		nBytes                          -= nBytesToRead;
+		/*buffer                          += nBytesToRead;*/
+		nBytesRead                      += nBytesToRead;
+		pFile->FilePointer      += nBytesToRead;
+
+	}
+
+	//---------- Read Clusters
+	if(nBytes >= nBytesPerCluster) {
+		//----- Thanks to Christopher Clark of DigiPen Institute of Technology in Redmond, US adding this traversal check.
+		FF_SetCluster (pFile, &Error);
+		if(FF_isERR(Error)) {
+			return Error;
+		}
+		//----- End of Contributor fix.
+
+		/*RetVal = FF_ReadClusters(pFile, (nBytes / nBytesPerCluster), buffer);*/
+		RetVal = FF_ReadClusters(pFile, (nBytes / nBytesPerCluster), NULL);
+		if(RetVal < 0) {
+			return RetVal;
+		}
+		nBytesToRead = (nBytesPerCluster *  (nBytes / nBytesPerCluster));
+
+		pFile->FilePointer      += nBytesToRead;
+
+		nBytes                  -= nBytesToRead;
+		/*buffer                  += nBytesToRead;*/
+		nBytesRead              += nBytesToRead;
+	}
+
+	//---------- Read Remaining Blocks
+	while (nBytes >= pIoman->BlkSize) {
+		sSectors = (FF_T_UINT16) (nBytes / pIoman->BlkSize);
+		{
+			// HT: I'd leave these pPart/ucOffset for readability
+			// and shorter code lines
+			FF_PARTITION *pPart = pIoman->pPartition;
+			FF_T_UINT ucOffset = (pFile->FilePointer / pIoman->BlkSize) % pPart->SectorsPerCluster;
+			FF_T_UINT ucRemain = pPart->SectorsPerCluster - ucOffset;
+			if (sSectors > ucRemain) {
+				sSectors = ucRemain;
+			}
+		}
+
+		nItemLBA = FF_SetCluster (pFile, &Error);
+		if(FF_isERR(Error)) {
+			return Error;
+		}
+
+		/*RetVal = FF_BlockRead(pIoman, nItemLBA, (FF_T_UINT32) sSectors, buffer, FF_FALSE);*/
+		RetVal = FF_BlockRead(pIoman, nItemLBA, (FF_T_UINT32) sSectors, NULL, FF_FALSE);
+
+		if(FF_isERR(Error)) {
+			return RetVal;
+		}
+
+		nBytesToRead       = sSectors * pIoman->BlkSize;
+		pFile->FilePointer += nBytesToRead;
+		nBytes             -= nBytesToRead;
+		/*buffer             += nBytesToRead;*/
+		nBytesRead         += nBytesToRead;
+	}
+
+	//---------- Read (memcpy) Remaining Bytes
+	if(nBytes > 0) {
+	  // not aligned
+	  WARNING("FF_FILE:Direct tx not aligned");
+	  return FF_ERR_DEVICE_DRIVER_FAILED;
+	  // option1, assert direct part way through the block read
+	  // option2, dma from buffer in non direct moed
+	  /*
+	  nItemLBA = FF_SetCluster (pFile, &Error);
+
+	  if(FF_isERR(Error)) {
+		  return Error;
+	  }
+
+	  pBuffer = FF_GetBuffer(pIoman, nItemLBA, FF_MODE_READ); // note, need to remove cache here or call block read
+	  {
+		  if(!pBuffer) {
+			  return (FF_ERR_DEVICE_DRIVER_FAILED | FF_READ);
+		  }
+		  memcpy(buffer, pBuffer->pBuffer, nBytes);
+	  }
+	  Error = FF_ReleaseBuffer(pIoman, pBuffer);
+	  if(FF_isERR(Error)) {
+		  return Error;
+	  }
+	  nBytesToRead = nBytes;
+	  pFile->FilePointer      += nBytesToRead;
+	  nBytes                          -= nBytesToRead;
+	  buffer                          += nBytesToRead;
+	  nBytesRead                      += nBytesToRead;
+	  */
+	}
+
+	return nBytesRead;
+}
+
+

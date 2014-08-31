@@ -140,11 +140,13 @@ uint8_t Card_Init(void)
 FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void *pParam)
 {
   // if pReadBuffer is NULL then use direct to the FPGA transfer mode (FPGA2 asserted)
-  // how to handle direct to FPGA mode?
 
   uint32_t sectorCount = numSectors;
+  uint32_t dma_end     = 0;
 
-  DEBUG(3,"SPI:Card_ReadM sector %lu %lu",sector, numSectors);
+  if (numSectors != 1)
+    DEBUG(3,"SPI:Card_ReadM sector %lu %lu",sector, numSectors);
+
   SPI_EnableCard();
 
   if (cardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
@@ -176,35 +178,53 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         return(FF_ERR_DEVICE_DRIVER_FAILED);
       }
     }
-    // set override
+
+    if (!pBuffer) SPI_EnableFileIO();
+
+    // set override (send '1's to card)
     AT91C_BASE_PIOA->PIO_SODR = PIN_CARD_MOSI;  // set GPIO output register
     AT91C_BASE_PIOA->PIO_OER  = PIN_CARD_MOSI;  // GPIO pin as output
     AT91C_BASE_PIOA->PIO_PER  = PIN_CARD_MOSI;  // enable GPIO function
 
     // use SPI PDC (DMA transfer)
-    AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
+    /*AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;*/
+    // 0x00200000 is the start of SRAM. Yup, we are going to DMA random data, just to get the rx side to work.
+    // the override above ensures the card sees all '1's
+    AT91C_BASE_SPI->SPI_TPR  = (uint32_t) 0x00200000;
     AT91C_BASE_SPI->SPI_TCR  = 512;
     AT91C_BASE_SPI->SPI_TNCR = 0;
-    AT91C_BASE_SPI->SPI_RPR  = (uint32_t) pBuffer;
-    AT91C_BASE_SPI->SPI_RCR  = 512;
-    AT91C_BASE_SPI->SPI_RNCR = 0;
-    AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_RXTEN | AT91C_PDC_TXTEN; // start DMA transfer
+
+    if (!pBuffer) {
+      // tx only
+      AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN;
+      dma_end                  = AT91C_SPI_ENDTX;
+    } else {
+      AT91C_BASE_SPI->SPI_RPR  = (uint32_t) pBuffer;
+      AT91C_BASE_SPI->SPI_RCR  = 512;
+      AT91C_BASE_SPI->SPI_RNCR = 0;
+      AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN; // start DMA transfer
+      dma_end                  = AT91C_SPI_ENDTX | AT91C_SPI_ENDRX;
+    }
 
     // wait for tranfer end
     timeout = Timer_Get(100);      // 100 ms timeout
-    while ( (AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {
+    /*while ( (AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {*/
+    while ( (AT91C_BASE_SPI->SPI_SR & dma_end) != dma_end) {
       if (Timer_Check(timeout)) {
         WARNING("SPI:Card_ReadM DMA Timeout! (lba=%lu)", sector);
+        if (!pBuffer) SPI_DisableFileIO();
         SPI_DisableCard();
         return(FF_ERR_DEVICE_DRIVER_FAILED);
       }
     };
 
-    // disable
     AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
     AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
 
-    pBuffer += 512; // point to next sector
+    if (!pBuffer)
+      SPI_DisableFileIO();
+    else
+      pBuffer += 512; // point to next sector
 
     SPI(0xFF); // read CRC lo byte
     SPI(0xFF); // read CRC hi byte

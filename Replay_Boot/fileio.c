@@ -552,6 +552,7 @@ void FileIO_FCh_TogProtect(uint8_t ch,uint8_t drive_number)
   Assert(drive_number < FCH_MAX_NUM);
   if (fch_handle[ch][drive_number].status & FILEIO_STAT_INSERTED) {
    fch_handle[ch][drive_number].status ^= FILEIO_STAT_PROTECTED;
+   FileIO_FCh_UpdateDriveStatus(ch);
   }
   DEBUG(1,"FCh:TogReadOnly Ch:%d;Drive:%d",ch,drive_number);
 }

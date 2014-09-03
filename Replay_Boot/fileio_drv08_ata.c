@@ -430,9 +430,15 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
       FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ); // IRQ or not?
 
     } else if (tfr[7] == DRV08_CMD_WRITE_SECTORS) {  // write sectors
-      // ADD CHECK FOR READ ONLY FILE
       //
       if (DRV08_DEBUG) DEBUG(1,"Drv08:Write Sectors");
+      //
+      if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
+        WARNING("Drv08:W Read only disk!");
+        Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+        return;
+      }
       //
       FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
       Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
@@ -468,9 +474,15 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         Drv08_FileWrite(ch, pDrive, fbuf);
       }
     } else if (tfr[7] == DRV08_CMD_WRITE_MULTIPLE) { // write sectors
-      // ADD CHECK FOR READ ONLY FILE
       //
       if (DRV08_DEBUG) DEBUG(1,"Drv08:Write Sectors Multiple");
+      //
+      if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
+        WARNING("Drv08:W Read only disk!");
+        Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+        return;
+      }
       //
       if (pDesc->sectors_per_block == 0) {
         WARNING("Drv08:Set Multiple not done");

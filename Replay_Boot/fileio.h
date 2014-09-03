@@ -6,8 +6,11 @@
 
 #define FILEIO_PROCESS_LIMIT   0x08
 
-#define FILEIO_STAT_INSERTED 0x01 /*disk is inserted*/
-#define FILEIO_STAT_WRITABLE 0x02 /*disk is writable*/
+#define FILEIO_STAT_INSERTED  0x01 /*disk is inserted*/
+#define FILEIO_STAT_READONLY  0x02 /*disk is NOT writable - taken from file attribute*/
+#define FILEIO_STAT_PROTECTED 0x04 /*disk is protected (OSD read only)*/
+
+#define FILEIO_STAT_READONLY_OR_PROTECTED 0x06 /* use for writable test */
 
 #define FILEIO_REQ_ACT         0x08
 #define FILEIO_REQ_DIR_TO_ARM  0x04
@@ -64,6 +67,9 @@ void    FileIO_FCh_Eject(uint8_t ch, uint8_t drive_number);
 
 uint8_t FileIO_FCh_GetInserted(uint8_t ch,uint8_t drive_number);
 uint8_t FileIO_FCh_GetReadOnly(uint8_t ch,uint8_t drive_number);
+uint8_t FileIO_FCh_GetProtect(uint8_t ch,uint8_t drive_number);
+void    FileIO_FCh_TogProtect(uint8_t ch,uint8_t drive_number);
+
 char*   FileIO_FCh_GetName(uint8_t ch,uint8_t drive_number);
 
 void    FileIO_FCh_SetDriver(uint8_t ch,uint8_t type);

@@ -478,20 +478,22 @@ uint16_t OSD_GetKeyCode(void)
           if ((!key_code) && USART_GetBuf(F10_KEYSEQ,sizeof(F10_KEYSEQ))) key_code=KEY_F10;
           if ((!key_code) && USART_GetBuf(F11_KEYSEQ,sizeof(F11_KEYSEQ))) key_code=KEY_RESET; // ignored
           if ((!key_code) && USART_GetBuf(F12_KEYSEQ,sizeof(F12_KEYSEQ))) key_code=KEY_MENU;
+
           if (!key_code) {
             key_code=KEY_ESC;
             USART_Getc(); // take ESC key
             // Use the lines below temporarly to check out not implemented sequences
             // (then also comment out above lines!)
-            //while (USART_CharAvail()>0) {
-            //  printf("%02x ",USART_Getc());
-            //}
-            //printf("\n\r");
+            /*while (USART_CharAvail()>0) {*/
+              /*printf("%02x ",USART_Getc());*/
+            /*}*/
+            /*printf("\n\r");*/
           }
         }
       } else {
         uint8_t c=USART_Getc();          // take (non-sequence) single char input
         if (c==0x0d) key_code=KEY_ENTER;
+        if (c==0x50 || c==0x70) key_code=KEY_P; // P or p
       }
     }
 

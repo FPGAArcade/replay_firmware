@@ -73,6 +73,7 @@
 #define KEY_F10   0x009
 #define KEY_MENU  0x007
 #define KEY_REST  0x078
+#define KEY_P     0x04D
 
 #define KEY_ALT   0x011
 #define KEY_SHIFT 0x012

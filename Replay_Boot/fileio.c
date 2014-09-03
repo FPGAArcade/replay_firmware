@@ -430,7 +430,8 @@ void FileIO_FCh_UpdateDriveStatus(uint8_t ch)
   uint8_t status = 0;
   for (int i=0; i<FCH_MAX_NUM; ++i) {
     if (fch_handle[ch][i].status & FILEIO_STAT_INSERTED) status |= (0x01<<i);
-    if (fch_handle[ch][i].status & FILEIO_STAT_WRITABLE) status |= (0x10<<i);
+    // set writable if not readonly and not protected
+    if (!(fch_handle[ch][i].status & FILEIO_STAT_READONLY_OR_PROTECTED)) status |= (0x10<<i);
   }
   DEBUG(1,"FCh:update status Ch:%d %02X",ch, status);
   if (ch==0)
@@ -446,14 +447,14 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char *path)
   DEBUG(1,"FCh:Insert Ch:%d;Drive:%d : <%s> ", ch,drive_number,path);
 
   fch_t* pDrive = &fch_handle[ch][drive_number];
-  pDrive->status = FILEIO_STAT_WRITABLE; // initial assumption
+  pDrive->status = 0; // initial assumption, no protect, not inserted
   pDrive->name[0] = '\0';
 
   // try to open file.
   // **ADD CHECK IF SD CARD IS WRITE PROTECTED
   pDrive->fSource = FF_Open(pIoman, path, FF_MODE_READ | FF_MODE_WRITE, NULL); // will not open if file is read only
   if (!pDrive->fSource) {
-    pDrive->status  = 0; // clear writable
+    pDrive->status  = FILEIO_STAT_READONLY; // set readonly
     pDrive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);
     if (!pDrive->fSource) {
       MSG_warning("FCh:Could not open file."); // give up
@@ -515,16 +516,44 @@ uint8_t FileIO_FCh_GetInserted(uint8_t ch,uint8_t drive_number)
   return (fch_handle[ch][drive_number].status & FILEIO_STAT_INSERTED);
 }
 
+// ONLY USE FOR OSD DISPLAY, use GetProtect for writable test
 uint8_t FileIO_FCh_GetReadOnly(uint8_t ch,uint8_t drive_number) // and inserted!
 {
   Assert(ch < 2);
   Assert(drive_number < FCH_MAX_NUM);
   if (fch_handle[ch][drive_number].status & FILEIO_STAT_INSERTED) {
-    if (!(fch_handle[ch][drive_number].status & FILEIO_STAT_WRITABLE)) {
+    if (fch_handle[ch][drive_number].status & FILEIO_STAT_READONLY) {
       return 1;
     }
   }
   return 0;
+}
+
+uint8_t FileIO_FCh_GetProtect(uint8_t ch,uint8_t drive_number) // and inserted!
+{
+  Assert(ch < 2);
+  Assert(drive_number < FCH_MAX_NUM);
+  if (fch_handle[ch][drive_number].status & FILEIO_STAT_INSERTED) {
+    // if not writable, always protected
+    if (fch_handle[ch][drive_number].status & FILEIO_STAT_READONLY) {
+      return 1;
+    }
+    // otherwise, is protected?
+    if (fch_handle[ch][drive_number].status & FILEIO_STAT_PROTECTED) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+void FileIO_FCh_TogProtect(uint8_t ch,uint8_t drive_number)
+{
+  Assert(ch < 2);
+  Assert(drive_number < FCH_MAX_NUM);
+  if (fch_handle[ch][drive_number].status & FILEIO_STAT_INSERTED) {
+   fch_handle[ch][drive_number].status ^= FILEIO_STAT_PROTECTED;
+  }
+  DEBUG(1,"FCh:TogReadOnly Ch:%d;Drive:%d",ch,drive_number);
 }
 
 char* FileIO_FCh_GetName(uint8_t ch,uint8_t drive_number)

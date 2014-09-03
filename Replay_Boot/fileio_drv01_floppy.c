@@ -8,6 +8,7 @@ const uint8_t DRV01_DEBUG = 0;
 // to do, tidy constants
 #define ADF_MAX_TRACKS (83*2)
 
+// all these in BYTES
 #define TRACK_SIZE 12668
 #define HEADER_SIZE 0x40
 #define DATA_SIZE 0x400
@@ -48,7 +49,7 @@ inline uint8_t MFMDecode(uint8_t *odd, uint8_t *even)
   return r;
 }
 
-void FileIO_Drv01_Amiga_SendSector(uint8_t *pBuffer, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl)
+void FileIO_Drv01_Amiga_SendHeader(uint8_t *pBuffer, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl)
 {
   //DumpBuffer(pData, 64);
 
@@ -143,17 +144,6 @@ void FileIO_Drv01_Amiga_SendSector(uint8_t *pBuffer, uint8_t sector, uint8_t tra
   SPI(checksum[2] | 0xAA);
   SPI(checksum[3] | 0xAA);
 
-  // odd bits of data field
-  i = DATA_SIZE / 2;
-  p = pBuffer;
-  while (i--)
-    SPI(*p++ >> 1 | 0xAA);
-
-  // even bits of data field
-  i = DATA_SIZE / 2;
-  p = pBuffer;
-  while (i--)
-    SPI(*p++ | 0xAA);
 }
 
 void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer, uint8_t *write_state)
@@ -304,7 +294,7 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer, uint8_t
         break;
       };
 
-      if (!(pDrive->status & FILEIO_STAT_WRITABLE)) {
+      if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
         WARNING("Drv01:W Read only disk!");
         *write_state = 0;
         break;
@@ -395,7 +385,33 @@ void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
   // send sector
   SPI_EnableFileIO();
   SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
-  FileIO_Drv01_Amiga_SendSector(pBuffer, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);
+  FileIO_Drv01_Amiga_SendHeader(pBuffer, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);
+  SPI_DisableFileIO();
+
+  // odd bits of data
+  SPI_EnableFileIO();
+  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x2));
+  SPI_WriteBufferSingle(pBuffer, DATA_SIZE / 2);
+  SPI_DisableFileIO();
+
+  // even bits of data field
+  SPI_EnableFileIO();
+  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x3));
+  SPI_WriteBufferSingle(pBuffer, DATA_SIZE / 2);
+  SPI_DisableFileIO();
+
+  // odd bits of data field
+  /*i = DATA_SIZE / 2;*/
+  /*p = pBuffer;*/
+  /*while (i--)*/
+    /*SPI(*p++ >> 1 | 0xAA);*/
+
+  // even bits of data field
+  /*i = DATA_SIZE / 2;*/
+  /*p = pBuffer;*/
+  /*while (i--)*/
+    /*SPI(*p++ | 0xAA);*/
+
   SPI_DisableFileIO();
 
   if (sector == LAST_SECTOR)
@@ -409,8 +425,9 @@ void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
 
     SPI_EnableFileIO();
     SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
-    i = GAP_SIZE-2;
+    i = (GAP_SIZE/2) - 1;
     while (i--)
+      SPI(0xAA);
       SPI(0xAA);
     SPI_DisableFileIO();
   }

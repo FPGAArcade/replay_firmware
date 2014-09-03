@@ -568,6 +568,8 @@ void _MENU_update_ui(status_t *current_status)
           if ((current_status->fileio_cha_ena >> pItem->action_value) & 1) {
             if (FileIO_FCh_GetReadOnly(0,pItem->action_value)) {
               OSD_WriteRC(row-1, 0, "R", 0, 0xA, 0); // Green>
+            } else if (FileIO_FCh_GetProtect(0,pItem->action_value)) {
+              OSD_WriteRC(row-1, 0, "P", 0, 0xA, 0); // Green>
             }
           }
         }
@@ -576,6 +578,8 @@ void _MENU_update_ui(status_t *current_status)
           if ((current_status->fileio_chb_ena >> pItem->action_value) & 1) {
             if (FileIO_FCh_GetReadOnly(1,pItem->action_value)) {
               OSD_WriteRC(row-1, 0, "R", 0, 0xA, 0); // Green>
+            } else if (FileIO_FCh_GetProtect(1,pItem->action_value)) {
+              OSD_WriteRC(row-1, 0, "P", 0, 0xA, 0); // Green>
             }
           }
         }
@@ -895,6 +899,24 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       }
       update=1;
     }
+    // change file attributes
+    if (key == KEY_P) {
+        if MATCH(current_status->menu_item_act->action_name,"cha_select") {
+          if ((current_status->fileio_cha_ena >> current_status->menu_item_act->action_value) & 1) {
+            FileIO_FCh_TogProtect(0, current_status->menu_item_act->action_value);
+            update=1;
+          }
+        }
+
+        if MATCH(current_status->menu_item_act->action_name,"chb_select") {
+          if ((current_status->fileio_chb_ena >> current_status->menu_item_act->action_value) & 1) {
+            FileIO_FCh_TogProtect(1, current_status->menu_item_act->action_value);
+            update=1;
+          }
+        }
+
+    }
+
     // step into a item_name list from menu list (see also KEY_RIGHT)
     if (key == KEY_ENTER) {
         if (current_status->menu_item_act->action_name[0]) {

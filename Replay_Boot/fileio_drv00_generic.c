@@ -90,6 +90,11 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
       if (dir) { // write
         // request should not be asserted if data is not ready
         // write will fail if read only
+        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
+          WARNING("Drv00:W Read only disk!");
+          FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_TRUNC_ERR); // truncated
+          return;
+        }
 
         SPI_EnableFileIO();
         SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));

@@ -164,6 +164,7 @@ uint8_t FileIO_Drv00_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
 
   pDesc->file_size =  pDrive->fSource->Filesize;
 
+  // NOTE, core may still be in reset
   // select drive
   SPI_EnableFileIO();
   SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_W | 0x0));

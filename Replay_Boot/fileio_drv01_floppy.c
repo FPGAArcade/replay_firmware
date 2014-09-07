@@ -33,11 +33,51 @@ typedef enum {
 
 typedef struct
 {
+    uint8_t id[3];                              // "SCP"
+    uint8_t version;                            // Version<<4|Revision
+    uint8_t disk_type;                          // Class<<4|Sub class
+    uint8_t number_of_revolutions;
+    uint8_t start_track;
+    uint8_t end_track;
+    uint8_t flags;
+    uint8_t cell_encoding;
+    uint8_t resv_0;
+    uint8_t resv_1;
+    uint32_t checksum;
+} drv01_scp_header_t;
+
+typedef struct
+{
+    uint32_t index_time;
+    uint32_t track_length;
+    uint32_t track_offset;
+} drv01_scp_track_tlo_t;
+
+typedef struct
+{
+    uint8_t id[3];                          // "TRK"
+    uint8_t track_number;
+    drv01_scp_track_tlo_t tlo[5]; // one for each
+} drv01_scp_track_header_t;
+
+typedef struct
+{
     drv01_format_t  format;
     //
     uint32_t file_size;
-    uint16_t tracks;
+    uint16_t total_tracks;
     uint8_t  cur_sector;
+    uint8_t  scp_start_track;
+    uint8_t  scp_end_track;
+    uint8_t  scp_revolutions;
+    //
+    uint8_t  scp_cur_track;
+    uint32_t scp_cur_track_header_addr;    // current track header address in file. 0 = track does not exist
+    //
+    drv01_scp_track_header_t scp_cur_track_header;
+    uint8_t  scp_cur_track_rev;
+    uint32_t scp_cur_track_offset;  // current offset from start of track flux data
+    //
 } drv01_desc_t;
 
 
@@ -242,7 +282,7 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer, uint8_t
       if (DRV01_DEBUG) DEBUG(1,"Drv01:Write param %u.%u.%u.%u",p[0], p[1], p[2], p[3]);
 
       // p[0] always 0xFF, p[1] track, p[2] sector (0-10) p[3] number to gap (1-11)
-      if ((p[0] != 0xFF) || (p[1] >= pDesc->tracks) || (p[2] > 10) || (p[3] > 11) || (p[3] ==0)) {
+      if ((p[0] != 0xFF) || (p[1] >= pDesc->total_tracks) || (p[2] > 10) || (p[3] > 11) || (p[3] ==0)) {
         WARNING("Drv01:W Param err %u.%u.%u.%u",p[0], p[1], p[2], p[3]);
         *write_state = 0;
         break;
@@ -348,9 +388,9 @@ void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
 
   FileIO_FCh_WriteStat(ch, DRV01_STAT_REQ_ACK); // ack
 
-  if (track >= pDesc->tracks) {
+  if (track >= pDesc->total_tracks) {
     DEBUG(0,"Illegal track %u read!", track); // no warning, happens quite a bit
-    track = pDesc->tracks - 1;
+    track = pDesc->total_tracks - 1;
   }
 
   sector = pDesc->cur_sector;
@@ -369,7 +409,7 @@ void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
   // Commando: $A245
 
   if (DRV01_DEBUG)
-    DEBUG(1,"Drv01:Process Read Ch%u Dsksync:%04X Track:%u Sector:%01X",ch, dsksync,track,sector);
+    DEBUG(1,"Drv01:Process ADF Read Ch%u Dsksync:%04X Track:%u Sector:%01X",ch, dsksync,track,sector);
 
   // sector size hard coded as 512 bytes
   offset  = (512*11) * track;
@@ -435,6 +475,126 @@ void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
   FileIO_FCh_WriteStat(ch, DRV01_STAT_TRANS_ACK_OK); // ok
 }
 
+void FileIO_Drv01_SCP_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
+{
+  uint8_t  track  = 0;
+  uint32_t offset = 0;
+  uint32_t len    = 0;
+
+  drv01_desc_t* pDesc = pDrive->pDesc;
+
+  SPI_EnableFileIO();
+  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
+  SPI(0x00); // dummy
+
+             SPI(0);  // spare
+  track    = SPI(0);
+  SPI_DisableFileIO();
+  FileIO_FCh_WriteStat(ch, DRV01_STAT_REQ_ACK); // ack
+
+  if (DRV01_DEBUG)
+    DEBUG(1,"Drv01:Process SCP Read Ch%u Track:%u",ch, track);
+
+  if (track != pDesc->scp_cur_track) { // step
+
+    pDesc->scp_cur_track = track; // store received track value
+    // legalize
+    if        (track > pDesc->scp_end_track) {
+      pDesc->scp_cur_track_header_addr = 0;
+    } else if (track < pDesc->scp_start_track) {
+      pDesc->scp_cur_track_header_addr = 0;
+    } else {
+      // get track header offset
+      FF_Seek(pDrive->fSource, 0x0010 + (track - pDesc->scp_start_track)*4, FF_SEEK_SET);
+      FF_Read(pDrive->fSource, 4, 1, (uint8_t*)&offset);
+
+      pDesc->scp_cur_track_header_addr = offset; // 0 if track skipped
+
+      if (offset !=0) {
+        // read track header
+        FF_Seek(pDrive->fSource, offset, FF_SEEK_SET);
+        FF_Read(pDrive->fSource, sizeof(drv01_scp_track_header_t), 1, (uint8_t*)&pDesc->scp_cur_track_header);
+        /*DumpBuffer((uint8_t*)&pDesc->scp_cur_track_header, sizeof(drv01_scp_track_header_t));*/
+
+        if (_strncmp((char*)&pDesc->scp_cur_track_header.id,"TRK",3)) {
+          WARNING("Bad TRK header");
+          pDesc->scp_cur_track_header_addr = 0;
+        }
+
+        if (pDesc->scp_cur_track_header.track_number != track) {
+          WARNING("TRK header does not match current track");
+          pDesc->scp_cur_track_header_addr = 0;
+        }
+
+        // ok, all good
+        pDesc->scp_cur_track_rev    = 0;
+        // stay at approx offset. Check if we are off the end of new track length
+        if (pDesc->scp_cur_track_offset > pDesc->scp_cur_track_header.tlo[0].track_length)
+          pDesc->scp_cur_track_offset = 0; // start at begining of track
+
+        /*DEBUG(1,"Drv01:Process SCP step ok");*/
+      }
+    }
+  }
+  // assume offset is valid
+  if (pDesc->scp_cur_track_header_addr == 0) {
+    /*DEBUG(1,"on duff track");*/
+    // do nothing
+  } else {
+    /*DEBUG(1,"cur revolution %d", pDesc->scp_cur_track_rev + 1);*/
+    /*DEBUG(1,"cur offset       %08X", pDesc->scp_cur_track_offset);*/
+    /*DEBUG(1,"cur index time   %08X", pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].index_time);*/
+    /*DEBUG(1,"cur track length %08X", pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].track_length);*/
+    /*DEBUG(1,"cur track offset %08X", pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].track_offset);*/
+
+    /*DEBUG(1,"file offset       %08X", offset);*/
+
+    if (pDesc->scp_cur_track_offset == 0) {
+      // send sync marker
+      SPI_EnableFileIO();
+      SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x1));
+      SPI(0x00); // very short
+      SPI(0x04);
+      SPI_DisableFileIO();
+    }
+
+    // offset in WORDs
+    len = pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].track_length - pDesc->scp_cur_track_offset;
+    if (len <= 256) {
+      // end of track
+      pDesc->scp_cur_track_offset =0;
+      // inc revolution
+      pDesc->scp_cur_track_rev++;
+      if (pDesc->scp_cur_track_rev == pDesc->scp_revolutions)
+        pDesc->scp_cur_track_rev = 0;
+    } else {
+      len = 256;
+      pDesc->scp_cur_track_offset += len;
+    };
+
+    offset  = pDesc->scp_cur_track_header_addr + pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].track_offset;
+    offset += (pDesc->scp_cur_track_offset << 1); // words to bytes
+
+    len = len << 1; // turn into bytes
+    //
+    // TO DO, move to block align and then direct transfer 1K byte chunks
+    //
+
+    // this seek will (in most cases) not move the file pointer
+    FF_Seek(pDrive->fSource, offset, FF_SEEK_SET);
+    FF_Read(pDrive->fSource, len, 1, pBuffer);
+
+    /*DumpBuffer(pBuffer, 32);*/
+
+    SPI_EnableFileIO();
+    SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+    SPI_WriteBufferSingle(pBuffer,len);
+    SPI_DisableFileIO();
+  }
+  // signal transfer done
+  FileIO_FCh_WriteStat(ch, DRV01_STAT_TRANS_ACK_OK); // ok
+}
+
 void FileIO_Drv01_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t status) // amiga
 {
   // add format check...
@@ -465,16 +625,24 @@ void FileIO_Drv01_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
     }
 
     fch_t* pDrive = (fch_t*) &handle[ch][drive_number]; // get base
+    drv01_desc_t* pDesc = pDrive->pDesc;
 
     if (dir) { // write
       if (drive_number != write_drive) // selected drive has changed
         write_state = 0;
 
-      FileIO_Drv01_ADF_Write(ch, pDrive, fbuf, &write_state);
+      if (pDesc->format == (drv01_format_t)ADF)
+        FileIO_Drv01_ADF_Write(ch, pDrive, fbuf, &write_state);
+
       write_drive = drive_number;
 
     } else { // read
-      FileIO_Drv01_ADF_Read(ch, pDrive, fbuf);
+      if (pDesc->format == (drv01_format_t)ADF)
+        FileIO_Drv01_ADF_Read(ch, pDrive, fbuf);
+
+      if (pDesc->format == (drv01_format_t)SCP)
+        FileIO_Drv01_SCP_Read(ch, pDrive, fbuf);
+
       write_state = 0; // reset write state if we did a read
     }
 
@@ -487,6 +655,8 @@ void FileIO_Drv01_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
 
 uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive, char *ext)
 {
+  drv01_scp_header_t scp_header;
+
   DEBUG(1,"Drv01:InsertInit");
 
   pDrive->pDesc = calloc(1, sizeof(drv01_desc_t)); // 0 everything
@@ -498,12 +668,51 @@ uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
     pDesc->format    = (drv01_format_t)ADF;
     pDesc->file_size =  pDrive->fSource->Filesize;
     //
-    uint16_t tracks = pDesc->file_size / (512*11);
-    if (tracks > ADF_MAX_TRACKS) {
-      WARNING("UNSUPPORTED ADF SIZE!!! Too many tracks: %u", tracks);
-      tracks = ADF_MAX_TRACKS;
+    uint16_t total_tracks = pDesc->file_size / (512*11);
+    if (total_tracks > ADF_MAX_TRACKS) {
+      WARNING("Bad ADF size!!!");
+      WARNING("Too many tracks: %u", total_tracks);
+      total_tracks = ADF_MAX_TRACKS;
     }
-    pDesc->tracks = tracks;
+    pDesc->total_tracks = total_tracks;
+
+  } else if (strnicmp(ext, "SCP",3) == 0) {
+    pDesc->format    = (drv01_format_t)SCP;
+
+    FF_Seek(pDrive->fSource, 0, FF_SEEK_SET);
+    FF_Read(pDrive->fSource, sizeof(scp_header), 1, (uint8_t*)&scp_header);
+
+    if (_strncmp((char*)&scp_header.id,"SCP",3)) {
+      WARNING("Bad SCP header");
+      return (1);
+    }
+
+    DEBUG(1,"Drv01:SCP header:");
+    DEBUG(1,"Drv01:Version       : 0x%02X",scp_header.version);
+    DEBUG(1,"Drv01:Disk type     : 0x%02X",scp_header.disk_type);
+    DEBUG(1,"Drv01:Start track   : %d",scp_header.start_track);
+    DEBUG(1,"Drv01:End track     : %d",scp_header.end_track);
+    DEBUG(1,"Drv01:#Revolution(s): %d",scp_header.number_of_revolutions);
+    DEBUG(1,"Drv01:Flags         : 0x%02X",scp_header.flags);
+    DEBUG(1,"Drv01:Cell encoding : 0x%02X",scp_header.cell_encoding);
+
+    if ( (scp_header.cell_encoding !=0) || 
+         (scp_header.number_of_revolutions < 1) ||
+         (scp_header.number_of_revolutions > 5) ||
+         (scp_header.end_track < scp_header.start_track) ) {
+      WARNING("Unsupported SCP file");
+      return (1);
+    }
+
+    pDesc->total_tracks    = 1 + scp_header.end_track - scp_header.start_track;
+    pDesc->scp_start_track = scp_header.start_track;
+    pDesc->scp_end_track   = scp_header.end_track;
+    pDesc->scp_revolutions = scp_header.number_of_revolutions;
+
+    pDesc->scp_cur_track = 255; // illegal
+    pDesc->scp_cur_track_header_addr = 0;
+    pDesc->scp_cur_track_rev    = 0;
+    pDesc->scp_cur_track_offset = 0;
 
   } else {
     WARNING("Drv01:Unsupported format.");
@@ -513,12 +722,18 @@ uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
   // send mode, 0 for ADF, 1 for SCP
   SPI_EnableFileIO();
   SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_W));
-  SPI(0x00);
+  SPI(drive_number);
+
+  switch (pDesc->format) {
+    case ADF : SPI(0x00); break;
+    case SCP : SPI(0x01); break;
+    default  : SPI(0x00);
+  }
   SPI_DisableFileIO();
 
   //
   DEBUG(1,"Drv01:Size   : %lu (%lu kB)", pDesc->file_size, pDesc->file_size);
-  DEBUG(1,"Drv01:Tracks : %u", pDesc->tracks);
+  DEBUG(1,"Drv01:Tracks : %u", pDesc->total_tracks);
 
   return (0);
 }

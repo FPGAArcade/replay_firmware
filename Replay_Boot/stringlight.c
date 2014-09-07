@@ -49,6 +49,22 @@ int _strnicmp(const char *pS1, const char *pS2, unsigned long n)
     return v;
 }
 
+int _strncmp(const char *pS1, const char *pS2, unsigned long n)
+{
+    char c1, c2;
+    int v;
+
+    do
+    {
+        c1 = *pS1++;
+        c2 = *pS2++;
+        v = (unsigned int)(c1) - (unsigned int)(c2);
+    }
+    while ((v == 0) && (c1 != '\0') && (c2 != '\0') && (--n > 0));
+
+    return v;
+}
+
 unsigned int _htoi (const char *pStr)
 {
   unsigned int value = 0;

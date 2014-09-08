@@ -58,6 +58,7 @@ uint8_t FCH_CMD(uint8_t ch, uint8_t cmd);
 uint8_t FileIO_FCh_GetStat(uint8_t ch);
 void    FileIO_FCh_WriteStat(uint8_t ch, uint8_t stat);
 uint8_t FileIO_FCh_WaitStat(uint8_t ch, uint8_t mask, uint8_t wanted);
+void    FileIo_FCh_FileReadSendDirect(uint8_t ch, fch_t *pDrive, uint32_t size);
 
 void    FileIO_FCh_Process(uint8_t ch);
 void    FileIO_FCh_UpdateDriveStatus(uint8_t ch);

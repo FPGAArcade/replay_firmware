@@ -402,6 +402,25 @@ inline uint8_t FileIO_FCh_WaitStat(uint8_t ch, uint8_t mask, uint8_t wanted)
   return (0);
 }
 
+void FileIo_FCh_FileReadSendDirect(uint8_t ch, fch_t *pDrive, uint32_t size)
+{
+  // on entry assumes file is in correct position
+  // no flow control check, FPGA must be able to sync entire transfer.
+  SPI_EnableFileIO();
+  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+  SPI_EnableDirect();
+  SPI_DisableFileIO();
+
+  uint32_t bytes_r = FF_ReadDirect(pDrive->fSource, size, 1);
+
+  SPI_DisableDirect();
+
+  // add error handling
+  if (bytes_r != size) {
+    DEBUG(1,"Drv08:!! Direct Read Fail!!");
+  }
+}
+
 //
 // FCh interface
 //

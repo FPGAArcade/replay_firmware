@@ -479,7 +479,8 @@ void FileIO_Drv01_SCP_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
 {
   uint8_t  track  = 0;
   uint32_t offset = 0;
-  uint32_t len    = 0;
+  uint32_t cur_track_len = 0;
+  uint32_t trans_len = 0;
 
   drv01_desc_t* pDesc = pDrive->pDesc;
 
@@ -531,8 +532,6 @@ void FileIO_Drv01_SCP_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
         // stay at approx offset. Check if we are off the end of new track length
         if (pDesc->scp_cur_track_offset > pDesc->scp_cur_track_header.tlo[0].track_length)
           pDesc->scp_cur_track_offset = 0; // start at begining of track
-
-        /*DEBUG(1,"Drv01:Process SCP step ok");*/
       }
     }
   }
@@ -547,8 +546,6 @@ void FileIO_Drv01_SCP_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
     /*DEBUG(1,"cur track length %08X", pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].track_length);*/
     /*DEBUG(1,"cur track offset %08X", pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].track_offset);*/
 
-    /*DEBUG(1,"file offset       %08X", offset);*/
-
     if (pDesc->scp_cur_track_offset == 0) {
       // send sync marker
       SPI_EnableFileIO();
@@ -558,38 +555,49 @@ void FileIO_Drv01_SCP_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
       SPI_DisableFileIO();
     }
 
-    // offset in WORDs
-    len = pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].track_length - pDesc->scp_cur_track_offset;
-    if (len <= 256) {
+    cur_track_len = pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].track_length; // in words
+    trans_len     = cur_track_len - pDesc->scp_cur_track_offset; // words
+
+    if (trans_len > 1024) trans_len = 1024;
+    trans_len = trans_len << 1; // words to bytes
+    // max burst is 2048 bytes. Note, bufer size is only 512 used for alignment
+
+    // offset in file
+    offset  = pDesc->scp_cur_track_header_addr + pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].track_offset;
+    offset += (pDesc->scp_cur_track_offset << 1); // words to bytes
+
+    // this seek will (in most cases) not move the file pointer
+    FF_Seek(pDrive->fSource, offset, FF_SEEK_SET);
+
+    // align to 512 byte boundaries if possible
+    uint32_t offset_sub    = offset & 0x1FF; // aligned?
+    uint32_t trans_len_sub = trans_len & 0x1FF; // aligned?
+
+    if ((offset_sub != 0) || (trans_len_sub !=0)) {
+      offset_sub = 0x200 - offset_sub;
+      if (trans_len > offset_sub) {  // < 512
+        trans_len = offset_sub;
+      }
+      trans_len &= 0xFFFE;
+
+      FF_Read(pDrive->fSource, trans_len, 1, pBuffer);
+      SPI_EnableFileIO();
+      SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+      SPI_WriteBufferSingle(pBuffer,trans_len);
+      SPI_DisableFileIO();
+    } else { // aligned
+      FileIo_FCh_FileReadSendDirect(ch, pDrive, trans_len);
+    }
+    // check end of track
+    pDesc->scp_cur_track_offset += (trans_len >> 1); // words
+    if (pDesc->scp_cur_track_offset >= cur_track_len) {
       // end of track
       pDesc->scp_cur_track_offset =0;
       // inc revolution
       pDesc->scp_cur_track_rev++;
       if (pDesc->scp_cur_track_rev == pDesc->scp_revolutions)
         pDesc->scp_cur_track_rev = 0;
-    } else {
-      len = 256;
-      pDesc->scp_cur_track_offset += len;
     };
-
-    offset  = pDesc->scp_cur_track_header_addr + pDesc->scp_cur_track_header.tlo[pDesc->scp_cur_track_rev].track_offset;
-    offset += (pDesc->scp_cur_track_offset << 1); // words to bytes
-
-    len = len << 1; // turn into bytes
-    //
-    // TO DO, move to block align and then direct transfer 1K byte chunks
-    //
-
-    // this seek will (in most cases) not move the file pointer
-    FF_Seek(pDrive->fSource, offset, FF_SEEK_SET);
-    FF_Read(pDrive->fSource, len, 1, pBuffer);
-
-    /*DumpBuffer(pBuffer, 32);*/
-
-    SPI_EnableFileIO();
-    SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
-    SPI_WriteBufferSingle(pBuffer,len);
-    SPI_DisableFileIO();
   }
   // signal transfer done
   FileIO_FCh_WriteStat(ch, DRV01_STAT_TRANS_ACK_OK); // ok
@@ -662,11 +670,13 @@ uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
   pDrive->pDesc = calloc(1, sizeof(drv01_desc_t)); // 0 everything
   drv01_desc_t* pDesc = pDrive->pDesc;
 
-  pDesc->format = (drv01_format_t)XXX;
+  pDesc->file_size = pDrive->fSource->Filesize;
+  pDesc->format    = (drv01_format_t)XXX;
+
   if (strnicmp(ext, "ADF",3) == 0) {
     //
     pDesc->format    = (drv01_format_t)ADF;
-    pDesc->file_size =  pDrive->fSource->Filesize;
+
     //
     uint16_t total_tracks = pDesc->file_size / (512*11);
     if (total_tracks > ADF_MAX_TRACKS) {
@@ -713,6 +723,8 @@ uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
     pDesc->scp_cur_track_header_addr = 0;
     pDesc->scp_cur_track_rev    = 0;
     pDesc->scp_cur_track_offset = 0;
+
+    pDrive->status |= FILEIO_STAT_READONLY; // set readonly
 
   } else {
     WARNING("Drv01:Unsupported format.");

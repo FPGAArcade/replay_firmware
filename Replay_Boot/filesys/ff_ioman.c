@@ -1248,9 +1248,8 @@ FF_T_UINT64 FF_GetVolumeSize(FF_IOMAN *pIoman) {
 FF_T_UINT32 FF_GetVolumeSize(FF_IOMAN *pIoman) {
 	if(pIoman) {
 		FF_T_UINT32 TotalClusters = pIoman->pPartition->DataSectors / pIoman->pPartition->SectorsPerCluster;
-	  /*  return (FF_T_UINT32) (TotalClusters * (pIoman->pPartition->SectorsPerCluster * pIoman->pPartition->BlkSize));*/
 	// hack to return in MB
-		return (FF_T_UINT32) (TotalClusters * (pIoman->pPartition->SectorsPerCluster * pIoman->pPartition->BlkSize));
+		return (FF_T_UINT32) (TotalClusters * (pIoman->pPartition->SectorsPerCluster * pIoman->pPartition->BlkSize)) >> 20;
 
 	}
 	return 0;

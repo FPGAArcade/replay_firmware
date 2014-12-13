@@ -501,44 +501,45 @@ void _MENU_update_ui(status_t *current_status)
       // handling file browser part
       OSD_WriteRC(0, 10, "FILE BROWSER", 0, 0xE, 0);
 
-      uint32_t len;
       uint32_t i;
       char *filename;
       FF_DIRENT entry;
 
-      // show_menu file/directory list
-      uint8_t sel = Filesel_GetSel(current_status->dir_scan);
-      for (i = 0; i < MENU_HEIGHT; i++) {
+      // nothing there
+      if (current_status->dir_scan->total_entries == 0) {
         char s[OSDMAXLEN+1];
-        s[OSDMAXLEN] = 0; // set temporary string length to OSD line length
-        memset(s, ' ', OSDMAXLEN); // clear line buffer
-        entry = Filesel_GetLine(current_status->dir_scan, i);
-        filename = entry.FileName;
-        len = strlen(filename);
+        strcpy(s, "            No files!");
+        OSD_WriteRC(1+2, 0, s, 1, 0xC, 0);
+      } else {
+      // show file/directory list
+        uint8_t sel = Filesel_GetSel(current_status->dir_scan);
+        for (i = 0; i < MENU_HEIGHT; i++) {
+          //uint32_t len;
+          char s[OSDMAXLEN+1];
+          memset(s, ' ', OSDMAXLEN); // clear line buffer
+          s[OSDMAXLEN] = 0; // set temporary string length to OSD line length
 
-        if (i==sel) {
-          // FIX ME for really long names
-          /*if (len > OSDLINELEN) { // enable scroll if long name*/
-            /*len = OSDLINELEN;*/
-            /*OSD_SetHOffset(i+2, 0, 0);*/
-            /*current_status->scroll_pos=i+2;*/
+          entry = Filesel_GetLine(current_status->dir_scan, i);
+          filename = entry.FileName;
+          //len = strlen(filename);
+          //if (i==sel) {
+            // FIX ME for really long names
+            /*if (len > OSDLINELEN) { // enable scroll if long name*/
+              /*len = OSDLINELEN;*/
+              /*OSD_SetHOffset(i+2, 0, 0);*/
+              /*current_status->scroll_pos=i+2;*/
+            //}
           //}
-        }
-        if (entry.Attrib & FF_FAT_ATTR_DIR) {
-          // a directory
-          /*strncpy (s + 1, filename, OSDMAXLEN);*/
-          strncpy (s, filename, OSDMAXLEN);
-          OSD_WriteRC(i+2, 0, s, i==sel, 0xA, 0);
-        } else {
-          // a file
-          /*strncpy (s + 1, filename, OSDMAXLEN);*/
-          strncpy (s, filename, OSDMAXLEN);
-          OSD_WriteRC(i+2, 0, s, i==sel, 0xB, 0);
-        }
+          if (entry.Attrib & FF_FAT_ATTR_DIR) {
+            // a directory
+            strncpy (s, filename, OSDMAXLEN);
+            OSD_WriteRC(i+2, 0, s, i==sel, 0xA, 0);
+          } else {
+            // a file
+            strncpy (s, filename, OSDMAXLEN);
+            OSD_WriteRC(i+2, 0, s, i==sel, 0xB, 0);
+          }
 
-        if (i == 1 && current_status->dir_scan->total_entries == 0) {
-          strcpy(s, "            No files!");
-          OSD_WriteRC(i+2, 0, s, i==sel, 0xC, 0);
         }
       }
       // print status line
@@ -723,7 +724,6 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       Filesel_Update(current_status->dir_scan, SCAN_NEXT);
       update=1;
     }
-    /* does not really work with filebrowser code (TODO: check why...)
     if ((key  & ~KF_REPEATED) == KEY_PGUP) {
       Filesel_Update(current_status->dir_scan, SCAN_PREV_PAGE);
       update=1;
@@ -732,11 +732,9 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       Filesel_Update(current_status->dir_scan, SCAN_NEXT_PAGE);
       update=1;
     }
-    */
     if (key == KEY_ENTER) {
       FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan,
                                          current_status->dir_scan->sel);
-
       if (mydir.Attrib & FF_FAT_ATTR_DIR) {
         //dir_sel
         if (_strnicmp(mydir.FileName, ".", FF_MAX_FILENAME) != 0) {
@@ -754,7 +752,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
         }
       }
       else {
-        // check for filebrowser action and update display if succesfully
+        // check for filebrowser action and update display if successful
         update = _MENU_action(current_status->menu_item_act,
                               current_status, 2);
       }
@@ -900,7 +898,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       update=1;
     }
     // change file attributes
-    if (key == KEY_P) {
+    if (key == 'P') {
         if MATCH(current_status->menu_item_act->action_name,"cha_select") {
           if ((current_status->fileio_cha_ena >> current_status->menu_item_act->action_value) & 1) {
             FileIO_FCh_TogProtect(0, current_status->menu_item_act->action_value);

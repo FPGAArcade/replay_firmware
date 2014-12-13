@@ -272,7 +272,7 @@ uint8_t FPGA_DramEye(uint8_t mode)
       }
     }
 
-    key = OSD_GetKeyCode();
+    key = OSD_GetKeyCode(1);
 
     if (key == KEY_LEFT) {
       ram_phase-=8;
@@ -364,7 +364,7 @@ uint8_t FPGA_ProdTest(void)
       failed = 0;
     }
 
-    key = OSD_GetKeyCode();
+    key = OSD_GetKeyCode(1);
     if (key == KEY_F8) {
       vidpat = (vidpat - 1) & 0x3;
     }
@@ -448,7 +448,7 @@ uint8_t FPGA_ProdTest(void)
 
 inline uint8_t _SPI(uint8_t outByte)
 {
-  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // warning, but is a must!
+  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // compiler warning, but is a must!
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
   AT91C_BASE_SPI->SPI_TDR = outByte;
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));

@@ -222,19 +222,25 @@ int main(void)
         // MAIN LOOP
         uint16_t key;
 
+        // get keys (from Replay button, RS232 or PS/2 via OSD/FPGA)
+        key = OSD_GetKeyCode(current_status.spi_osd_enabled);
+
+        if ((key>=0x20) && (key<=0x7F)) {
+          DEBUG(3,"Key: 0x%04X - '%c'",key,key);
+        } else if (key) {
+          DEBUG(3,"Key: 0x%04X",key);
+        }
+
+        // check RS232
+        USART_update();
+
+        // check menu
         if (current_status.spi_osd_enabled) {
-          // get user control codes
-          key = OSD_GetKeyCode();
-
-          USART_update();
-
           if (MENU_handle_ui(key,&current_status)) {
             // do further update stuff here...
           }
-          // this key starts the bootloader - TODO: find better key or remove again...
-          if (key == KEY_RESET) CFG_call_bootloader();
           // this key restarts the core only
-          if (key == KEY_REST) {
+          if (key == (KEY_F11|KF_SHIFT)) {
             // perform soft-reset
             OSD_Reset(OSDCMD_CTRL_RES);
             Timer_Wait(1);
@@ -243,15 +249,31 @@ int main(void)
             Timer_Wait(100);
           }
         }
-        else {
-          if (IO_Input_L(PIN_MENU_BUTTON)) {
-            key=KEY_MENU;
-          } else {
-            key=0;
-          }
+
+        // this key sequence starts the bootloader
+        if ((key == KEY_RESET) || (key == (KEY_F12|KF_CTRL|KF_ALT))) {
+          CFG_call_bootloader();
         }
 
-        if (key == KEY_MENU) {
+        // this key or key sequence starts the bootloader
+        if ((key == KEY_FLASH) || (key == (KEY_F11|KF_CTRL|KF_ALT))) {
+          // set new INI file and force reload of FPGA configuration
+          strcpy(current_status.ini_dir,"\\flash\\");
+          strcpy(current_status.act_dir,"\\flash\\");
+          strcpy(current_status.ini_file,"rApp.ini");
+          // make sure FPGA is held in reset
+          IO_DriveLow_OD(PIN_FPGA_RST_L);
+          ACTLED_ON;
+          // set PROG low to reset FPGA (open drain)
+          IO_DriveLow_OD(PIN_FPGA_PROG_L);
+          Timer_Wait(1);
+          IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+          Timer_Wait(2);
+          // invalidate FPGA configuration here as well
+          current_status.fpga_load_ok = 0;
+        }
+
+        if (key == KEY_F12) {
           if (current_status.button==BUTTON_RESET) {
             strcpy(current_status.ini_dir,"\\");
             strcpy(current_status.act_dir,"\\");
@@ -283,6 +305,7 @@ int main(void)
           FPGA_DramTrain();
           break;
         }
+
         // we check if we are in fallback mode and a proper sdcard is available now
         if ((current_status.fpga_load_ok==2)&&(current_status.fs_mounted_ok)) {
           IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
@@ -297,7 +320,6 @@ int main(void)
         }
 
         // Handle virtual drives
-
         if (current_status.fileio_cha_ena !=0)
           FileIO_FCh_Process(0);
         if (current_status.fileio_chb_ena !=0)

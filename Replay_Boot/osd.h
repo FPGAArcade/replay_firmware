@@ -28,57 +28,65 @@
 #define REPEATRATE      50          // repeat rate in 1ms units
 
 #define BUTTONDELAY     100         // replay button delay in 1ms units
+#define FLASHDELAY      1000        // replay button delay to start flashing in 1ms units
+
+#define PS2DELAY        10          // ps/2 delay in 1ms units
 
 #define SERIALDELAY     1           // serial timeout delay in 1ms units
 
+//#define OSDCTRLUP       0x01        /*OSD up control*/
+//#define OSDCTRLDOWN     0x02        /*OSD down control*/
+//#define OSDCTRLSELECT   0x04        /*OSD select control*/
+//#define OSDCTRLMENU     0x08        /*OSD menu control*/
+//#define OSDCTRLRIGHT    0x10        /*OSD right control*/
+//#define OSDCTRLLEFT     0x20        /*OSD left control*/
+
 #define STF_NEWKEY 0x01
-
-/* AT Keyboard Control Codes */
-#define ATKB_EXTEND  0xE0
-#define ATKB_RELEASE 0xF0
-/* Key Flags */
-#define KF_EXTENDED 0x100
-#define KF_RELEASED 0x200
-#define KF_REPEATED 0x400
-
-#define OSDCTRLUP       0x01        /*OSD up control*/
-#define OSDCTRLDOWN     0x02        /*OSD down control*/
-#define OSDCTRLSELECT   0x04        /*OSD select control*/
-#define OSDCTRLMENU     0x08        /*OSD menu control*/
-#define OSDCTRLRIGHT    0x10        /*OSD right control*/
-#define OSDCTRLLEFT     0x20        /*OSD left control*/
 
 #define DISABLE_KEYBOARD 0x02        // disable keyboard while OSD is active
 
-#define KEY_PGUP  0x17D
-#define KEY_PGDN  0x17A
-#define KEY_HOME  0x16C
-#define KEY_ESC   0x076
-#define KEY_ENTER 0x05A
-#define KEY_BACK  0x066
-#define KEY_SPACE 0x029
-#define KEY_UP    0x175
-#define KEY_DOWN  0x172
-#define KEY_LEFT  0x16B
-#define KEY_RIGHT 0x174
-#define KEY_F1    0x005
-#define KEY_F2    0x006
-#define KEY_F3    0x004
-#define KEY_F4    0x00C
-#define KEY_F5    0x003
-#define KEY_F6    0x00B
-#define KEY_F7    0x083
-#define KEY_F8    0x00A
-#define KEY_F9    0x001
-#define KEY_F10   0x009
-#define KEY_MENU  0x007
-#define KEY_REST  0x078
-#define KEY_P     0x04D
+/* Key Flags/Modifiers */
+#define KF_CTRL     0x0800
+#define KF_SHIFT    0x1000
+#define KF_ALT      0x2000
+#define KF_REPEATED 0x4000
+#define KF_RELEASED 0x8000
 
-#define KEY_ALT   0x011
-#define KEY_SHIFT 0x012
+/* special keys */
+#define KEY_POSx  0x100
+#define KEY_HOME  0x101
+#define KEY_PGUP  0x102
+#define KEY_PGDN  0x103
+#define KEY_END   0x104
+#define KEY_UP    0x105
+#define KEY_DOWN  0x106
+#define KEY_LEFT  0x107
+#define KEY_RIGHT 0x108
 
-#define KEY_RESET 0xFFF
+#define KEY_Fx    0x200
+#define KEY_F1    0x201
+#define KEY_F2    0x202
+#define KEY_F3    0x203
+#define KEY_F4    0x204
+#define KEY_F5    0x205
+#define KEY_F6    0x206
+#define KEY_F7    0x207
+#define KEY_F8    0x208
+#define KEY_F9    0x209
+#define KEY_F10   0x20A
+#define KEY_F11   0x20B
+#define KEY_F12   0x20C
+#define KEY_MENU  0x20C
+
+#define KEY_PAUSE 0x3FD
+#define KEY_FLASH 0x3FE
+#define KEY_RESET 0x3FF
+
+// other keys conform to ASCII codes
+#define KEY_ESC   0x01B
+#define KEY_ENTER 0x00D
+#define KEY_BACK  0x008
+#define KEY_SPACE 0x020
 
 /*functions*/
 void OSD_Write(uint8_t row, const char *s, uint8_t invert);
@@ -115,10 +123,11 @@ uint32_t OSD_ConfigReadFileIO_Drv(void);
 
 void OSD_WaitVBL(void);
 
-//--> Replaced by structure in message.* module
-//void OSD_BootPrint(const char *pText);
+uint8_t OSD_ConvASCII(uint8_t keycode);
+uint8_t OSD_ConvFx(uint8_t keycode);
+uint8_t OSD_ConvPosx(uint8_t keycode);
+uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2);
 
-uint8_t OSD_ConvASCII(uint16_t c);
-uint16_t OSD_GetKeyCode(void);
+uint16_t OSD_GetKeyCode(uint8_t osd_enabled);
 
 #endif

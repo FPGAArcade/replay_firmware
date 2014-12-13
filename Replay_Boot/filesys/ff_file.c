@@ -2315,7 +2315,7 @@ FF_T_SINT32 FF_ReadDirect(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 C
 	FF_T_UINT32 nBytesRead = 0;
 	FF_T_UINT32 nBytesToRead;
 	FF_IOMAN    *pIoman;
-	FF_BUFFER   *pBuffer;
+	//FF_BUFFER   *pBuffer;
 	FF_T_UINT32 nRelBlockPos;
 	FF_T_UINT32 nItemLBA;
 	FF_T_SINT32 RetVal = 0;

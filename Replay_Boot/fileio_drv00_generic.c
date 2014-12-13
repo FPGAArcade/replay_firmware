@@ -20,6 +20,8 @@ typedef struct
 
 void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t status) // amiga
 {
+  static int error_shown = 0;
+  
   // file buffer
   uint8_t  fbuf[DRV00_BUF_SIZE];
 
@@ -38,10 +40,15 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
 
     // validate request
     if (!FileIO_FCh_GetInserted(ch, drive_number)) {
-      DEBUG(1,"Drv00:Process Ch:%d Drive:%d not mounted", ch, drive_number);
+      if (!error_shown) {
+        DEBUG(1,"Drv00:Process Ch:%d Drive:%d not mounted", ch, drive_number);
+        error_shown=1;
+      }
       FileIO_FCh_WriteStat(ch, DRV00_STAT_REQ_ACK); // ack
       FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_ABORT_ERR); // err
       return;
+    } else {
+      error_shown=0;
     }
 
     fch_t* pDrive = (fch_t*) &handle[ch][drive_number]; // get base

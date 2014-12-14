@@ -751,6 +751,12 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       Filesel_ScanFirst(current_status->dir_scan); // scan first
       update=1;
     }
+    // quickly remove filter and rescan
+    if (key == KEY_HOME) {
+      Filesel_ChangeDir(current_status->dir_scan, current_status->act_dir);
+      Filesel_ScanFirst(current_status->dir_scan); // scan first
+      update=1;
+    }
     if (key == KEY_ENTER) {
       FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan,
                                          current_status->dir_scan->sel);

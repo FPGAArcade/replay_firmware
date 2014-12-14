@@ -18,6 +18,9 @@ typedef struct
   char       file_ext[4]; // extension string used for scan (including /0)
   char*      pPath;       // pointer to the path
 
+  char       file_filter[11]; // filter string used for scan (including /0)
+  uint8_t    file_filter_len;
+
   uint32_t   total_entries; // files + directories
   uint8_t    prevc;
   uint8_t    nextc;
@@ -37,6 +40,8 @@ void Filesel_ScanFirst(tDirScan* dir_entries);
 void Filesel_ScanFind(tDirScan* dir_entries, uint8_t search);
 void Filesel_Init(tDirScan* dir_entries, char* pPath, char* pExt);
 void Filesel_ChangeDir(tDirScan* dir_entries, char* pPath);
+void Filesel_AddFilterChar(tDirScan* dir_entries, char letter);
+void Filesel_DelFilterChar(tDirScan* dir_entries);
 
 FF_DIRENT Filesel_GetEntry(tDirScan* dir_entries, uint8_t entry);
 FF_DIRENT Filesel_GetLine(tDirScan* dir_entries, uint8_t pos);

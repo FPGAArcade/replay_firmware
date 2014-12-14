@@ -49,8 +49,15 @@ int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
 
 inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
 {
-  if (mydir->Attrib & FF_FAT_ATTR_DIR) // directories always come through
+  if (dir_entries->file_filter_len) {
+    // if we don't have a filter match, we return false
+    if (strnicmp(dir_entries->file_filter,mydir->FileName,dir_entries->file_filter_len)) return(FALSE); 
+  }
+
+  if (mydir->Attrib & FF_FAT_ATTR_DIR) { // directories always come through here, except "."
+    if (!strcmp(".",mydir->FileName)) return(FALSE);
     return (TRUE);
+  }
 
   char* pFile_ext = GetExtension(mydir->FileName);
   if ((dir_entries->file_ext[0] == '*') || (strnicmp(pFile_ext, dir_entries->file_ext,3) == 0)) {
@@ -250,9 +257,9 @@ void Filesel_ScanFirst(tDirScan* dir_entries)
   //PrintSummary(dir_entries);
 }
 
+// called on startup
 void Filesel_Init(tDirScan* dir_entries, char* pPath, char* pExt)
 {
-  // called on directory change or startup
   //DEBUG(1,"Init entry, path %s", pPath);
 
   _strlcpy(dNull.FileName, "", FF_MAX_FILENAME);
@@ -265,15 +272,11 @@ void Filesel_Init(tDirScan* dir_entries, char* pPath, char* pExt)
   } else {
     _strlcpy(dir_entries->file_ext, "*",4);
   }
-  dir_entries->pPath = pPath;
-  dir_entries->total_entries = 0;
-  dir_entries->prevc = 0;
-  dir_entries->nextc = 0;
-  dir_entries->refc = 0;
-  dir_entries->offset = 128;
-  dir_entries->sel = 128;
+
+  Filesel_ChangeDir(dir_entries, pPath);
 }
 
+// called on directory change or startup
 void Filesel_ChangeDir(tDirScan* dir_entries, char* pPath)
 {
   //DEBUG(1,"ChangeDir entry, path %s", pPath);
@@ -284,6 +287,39 @@ void Filesel_ChangeDir(tDirScan* dir_entries, char* pPath)
   dir_entries->refc = 0;
   dir_entries->offset = 128;
   dir_entries->sel = 128;
+
+  dir_entries->file_filter[0]=0;
+  dir_entries->file_filter_len=0;
+}
+
+// called on filter change
+void Filesel_AddFilterChar(tDirScan* dir_entries, char letter)
+{
+  //DEBUG(1,"AddFilterChar entry with '%c'", letter);
+  dir_entries->total_entries = 0;
+  dir_entries->prevc = 0;
+  dir_entries->nextc = 0;
+  dir_entries->refc = 0;
+  dir_entries->offset = 128;
+  dir_entries->sel = 128;
+
+  if (dir_entries->file_filter_len<10) {
+    dir_entries->file_filter[dir_entries->file_filter_len++]=letter;
+  }
+}
+void Filesel_DelFilterChar(tDirScan* dir_entries)
+{
+  //DEBUG(1,"DelFilterChar entry");
+  dir_entries->total_entries = 0;
+  dir_entries->prevc = 0;
+  dir_entries->nextc = 0;
+  dir_entries->refc = 0;
+  dir_entries->offset = 128;
+  dir_entries->sel = 128;
+
+  if (dir_entries->file_filter_len>0) {
+    dir_entries->file_filter[--dir_entries->file_filter_len]=0;
+  }
 }
 
 void Filesel_ScanFind(tDirScan* dir_entries, uint8_t search)

@@ -505,14 +505,23 @@ void _MENU_update_ui(status_t *current_status)
       char *filename;
       FF_DIRENT entry;
 
-      // nothing there
+      // show filter in header
+      uint8_t sel = Filesel_GetSel(current_status->dir_scan);
+      if (current_status->dir_scan->file_filter_len) {
+        char s[OSDMAXLEN+1];
+        strncpy (s, current_status->dir_scan->file_filter, OSDMAXLEN);
+        s[current_status->dir_scan->file_filter_len]='*';
+        s[current_status->dir_scan->file_filter_len+1]=0;
+        OSD_WriteRC(1, 0, s ,0,0,1);
+      }
+
+      // show file/directory list
       if (current_status->dir_scan->total_entries == 0) {
+        // nothing there
         char s[OSDMAXLEN+1];
         strcpy(s, "            No files!");
         OSD_WriteRC(1+2, 0, s, 1, 0xC, 0);
       } else {
-      // show file/directory list
-        uint8_t sel = Filesel_GetSel(current_status->dir_scan);
         for (i = 0; i < MENU_HEIGHT; i++) {
           //uint32_t len;
           char s[OSDMAXLEN+1];
@@ -732,6 +741,16 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       Filesel_Update(current_status->dir_scan, SCAN_NEXT_PAGE);
       update=1;
     }
+    if ( ((key >= '0') && (key<='9')) || ((key >= 'A') && (key<='Z')) ) {
+      Filesel_AddFilterChar(current_status->dir_scan, key&0x7F);
+      Filesel_ScanFirst(current_status->dir_scan); // scan first
+      update=1;
+    }
+    if ( key==KEY_BACK ) { // backspace removes a letter from the filter string
+      Filesel_DelFilterChar(current_status->dir_scan);
+      Filesel_ScanFirst(current_status->dir_scan); // scan first
+      update=1;
+    }
     if (key == KEY_ENTER) {
       FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan,
                                          current_status->dir_scan->sel);
@@ -898,7 +917,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       update=1;
     }
     // change file attributes
-    if (key == 'P') {
+    if (key == 'P' ) {
         if MATCH(current_status->menu_item_act->action_name,"cha_select") {
           if ((current_status->fileio_cha_ena >> current_status->menu_item_act->action_value) & 1) {
             FileIO_FCh_TogProtect(0, current_status->menu_item_act->action_value);

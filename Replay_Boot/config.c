@@ -381,9 +381,10 @@ uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size,
         }
         size=((var16>>8)&0xff)+((var16&0xff)<<8); // endian-correct
         INFO("  Size:  $%04X",size);
+        offset += 0x10;
         DEBUG(1, "%s @0x%X (0x%X),S:%d",filename, base+filebase, offset, size);
         FileIO_MCh_FileToMem(fSource, base+filebase, size, offset);
-        offset += (((var32>>8)&0xFF00)+0x10); // add endian-corrected block size to offset before starting over
+        offset += ((var32>>8)&0xFF00); // add endian-corrected block size to offset before starting over
       }
     } else {
       // binary or PRG format

@@ -291,32 +291,122 @@ void CFG_set_coder(coder_t standard)
 }
 
 uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size,
-                       uint8_t verify, uint8_t format)
+                       uint8_t verify, uint8_t format, uint32_t *sconf, uint32_t *dconf)
 {
   FF_FILE *fSource = NULL;
   fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
   uint8_t rc=1;
   uint32_t offset=0;
   uint16_t filebase=0;
+  uint32_t bytes_read;
 
   if (fSource) {
-    if (format==1) {
-      FF_Seek(fSource, 0, FF_SEEK_SET);
-      uint32_t bytes_read = FF_Read(fSource, 2, 1, (uint8_t *)&filebase);
-      if (bytes_read == 0) filebase=0;
-      else offset=2;
-    }
-    if (!size) { // auto-size
-      size=FF_BytesLeft(fSource);
-    }
-    DEBUG(1, "%s @0x%X (0x%X),S:%d",filename, base+filebase, offset, size);
-    FileIO_MCh_FileToMem(fSource, base+filebase, size, offset);
-    if (verify) {
-      rc=FileIO_MCh_FileToMemVerify(fSource, base+filebase, size, offset);
+    FF_Seek(fSource, 0, FF_SEEK_SET);
+    if (format==2) {
+      // CRT format, contains a header and embedded ROM images (for C64 core only!)
+      char varstr[33];
+      uint8_t var8;
+      uint16_t var16;
+      uint32_t var32;
+      varstr[32]=0;
+      bytes_read=FF_Read(fSource, 16, 1, (uint8_t *)&varstr);
+      if ((bytes_read != 16) || (strncmp(varstr,"C64 CARTRIDGE   ",16))) {
+        FF_Close(fSource); ERROR("Bad header text"); return 1;
+      }
+      bytes_read=FF_Read(fSource, 4, 1, (uint8_t *)&var32);  // read will have wrong endian...
+      if ((bytes_read != 4) || ((var32!=0x40000000) && (var32!=0x20000000)) ) { // we allow a "bad" header size
+        FF_Close(fSource); ERROR("Bad header size %04lx",var32); return 1;
+      }
+      bytes_read=FF_Read(fSource, 2, 1, (uint8_t *)&var16);
+      if ((bytes_read != 2) || (var16!=0x0001)) {
+        FF_Close(fSource); ERROR("Bad version %04x",var16); return 1;
+      }
+      bytes_read=FF_Read(fSource, 2, 1, (uint8_t *)&var16);
+      if ((bytes_read != 2) || (var16!=0x0)) {
+        FF_Close(fSource); ERROR("Only standard ROM CRT supported (%d)",var16); return 1;
+      }
+      bytes_read=FF_Read(fSource, 1, 1, (uint8_t *)&var8); // EXROM state
+      if (bytes_read != 1) {
+        FF_Close(fSource); ERROR("Unexpected EOF in header"); return 1;
+      }
+      (*sconf) &= 0xFFFFFFFE;
+      if (var8) (*sconf) |= 1;
+      bytes_read=FF_Read(fSource, 1, 1, (uint8_t *)&var8); // GAME state
+      if (bytes_read != 1) {
+        FF_Close(fSource); ERROR("Unexpected EOF in header"); return 1;
+      }
+      (*sconf) &= 0xFFFFFFFD;
+      if (var8) (*sconf) |= 2;
+      bytes_read=FF_Read(fSource, 6, 1, (uint8_t *)&varstr);
+      if (bytes_read != 6) {
+        FF_Close(fSource); ERROR("Unexpected EOF in header"); return 1;
+      }
+      bytes_read=FF_Read(fSource, 32, 1, (uint8_t *)&varstr);
+      if (bytes_read != 32) {
+        FF_Close(fSource); ERROR("Bad CRT name"); return 1;
+      }
+      INFO("CRT: %s",varstr);
+      // now we load CHIP blocks
+      offset=0x40;
+      while (1) {
+        FF_Seek(fSource, offset, FF_SEEK_SET);  // just in case, do a re-positioning
+        if (FF_BytesLeft(fSource)<0x10) break;  // finished loading
+ 
+        bytes_read=FF_Read(fSource, 4, 1, (uint8_t *)&varstr);
+        if ((bytes_read != 4) || (strncmp(varstr,"CHIP",4))) {
+          FF_Close(fSource); ERROR("Bad block text"); return 1;
+        }
+        bytes_read=FF_Read(fSource, 4, 1, (uint8_t *)&var32);   // block size
+        if ((bytes_read != 4) || ((var32!=0x10400000) && (var32!=0x10200000)) ) {
+          FF_Close(fSource); ERROR("Bad block size %04lx",var32); return 1;
+        }
+        bytes_read=FF_Read(fSource, 2, 1, (uint8_t *)&var16);
+        if ((bytes_read != 2) || (var16!=0x0)) {
+          FF_Close(fSource); ERROR("Only ROM blocks supported (%d)",var16); return 1;
+        }
+        bytes_read=FF_Read(fSource, 2, 1, (uint8_t *)&var16);    // bank
+        if (bytes_read != 2) {
+          FF_Close(fSource); ERROR("Unexpected EOF in block"); return 1;
+        }
+        INFO("  Bank: %d",var16);
+        bytes_read=FF_Read(fSource, 2, 1, (uint8_t *)&var16); // filebase to load
+        if (bytes_read != 2) {
+          FF_Close(fSource); ERROR("Unexpected EOF in block"); return 1;
+        }
+        filebase=((var16>>8)&0xff)+((var16&0xff)<<8); // endian-correct
+        INFO("  Start: $%04X",filebase);
+        bytes_read=FF_Read(fSource, 2, 1, (uint8_t *)&var16);    // size
+        if (bytes_read != 2) {
+          FF_Close(fSource); ERROR("Unexpected EOF in block"); return 1;
+        }
+        size=((var16>>8)&0xff)+((var16&0xff)<<8); // endian-correct
+        INFO("  Size:  $%04X",size);
+        DEBUG(1, "%s @0x%X (0x%X),S:%d",filename, base+filebase, offset, size);
+        FileIO_MCh_FileToMem(fSource, base+filebase, size, offset);
+        offset += (((var32>>8)&0xFF00)+0x10); // add endian-corrected block size to offset before starting over
+      }
     } else {
-      rc=0;
+      // binary or PRG format
+      if (format==1) {
+        // PRG format, start address in first two bytes
+        bytes_read = FF_Read(fSource, 2, 1, (uint8_t *)&filebase);
+        if (bytes_read == 0) {
+          FF_Close(fSource); ERROR("Unexpected EOF"); return 1;
+        }
+        offset=2;
+      }
+      if (!size) { // auto-size
+        size=FF_BytesLeft(fSource);
+      }
+      DEBUG(1, "%s @0x%X (0x%X),S:%d",filename, base+filebase, offset, size);
+      FileIO_MCh_FileToMem(fSource, base+filebase, size, offset);
+      if (verify) {
+        rc=FileIO_MCh_FileToMemVerify(fSource, base+filebase, size, offset);
+      } else {
+        rc=0;
+      }
+      FF_Close(fSource);
     }
-    FF_Close(fSource);
   } else {
     ERROR("Could not open %s", filename);
     return 1;
@@ -888,15 +978,26 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               pStatus->last_rom_adr = valueList[2].intval+valueList[1].intval;
               // prepare filename
               sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
+
+              uint32_t staticbits = pStatus->config_s;
+              uint32_t dynamicbits = pStatus->config_d;
+              DEBUG(1,"OLD config - S:%08lx D:%08lx",staticbits,dynamicbits);
               DEBUG(2,"ROM upload @ 0x%08lX (%ld byte)",
                       valueList[2].intval,valueList[1].intval);
               if (CFG_upload_rom(fullname, valueList[2].intval,valueList[1].intval,
-                                 pStatus->verify_dl,valueList[3].intval)) {
+                                 pStatus->verify_dl,valueList[3].intval,&staticbits,&dynamicbits)) {
                 MSG_error("ROM upload to FPGA failed");
                 return 1;
               } else {
+                DEBUG(1,"NEW config - S:%08lx D:%08lx",staticbits,dynamicbits);
+                pStatus->config_s = staticbits;
+                //not used yet: pStatus->config_d = dynamicbits;
+                // send bits to FPGA
+                OSD_ConfigSendUserS(staticbits);
+                //not used yet: OSD_ConfigSendUserD(dynamicbits);
                 return 0;
               }
+
             }
             else if ((entries==3) && (strlen(valueList[0].strval))) {
               char fullname[FF_MAX_PATH];
@@ -904,13 +1005,23 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               pStatus->last_rom_adr = valueList[2].intval+valueList[1].intval;
               // prepare filename
               sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
+
+              uint32_t staticbits = pStatus->config_s;
+              uint32_t dynamicbits = pStatus->config_d;
+              DEBUG(1,"OLD config - S:%08lx D:%08lx",staticbits,dynamicbits);
               DEBUG(2,"ROM upload @ 0x%08lX (%ld byte)",
                       valueList[2].intval,valueList[1].intval);
               if (CFG_upload_rom(fullname, valueList[2].intval,valueList[1].intval,
-                                 pStatus->verify_dl,0)) {
+                                 pStatus->verify_dl,0,&staticbits,&dynamicbits)) {
                 MSG_error("ROM upload to FPGA failed");
                 return 1;
               } else {
+                DEBUG(1,"NEW config - S:%08lx D:%08lx",staticbits,dynamicbits);
+                pStatus->config_s = staticbits;
+                //not used yet: pStatus->config_d = dynamicbits;
+                // send bits to FPGA
+                OSD_ConfigSendUserS(staticbits);
+                //not used yet: OSD_ConfigSendUserD(dynamicbits);
                 return 0;
               }
             }
@@ -921,13 +1032,23 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               pStatus->last_rom_adr = adr + valueList[1].intval;
               // prepare filename
               sprintf(fullname,"%s%s",pStatus->ini_dir,valueList[0].strval);
+
+              uint32_t staticbits = pStatus->config_s;
+              uint32_t dynamicbits = pStatus->config_d;
+              DEBUG(1,"OLD config - S:%08lx D:%08lx",staticbits,dynamicbits);
               DEBUG(2,"ROM upload @ 0x%08lX (%ld byte)",
                       adr,valueList[1].intval);
               if (CFG_upload_rom(fullname, adr, valueList[1].intval,
-                                 pStatus->verify_dl, 0)) {
+                                 pStatus->verify_dl, 0,&staticbits,&dynamicbits)) {
                 MSG_error("ROM upload to FPGA failed");
                 return 1;
               } else {
+                DEBUG(1,"NEW config - S:%08lx D:%08lx",staticbits,dynamicbits);
+                pStatus->config_s = staticbits;
+                //not used yet: pStatus->config_d = dynamicbits;
+                // send bits to FPGA
+                OSD_ConfigSendUserS(staticbits);
+                //not used yet: OSD_ConfigSendUserD(dynamicbits);
                 return 0;
               }
             }

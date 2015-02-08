@@ -429,19 +429,20 @@ void CFG_card_start(status_t *currentStatus);
 
 /** @brief ROM DATA UPLOADER
 
-    Takes a file and sends it to the FPGA as ROM data.
+    Takes a file and sends it to the FPGA as ROM data. Does some simple format conversions.
 
     @param filename (absolute) filename to the binary file
     @param base base address where to store the data on the FPGA
     @param size size of the datafile (when 0, do auto-sizing)
     @param verify if set to 1, verify uploaded content again
-    @param format will allow selecting several file types: 0 is plain binary; 1 is 2 byte start address + plain binary
+    @param format will allow selecting several file types: 0 is plain binary; 1 is 2 byte start address + plain binary; 2 is CRT format (normal ROM cartridges only)
+    @param sconf refers to static configuration bits of core
+    @param dconf refers to dynamic configuration bits of core
 
     @return 0 when transmission was successful, others indicate a failure
 */
 uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size,
-                       uint8_t verify, uint8_t format);
-
+                       uint8_t verify, uint8_t format, uint32_t *sconf, uint32_t *dconf);
 
 /* ========================================================================== */
 

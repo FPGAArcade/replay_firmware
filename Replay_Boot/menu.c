@@ -306,12 +306,24 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           Timer_Wait(1);
         }
         sprintf(full_filename,"%s%s",current_status->act_dir,mydir.FileName);
-        CFG_upload_rom(full_filename,item->action_value,0,item->option_list->conf_value&1,(item->option_list->conf_value>>3)&255);
+
+        uint32_t staticbits = current_status->config_s;
+        uint32_t dynamicbits = current_status->config_d;
+        DEBUG(1,"OLD config - S:%08lx D:%08lx",staticbits,dynamicbits);
+        CFG_upload_rom(full_filename,item->action_value,0,item->option_list->conf_value&1,(item->option_list->conf_value>>3)&255,&staticbits,&dynamicbits);
+        DEBUG(1,"NEW config - S:%08lx D:%08lx",staticbits,dynamicbits);
+        current_status->config_s = staticbits;
+        //not used yet: current_status->config_d = dynamicbits;
+        // send bits to FPGA
+        OSD_ConfigSendUserS(staticbits);
+        //not used yet: OSD_ConfigSendUserD(dynamicbits);
+
         current_status->show_menu=0;
         current_status->file_browser=0;
         current_status->popup_menu=0;
         current_status->show_status=0;
         OSD_Disable();
+
         Timer_Wait(1);
         if ((item->option_list->conf_value>>2)&1) {
           // continue operation of the core if requested

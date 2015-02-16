@@ -7,9 +7,9 @@ LIBS   = -lkernel32 -luser32 -ladvapi32 -luuid -lsetupapi
 
 all: compressor.exe
 
-compressor.exe: compressor.c 
+compressor.exe: compressor.c
 	gcc -o compressor.exe compressor.c $(LIBS)
-	./compressor.exe ../../../hw/replay/cores/loader/sdcard/loader.bin > ../../arm_sw/Replay_boot/loader.c
+	./compressor.exe ../../../hw/replay/cores/loader_embedded/sdcard/loader.bin > ../../arm_sw/Replay_boot/loader.c
 
 clean:
 	rm compressor.exe

@@ -134,10 +134,12 @@ int main(void)
         CFG_set_coder(CODER_DISABLE);
         if (FPGA_Default()) {
           DEBUG(1,"FPGA default set.");
+
           current_status.fpga_load_ok=2;
           current_status.twi_enabled=1;
           current_status.spi_fpga_enabled=1;
           current_status.spi_osd_enabled=1;
+
           sprintf(current_status.status[0], "ARM |FW:%s (%ldkB free)", version,
                                               CFG_get_free_mem()>>10);
           sprintf(current_status.status[1], "FPGA|NO VALID SETUP ON SDCARD!");
@@ -198,12 +200,13 @@ int main(void)
           if (config_ver & 0x8000) {
             FPGA_DramTrain();
           }
-          const vidconfig_t vid_config = { 0x00,0x48,0xC0,0x80,0x00,0x01,0x00,0x80,0x08,0x16,0x30,0x60,0x00,0x18,0xC0,0x00 };
-          Configure_CH7301(&vid_config);
-          //CFG_set_CH7301_HD();  --> does not work ???
+          /*const vidconfig_t vid_config = { 0x00,0x48,0xC0,0x80,0x00,0x01,0x00,0x80,0x08,0x16,0x30,0x60,0x00,0x18,0xC0,0x00 };*/
+          /*Configure_CH7301(&vid_config);*/
+          CFG_set_CH7301_HD();  //--> does not work ???
           // dynamic/static setup bits
-          OSD_ConfigSendUserD(0);
-          OSD_ConfigSendUserS(0);
+          OSD_ConfigSendUserS(0x00000000);
+          OSD_ConfigSendUserD(0x00000060); // 60HZ progressive
+
           OSD_Reset(OSDCMD_CTRL_RES);
           WARNING("Using hardcoded fallback!");
       }

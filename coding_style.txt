@@ -33,7 +33,7 @@ const int kDaysInAWeek = 7;
 Pointers
 
 pPointer_to_something (capatize first letter)
-uint8_t *pFred  * by the variable
+uint8_t* pFred  * by the type
 
 c++
 

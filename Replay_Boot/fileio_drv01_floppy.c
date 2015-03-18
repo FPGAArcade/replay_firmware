@@ -668,6 +668,11 @@ uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
   DEBUG(1,"Drv01:InsertInit");
 
   pDrive->pDesc = calloc(1, sizeof(drv01_desc_t)); // 0 everything
+  if (pDrive->pDesc == NULL) {
+    WARNING("Drv01:Failed to allocate memory.");
+    return (1);
+  }
+
   drv01_desc_t* pDesc = pDrive->pDesc;
 
   pDesc->file_size = pDrive->fSource->Filesize;
@@ -706,7 +711,7 @@ uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
     DEBUG(1,"Drv01:Flags         : 0x%02X",scp_header.flags);
     DEBUG(1,"Drv01:Cell encoding : 0x%02X",scp_header.cell_encoding);
 
-    if ( (scp_header.cell_encoding !=0) || 
+    if ( (scp_header.cell_encoding !=0) ||
          (scp_header.number_of_revolutions < 1) ||
          (scp_header.number_of_revolutions > 5) ||
          (scp_header.end_track < scp_header.start_track) ) {

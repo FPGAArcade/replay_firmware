@@ -21,7 +21,7 @@ typedef struct
 void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t status) // amiga
 {
   static int error_shown = 0;
-  
+
   // file buffer
   uint8_t  fbuf[DRV00_BUF_SIZE];
 
@@ -167,6 +167,11 @@ uint8_t FileIO_Drv00_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
   DEBUG(1,"Drv00:InsertInit");
 
   pDrive->pDesc = calloc(1, sizeof(drv00_desc_t)); // 0 everything
+  if (pDrive->pDesc == NULL) {
+    WARNING("Drv00:Failed to allocate memory.");
+    return (1);
+  }
+
   drv00_desc_t* pDesc = pDrive->pDesc;
 
   pDesc->file_size =  pDrive->fSource->Filesize;

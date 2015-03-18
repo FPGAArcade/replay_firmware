@@ -26,7 +26,7 @@
 #define ERROR(fmt...) MSG_error(fmt)
 
 /// comment out to remove asserts
-#define ASSERT 1
+//#define ASSERT 1
 
 /** @brief INIT MESSAGE SYSTEM
 

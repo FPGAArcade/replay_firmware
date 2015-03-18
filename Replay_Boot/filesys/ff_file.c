@@ -1909,7 +1909,7 @@ FF_ERROR FF_Seek(FF_FILE *pFile, FF_T_SINT32 Offset, FF_T_INT8 Origin) {
 
 	switch(Origin) {
 		case FF_SEEK_SET:
-			if((FF_T_UINT32) Offset <= pFile->Filesize && Offset >= 0) {
+			if((FF_T_UINT32) Offset <= pFile->Filesize && (FF_T_UINT32) Offset >= 0) {
 				pFile->FilePointer = Offset;
 				FF_SetCluster (pFile, &Error);
 				if(FF_isERR(Error)) {

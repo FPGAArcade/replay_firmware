@@ -52,6 +52,8 @@ typedef struct
   uint16_t heads;
   uint16_t sectors;
   uint16_t sectors_per_block;
+  uint32_t index[1024];
+  uint32_t index_size;
 } drv08_desc_t;
 
 void Drv08_SwapBytes(uint8_t *ptr, uint32_t len)
@@ -126,9 +128,43 @@ inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count,
 }
 
 
-FF_ERROR Drv08_HardFileSeek(fch_t *pDrive, uint32_t lba)
+FF_ERROR Drv08_HardFileSeek(fch_t *pDrive, drv08_desc_t *pDesc, uint32_t lba)
 {
-  return FF_Seek(pDrive->fSource, lba*512, FF_SEEK_SET);  // TO DO, REPLACE with <<
+
+  uint32_t time = Timer_Get(0);
+
+  FF_IOMAN  *pIoman = pDrive->fSource->pIoman;
+  uint32_t lba_byte = lba << 9;
+
+  // first check if we are moving to the same cluster
+  FF_T_UINT32 nNewCluster = FF_getClusterChainNumber(pIoman, lba_byte, 1);
+
+  if ((nNewCluster < pDrive->fSource->CurrentCluster) || (nNewCluster > (pDrive->fSource->CurrentCluster + 1)) )
+  {
+    // reposition using table
+    uint16_t idx = lba >> (pDesc->index_size - 9); // 9 as lba is in 512 byte sectors
+    uint32_t pos = lba_byte & (-1 << pDesc->index_size);
+
+    nNewCluster = FF_getClusterChainNumber(pIoman, pos, 1);
+
+    Assert(idx<1024);
+    uint32_t index_cluster = pDesc->index[idx];
+
+    pDrive->fSource->FilePointer        = pos;
+    pDrive->fSource->CurrentCluster     = nNewCluster;
+    pDrive->fSource->AddrCurrentCluster = index_cluster;
+
+    //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, nNewCluster, index_cluster);
+  }
+
+  FF_ERROR err = FF_Seek(pDrive->fSource, lba_byte, FF_SEEK_SET);
+
+  time = Timer_Get(0) - time;
+
+  if ((time >> 20) > 100)
+    DEBUG(1,"Long seek time %lu ms.", time >> 20);
+
+  return err;
 }
 
 void Drv08_FileReadSend(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
@@ -152,7 +188,7 @@ void Drv08_FileReadSend(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
 void Drv08_FileReadSendDirect(uint8_t ch, fch_t *pDrive, uint8_t sector_count)
 {
   // on entry assumes file is in correct position
-  // no flow control check, FPGA must be able to sync entire transfer.
+  // no flow control check, FPGA must be able to sink entire transfer.
   SPI_EnableFileIO();
   SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
   SPI_EnableDirect();
@@ -285,13 +321,14 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
     }
     SPI_DisableFileIO();
 
-    //
-    if (DRV08_DEBUG)
-      DEBUG(1,"Drv08:CMD %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X",
-            tfr[0],tfr[1],tfr[2],tfr[3],tfr[4],tfr[5],tfr[6],tfr[7]);
-
     unit = tfr[6] & 0x10 ? 1 : 0; // master/slave selection
     // 0 = master, 1 = slave
+
+    //
+    if (DRV08_DEBUG)
+      DEBUG(1,"Drv08:CMD %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X u:%d",
+            tfr[0],tfr[1],tfr[2],tfr[3],tfr[4],tfr[5],tfr[6],tfr[7],unit);
+
 
     fch_t* pDrive = &handle[ch][unit]; // get base
     drv08_desc_t* pDesc = pDrive->pDesc;
@@ -355,7 +392,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
       if (DRV08_DEBUG) DEBUG(1,"Drv08:Read Sectors");
       //
       Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-      Drv08_HardFileSeek(pDrive, lba);
+      Drv08_HardFileSeek(pDrive, pDesc, lba);
 
       while (sector_count)
       {
@@ -390,7 +427,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
       FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
 
       Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-      Drv08_HardFileSeek(pDrive, lba);
+      Drv08_HardFileSeek(pDrive, pDesc, lba);
 
       while (sector_count) {
         block_count = sector_count;
@@ -442,7 +479,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
       //
       FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
       Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-      Drv08_HardFileSeek(pDrive, lba);
+      Drv08_HardFileSeek(pDrive, pDesc, lba);
 
       while (sector_count)
       {
@@ -494,7 +531,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
       FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
 
       Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-      Drv08_HardFileSeek(pDrive, lba);
+      Drv08_HardFileSeek(pDrive, pDesc, lba);
 
       while (sector_count)
       {
@@ -608,6 +645,37 @@ void Drv08_GetHardfileGeometry(fch_t *pDrive, drv08_desc_t *pDesc)
     pDesc->sectors_per_block = 0; // catch if not set to !=0
 }
 
+void Drv08_BuildHardfileIndex(fch_t *pDrive, drv08_desc_t *pDesc)
+{
+  pDesc->index_size= 16; // indexing size
+
+  uint32_t i;
+  uint32_t j;
+  uint32_t idx = 0;
+
+  i = pDesc->file_size >> 10; // file size divided by 1024 (index table size)
+  j = 1 << pDesc->index_size;
+
+  while (j < i) // find greater or equal power of two
+  {
+    j <<= 1;
+    pDesc->index_size++;
+  }
+
+  // index 22 for 4G file 0 - FFFFFFFF
+  // 2^22 = 0040,0000 step size
+  //
+  DEBUG(1,"index size %08X j %08X",pDesc->index_size,j); // j step size
+
+  for (i=0; i<pDesc->file_size; i+= j)
+  {
+     FF_Seek(pDrive->fSource, i, FF_SEEK_SET);
+     //DEBUG(1,"index %08x %08x %08x",i,  pDrive->fSource->AddrCurrentCluster, pDrive->fSource->CurrentCluster);
+     Assert(idx<1024);
+     pDesc->index[idx++] = pDrive->fSource->AddrCurrentCluster;
+     // call me paranoid
+  };
+}
 
 //
 // interface
@@ -629,6 +697,11 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
   //pDrive points to the base fch_t struct for this unit. It contains a pointer (pDesc) to our drv08_desc_t
 
   pDrive->pDesc = calloc(1, sizeof(drv08_desc_t)); // 0 everything
+  if (pDrive->pDesc == NULL) {
+    WARNING("Drv08:Failed to allocate memory.");
+    return (1);
+  }
+
   drv08_desc_t* pDesc = pDrive->pDesc;
 
   pDesc->format    = (drv08_format_t)XXX;
@@ -638,14 +711,14 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
     //
     pDesc->format    = (drv08_format_t)HDF;
   } else {
-    WARNING("Drv01:Unsupported format.");
+    WARNING("Drv08:Unsupported format.");
     return (1);
   }
   // common stuff (as only HDF supported for now...
 
   Drv08_GetHardfileType(pDrive, pDesc);
   Drv08_GetHardfileGeometry(pDrive, pDesc);
-
+  Drv08_BuildHardfileIndex(pDrive, pDesc);
   time = Timer_Get(0) - time;
 
   INFO("SIZE: %lu (%lu MB)", pDesc->file_size, pDesc->file_size >> 20);

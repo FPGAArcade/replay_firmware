@@ -32,7 +32,7 @@
 
 #define PS2DELAY        10          // ps/2 delay in 1ms units
 
-#define SERIALDELAY     1           // serial timeout delay in 1ms units
+#define SERIALDELAY     10          // serial timeout delay in 1ms units
 
 //#define OSDCTRLUP       0x01        /*OSD up control*/
 //#define OSDCTRLDOWN     0x02        /*OSD down control*/

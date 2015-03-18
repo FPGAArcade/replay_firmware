@@ -15,6 +15,7 @@ uint8_t IO_Input_L(uint32_t pin);
 //
 void USART_Init(unsigned long baudrate);
 void USART_Putc(void* p, char c);
+uint8_t USART_GetValid(void);
 uint8_t USART_Getc(void);
 uint8_t USART_Peekc(void);
 int16_t USART_CharAvail(void);

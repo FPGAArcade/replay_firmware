@@ -496,7 +496,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled)
       }
       keypos=0;
       key_code=0;
-    // otherwise check key sequences 
+    // otherwise check key sequences
     } else {
       x = OSD_ConvASCII(keybuf[0]);
       if (x) {
@@ -536,13 +536,15 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled)
 
   // process RS232 inputs
   // ---------------------------------------------------
-  if (!key_code) {
+  if (!key_code && USART_GetValid()) { // fixes bug where peekc returns 0 (no char), but is valid by the time key_code=USART_Getc(); happens
+
     if (USART_Peekc()==0x1b) {
       if (!esc_received) {
         // lets take some time to check for further characters
         esc_received = 1;
         esc_delay = Timer_Get(SERIALDELAY);
       } else if (Timer_Check(esc_delay)) {
+
         // timeout, let's see what we got...
         const uint8_t UP_KEYSEQ[]    = {0x1b, 0x5b, 0x41};
         const uint8_t DOWN_KEYSEQ[]  = {0x1b, 0x5b, 0x42};

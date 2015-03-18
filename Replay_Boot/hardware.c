@@ -262,6 +262,14 @@ void USART_Putc(void* p, char c)
   }
 }
 
+uint8_t USART_GetValid(void)
+{
+  uint8_t val = 0;
+  if (USART_rxptr!=USART_rdptr) {
+    val=1;
+  }
+  return val;
+}
 
 uint8_t USART_Getc(void)
 {

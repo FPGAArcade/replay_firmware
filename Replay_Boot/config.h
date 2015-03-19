@@ -286,6 +286,8 @@ typedef struct {
 
   /** set to a line number if scrolling is required within handle_ui() */
   uint8_t      scroll_pos;
+  uint16_t     scroll_len;
+  char         scroll_txt[FF_MAX_FILENAME];
 
   /** set to 1 if pop-up is requested for reboot (otherwise only FPGA reset) */
   uint8_t      do_reboot;

@@ -45,6 +45,9 @@
 
 #define DISABLE_KEYBOARD 0x02        // disable keyboard while OSD is active
 
+/** amount of space between end and start of repeated name */
+#define OSD_SCROLL_BLANKSPACE 10
+
 /* Key Flags/Modifiers */
 #define KF_CTRL     0x0800
 #define KF_SHIFT    0x1000
@@ -103,7 +106,7 @@ void OSD_SetPage(uint8_t page);
 void OSD_SetDisplay(uint8_t page);
 void OSD_SetDisplayScroll(uint8_t page);
 
-void OSD_WriteScroll(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint8_t fg_col, uint8_t bg_col, uint8_t clear );
+void OSD_WriteScroll(uint8_t row, const char *text, uint16_t pos, uint16_t len, uint8_t invert, uint8_t fg_col, uint8_t bg_col);
 
 void OSD_Clear(void);
 void OSD_Enable(unsigned char mode);

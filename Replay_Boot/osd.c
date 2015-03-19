@@ -141,13 +141,39 @@ void OSD_SetDisplay(uint8_t page)
   }
 }
 
-void OSD_WriteScroll(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint8_t fg_col, uint8_t bg_col, uint8_t clear )
+// text points at long name, pos is the start position, len is the string len
+void OSD_WriteScroll(uint8_t row, const char *text, uint16_t pos, uint16_t len, uint8_t invert, uint8_t fg_col, uint8_t bg_col)
 {
-  // do scroll
-  osd_vscroll++;
-  OSD_WaitVBL();
-  OSD_SetVOffset(osd_vscroll);
-  OSD_WriteBase( (row + osd_vscroll) & 0xF,col,s,0,invert,fg_col,bg_col,clear);
+  uint16_t i;
+  uint8_t attrib = (fg_col & 0xF) | ((bg_col & 0xF) << 4);
+
+  if (invert)
+    attrib = (fg_col & 0xF) | (0x4 << 4);
+
+  char s[OSDMAXLEN+1];
+  memset(s, ' ', OSDMAXLEN+1); // clear line buffer
+
+  int remaining = len - pos;
+
+  if (remaining > OSDMAXLEN+1)
+    remaining = OSDMAXLEN+1;
+
+  if (remaining > 0)
+    strncpy(s, &text[pos], remaining);
+
+  if (remaining < OSDMAXLEN+1-OSD_SCROLL_BLANKSPACE)
+    strncpy(s + remaining + OSD_SCROLL_BLANKSPACE, text, OSDMAXLEN+1-remaining-OSD_SCROLL_BLANKSPACE);
+
+  SPI_EnableOsd();
+  SPI(OSDCMD_WRITE | (row & 0x3F));
+  SPI(0); // col
+
+  // need to write to len + 1 for the scroll...
+  for (i = 0; i <OSDMAXLEN+1; i++) {
+    SPI(s[i]);
+    SPI(attrib);
+  }
+  SPI_DisableOsd();
 }
 
 // clear OSD frame buffer

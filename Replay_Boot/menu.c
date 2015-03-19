@@ -405,11 +405,7 @@ void _MENU_back_dir(char *pPath)
 // TODO: colours from INI file instead of hardcoding...?
 void _MENU_update_ui(status_t *current_status)
 {
-  // reset scroll line position initially
-  if (current_status->scroll_pos) {
-    OSD_SetHOffset(current_status->scroll_pos, 0, 0);
-    current_status->scroll_pos=0;
-  }
+  current_status->scroll_pos=0;
 
   // clear OSD area and set the minimum header/footer lines we always need
   OSD_Clear();
@@ -524,33 +520,33 @@ void _MENU_update_ui(status_t *current_status)
         strncpy (s, current_status->dir_scan->file_filter, OSDMAXLEN);
         s[current_status->dir_scan->file_filter_len]='*';
         s[current_status->dir_scan->file_filter_len+1]=0;
-        OSD_WriteRC(1, 0, s ,0,0,1);
+        OSD_WriteRC(1, 0, s ,0,0xF,1);
       }
 
       // show file/directory list
       if (current_status->dir_scan->total_entries == 0) {
         // nothing there
         char s[OSDMAXLEN+1];
-        strcpy(s, "            No files!");
+        strcpy(s, "            No files                   ");
         OSD_WriteRC(1+2, 0, s, 1, 0xC, 0);
       } else {
         for (i = 0; i < MENU_HEIGHT; i++) {
-          //uint32_t len;
           char s[OSDMAXLEN+1];
           memset(s, ' ', OSDMAXLEN); // clear line buffer
           s[OSDMAXLEN] = 0; // set temporary string length to OSD line length
 
           entry = Filesel_GetLine(current_status->dir_scan, i);
           filename = entry.FileName;
-          //len = strlen(filename);
-          //if (i==sel) {
-            // FIX ME for really long names
-            /*if (len > OSDLINELEN) { // enable scroll if long name*/
-              /*len = OSDLINELEN;*/
-              /*OSD_SetHOffset(i+2, 0, 0);*/
-              /*current_status->scroll_pos=i+2;*/
-            //}
-          //}
+
+          uint16_t len = strlen(filename);
+          if (i==sel) {
+            if (len > OSDLINELEN) { // enable scroll if long name
+              strncpy (current_status->scroll_txt, filename, FF_MAX_FILENAME);
+              current_status->scroll_pos=i+2;
+              current_status->scroll_len=len;
+            }
+          }
+
           if (entry.Attrib & FF_FAT_ATTR_DIR) {
             // a directory
             strncpy (s, filename, OSDMAXLEN);
@@ -636,8 +632,10 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
   static uint32_t osd_timeout;
   static uint8_t osd_timeout_cnt=0;
 
+  static uint32_t scroll_timer_init;
   static uint32_t scroll_timer;
-  static uint16_t  scroll_offset=0;
+  static uint16_t scroll_offset=0;
+  static uint8_t  scroll_started=0;
 
   // timeout of OSD after noticing last key press (or external forced update)
   if ((current_status->show_menu || current_status->popup_menu ||
@@ -988,23 +986,34 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
     OSD_SetDisplay(OSD_GetPage()); //  OSD_GetPage());
     OSD_SetPage(OSD_NextPage());   //  OSD_NextPage());
 
+    scroll_timer_init = Timer_Get(1000); // restart scroll timer
     scroll_timer = Timer_Get(20); // restart scroll timer
     scroll_offset = 0; // reset scroll position
+    scroll_started = 0;
+
     if ((current_status->show_menu || current_status->popup_menu ||
          current_status->file_browser || current_status->show_status)) {
       OSD_Enable(DISABLE_KEYBOARD); // just in case, enable OSD and disable KEYBOARD for core
     }
   } else {
     // scroll if needed
-    if (current_status->scroll_pos) {
-      if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
+    if (current_status->file_browser && current_status->scroll_pos) {
+      if (!scroll_started) {
+        if (Timer_Check(scroll_timer_init)) { // scroll if timer elapsed
+          scroll_started = '1';
+        }
+      } else if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
+
           scroll_timer = Timer_Get(20); // restart scroll timer
-          scroll_offset= (scroll_offset+1) & ((OSDMAXLEN<<4)-1); // scrolling
-          /*OSD_WaitVBL();*/
-          /*OSD_SetHOffset(current_status->scroll_pos,*/
-                         /*(uint8_t) (scroll_offset >> 4),*/
-                         /*(uint8_t) (scroll_offset & 0xF));*/
-          DEBUG(3, "Offset: %d",scroll_offset);
+          scroll_offset= scroll_offset + 2;
+
+          uint16_t len    = current_status->scroll_len;
+
+          if (scroll_offset >= (len + OSD_SCROLL_BLANKSPACE) << 4)
+            scroll_offset = 0;
+
+          OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, scroll_offset >> 4, len, 1, 0xB, 0);
+          OSD_SetHOffset(current_status->scroll_pos, 0, (uint8_t) (scroll_offset & 0xF));
       }
     }
   }

@@ -51,7 +51,7 @@ inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
 {
   if (dir_entries->file_filter_len) {
     // if we don't have a filter match, we return false
-    if (strnicmp(dir_entries->file_filter,mydir->FileName,dir_entries->file_filter_len)) return(FALSE); 
+    if (strnicmp(dir_entries->file_filter,mydir->FileName,dir_entries->file_filter_len)) return(FALSE);
   }
 
   if (mydir->Attrib & FF_FAT_ATTR_DIR) { // directories always come through here, except "."
@@ -332,7 +332,6 @@ void Filesel_ScanFind(tDirScan* dir_entries, uint8_t search)
   uint8_t found_file = 0;
   uint8_t found_dir  = 0;
 
-  // two passes here, could be optimized to single pass later
   // note search is uppercase
   tester = FF_FindFirst(pIoman, &mydir, dir_entries->pPath); // Find first Object.
   while (tester == 0) {

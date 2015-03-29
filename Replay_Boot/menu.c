@@ -630,11 +630,10 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
   uint8_t update=current_status->update;
   current_status->update=0;
   static uint32_t osd_timeout;
-  static uint8_t osd_timeout_cnt=0;
+  static uint8_t  osd_timeout_cnt=0;
 
-  static uint32_t scroll_timer_init;
   static uint32_t scroll_timer;
-  static uint16_t scroll_offset=0;
+  static uint16_t scroll_text_offset=0;
   static uint8_t  scroll_started=0;
 
   // timeout of OSD after noticing last key press (or external forced update)
@@ -986,9 +985,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
     OSD_SetDisplay(OSD_GetPage()); //  OSD_GetPage());
     OSD_SetPage(OSD_NextPage());   //  OSD_NextPage());
 
-    scroll_timer_init = Timer_Get(1000); // restart scroll timer
-    scroll_timer = Timer_Get(20); // restart scroll timer
-    scroll_offset = 0; // reset scroll position
+    scroll_timer = Timer_Get(1000); // restart scroll timer
     scroll_started = 0;
 
     if ((current_status->show_menu || current_status->popup_menu ||
@@ -998,22 +995,30 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
   } else {
     // scroll if needed
     if (current_status->file_browser && current_status->scroll_pos) {
+      uint16_t len    = current_status->scroll_len;
+
       if (!scroll_started) {
-        if (Timer_Check(scroll_timer_init)) { // scroll if timer elapsed
-          scroll_started = '1';
+        if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
+          scroll_started = 1;
+          scroll_text_offset = 0;
+          /*scroll_pix_offset  = 0;*/
+
+          OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, 0, len, 1, 0xB, 0);
+          scroll_timer = Timer_Get(20); // restart scroll timer
         }
       } else if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
 
           scroll_timer = Timer_Get(20); // restart scroll timer
-          scroll_offset= scroll_offset + 2;
 
-          uint16_t len    = current_status->scroll_len;
+          scroll_text_offset = scroll_text_offset + 2;
 
-          if (scroll_offset >= (len + OSD_SCROLL_BLANKSPACE) << 4)
-            scroll_offset = 0;
+          if (scroll_text_offset >= (len + OSD_SCROLL_BLANKSPACE) << 4)
+            scroll_text_offset = 0;
 
-          OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, scroll_offset >> 4, len, 1, 0xB, 0);
-          OSD_SetHOffset(current_status->scroll_pos, 0, (uint8_t) (scroll_offset & 0xF));
+          if ((scroll_text_offset & 0xF) == 0)
+            OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, scroll_text_offset>>4, len, 1, 0xB, 0);
+
+          OSD_SetHOffset(current_status->scroll_pos,0, (uint8_t) (scroll_text_offset & 0xF));
       }
     }
   }

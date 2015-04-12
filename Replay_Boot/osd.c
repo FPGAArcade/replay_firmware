@@ -441,6 +441,8 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled)
   uint16_t key_code = 0;
 
   static uint32_t ps2_delay = 0;
+  static uint32_t ps2_flags_delay = 0;
+
   static uint8_t keybuf[8] = {0,0,0,0,0,0,0,0};   // max. amount of codes with one keypress (PAUSE key)
   static uint16_t keypos = 0;
 
@@ -481,6 +483,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled)
       SPI(OSDCMD_READKBD);
       x = SPI(0);
       SPI_DisableOsd();
+
       keybuf[keypos++]=x;
       ps2_delay = Timer_Get(PS2DELAY);
       if (keypos==1) DEBUG(3,"ps2: %d: %02x",keypos,keybuf[0]);
@@ -488,19 +491,22 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled)
       if (keypos==3) DEBUG(3,"ps2: %d: %02x %02x %02x",keypos,keybuf[0],keybuf[1],keybuf[2]);
       if (keypos==4) DEBUG(3,"ps2: %d: %02x %02x %02x %02x",keypos,keybuf[0],keybuf[1],keybuf[2],keybuf[3]);
     } else if (Timer_Check(ps2_delay)) {
-      // just in case we clean up the buffer on a timeout
-      //key_flags = 0;
+      // we clean up the buffer on a timeout
       keypos = 0;
     }
   } else {
     // clean up if no OSD available
-    //key_flags = 0;
     keypos = 0;
   }
+  // time out for flags
+
 
   // process key buffer
   // ---------------------------------------------------
-  if (keypos && (!key_code)) {
+  if (keypos && (!key_code)) { // menu push button takes priority
+
+    DEBUG(3,"ps2 flags: %02x", key_flags);
+
     // break sequence (key release)
     if ((keybuf[1]==0xF0) && (keypos==3)) {
       keybuf[1]=keybuf[2];
@@ -515,6 +521,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled)
     // check "modifier" keys first
     x = OSD_ConvFlags(keybuf[0],keypos==2?keybuf[1]:0);
     if (x) {
+      ps2_flags_delay = Timer_Get(PS2FLAGSDELAY); // reset timer if we get a modifier
       if (key_break) {
         key_flags &= ~x;
       } else {
@@ -558,6 +565,12 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled)
         old_key_code = key_code;
       }
     }
+  }
+
+  if (key_flags && Timer_Check(ps2_flags_delay)) {
+    DEBUG(3,"ps2 flags cleared");
+    key_flags = 0;
+    old_key_code = 0;
   }
 
   // process RS232 inputs

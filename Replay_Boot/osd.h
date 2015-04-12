@@ -31,6 +31,7 @@
 #define FLASHDELAY      1000        // replay button delay to start flashing in 1ms units
 
 #define PS2DELAY        10          // ps/2 delay in 1ms units
+#define PS2FLAGSDELAY   500         // ps/2 delay in 1ms units
 
 #define SERIALDELAY     10          // serial timeout delay in 1ms units
 

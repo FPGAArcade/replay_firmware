@@ -505,8 +505,6 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled)
   // ---------------------------------------------------
   if (keypos && (!key_code)) { // menu push button takes priority
 
-    DEBUG(3,"ps2 flags: %02x", key_flags);
-
     // break sequence (key release)
     if ((keybuf[1]==0xF0) && (keypos==3)) {
       keybuf[1]=keybuf[2];
@@ -568,7 +566,6 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled)
   }
 
   if (key_flags && Timer_Check(ps2_flags_delay)) {
-    DEBUG(3,"ps2 flags cleared");
     key_flags = 0;
     old_key_code = 0;
   }

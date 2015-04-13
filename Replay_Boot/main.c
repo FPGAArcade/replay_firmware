@@ -36,10 +36,7 @@ int main(void)
   // replay main status structure
   status_t current_status;
   memset((void *)&current_status,0,sizeof(status_t));
-  strcpy(current_status.ini_dir,"\\");
-  strcpy(current_status.act_dir,"\\");
-  strcpy(current_status.ini_file,"replay.ini");
-  strcpy(current_status.bin_file,"replay.bin");
+  CFG_set_status_defaults(&current_status);
 
   // setup message structure
   MSG_init(&current_status,1);
@@ -119,7 +116,8 @@ int main(void)
         current_status.fpga_load_ok = 0;
         status = CFG_configure_fpga(full_filename);
         if (status) {
-          CFG_fatal_error(status);  // flash we fail to configure FPGA
+          // will not get here if config fails, but just in case...
+          MSG_fatal_error(status);  // flash we fail to configure FPGA
           current_status.fpga_load_ok = 0;
         } else {
           DEBUG(1,"FPGA CONFIG \"%s\" done.",full_filename);
@@ -130,9 +128,10 @@ int main(void)
       // set up some default to have OSD enabled
       if (!IO_Input_H(PIN_FPGA_DONE)) {
         // initially configure default clocks, video filter and diable video coder (may not be fitted)
+        // Add support for interlaced/codec standards (selectable by menu button?)
         CFG_vid_timing_HD27(F60HZ);
         CFG_set_coder(CODER_DISABLE);
-        if (FPGA_Default()) {
+        if (!FPGA_Default()) {
           DEBUG(1,"FPGA default set.");
 
           current_status.fpga_load_ok=2;
@@ -143,6 +142,9 @@ int main(void)
           sprintf(current_status.status[0], "ARM |FW:%s (%ldkB free)", version,
                                               CFG_get_free_mem()>>10);
           sprintf(current_status.status[1], "FPGA|NO VALID SETUP ON SDCARD!");
+        } else {
+          // didn't work
+          MSG_fatal_error(1); // halt and reboot
         }
       }
     }
@@ -187,38 +189,39 @@ int main(void)
           DEBUG(1,"POSTINIT (%ld bytes free)",CFG_get_free_mem());
         }
       } else {
-          if (OSD_ConfigReadSysconVer() != 0xA5) {
-            ERROR("FPGA Syscon not detected !!");
-            // need to disable all OSD access
-          }
-          uint32_t config_ver    = OSD_ConfigReadVer();
-          DEBUG(1,"FPGA ver: 0x%08x",config_ver);
-          // setup DRAM, DAC, etc.
-          OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
-          OSD_Reset(OSDCMD_CTRL_RES|OSDCMD_CTRL_HALT);
-          Timer_Wait(100);
-          if (config_ver & 0x8000) {
-            FPGA_DramTrain();
-          }
-          /*const vidconfig_t vid_config = { 0x00,0x48,0xC0,0x80,0x00,0x01,0x00,0x80,0x08,0x16,0x30,0x60,0x00,0x18,0xC0,0x00 };*/
-          /*Configure_CH7301(&vid_config);*/
-          CFG_set_CH7301_HD();  //--> does not work ???
-          // dynamic/static setup bits
-          OSD_ConfigSendUserS(0x00000000);
-          OSD_ConfigSendUserD(0x00000060); // 60HZ progressive
+        // baked in version
+        if (OSD_ConfigReadSysconVer() != 0xA5) {
+          WARNING("FPGA Syscon not detected !!");
+        }
+        uint32_t config_ver    = OSD_ConfigReadVer();
+        DEBUG(1,"FPGA ver: 0x%08x",config_ver);
 
-          OSD_Reset(OSDCMD_CTRL_RES);
-          WARNING("Using hardcoded fallback!");
+        // NO DRAM in the embedded core
+        OSD_Reset(OSDCMD_CTRL_RES|OSDCMD_CTRL_HALT);
+        CFG_set_CH7301_HD();  //--> does not work ???
+        // dynamic/static setup bits
+        OSD_ConfigSendUserS(0x00000000);
+        OSD_ConfigSendUserD(0x00000060); // 60HZ progressive
+
+        OSD_Reset(OSDCMD_CTRL_RES);
+        WARNING("Using hardcoded fallback!");
       }
 
       // we do a final update of MENU / settings and let the core run
       // afterwards, we show the generic status menu
-      MENU_init_ui(&current_status);
+      MENU_init_ui(&current_status); // must be called after core is running, but clears status
       OSD_Reset(0);
       Timer_Wait(100);
-      current_status.show_status=1;
-      current_status.update=1;
-      OSD_Enable(DISABLE_KEYBOARD);
+
+      if (current_status.osd_init == OSD_INIT_ON) {
+        current_status.show_status=1;
+        current_status.update=1;
+        OSD_Enable(DISABLE_KEYBOARD);
+      } else {
+        current_status.show_status=0;
+        current_status.show_menu=0;
+        current_status.update=0;
+      }
 
       // we run in here as long as there is no need to reload the FPGA
       while (current_status.fpga_load_ok) {

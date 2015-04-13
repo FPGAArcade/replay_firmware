@@ -49,36 +49,37 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /** Definitions of the symbols we can detect */
 const ini_symtab_t symtab[] = {
 // in text  ,token to use ,is section
-  { "SETUP"     ,INI_SETUP     ,TRUE  },
-  { "INFO"      ,INI_INFO      ,FALSE },
-  { "BIN"       ,INI_BIN       ,FALSE },
-  { "CLOCK"     ,INI_CLOCK     ,FALSE },
-  { "PHASE"     ,INI_PHASE     ,FALSE },
-  { "CODER"     ,INI_CODER     ,FALSE },
-  { "VFILTER"   ,INI_VFILTER   ,FALSE },
-  { "EN_TWI"    ,INI_EN_TWI    ,FALSE },
-  { "EN_SPI"    ,INI_EN_SPI    ,FALSE },
-  { "SPI_CLK"   ,INI_SPI_CLK   ,FALSE },
-  { "BUTTON"    ,INI_BUTTON    ,FALSE },
-  { "VIDEO"     ,INI_VIDEO     ,FALSE },
-  { "CONFIG"    ,INI_CONFIG    ,FALSE },
-  { "CSTORE"    ,INI_CSTORE    ,FALSE },
-  { "UPLOAD"    ,INI_UPLOAD    ,TRUE  },
-  { "FILES"     ,INI_FILES     ,TRUE  },
-  { "VERIFY"    ,INI_VERIFY    ,FALSE },
-  { "ROM"       ,INI_ROM       ,FALSE },
-  { "CHA_MOUNT" ,INI_CHA_MOUNT ,FALSE },
-  { "CHB_MOUNT" ,INI_CHB_MOUNT ,FALSE },
-  { "CHA_CFG"   ,INI_CHA_CFG   ,FALSE },
-  { "CHB_CFG"   ,INI_CHB_CFG   ,FALSE },
-  { "DATA"      ,INI_DATA      ,FALSE },
-  { "LAUNCH"    ,INI_LAUNCH    ,FALSE },
-  { "MENU"      ,INI_MENU      ,TRUE  },
-  { "TITLE"     ,INI_TITLE     ,FALSE },
-  { "ITEM"      ,INI_ITEM      ,FALSE },
-  { "OPTION"    ,INI_OPTION    ,FALSE },
-  { ""          ,INI_UNKNOWN   ,FALSE,}, // no match found
-  { ""          ,INI_START     ,TRUE, }, // start value, can never match
+  { "SETUP"         ,INI_SETUP         ,TRUE  },
+  { "INFO"          ,INI_INFO          ,FALSE },
+  { "OSD_INIT"      ,INI_OSD_INIT      ,FALSE },
+  { "BIN"           ,INI_BIN           ,FALSE },
+  { "CLOCK"         ,INI_CLOCK         ,FALSE },
+  { "PHASE"         ,INI_PHASE         ,FALSE },
+  { "CODER"         ,INI_CODER         ,FALSE },
+  { "VFILTER"       ,INI_VFILTER       ,FALSE },
+  { "EN_TWI"        ,INI_EN_TWI        ,FALSE },
+  { "EN_SPI"        ,INI_EN_SPI        ,FALSE },
+  { "SPI_CLK"       ,INI_SPI_CLK       ,FALSE },
+  { "BUTTON"        ,INI_BUTTON        ,FALSE },
+  { "VIDEO"         ,INI_VIDEO         ,FALSE },
+  { "CONFIG"        ,INI_CONFIG        ,FALSE },
+  { "CSTORE"        ,INI_CSTORE        ,FALSE },
+  { "UPLOAD"        ,INI_UPLOAD        ,TRUE  },
+  { "FILES"         ,INI_FILES         ,TRUE  },
+  { "VERIFY"        ,INI_VERIFY        ,FALSE },
+  { "ROM"           ,INI_ROM           ,FALSE },
+  { "CHA_MOUNT"     ,INI_CHA_MOUNT     ,FALSE },
+  { "CHB_MOUNT"     ,INI_CHB_MOUNT     ,FALSE },
+  { "CHA_CFG"       ,INI_CHA_CFG       ,FALSE },
+  { "CHB_CFG"       ,INI_CHB_CFG       ,FALSE },
+  { "DATA"          ,INI_DATA          ,FALSE },
+  { "LAUNCH"        ,INI_LAUNCH        ,FALSE },
+  { "MENU"          ,INI_MENU          ,TRUE  },
+  { "TITLE"         ,INI_TITLE         ,FALSE },
+  { "ITEM"          ,INI_ITEM          ,FALSE },
+  { "OPTION"        ,INI_OPTION        ,FALSE },
+  { ""              ,INI_UNKNOWN       ,FALSE,}, // no match found
+  { ""              ,INI_START         ,TRUE, }, // start value, can never match
 };
 
 // ==========================================================================
@@ -161,11 +162,11 @@ uint8_t ParseIni(FF_FILE *pFile,
         section=symtab[idx].token;
         // check correctness, then call parser to indicate new section
         if (symtab[idx].token==INI_UNKNOWN) {
-          ERROR("Unknown keyword.");
+          ERROR("Unknown keyword. Line %d",lineNumber);
           lineError = lineNumber;
         }
         else if (symtab[idx].section==FALSE) {
-          ERROR("Keyword not valid here.");
+          ERROR("Keyword not valid here. Line %d",lineNumber);
           lineError = lineNumber;
         }
         else if (parseHandle(config, section, INI_UNKNOWN, NULL)) {
@@ -192,11 +193,11 @@ uint8_t ParseIni(FF_FILE *pFile,
         } while (symtab[idx].token!=INI_UNKNOWN);
         // call parser if token is fine
         if (symtab[idx].token==INI_UNKNOWN) {
-          ERROR("Unknown keyword.");
+          ERROR("Unknown keyword. Line %d",lineNumber);
           lineError = lineNumber;
         }
         else if (symtab[idx].section==TRUE) {
-          ERROR("Keyword not valid here.");
+          ERROR("Keyword not valid here. Line %d",lineNumber);
           lineError = lineNumber;
         }
         if (parseHandle(config, section, symtab[idx].token, value)) {

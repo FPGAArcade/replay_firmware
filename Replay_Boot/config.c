@@ -115,20 +115,6 @@ const vidconfig_t   default_vid_config_hd = { // >65MHz
   0x00  // reg 0x56 DSP  Sync Polarity
   };
 
-void CFG_fatal_error(uint8_t error)
-{
-  uint8_t i,j;
-  ERROR("Fatal error: %02X ", error);
-  for (j=0; j<5; j++) {
-    for (i = 0; i < error; i++) {
-      ACTLED_ON;
-      Timer_Wait(250);
-      ACTLED_OFF;
-      Timer_Wait(250);
-    }
-    Timer_Wait(1000);
-  }
-}
 
 // we copy the actual bootloader from flash to the RAM and call it
 // (we assume there is no collision with the actual stack)
@@ -196,15 +182,13 @@ void CFG_card_start(status_t *current_status)
       current_status->card_init_ok = TRUE;
     }
     else {
-      ERROR("!! Card Init FAIL.");
+      ERROR("SDCARD:Card Init FAIL.");
       current_status->card_init_ok = FALSE;
-      CFG_fatal_error(1);  // 1 flash if we failed to init the memory card
     }
 
     if(FF_MountPartition(pIoman, 0)) {
-      DEBUG(1,"!! Could not mount partition.");
+      ERROR("SDCARD:Could not mount partition.");
       current_status->fs_mounted_ok = FALSE;
-      CFG_fatal_error(2); // 2 flash, invalid partition
     } else {
       current_status->fs_mounted_ok = TRUE;
       DEBUG(1,"Partition mounted ok.");
@@ -477,9 +461,9 @@ uint8_t CFG_configure_fpga(char *filename)
       configStatus = FPGA_Config(fSource);
       FF_Seek(fSource, 0, FF_SEEK_SET);
       retryCounter ++;
-    } while (!configStatus && retryCounter<3);
+    } while (configStatus && retryCounter<3);
 
-    if (!configStatus) {
+    if (configStatus) {
       ERROR("!! Failed to configure FPGA.");
       return 4;
     }
@@ -592,6 +576,19 @@ VERIFY = 1
 
 ------------------------------------------------------------------------------
 */
+
+void CFG_set_status_defaults(status_t *currentStatus)
+{
+  // assume struct has be zero'd
+
+  strcpy(currentStatus->ini_dir,"\\");
+  strcpy(currentStatus->act_dir,"\\");
+  strcpy(currentStatus->ini_file,"replay.ini");
+  strcpy(currentStatus->bin_file,"replay.bin");
+
+  currentStatus->button   = BUTTON_MENU;
+  currentStatus->osd_init = OSD_INIT_ON;
+}
 
 uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
                                const ini_symbols_t name, const char* value)
@@ -752,6 +749,14 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
           else return 1;
           DEBUG(1,"Button control: %s",value);
         }
+
+        if (name==INI_OSD_INIT) {       // ===> OSD STARTUP
+          if (MATCH(value,"OFF"))     pStatus->osd_init=OSD_INIT_OFF;
+          else if (MATCH(value,"ON")) pStatus->osd_init=OSD_INIT_ON;
+          else return 1;
+          DEBUG(1,"OSD init: %s",value);
+        }
+
       }
       // -------------------------------------------------------
       if (section==INI_UPLOAD) {
@@ -789,13 +794,13 @@ uint8_t CFG_pre_init(status_t *currentStatus, const char *iniFile)
       FF_Close(fIni);
 
       if (status !=0 ) {
-        MSG_error("Execution stopped at INI line %d",status);
+        ERROR("Execution stopped at INI line %d",status);
         return 1;
       }
 
     }
     else {
-      MSG_error("INI file not found");
+      ERROR("INI file not found");
       return 1;
 
     }
@@ -914,7 +919,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             else return 1;
             DEBUG(2,"VIDEO: %s",value);
           } else {
-            MSG_warning("VIDEO config but TWI disabled");
+            WARNING("VIDEO config but TWI disabled");
             return 1;
           }
         }
@@ -931,7 +936,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             DEBUG(2,"CONFIG: static=0x%08X, dynamic=0x%08X",
                     pStatus->config_s,pStatus->config_d);
           } else {
-            MSG_warning("FPGA config but SPI disabled");
+            WARNING("FPGA config but SPI disabled");
             return 1;
           }
         }
@@ -986,7 +991,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                       valueList[2].intval,valueList[1].intval);
               if (CFG_upload_rom(fullname, valueList[2].intval,valueList[1].intval,
                                  pStatus->verify_dl,valueList[3].intval,&staticbits,&dynamicbits)) {
-                MSG_warning("ROM upload to FPGA failed");
+                WARNING("ROM upload to FPGA failed");
                 return 1;
               } else {
                 DEBUG(1,"NEW config - S:%08lx D:%08lx",staticbits,dynamicbits);
@@ -1013,7 +1018,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                       valueList[2].intval,valueList[1].intval);
               if (CFG_upload_rom(fullname, valueList[2].intval,valueList[1].intval,
                                  pStatus->verify_dl,0,&staticbits,&dynamicbits)) {
-                MSG_warning("ROM upload to FPGA failed");
+                WARNING("ROM upload to FPGA failed");
                 return 1;
               } else {
                 DEBUG(1,"NEW config - S:%08lx D:%08lx",staticbits,dynamicbits);
@@ -1040,7 +1045,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                       adr,valueList[1].intval);
               if (CFG_upload_rom(fullname, adr, valueList[1].intval,
                                  pStatus->verify_dl, 0,&staticbits,&dynamicbits)) {
-                MSG_warning("ROM upload to FPGA failed");
+                WARNING("ROM upload to FPGA failed");
                 return 1;
               } else {
                 DEBUG(1,"NEW config - S:%08lx D:%08lx",staticbits,dynamicbits);
@@ -1054,7 +1059,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             }
             else return 1;
           } else {
-            MSG_warning("ROM upload, but SPI disabled");
+            WARNING("ROM upload, but SPI disabled");
             return 1;
           }
         }
@@ -1082,7 +1087,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                       valueList[entries-2].intval,entries-2);
               if (FileIO_MCh_BufToMem(buf, valueList[entries-2].intval,
                                      valueList[entries-1].intval)) {
-                MSG_warning("DATA upload to FPGA failed");
+                WARNING("DATA upload to FPGA failed");
                 return 1;
               }
               if (pStatus->verify_dl) {
@@ -1092,7 +1097,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                                       valueList[entries-1].intval);
                 for(int i=0;i<(entries-2);i++) {
                   if (tmpbuf[i]!=buf[i]) {
-                    MSG_warning("DATA verification failed");
+                    WARNING("DATA verification failed");
                     return 1;
                   }
                 }
@@ -1104,7 +1109,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             }
             else return 1;
           } else {
-            MSG_warning("DATA upload, but SPI disabled");
+            WARNING("DATA upload, but SPI disabled");
             return 1;
           }
         }
@@ -1231,7 +1236,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                 pStatus->menu_item_act->conf_dynamic=0;
               } else {
                 pStatus->menu_item_act->conf_dynamic=0;
-                MSG_warning("Menu items must be static or dynamic");
+                WARNING("Menu items must be static or dynamic");
                 return 1;
               }
             }
@@ -1283,7 +1288,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                     MATCH(valueList[2].strval,"D")) {
                   pStatus->menu_item_act->selected_option=pStatus->item_opt_act;
                 } else {
-                  MSG_warning("bad option type - use 'default' or none");
+                  WARNING("bad option type - use 'default' or none");
                   return 1;
                 }
               }
@@ -1292,7 +1297,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                  pStatus->item_opt_act->conf_value) !=
                  pStatus->item_opt_act->conf_value) {
               if (!nocheck) {
-                MSG_warning("item mask does not fit to value");
+                WARNING("item mask does not fit to value");
                 return 1;
               }
             }
@@ -1343,7 +1348,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               pStatus->fileio_cha_mode = (fileio_mode_t) FIXED;
               DEBUG(1,"ChA Fixed");
             } else {
-              MSG_warning("ChA bad drive type - use 'removable' or fixed");
+              WARNING("ChA bad drive type - use 'removable' or fixed");
               return 1;
             }
           }
@@ -1388,7 +1393,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
               pStatus->fileio_chb_mode = (fileio_mode_t) FIXED;
               DEBUG(1,"ChB Fixed");
             } else {
-              MSG_warning("ChB bad drive type - use 'removable' or fixed");
+              WARNING("ChB bad drive type - use 'removable' or fixed");
               return 1;
             }
           }
@@ -1487,14 +1492,12 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
       int32_t status = ParseIni(fIni, _CFG_parse_handler, currentStatus);
       FF_Close(fIni);
       if (status !=0 ) {
-        MSG_error("Execution stopped at INI line %d",status);
-      // TO DO, change to warning and halt core
+        ERROR("Execution stopped at INI line %d",status);
         return status;
       }
     }
     else {
-      MSG_error("INI file not found");
-      // TO DO, change to warning and halt core
+      ERROR("INI file not found");
       return 1;
     }
   }

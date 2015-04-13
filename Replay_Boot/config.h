@@ -60,6 +60,11 @@ typedef enum {
 } button_t;
 
 typedef enum {
+  OSD_INIT_OFF,
+  OSD_INIT_ON,
+} osd_init_t;
+
+typedef enum {
     REMOVABLE,
     FIXED
 } fileio_mode_t;
@@ -268,6 +273,9 @@ typedef struct {
 
   /** defines the on-board button function - set by ini_pre_read() */
   button_t     button;
+
+  /** defines the osd init mode */
+  osd_init_t   osd_init;
 
   /** set to 1 if menu is visible - set by handle_ui() */
   uint8_t      show_menu;
@@ -495,6 +503,8 @@ void CFG_set_CH7301_SD(void);
 void CFG_set_CH7301_HD(void);
 
 uint32_t CFG_get_free_mem(void);
+
+void CFG_set_status_defaults(status_t *currentStatus);
 
 /** @brief INITIAL INI READER PARSE HANDLER
 

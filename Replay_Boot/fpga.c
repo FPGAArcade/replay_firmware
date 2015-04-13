@@ -39,7 +39,7 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
   uint8_t dBuf2[8192];
   uint32_t loaderIdx=0;
 
-  DEBUG(0,"FPGA: Using onboard setup.");
+  DEBUG(0,"FPGA:Using onboard setup.");
 
   time = Timer_Get(0);
 
@@ -54,12 +54,12 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
   // check INIT is high
   if (IO_Input_L(PIN_FPGA_INIT_L)) {
     WARNING("FPGA:INIT is not high after PROG reset.");
-    return FALSE;
+    return 1;
   }
   // check DONE is low
   if (IO_Input_H(PIN_FPGA_DONE)) {
     WARNING("FPGA:DONE is high before configuration.");
-    return FALSE;
+    return 1;
   }
 
   // send FPGA data with SSC DMA in parallel to reading the file
@@ -109,15 +109,15 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
 
   // check DONE is high
   if (!IO_Input_H(PIN_FPGA_DONE) ) {
-    WARNING("FPGA:DONE is low after configuration.");
-    return FALSE;
+    WARNING("FPGA:Failed to config fallback FPGA. Fatal, system will reboot");
+    return 1;
   }
   else {
     time = Timer_Get(0)-time;
 
     DEBUG(0,"FPGA configured in %d ms.", (uint32_t) (time >> 20));
   }
-  return TRUE;
+  return 0;
 }
 
 uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
@@ -141,12 +141,12 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
   // check INIT is high
   if (IO_Input_L(PIN_FPGA_INIT_L)) {
     WARNING("FPGA:INIT is not high after PROG reset.");
-    return FALSE;
+    return 1;
   }
   // check DONE is low
   if (IO_Input_H(PIN_FPGA_DONE)) {
     WARNING("FPGA:DONE is high before configuration.");
-    return FALSE;
+    return 1;
   }
 
   // send FPGA data with SSC DMA in parallel to reading the file
@@ -186,15 +186,15 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
 
   // check DONE is high
   if (!IO_Input_H(PIN_FPGA_DONE) ) {
-    WARNING("FPGA:DONE is low after configuration.");
-    return FALSE;
+    WARNING("FPGA:Failed to config FPGA.");
+    return 1;
   }
   else {
     time = Timer_Get(0)-time;
 
     DEBUG(0,"FPGA configured in %d ms.", (uint32_t) (time >> 20));
   }
-  return TRUE;
+  return 0;
 }
 
 //
@@ -229,12 +229,12 @@ uint8_t FPGA_DramTrain(void)
     if (memcmp(mBuf,&kMemtest[0],127) || (mBuf[127] != (uint8_t) i) ) {
       WARNING("!!Match fail Addr:%8X", addr);
       DumpBuffer(mBuf,128);
-      return (1);
+      return 1;
     }
     addr = (0x100 << i);
   }
   DEBUG(1,"FPGA:DRAM TEST passed.");
-  return (0);
+  return 0;
 }
 
 uint8_t FPGA_DramEye(uint8_t mode)
@@ -292,7 +292,7 @@ uint8_t FPGA_DramEye(uint8_t mode)
   } while (key != KEY_MENU);
   OSD_ConfigSendUserD(0x00000000); // disable BIST
 
-  return (0);
+  return 0;
 }
 
 
@@ -433,7 +433,7 @@ uint8_t FPGA_ProdTest(void)
     Timer_Wait(5);
 
   } while (key != KEY_MENU);
-  return (0);
+  return 0;
 }
 
 //
@@ -482,8 +482,8 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
   volatile uint32_t *dest = (volatile uint32_t *)0x00200000L;
   uint8_t value;
 
-  DEBUG(0,"FPGA: copy %d bytes from 0x%lx and execute if the checksum is 0x%lx",len,base,checksum);
-  DEBUG(0,"FPGA: we have about %ld bytes free for the code",((uint32_t)&value)-0x00200000L);
+  DEBUG(0,"FPGA:copy %d bytes from 0x%lx and execute if the checksum is 0x%lx",len,base,checksum);
+  DEBUG(0,"FPGA:we have about %ld bytes free for the code",((uint32_t)&value)-0x00200000L);
 
   if ((((uint32_t)&value)-0x00200000L)<len) {
     WARNING("FPGA: Not enough memory, processor may crash!");
@@ -526,12 +526,12 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 
   // STOP HERE
   if (sum!=checksum) {
-    ERROR("FPGA: CHK exp: 0x%lx got: 0x%lx",checksum,sum);
+    ERROR("FPGA:CHK exp: 0x%lx got: 0x%lx",checksum,sum);
     dest = (volatile uint32_t *)0x00200000L;
-    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest));
-    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+1));
-    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+2));
-    DEBUG(0,"FPGA: <-- 0x%08lx",*(dest+3));
+    DEBUG(0,"FPGA:<-- 0x%08lx",*(dest));
+    DEBUG(0,"FPGA:<-- 0x%08lx",*(dest+1));
+    DEBUG(0,"FPGA:<-- 0x%08lx",*(dest+2));
+    DEBUG(0,"FPGA:<-- 0x%08lx",*(dest+3));
     return;
   }
 
@@ -540,7 +540,7 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 
   sum=0;
   dest = (volatile uint32_t *)0x00200000L;
-  DEBUG(0,"FPGA: SRAM start: 0x%lx (%d blocks)",(uint32_t)dest,1+len/512);
+  DEBUG(0,"FPGA:SRAM start: 0x%lx (%d blocks)",(uint32_t)dest,1+len/512);
   Timer_Wait(500); // take care we can send this message before we go on!
 
   _SPI_EnableFileIO();

@@ -23,7 +23,11 @@
 #define WARNING(fmt...) MSG_warning(fmt)
 
 /// ERROR MESSAGES, can't be disabled
+/// The system will HALT and display on the OSD. LED will flash on-off-on-off
 #define ERROR(fmt...) MSG_error(fmt)
+
+/// For errors pre FPGA load. This will load the backup image to display the error message, and halt.
+//#define ERROR_LOAD_DEFAULT(fmt...) MSG_error(fmt)
 
 /// comment out to remove asserts
 //#define ASSERT 1
@@ -45,6 +49,12 @@ void MSG_init(status_t *status, uint8_t serial_on);
     @param do_osd set to 1 to print also on OSD
     @param fmt printf conform arguments
 */
+
+/** @brief flash LED and then reboot
+
+*/
+void MSG_fatal_error(uint8_t error);
+
 void MSG_debug(uint8_t do_osd, char *fmt, ...);
 
 /** @brief OSD/SERIAL INFO MESSAGE

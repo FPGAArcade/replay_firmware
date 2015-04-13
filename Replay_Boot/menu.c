@@ -405,6 +405,8 @@ void _MENU_back_dir(char *pPath)
 // TODO: colours from INI file instead of hardcoding...?
 void _MENU_update_ui(status_t *current_status)
 {
+  uint8_t col = 0;
+
   current_status->scroll_pos=0;
 
   // clear OSD area and set the minimum header/footer lines we always need
@@ -448,8 +450,8 @@ void _MENU_update_ui(status_t *current_status)
           OSD_WriteRC(6+i, 0, current_status->info[j++], 0, 0x07, 0);
           break;
         default:
-          //DEBUG: blue text (0x01 would be dark blue)
-          OSD_WriteRC(6+i, 0, current_status->info[j++], 0, 0x09, 0);
+          //DEBUG: cyan text
+          OSD_WriteRC(6+i, 0, current_status->info[j++], 0, 0x03, 0);
       }
     }
 
@@ -579,6 +581,7 @@ void _MENU_update_ui(status_t *current_status)
       }
       // show the item_name list to browse
       while (pItem && ((line++)<(MENU_HEIGHT-1))) {
+
         OSD_WriteRCt(row++, MENU_ITEM_INDENT, pItem->item_name, MENU_OPTION_INDENT-MENU_ITEM_INDENT, 0, 0xB, 0);
 
         // temp bodge to show read only flags
@@ -606,12 +609,16 @@ void _MENU_update_ui(status_t *current_status)
         if (!pItem->selected_option) pItem->selected_option=pItem->option_list;
         // check for action before displaying
         _MENU_action(pItem,current_status,0);
+
+        col = 0xA; // green
+        if (pItem->conf_dynamic) col = 0xF; // White
+
         // check if we really have an option_name, otherwise show placeholder
         if (pItem->selected_option->option_name[0])
           OSD_WriteRCt(row-1, MENU_OPTION_INDENT,
                       pItem->selected_option->option_name,
                       MENU_WIDTH-MENU_OPTION_INDENT, // len limit
-                      pItem==current_status->menu_item_act?1:0, 0xA, 0);
+                      pItem==current_status->menu_item_act?1:0, col, 0);
         else
           OSD_WriteRC(row-1, MENU_OPTION_INDENT, " ",
                       pItem==current_status->menu_item_act?1:0, 0xA, 0);

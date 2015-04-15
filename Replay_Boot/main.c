@@ -56,20 +56,18 @@ int main(void)
   //
   ACTLED_OFF;
   //
-  DEBUG(1,"");
+  DEBUG(0,"");
   DEBUG(0,"== FPGAArcade Replay Board ==");
   DEBUG(0,"Mike Johnson & Wolfgang Scherr");
-  DEBUG(1,"");
+  DEBUG(0,"");
   MSG_warning("NON-RELEASED BETA VERSION");
-  DEBUG(1,"");
-  DEBUG(1,"ARM Firmware: %s",version);
-  DEBUG(1,"");
+  DEBUG(0,"");
+  DEBUG(0,"ARM Firmware: %s",version);
+  DEBUG(0,"");
 
-  DEBUG(1,"Built upon work by Dennis van Weeren & Jakub Bednarski");
-  MSG_info("Using %s",FF_REVISION);
-  DEBUG(1,"               by James Walmsley");
-  DEBUG(1,"");
-  DEBUG(1,"");
+  DEBUG(0,"Built upon work by Dennis van Weeren & Jakub Bednarski");
+  MSG_info("Using %s by James Walmsley",FF_REVISION);
+  DEBUG(0,"");
 
   //MSG_warning("A test warning.");
   //MSG_error("A test error.");

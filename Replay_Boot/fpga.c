@@ -133,6 +133,8 @@ uint8_t FPGA_Config(FF_FILE *pFile) // assume file is open and at start
   // set PROG low to reset FPGA (open drain)
   IO_DriveLow_OD(PIN_FPGA_PROG_L); //AT91C_BASE_PIOA->PIO_OER = PIN_FPGA_PROG_L;
 
+  SSC_Configure_Boot(); // TEMP MIKEJ SHOULD NOT BE NECESSARY
+
   SSC_EnableTxRx(); // start to drive config outputs
   Timer_Wait(1);
   IO_DriveHigh_OD(PIN_FPGA_PROG_L);  //AT91C_BASE_PIOA->PIO_ODR = PIN_FPGA_PROG_L;

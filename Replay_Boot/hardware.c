@@ -462,7 +462,8 @@ void SSC_Configure_Boot(void)
   AT91C_BASE_SSC->SSC_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS;
 
   // Configure clock frequency
-  AT91C_BASE_SSC->SSC_CMR = BOARD_MCK / (2 * 10000000); // 10MHz
+  //AT91C_BASE_SSC->SSC_CMR = BOARD_MCK / (2 * 10000000); // 10MHz
+  AT91C_BASE_SSC->SSC_CMR = BOARD_MCK / (2 * 12500000); // 12.5MHz max for ARM pingroup 1
   // Configure TX
 
   // Enable pull ups

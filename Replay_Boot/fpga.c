@@ -39,8 +39,6 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
   uint8_t dBuf2[8192];
   uint32_t loaderIdx=0;
 
-  DEBUG(0,"FPGA:Using onboard setup.");
-
   time = Timer_Get(0);
 
   // set PROG low to reset FPGA (open drain)
@@ -109,13 +107,13 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
 
   // check DONE is high
   if (!IO_Input_H(PIN_FPGA_DONE) ) {
-    WARNING("FPGA:Failed to config fallback FPGA. Fatal, system will reboot");
+    WARNING("FPGA:Failed to config FPGA with fallback image. Fatal, system will reboot");
     return 1;
   }
   else {
     time = Timer_Get(0)-time;
 
-    DEBUG(0,"FPGA configured in %d ms.", (uint32_t) (time >> 20));
+    DEBUG(0,"FPGA configured with fallback image in %d ms.", (uint32_t) (time >> 20));
   }
   return 0;
 }

@@ -1,3 +1,48 @@
+/*
+ WWW.FPGAArcade.COM
+
+ REPLAY Retro Gaming Platform
+ No Emulation No Compromise
+
+ All rights reserved
+ Mike Johnson Wolfgang Scherr
+
+ SVN: $Id:
+
+--------------------------------------------------------------------
+
+ Redistribution and use in source and synthezised forms, with or without
+ modification, are permitted provided that the following conditions are met:
+
+ Redistributions of source code must retain the above copyright notice,
+ this list of conditions and the following disclaimer.
+
+ Redistributions in synthesized form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+ Neither the name of the author nor the names of other contributors may
+ be used to endorse or promote products derived from this software without
+ specific prior written permission.
+
+ THIS CODE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
+ LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ POSSIBILITY OF SUCH DAMAGE.
+
+ You are responsible for any legal issues arising from your use of this code.
+
+ The latest version of this file can be found at: www.FPGAArcade.com
+
+ Email support@fpgaarcade.com
+*/
 /** @file main.c */
 
 #include "board.h"
@@ -30,7 +75,6 @@ int main(void)
 
   USART_Init(115200); // Initialize debug USART
   init_printf(NULL, USART_Putc); // Initialise printf
-
   Timer_Init();
 
   // replay main status structure
@@ -47,14 +91,47 @@ int main(void)
   memset((void *)&dir_status,0,sizeof(tDirScan));
   // end of variables
 
-  // INIT
-  DEBUG(1,"\033[2J");
-
   SPI_Init();
   SSC_Configure_Boot();
   TWI_Configure(); // requires timer init
   //
   ACTLED_OFF;
+
+  //
+  //
+  //
+  /*
+  CFG_vid_timing_HD27(F60HZ);
+  if (FPGA_Default()) {
+    // didn't work
+    DEBUG(0,"FPGA inital boot failed.");
+    MSG_fatal_error(1); // halt and reboot
+  }
+  IO_DriveHigh_OD(PIN_FPGA_RST_L);
+  // end of critical fast boot
+  CFG_set_coder(CODER_DISABLE);
+  Timer_Wait(200);
+
+  OSD_Reset(OSDCMD_CTRL_RES|OSDCMD_CTRL_HALT);
+  CFG_set_CH7301_HD();
+  // dynamic/static setup bits
+  OSD_ConfigSendUserS(0x00000000);
+  OSD_ConfigSendUserD(0x00000060); // 60HZ progressive
+
+  DEBUG(0,"done");
+
+  while (TRUE) {
+    for (int i = 0; i < 3; i++) {
+      ACTLED_ON;
+      Timer_Wait(250);
+      ACTLED_OFF;
+      Timer_Wait(250);
+    }
+    Timer_Wait(1000);
+  }
+  */
+  // INIT
+  DEBUG(1,"\033[2J");
   //
   DEBUG(0,"");
   DEBUG(0,"== FPGAArcade Replay Board ==");
@@ -196,7 +273,7 @@ int main(void)
 
         // NO DRAM in the embedded core
         OSD_Reset(OSDCMD_CTRL_RES|OSDCMD_CTRL_HALT);
-        CFG_set_CH7301_HD();  //--> does not work ???
+        CFG_set_CH7301_HD();
         // dynamic/static setup bits
         OSD_ConfigSendUserS(0x00000000);
         OSD_ConfigSendUserD(0x00000060); // 60HZ progressive

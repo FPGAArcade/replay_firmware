@@ -116,7 +116,7 @@ int main(void)
   CFG_set_CH7301_HD();
   // dynamic/static setup bits
   OSD_ConfigSendUserS(0x00000000);
-  OSD_ConfigSendUserD(0x00000060); // 60HZ progressive
+  OSD_ConfigSendUserD(0x00000000); // 60HZ progressive
 
   DEBUG(0,"done");
 
@@ -276,7 +276,7 @@ int main(void)
         CFG_set_CH7301_HD();
         // dynamic/static setup bits
         OSD_ConfigSendUserS(0x00000000);
-        OSD_ConfigSendUserD(0x00000060); // 60HZ progressive
+        OSD_ConfigSendUserD(0x00000000); // 60HZ progressive
 
         OSD_Reset(OSDCMD_CTRL_RES);
         WARNING("Using hardcoded fallback!");

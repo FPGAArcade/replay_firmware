@@ -252,7 +252,7 @@ uint8_t FPGA_DramTrain(void)
   uint8_t mBuf[512];
   uint32_t i;
   uint32_t addr;
-  DEBUG(1,"FPGA:DRAM enabled, running test.");
+  DEBUG(0,"FPGA:DRAM enabled, running test.");
   // 25..0  64MByte
   // 25 23        15        7
   // 00 0000 0000 0000 0000 0000 0000
@@ -278,7 +278,7 @@ uint8_t FPGA_DramTrain(void)
     }
     addr = (0x100 << i);
   }
-  DEBUG(1,"FPGA:DRAM TEST passed.");
+  DEBUG(0,"FPGA:DRAM TEST passed.");
   return 0;
 }
 
@@ -289,12 +289,12 @@ uint8_t FPGA_DramEye(uint8_t mode)
   uint32_t ram_ctrl;
   uint16_t key;
 
-  DEBUG(1,"FPGA:DRAM BIST stress.... this takes a while");
+  DEBUG(0,"FPGA:DRAM BIST stress.... this takes a while");
 
   ram_phase = kDRAM_PHASE;
   ram_ctrl  = kDRAM_SEL;
   OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase );
-
+  OSD_ConfigSendUserD(0x00000000); // ensure disabled
   OSD_ConfigSendUserD(0x01000000); // enable BIST
 
   do {
@@ -302,16 +302,17 @@ uint8_t FPGA_DramEye(uint8_t mode)
     stat = OSD_ConfigReadStatus();
 
     if (mode !=0)
-      DEBUG(1,"BIST stat: %02X", stat & 0x3C);
+      /*DEBUG(0,"BIST stat: %02X", stat & 0x3C);*/
+      DEBUG(0,"BIST cycles :%01X err: %01X", stat & 0x38, stat & 0x04);
 
     if (mode == 0) {
       if (((stat & 0x38) >> 3) == 2) { // two passes
 
         if (stat & 0x04) {
-          DEBUG(1,"FPGA:DRAM BIST **** FAILED !! ****");
+          DEBUG(0,"FPGA:DRAM BIST **** FAILED !! ****");
         }
         else {
-          DEBUG(1,"FPGA:DRAM BIST passed.");
+          DEBUG(0,"FPGA:DRAM BIST passed.");
         }
         break;
       }

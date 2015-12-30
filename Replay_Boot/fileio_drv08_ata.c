@@ -694,8 +694,8 @@ void Drv08_BuildHardfileIndex(fch_t *pDrive, drv08_desc_t *pDesc)
 {
   pDesc->index_size= 16; // indexing size
 
-  uint32_t i;
-  uint32_t j;
+  uint64_t i; // 64 as the last index (> filesize) can cause a 32 bit int to wrap
+  uint64_t j;
   uint32_t idx = 0;
 
   i = pDesc->file_size >> 10; // file size divided by 1024 (index table size)

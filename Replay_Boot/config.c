@@ -1375,7 +1375,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                 FileIO_FCh_Insert(0,unit, fullname);
               };
             } else {
-              DEBUG(1,"Illegal FileIO ChA number")
+              DEBUG(1,"Illegal FileIO ChA number");
             };
 
           }
@@ -1419,7 +1419,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                 FileIO_FCh_Insert(1,unit, fullname);
               };
             } else {
-              DEBUG(1,"Illegal FileIO ChB number")
+              DEBUG(1,"Illegal FileIO ChB number");
             };
 
           }

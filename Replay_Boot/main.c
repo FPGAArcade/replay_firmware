@@ -130,6 +130,10 @@ int main(void)
     Timer_Wait(1000);
   }
   */
+
+  // to be sure
+  IO_DriveHigh_OD(PIN_FPGA_RST_L);
+
   // INIT
   DEBUG(1,"\033[2J");
   //
@@ -176,10 +180,12 @@ int main(void)
       sprintf(full_filename,"%s%s",current_status.ini_dir,current_status.ini_file);
 
       // free any backup stuff
-      CFG_free_bak(&current_status);
+      //CFG_free_bak(&current_status);
 
       // pre FPGA load ini file parse: FPGA bin, post ini, clocking, coder, video filter
-      CFG_pre_init(&current_status, full_filename);
+      // will configure clocks/video buffer with default values if non in INI file
+
+      CFG_pre_init(&current_status, full_filename); // check status - no clocks if error occurs
 
       // load FPGA if a configuration file is given and either it is not set or a reload is requested
       if ( (!IO_Input_H(PIN_FPGA_DONE)) && strlen(current_status.bin_file) ) {
@@ -253,8 +259,9 @@ int main(void)
 
         // post FPGA load ini file parse: video DAC, ROM files, etc.
         if (CFG_init(&current_status, full_filename)) {
+          // THIS will set up DAC defaults if non found
           CFG_free_menu(&current_status);
-          CFG_free_bak(&current_status);
+          /*CFG_free_bak(&current_status);*/
         }
         CFG_add_default(&current_status);
 
@@ -264,7 +271,7 @@ int main(void)
           DEBUG(1,"POSTINIT (%ld bytes free)",CFG_get_free_mem());
         }
       } else {
-        // baked in version
+        // fall back to baked in version to report error
         if (OSD_ConfigReadSysconVer() != 0xA5) {
           WARNING("FPGA Syscon not detected !!");
         }
@@ -273,7 +280,11 @@ int main(void)
 
         // NO DRAM in the embedded core
         OSD_Reset(OSDCMD_CTRL_RES|OSDCMD_CTRL_HALT);
+
+        CFG_vid_timing_HD27(F60HZ);
+        CFG_set_coder(CODER_DISABLE);
         CFG_set_CH7301_HD();
+
         // dynamic/static setup bits
         OSD_ConfigSendUserS(0x00000000);
         OSD_ConfigSendUserD(0x00000000); // 60HZ progressive
@@ -405,6 +416,8 @@ int main(void)
           FileIO_FCh_Process(0);
         if (current_status.fileio_chb_ena !=0)
           FileIO_FCh_Process(1);
+
+        FPGA_ClockMon(&current_status);
 
       }
     }

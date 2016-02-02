@@ -341,6 +341,128 @@ void Configure_ClockGen(const clockconfig_t *config)
   // 74.25                        M= 2  N=11   Fvco=148.5 p=2  output = 74.25  (vfo=0)
 }
 
+/*{{{*/
+/*void Configure_ClockGen(const clockconfig_t *config)*/
+/*{*/
+  /*uint32_t addr;*/
+  /*uint8_t  ok = TRUE;*/
+  /*uint8_t  mem[24];*/
+  /*// repack from lightly packed ClockConfig struct into registers*/
+  /*// see datasheet for register details*/
+  /*//  register -1*/
+  /*uint8_t  powerdown = 0;  // 0:powerdown*/
+  /*uint8_t  pll_conf[3] = {0,0,0};  // 1:PLL1_bypass 0:PLL1_VFO*/
+  /*uint8_t  y_sel[6]    = {0,1,2,3,4,5}; // static divider selection*/
+
+  /*// calculate VFO*/
+  /*uint32_t vco_freq[3];*/
+  /*uint32_t op_freq;*/
+
+  /*for (addr=0; addr<3; addr++) {*/
+    /*switch (addr)*/
+    /*{*/
+      /*case 0  : vco_freq[addr] = (27000 * config->pll1_n) / config->pll1_m; break;*/
+      /*case 1  : vco_freq[addr] = (27000 * config->pll2_n) / config->pll2_m; break;*/
+      /*case 2  : vco_freq[addr] = (27000 * config->pll3_n) / config->pll3_m; break;*/
+      /*default : vco_freq[addr] = 0;*/
+    /*}*/
+
+    /*DEBUG(2,"PLL%d VCO Freq ~ %6d KHz",addr+1, vco_freq[addr]);*/
+    /*if (vco_freq[addr] > 190000) pll_conf[addr] |= 1;*/
+    /*if (vco_freq[addr] > 300000) ERROR(" !! OUT OF RANGE !!");*/
+    /*if (vco_freq[addr] <  80000) ERROR(" !! OUT OF RANGE !!");*/
+  /*}*/
+  /*// px sel (divider source selection)*/
+  /*// px div (divider) 0-127 divider value*/
+  /*// yx sel (0= divider0 .. 5= divider5) 0x1x = on*/
+  /*DEBUG(1,"PLL clock outputs :");*/
+
+  /*for (addr=0; addr<6; addr++) {*/
+    /*switch (config->p_sel[addr])*/
+    /*{*/
+      /*case 0  : op_freq = 27000; break;*/
+      /*case 1  : op_freq = vco_freq[0]; break;*/
+      /*case 2  : op_freq = vco_freq[1]; break;*/
+      /*case 4  : op_freq = vco_freq[2]; break;*/
+      /*default : op_freq = 0;*/
+    /*}*/
+    /*op_freq = op_freq / config->p_div[addr];*/
+
+    /*if (config->y_sel[addr] == 0) {*/
+       /*DEBUG(1," %d :      OFF",addr);*/
+    /*} else {*/
+       /*DEBUG(1," %d : ~ %6d KHz",addr,op_freq);*/
+    /*}*/
+  /*}*/
+
+  /*DEBUG(3,"PLL config %d %d %d", pll_conf[0], pll_conf[1], pll_conf[2]);*/
+
+  /*mem[ 1-1] = (EBITS(config->pll1_m, 0, 8));*/
+  /*mem[ 2-1] = (EBITS(config->pll1_n, 0, 8));*/
+  /*mem[ 3-1] = (EBITS(pll_conf[0], CLOCKCONFIG_PLL1_BYPASS, 1) << 7) |*/
+              /*(EBITS(pll_conf[1], CLOCKCONFIG_PLL2_BYPASS, 1) << 6) |*/
+              /*(EBITS(pll_conf[2], CLOCKCONFIG_PLL3_BYPASS, 1) << 5) |*/
+              /*(EBITS(config->pll1_n, 8, 4) << 1) |*/
+              /*(EBITS(config->pll1_m, 8, 1));*/
+  /*mem[ 4-1] = (EBITS(config->pll2_m, 0, 8));*/
+  /*mem[ 5-1] = (EBITS(config->pll2_n, 0, 8));*/
+  /*mem[ 6-1] = (EBITS(pll_conf[0], CLOCKCONFIG_PLL1_VFO, 1) << 7) |*/
+              /*(EBITS(pll_conf[1], CLOCKCONFIG_PLL2_VFO, 1) << 6) |*/
+              /*(EBITS(pll_conf[2], CLOCKCONFIG_PLL3_VFO, 1) << 5) |*/
+              /*(EBITS(config->pll2_n, 8, 4) << 1) |*/
+              /*(EBITS(config->pll2_m, 8, 1));*/
+  /*mem[ 7-1] = (EBITS(config->pll3_m, 0, 8));*/
+  /*mem[ 8-1] = (EBITS(config->pll3_n, 0, 8));*/
+  /*mem[ 9-1] = (EBITS(config->p_sel[0], 0, 3) << 5) |*/
+              /*(EBITS(config->pll3_n, 8, 4) << 1) |*/
+              /*(EBITS(config->pll3_m, 8, 1));*/
+  /*mem[10-1] = (EBITS(config->p_sel[1], 0, 3) << 5);*/
+
+  /*mem[11-1] = (EBITS(config->p_sel[3], 0, 3) << 3) |*/
+              /*(EBITS(config->p_sel[2], 0, 3) << 0);*/
+  /*mem[12-1] = (EBITS(powerdown, CLOCKCONFIG_PD, 1) << 6) |*/
+              /*(EBITS(config->p_sel[5], 0, 3) << 3) |*/
+              /*(EBITS(config->p_sel[4], 0, 3) << 0);*/
+
+  /*mem[13-1] = (EBITS(config->p_div[0], 0, 7));*/
+  /*mem[14-1] = (EBITS(config->p_div[1], 0, 7));*/
+  /*mem[15-1] = (EBITS(config->p_div[2], 0, 7));*/
+  /*mem[16-1] = (EBITS(config->p_div[3], 0, 7));*/
+  /*mem[17-1] = (EBITS(config->p_div[4], 0, 7));*/
+  /*mem[18-1] = (EBITS(config->p_div[5], 0, 7));*/
+
+  /*mem[19-1] = (0x01 << 4) |*/
+              /*(EBITS(config->y_sel[0], 0, 1) << 3) |*/
+              /*(EBITS(y_sel[0], 0, 3));*/
+  /*mem[20-1] = (0x01 << 4) |*/
+              /*(EBITS(config->y_sel[1], 0, 1) << 3) |*/
+              /*(EBITS(y_sel[1], 0, 3));*/
+  /*mem[21-1] = (0x01 << 4) |*/
+              /*(EBITS(config->y_sel[2], 0, 1) << 3) |*/
+              /*(EBITS(y_sel[2], 0, 3));*/
+  /*mem[22-1] = (0x01 << 4) |*/
+              /*(EBITS(config->y_sel[3], 0, 1) << 3) |*/
+              /*(EBITS(y_sel[3], 0, 3));*/
+  /*mem[23-1] = (0x01 << 4) |*/
+              /*(EBITS(config->y_sel[4], 0, 1) << 3) |*/
+              /*(EBITS(y_sel[4], 0, 3));*/
+  /*mem[24-1] = (0x01 << 4) |*/
+              /*(EBITS(config->y_sel[5], 0, 1) << 3) |*/
+              /*(EBITS(y_sel[5], 0, 3));*/
+
+  /*Write_CDCE906(7,mem[7-1]);*/
+  /*Write_CDCE906(8,mem[8-1]);*/
+  /*Write_CDCE906(9,mem[9-1]);*/
+  /*Write_CDCE906(12,mem[12-1]);*/
+  /*Write_CDCE906(17,mem[17-1]);*/
+  /*Write_CDCE906(23,mem[23-1]);*/
+
+  /*Write_CDCE906(addr+1,mem[addr]);*/
+
+
+/*}*/
+/*}}}*/
+
 void Write_CH7301(uint8_t address, uint8_t data)
 {
   uint8_t rab = 0x80 | (address & 0x7F);

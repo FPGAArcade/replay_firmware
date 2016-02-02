@@ -51,7 +51,6 @@
 #include "fileio.h"
 #include "hardware.h"
 #include "osd.h"  // for keyboard input to DRAM debug only
-#include "config.h"
 #include "messaging.h"
 
 // Bah! But that's how it is proposed by this lib...
@@ -482,6 +481,83 @@ uint8_t FPGA_ProdTest(void)
   return 0;
 }
 
+void FPGA_ClockMon(status_t *currentStatus)
+{
+  static uint8_t old_stat = 0;
+  uint8_t stat = (OSD_ConfigReadStatus() >> 12) & 0xF;
+
+  if (stat != old_stat) {
+    old_stat = stat;
+    DEBUG(0,"Clock change : %02X", stat);
+    DEBUG(0," status %04X", (uint16_t)OSD_ConfigReadStatus());
+
+    if (stat == 0 || stat == 8) { // default clock
+     // (RTG enabled with sys clock is 8, but we could change the filters etc)
+
+     // restore defaults
+     if (currentStatus->coder_fitted) {
+       CFG_set_coder(currentStatus->coder_cfg);
+     };
+
+     Configure_VidBuf(1, currentStatus->filter_cfg.stc, currentStatus->filter_cfg.lpf, currentStatus->filter_cfg.mode);
+     Configure_VidBuf(2, currentStatus->filter_cfg.stc, currentStatus->filter_cfg.lpf, currentStatus->filter_cfg.mode);
+     Configure_VidBuf(3, currentStatus->filter_cfg.stc, currentStatus->filter_cfg.lpf, currentStatus->filter_cfg.mode);
+
+     Configure_ClockGen(&currentStatus->clock_cfg);
+
+      // do video reset
+      Timer_Wait(100);
+      OSD_Reset(OSDCMD_CTRL_RES_VID);
+
+    } else {
+
+      // coder off
+      CFG_set_coder(CODER_DISABLE);
+
+      // filter off
+      Configure_VidBuf(1, 0, 3, 3);
+      Configure_VidBuf(2, 0, 3, 3);
+      Configure_VidBuf(3, 0, 3, 3);
+
+      // jump to light speed
+      clockconfig_t clkcfg = currentStatus->clock_cfg; // copy
+
+      switch (stat & 0x07) { // ignore top bit
+        case 3 : // 75.25 MHz
+          clkcfg.pll3_m = 2;
+          clkcfg.pll3_n = 11;
+          clkcfg.p_sel[4] = 4; // pll3
+          clkcfg.p_div[4] = 2;
+          clkcfg.y_sel[4] = 1; // on
+          break;
+
+        case 2 : // 50.00 MHz
+          clkcfg.pll3_m = 27;
+          clkcfg.pll3_n = 150;
+          clkcfg.p_sel[4] = 4; // pll3
+          clkcfg.p_div[4] = 3;
+          clkcfg.y_sel[4] = 1; // on
+          break;
+
+        case 1 : // 40.00 MHz
+          clkcfg.pll3_m = 27;
+          clkcfg.pll3_n = 160;
+          clkcfg.p_sel[4] = 4; // pll3
+          clkcfg.p_div[4] = 4;
+          clkcfg.y_sel[4] = 1; // on
+          break;
+
+      }
+      Configure_ClockGen(&clkcfg);
+
+      // do video reset
+      Timer_Wait(100);
+      OSD_Reset(OSDCMD_CTRL_RES_VID);
+    }
+  }
+
+}
+
 //
 // Replay Application Call (rApps):
 //
@@ -620,4 +696,5 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
   asm("ldr r3, = 0x00200000\n");
   asm("bx  r3\n");
 }
+
 

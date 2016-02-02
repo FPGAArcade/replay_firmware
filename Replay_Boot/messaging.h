@@ -53,13 +53,15 @@
 #include "iniparser.h"
 
 /// DEBUGLEVEL: 0...off, 1...basic, 2...most, 3...gory details
-#define debuglevel 0
+#define debuglevel 1
 
 /// OSDLEVEL:   see also DEBUGLEVEL (but specific for additional OSD messaging)
 #define osdlevel   0
 
 /// OPTIONAL DEBUGGING MESSAGES
-#define DEBUG(lvl, fmt...) if (lvl<=debuglevel) MSG_debug(lvl<=osdlevel,fmt);
+//#define DEBUG(lvl, fmt...) if (lvl<=debuglevel) MSG_debug(lvl<=osdlevel,fmt);
+// dont display debug on OSD, only INFO
+#define DEBUG(lvl, fmt...) if (lvl<=debuglevel) MSG_debug(0,fmt);
 
 /// INFO MESSAGES, can't be disabled
 #define INFO(fmt...) MSG_info(fmt)

@@ -71,6 +71,13 @@ typedef struct
 
 typedef struct
 {
+  uint8_t stc;
+  uint8_t lpf;
+  uint8_t mode;
+} vidbuf_t; // only used for backup currently, fix
+
+typedef struct
+{
   uint8_t reg1C;
   uint8_t reg1D;
   uint8_t reg1E;

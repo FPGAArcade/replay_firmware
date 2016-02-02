@@ -81,6 +81,7 @@ extern const char version[];  // temp
   //  input clock = 27MHz.
   //  output = (27 * n / m) / p. example m=375 n=2048 p=12 output = 12.288MHz. VCO = 147.456 MHz
   //
+const vidbuf_t init_vidbuf = {0, 0, 3};
 
 const clockconfig_t init_clock_config_pal = {
   481, 4044,  // pll1 m,n = 227MHz
@@ -633,6 +634,14 @@ void CFG_set_status_defaults(status_t *currentStatus)
 
   currentStatus->button   = BUTTON_MENU;
   currentStatus->osd_init = OSD_INIT_ON;
+
+  currentStatus->osd_init = OSD_INIT_ON;
+
+  currentStatus->clock_cfg  = init_clock_config_ntsc;
+  currentStatus->filter_cfg = init_vidbuf;
+  currentStatus->coder_cfg  = CODER_DISABLE;
+
+  // DAC setup?
 }
 
 uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
@@ -661,21 +670,23 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
         }
                                        // =====================
         if (name==INI_CLOCK) {        // ===> PLL/CLOCKING CONFIGURATION
-          strcpy(pStatus->clock_bak,value);
+          /*strcpy(pStatus->clock_bak,value);*/
           if (MATCH(value,"PAL")) {
-            Configure_ClockGen(&init_clock_config_pal);
+            pStatus->clock_cfg = init_clock_config_pal;
+            /*Configure_ClockGen(&init_clock_config_pal);*/
           }
           else if (MATCH(value,"NTSC")) {
-              Configure_ClockGen(&init_clock_config_ntsc);
+            pStatus->clock_cfg = init_clock_config_ntsc;
+              /*Configure_ClockGen(&init_clock_config_ntsc);*/
             }
             else if (MATCH(value,"HD74")) {
-                Configure_ClockGen(&init_clock_config_hd74);
+              /*Configure_ClockGen(&init_clock_config_hd74);*/
+              pStatus->clock_cfg = init_clock_config_hd74;
               }
               else {
                 ini_list_t valueList[32];
                 uint16_t entries = ParseList(value,valueList,32);
                 if (entries==24) {
-                  // temporary map to structure required for setup routine
                   clockconfig_t clkcfg = {
                     valueList[0].intval, valueList[1].intval,       // pll1 m,n
                     valueList[2].intval, valueList[3].intval,       // pll2 m,n
@@ -690,7 +701,9 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
                       valueList[20].intval,valueList[21].intval,
                       valueList[22].intval,valueList[23].intval  } //y0,1,2,3,4,5
                   };
-                  Configure_ClockGen(&clkcfg);
+                  // sanity check??? nope
+                  pStatus->clock_cfg = clkcfg;
+                  /*Configure_ClockGen(&clkcfg);*/
                 }
                 else return 1;
               }
@@ -698,7 +711,7 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
                                        // =====================
         if (name==INI_CODER) {        // ===> CODER CONFIGURATION (OPTIONAL)
           coder_t codcfg;
-          strcpy(pStatus->coder_bak,value);
+          /*strcpy(pStatus->coder_bak,value);*/
           if (MATCH(value,"DISABLE")) {
             codcfg=CODER_DISABLE;
           }
@@ -716,7 +729,8 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
                   }
                   else return 1;
           if (pStatus->coder_fitted) {
-            CFG_set_coder(codcfg);
+            /*CFG_set_coder(codcfg);*/
+            pStatus->coder_cfg = codcfg;
           } else {
             DEBUG(1,"No coder fitted to update!");
           }
@@ -724,12 +738,16 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
                                        // =====================
         if (name==INI_VFILTER) {      // ===> VIDEO FILTER CONFIGURATION
           ini_list_t valueList[8];
-          strcpy(pStatus->vfilter_bak,value);
+          /*strcpy(pStatus->vfilter_bak,value);*/
           uint16_t entries = ParseList(value,valueList,8);
           if (entries==3) {
-            Configure_VidBuf(1, valueList[0].intval, valueList[1].intval, valueList[2].intval);
-            Configure_VidBuf(2, valueList[0].intval, valueList[1].intval, valueList[2].intval);
-            Configure_VidBuf(3, valueList[0].intval, valueList[1].intval, valueList[2].intval);
+            /*Configure_VidBuf(1, valueList[0].intval, valueList[1].intval, valueList[2].intval);*/
+            /*Configure_VidBuf(2, valueList[0].intval, valueList[1].intval, valueList[2].intval);*/
+            /*Configure_VidBuf(3, valueList[0].intval, valueList[1].intval, valueList[2].intval);*/
+
+            pStatus->filter_cfg.stc  = valueList[0].intval;
+            pStatus->filter_cfg.lpf  = valueList[1].intval;
+            pStatus->filter_cfg.mode = valueList[2].intval;
           }
           else return 1;
         }
@@ -773,15 +791,15 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
             // we allow only reducing clock to avoid issues with sdcard settings
             if (valueList[0].intval>
                 ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8)) {
-              pStatus->spiclk_old = ((AT91C_BASE_SPI->SPI_CSR[0] &
-                                       AT91C_SPI_SCBR) >> 8);
+              /*pStatus->spiclk_old = ((AT91C_BASE_SPI->SPI_CSR[0] &*/
+                                       /*AT91C_SPI_SCBR) >> 8);*/
               AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL |
                                                      (valueList[0].intval<<8);
               uint32_t spiFreq = BOARD_MCK /
                        ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
                        1000000;
               DEBUG(1,"New SPI clock: %d MHz",spiFreq);
-              pStatus->spiclk_bak = valueList[0].intval;
+              /*pStatus->spiclk_bak = valueList[0].intval;*/
             }
           }
           else return 1;
@@ -851,6 +869,17 @@ uint8_t CFG_pre_init(status_t *currentStatus, const char *iniFile)
     }
 
   }
+
+  // config hardware
+  Configure_ClockGen(&currentStatus->clock_cfg);
+
+  if (currentStatus->coder_fitted) {
+    CFG_set_coder(currentStatus->coder_cfg);
+  };
+
+  Configure_VidBuf(1, currentStatus->filter_cfg.stc, currentStatus->filter_cfg.lpf, currentStatus->filter_cfg.mode);
+  Configure_VidBuf(2, currentStatus->filter_cfg.stc, currentStatus->filter_cfg.lpf, currentStatus->filter_cfg.mode);
+  Configure_VidBuf(3, currentStatus->filter_cfg.stc, currentStatus->filter_cfg.lpf, currentStatus->filter_cfg.mode);
 
   DEBUG(2,"PRE-INI processing done");
   return 0;
@@ -944,7 +973,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
       if (section==INI_SETUP) {
                                         // =====================
         if (name==INI_VIDEO) {          // ===> FINAL VIDEO CONFIGURATION
-          strcpy(pStatus->video_bak,value);
+          /*strcpy(pStatus->video_bak,value);*/
           if (pStatus->twi_enabled) {
             ini_list_t valueList[32];
             uint16_t entries = ParseList(value,valueList,32);
@@ -991,15 +1020,15 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
           uint16_t entries = ParseList(value,valueList,8);
           if (entries==1) {
             // we do this to get rid of ""
-            if (pStatus->info_bak) {
-              pStatus->info_bak_last->next=malloc(sizeof(info_list_t));
-              pStatus->info_bak_last=pStatus->info_bak_last->next;
-            } else {
-              pStatus->info_bak=malloc(sizeof(info_list_t));
-              pStatus->info_bak_last=pStatus->info_bak;
-            }
-            pStatus->info_bak_last->next=NULL;
-            strcpy(pStatus->info_bak_last->info_bak,valueList[0].strval);
+            /*if (pStatus->info_bak) {*/
+              /*pStatus->info_bak_last->next=malloc(sizeof(info_list_t));*/
+              /*pStatus->info_bak_last=pStatus->info_bak_last->next;*/
+            /*} else {*/
+              /*pStatus->info_bak=malloc(sizeof(info_list_t));*/
+              /*pStatus->info_bak_last=pStatus->info_bak;*/
+            /*}*/
+            /*pStatus->info_bak_last->next=NULL;*/
+            /*strcpy(pStatus->info_bak_last->info_bak,valueList[0].strval);*/
 
             MSG_info(valueList[0].strval);
           }
@@ -1010,15 +1039,15 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                                        // =====================
         if (name==INI_ROM) {          // ===> UPLOAD A ROM FILE
                                        // (name is relative to INI path)
-          if (pStatus->rom_bak) {
-            pStatus->rom_bak_last->next=malloc(sizeof(rom_list_t));
-            pStatus->rom_bak_last=pStatus->rom_bak_last->next;
-          } else {
-            pStatus->rom_bak=malloc(sizeof(rom_list_t));
-            pStatus->rom_bak_last=pStatus->rom_bak;
-          }
-          pStatus->rom_bak_last->next=NULL;
-          strcpy(pStatus->rom_bak_last->rom_bak,value);
+          /*if (pStatus->rom_bak) {*/
+            /*pStatus->rom_bak_last->next=malloc(sizeof(rom_list_t));*/
+            /*pStatus->rom_bak_last=pStatus->rom_bak_last->next;*/
+          /*} else {*/
+            /*pStatus->rom_bak=malloc(sizeof(rom_list_t));*/
+            /*pStatus->rom_bak_last=pStatus->rom_bak;*/
+          /*}*/
+          /*pStatus->rom_bak_last->next=NULL;*/
+          /*strcpy(pStatus->rom_bak_last->rom_bak,value);*/
           if (pStatus->spi_fpga_enabled) {
             ini_list_t valueList[8];
             uint16_t entries = ParseList(value,valueList,8);
@@ -1111,15 +1140,15 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                                        // =====================
         if (name==INI_DATA) {          // ===> UPLOAD A DATA SET
                                        //      (name is relative to INI path)
-          if (pStatus->data_bak) {
-            pStatus->data_bak_last->next=malloc(sizeof(data_list_t));
-            pStatus->data_bak_last=pStatus->data_bak_last->next;
-          } else {
-            pStatus->data_bak=malloc(sizeof(data_list_t));
-            pStatus->data_bak_last=pStatus->data_bak;
-          }
-          pStatus->data_bak_last->next=NULL;
-          strcpy(pStatus->data_bak_last->data_bak,value);
+          /*if (pStatus->data_bak) {*/
+            /*pStatus->data_bak_last->next=malloc(sizeof(data_list_t));*/
+            /*pStatus->data_bak_last=pStatus->data_bak_last->next;*/
+          /*} else {*/
+            /*pStatus->data_bak=malloc(sizeof(data_list_t));*/
+            /*pStatus->data_bak_last=pStatus->data_bak;*/
+          /*}*/
+          /*pStatus->data_bak_last->next=NULL;*/
+          /*strcpy(pStatus->data_bak_last->data_bak,value);*/
           if (pStatus->spi_fpga_enabled) {
             ini_list_t valueList[32];
             uint16_t entries = ParseList(value,valueList,32);
@@ -1631,20 +1660,20 @@ void CFG_add_default(status_t *currentStatus)
   pStatus->item_opt_act->last=NULL;
   pStatus->item_opt_act->option_name[0]=0;
 
-  pStatus->menu_item_act = pStatus->menu_item_act->next;
-  strcpy(pStatus->menu_item_act->item_name,"Config Backup");
-  pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-  pStatus->menu_item_act->next->last=pStatus->menu_item_act;
-  pStatus->menu_item_act->option_list=NULL;
-  pStatus->menu_item_act->selected_option=NULL;
-  pStatus->menu_item_act->conf_dynamic=0;
-  pStatus->menu_item_act->conf_mask=0;
-  strcpy(pStatus->menu_item_act->action_name,"backup");
-  pStatus->menu_item_act->option_list=malloc(sizeof(itemoption_t));
-  pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-  pStatus->item_opt_act->next=NULL;
-  pStatus->item_opt_act->last=NULL;
-  pStatus->item_opt_act->option_name[0]=0;
+  /*pStatus->menu_item_act = pStatus->menu_item_act->next;*/
+  /*strcpy(pStatus->menu_item_act->item_name,"Save Config");*/
+  /*pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));*/
+  /*pStatus->menu_item_act->next->last=pStatus->menu_item_act;*/
+  /*pStatus->menu_item_act->option_list=NULL;*/
+  /*pStatus->menu_item_act->selected_option=NULL;*/
+  /*pStatus->menu_item_act->conf_dynamic=0;*/
+  /*pStatus->menu_item_act->conf_mask=0;*/
+  /*strcpy(pStatus->menu_item_act->action_name,"backup");*/
+  /*pStatus->menu_item_act->option_list=malloc(sizeof(itemoption_t));*/
+  /*pStatus->item_opt_act = pStatus->menu_item_act->option_list;*/
+  /*pStatus->item_opt_act->next=NULL;*/
+  /*pStatus->item_opt_act->last=NULL;*/
+  /*pStatus->item_opt_act->option_name[0]=0;*/
 
   pStatus->menu_item_act = pStatus->menu_item_act->next;
   strcpy(pStatus->menu_item_act->item_name,"Reboot Board");
@@ -1701,6 +1730,7 @@ void CFG_free_menu(status_t *currentStatus)
   currentStatus->item_opt_act = NULL;
 }
 
+/*
 void CFG_free_bak(status_t *currentStatus)
 {
   currentStatus->rom_bak_last=currentStatus->rom_bak;
@@ -1742,6 +1772,7 @@ void CFG_free_bak(status_t *currentStatus)
   }
   currentStatus->spiclk_old=0;
 }
+*/
 
 void _CFG_write_str(FF_FILE *fIni, char *str)
 {
@@ -1758,6 +1789,7 @@ void _CFG_write_strln(FF_FILE *fIni, char *str)
 void CFG_save_all(status_t *currentStatus, const char *iniDir,
                   const char *iniFile)
 {
+  /*
   FF_FILE *fIni = NULL;
   char full_filename[FF_MAX_PATH];
   sprintf(full_filename,"%s%s",iniDir,iniFile);
@@ -1875,5 +1907,5 @@ void CFG_save_all(status_t *currentStatus, const char *iniDir,
       FF_Close(fIni);
     }
   }
-
+  */
 }

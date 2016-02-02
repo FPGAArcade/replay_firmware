@@ -59,8 +59,10 @@
 #define OSDCMD_READKBD    0x08
 
 #define OSDCMD_CTRL       0x10
-#define OSDCMD_CTRL_RES   0x11        // OSD reset command
-#define OSDCMD_CTRL_HALT  0x12        // OSD reset command
+
+#define OSDCMD_CTRL_RES     0x01        // OSD reset command
+#define OSDCMD_CTRL_HALT    0x02        // OSD reset command
+#define OSDCMD_CTRL_RES_VID 0x04        // OSD reset command
 
 #define OSDCMD_CONFIG     0x20
 #define OSDCMD_DISABLE    0x40

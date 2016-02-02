@@ -47,6 +47,7 @@
 
 #include "filesel.h" // tDirScan
 #include "iniparser.h" // MAX_LINE_LEN
+#include "twi.h" // clockconfig_t
 
 #ifndef CONFIG_H_INCLUDED
 #define CONFIG_H_INCLUDED
@@ -197,36 +198,36 @@ typedef struct menu {
 
 /** @brief ROM download backup structure
 */
-typedef struct rom_list {
-  /** link to next menu entry */
-  struct rom_list   *next;
+//typedef struct rom_list {
+  ///** link to next menu entry */
+  //struct rom_list   *next;
 
-  /** value of this menu entry */
-  char              rom_bak[MAX_LINE_LEN];
+  ///** value of this menu entry */
+  //char              rom_bak[MAX_LINE_LEN];
 
-} rom_list_t;
+//} rom_list_t;
 
 /** @brief DATA download backup structure
 */
-typedef struct data_list {
-  /** link to next menu entry */
-  struct data_list  *next;
+//typedef struct data_list {
+  ///** link to next menu entry */
+  //struct data_list  *next;
 
-  /** value of this menu entry */
-  char              data_bak[MAX_LINE_LEN];
+  ///** value of this menu entry */
+  //char              data_bak[MAX_LINE_LEN];
 
-} data_list_t;
+//} data_list_t;
 
 /** @brief INFO download backup structure
 */
-typedef struct info_list {
-  /** link to next menu entry */
-  struct info_list  *next;
+//typedef struct info_list {
+  ///** link to next menu entry */
+  //struct info_list  *next;
 
-  /** value of this menu entry */
-  char              info_bak[MAX_LINE_LEN];
+  ///** value of this menu entry */
+  //char              info_bak[MAX_LINE_LEN];
 
-} info_list_t;
+//} info_list_t;
 
 /* ========================================================================== */
 
@@ -293,7 +294,7 @@ typedef struct {
   uint32_t     last_rom_adr;
 
   /** set DRAM phase config - set by ini_post_read() */
-  int8_t      dram_phase;
+  int8_t       dram_phase;
 
   /* ======== CONFIGURATION ======== */
 
@@ -404,32 +405,38 @@ typedef struct {
   /** the actual browser directory path */
   char         act_dir[FF_MAX_PATH];
 
+  /* ======== remember clock / video config  ======== */
+
+  clockconfig_t  clock_cfg;
+  vidbuf_t       filter_cfg;
+  coder_t        coder_cfg;
+
   /* ======== used for config backup only ======== */
 
   /** clock line backup */
-  char         clock_bak[MAX_LINE_LEN];
+  //char         clock_bak[MAX_LINE_LEN];
   /** coder line backup */
-  char         coder_bak[MAX_LINE_LEN];
+  //char         coder_bak[MAX_LINE_LEN];
   /** vfilter line backup */
-  char         vfilter_bak[MAX_LINE_LEN];
+  //char         vfilter_bak[MAX_LINE_LEN];
   /** video line backup */
-  char         video_bak[MAX_LINE_LEN];
+  //char         video_bak[MAX_LINE_LEN];
   /** rom lines backup */
-  rom_list_t   *rom_bak;
+  //rom_list_t   *rom_bak;
   /** rom lines backup position */
-  rom_list_t   *rom_bak_last;
+  //rom_list_t   *rom_bak_last;
   /** data lines backup */
-  data_list_t  *data_bak;
+  //data_list_t  *data_bak;
   /** data lines backup position*/
-  data_list_t  *data_bak_last;
+  //data_list_t  *data_bak_last;
   /** info lines backup */
-  info_list_t  *info_bak;
+  //info_list_t  *info_bak;
   /** info lines backup position*/
-  info_list_t  *info_bak_last;
+  //info_list_t  *info_bak_last;
   /** SPI clock backup */
-  int32_t      spiclk_bak;
+  //int32_t      spiclk_bak;
   /** SPI clock last value */
-  int32_t      spiclk_old;
+  //int32_t      spiclk_old;
 } status_t;
 
 /* ========================================================================== */
@@ -626,7 +633,7 @@ void CFG_free_menu(status_t *currentStatus);
 
     @param currentStatus pointer to the replay board status dataset
 */
-void CFG_free_bak(status_t *currentStatus);
+//void CFG_free_bak(status_t *currentStatus);
 
 /** @brief INI SAVER
 

@@ -794,11 +794,11 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       Filesel_Update(current_status->dir_scan, SCAN_NEXT);
       update=1;
     }
-    if ((key  & ~KF_REPEATED) == KEY_PGUP) {
+    if ((key  & ~KF_REPEATED) == KEY_PGUP || (key  & ~KF_REPEATED) == KEY_LEFT) {
       Filesel_Update(current_status->dir_scan, SCAN_PREV_PAGE);
       update=1;
     }
-    if ((key  & ~KF_REPEATED) == KEY_PGDN) {
+    if ((key  & ~KF_REPEATED) == KEY_PGDN || (key  & ~KF_REPEATED) == KEY_RIGHT) {
       Filesel_Update(current_status->dir_scan, SCAN_NEXT_PAGE);
       update=1;
     }

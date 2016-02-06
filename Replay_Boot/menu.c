@@ -725,7 +725,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
 
   // --------------------------------------------------
 
-  if (key==KEY_MENU) {
+  if (key==KEY_MENU || (key == (KEY_F10|KF_ALT))) {
     // OSD menu handling, switch it on/off
 
     if (current_status->show_menu || current_status->popup_menu ||

@@ -57,8 +57,8 @@ SUBMDL   = AT91SAM7S256
 # Toolchain prefix (i.e arm-elf -> arm-elf-gcc.exe)
 TCHAIN =  arm-none-eabi
 FLASH_TOOL = OPENOCD
-#USE_THUMB_MODE = YES
-USE_THUMB_MODE = NO
+USE_THUMB_MODE = YES
+#USE_THUMB_MODE = NO
 
 ## Create ROM-Image (final)
 RUN_MODE=ROM_RUN
@@ -84,7 +84,6 @@ SRC += common/syscalls.c
 SRC += swi_handler_user.c
 SRC += printf.c
 SRC += stringlight.c
-SRC += hardware.c
 SRC += card.c
 SRC += fpga.c
 SRC += twi.c
@@ -105,7 +104,7 @@ SRC += common/Cstartup_SAM7.c
 
 # List C source files here which must be compiled in ARM-Mode.
 # use file-extension c for "c-only"-files
-SRCARM =
+SRCARM = hardware.c
 
 # List C++ source files here.
 # use file-extension cpp for C++-files (use extension .cpp)
@@ -213,6 +212,7 @@ CFLAGS += -Wpointer-arith -Wswitch
 CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
 CFLAGS += -Wa,-adhlns=$(addprefix $(BUILDDIR), $(subst $(suffix $<),.lst,$<))
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
+CFLAGS += -ffunction-sections -fdata-sections
 
 # flags only for C
 CONLYFLAGS += -Wnested-externs
@@ -325,6 +325,7 @@ LST += $(addprefix $(BUILDDIR), $(CPPSRC:.cpp=.lst) $(CPPSRCARM:.cpp=.lst))
 # Compiler flags to generate dependency files.
 ### GENDEPFLAGS = -Wp,-M,-MP,-MT,$(*F).o,-MF,.dep/$(@F).d
 GENDEPFLAGS = -MD -MP -MF .dep/$(@F).d
+DEPMAKEFILE = .dep/Makefile
 
 # Combine all necessary flags and optional flags.
 # Add target processor to flags.
@@ -336,13 +337,16 @@ ALL_ASFLAGS = -mcpu=$(MCU) $(THUMB_IW) -I. -x assembler-with-cpp $(ASFLAGS)
 #all: begin gccversion sizebefore build sizeafter finished end
 all: begin $(BUILDDIR)/isset gccversion build finished end
 
+install:
+	../Replay_Update/FW/usbdl load $(BUILDDIR)$(TARGET).s19
+
 # set up directory for output files, inluding subdirs for libs
 $(BUILDDIR)/isset:
 	mkdir -p $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
 	echo ok > $(BUILDDIR)/isset
 #       mkdir -p $(OUTDIR)
 
-build: elf hex bin s19 lss sym
+build: elf hex bin s19 lss sym size
 
 elf: $(BUILDDIR)$(TARGET).elf
 hex: $(BUILDDIR)$(TARGET).hex
@@ -355,7 +359,6 @@ sym: $(BUILDDIR)$(TARGET).sym
 begin:
 	@echo
 	@echo $(MSG_BEGIN)
-	@touch main.c
 
 finished:
 	@echo $(MSG_ERRORS_NONE)
@@ -364,6 +367,10 @@ end:
 	@echo $(MSG_END)
 	@echo
 
+size:
+	@echo
+	$(SIZE) $(BUILDDIR)$(TARGET).elf
+	@echo
 
 # Display compiler version information.
 gccversion :
@@ -457,6 +464,10 @@ $(AOBJARM) : $(BUILDDIR)%.o : %.S
 	@echo $(MSG_ASSEMBLING_ARM) $<
 	$(CC) -c $(ALL_ASFLAGS) $< -o $@
 
+$(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM): $(DEPMAKEFILE)
+
+$(DEPMAKEFILE): Makefile
+	@touch $@
 
 # Target: clean project.
 clean: begin clean_list finished end
@@ -465,17 +476,16 @@ clean: begin clean_list finished end
 clean_list :
 	@echo
 	@echo $(MSG_CLEANING)
-	$(REMOVE) $(TARGET).hex
-	$(REMOVE) $(TARGET).bin
+	$(REMOVE) -r .dep
+	$(REMOVE) $(BUILDDIR)$(TARGET).hex
+	$(REMOVE) $(BUILDDIR)$(TARGET).bin
 	$(REMOVE) $(TARGET).s19
-	$(REMOVE) $(TARGET).BUILDDIR
-	$(REMOVE) $(TARGET).elf
-	$(REMOVE) $(TARGET).map
-	$(REMOVE) $(TARGET).BUILDDIR
-	$(REMOVE) $(TARGET).a90
-	$(REMOVE) $(TARGET).sym
-	$(REMOVE) $(TARGET).lnk
-	$(REMOVE) $(TARGET).lss
+	$(REMOVE) $(BUILDDIR)$(TARGET).elf
+	$(REMOVE) $(BUILDDIR)$(TARGET).map
+	$(REMOVE) $(BUILDDIR)$(TARGET).a90
+	$(REMOVE) $(BUILDDIR)$(TARGET).sym
+	$(REMOVE) $(BUILDDIR)$(TARGET).lnk
+	$(REMOVE) $(BUILDDIR)$(TARGET).lss
 	$(REMOVE) $(COBJ)
 	$(REMOVE) $(CPPOBJ)
 	$(REMOVE) $(AOBJ)
@@ -499,5 +509,5 @@ clean_list :
 
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion \
-build elf hex bin s19 lss sym clean clean_list program
+build elf hex bin s19 lss sym clean clean_list program size
 

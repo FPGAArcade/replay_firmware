@@ -61,7 +61,7 @@
 /// OPTIONAL DEBUGGING MESSAGES
 //#define DEBUG(lvl, fmt...) if (lvl<=debuglevel) MSG_debug(lvl<=osdlevel,fmt);
 // dont display debug on OSD, only INFO
-#define DEBUG(lvl, fmt...) if (lvl<=debuglevel) MSG_debug(0,fmt);
+#define DEBUG(lvl, fmt...) do { if (lvl<=debuglevel) MSG_debug(0, (const char*)__FILE__, (unsigned int)__LINE__, fmt); } while(0)
 
 /// INFO MESSAGES, can't be disabled
 #define INFO(fmt...) MSG_info(fmt)
@@ -102,7 +102,7 @@ void MSG_init(status_t *status, uint8_t serial_on);
 */
 void MSG_fatal_error(uint8_t error);
 
-void MSG_debug(uint8_t do_osd, char *fmt, ...);
+void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char *fmt, ...);
 
 /** @brief OSD/SERIAL INFO MESSAGE
 

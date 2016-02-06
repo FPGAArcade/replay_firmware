@@ -114,7 +114,7 @@ void MSG_fatal_error(uint8_t error)
 
 }
 
-void MSG_debug(uint8_t do_osd, char *fmt, ...)
+void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char *fmt, ...)
 { char s[256]; // take "enough" size here, not to get any overflow problems...
   char *sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
 
@@ -126,7 +126,7 @@ void MSG_debug(uint8_t do_osd, char *fmt, ...)
   va_end(argptr);
 
   // print on USART including CR/LF if enabled
-  if (msg_serial) printf("DBG:  %s\r\n",s);
+  if (msg_serial) printf("DBG: [%s:%d] %s\r\n",file, line, s);
 
   // optional OSD print (check also for set up of required status structure)
   if (do_osd && msg_status) _MSG_to_osd(s,'D');

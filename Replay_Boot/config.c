@@ -615,6 +615,11 @@ en_spi =   1,  1
 #        off / menu / reset
 button = menu
 
+# keyboard protocol configuration
+#
+#        ps/2 / amiga
+keyboard = ps/2
+
 [UPLOAD]
 
 # enables verification feature, checks back any ROM/DATA upload
@@ -633,6 +638,7 @@ void CFG_set_status_defaults(status_t *currentStatus)
   strcpy(currentStatus->bin_file,"replay.bin");
 
   currentStatus->button   = BUTTON_MENU;
+  currentStatus->keyboard = KEYBOARD_PS2;
   currentStatus->osd_init = OSD_INIT_ON;
 
   currentStatus->osd_init = OSD_INIT_ON;
@@ -811,6 +817,14 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
           else if (MATCH(value,"MENU"))  pStatus->button=BUTTON_MENU;
           else return 1;
           DEBUG(1,"Button control: %s",value);
+        }
+                                       // =====================
+        if (name==INI_KEYB_MODE) {       // ===> KEYBOARD CONFIGURATION
+          if (MATCH(value,"PS/2"))       pStatus->keyboard=KEYBOARD_PS2;
+          else if (MATCH(value,"PS2"))   pStatus->keyboard=KEYBOARD_PS2;
+          else if (MATCH(value,"AMIGA")) pStatus->keyboard=KEYBOARD_AMIGA;
+          else return 1;
+          DEBUG(1,"Keyboard control: %s",value);
         }
 
         if (name==INI_OSD_INIT) {       // ===> OSD STARTUP
@@ -1507,12 +1521,20 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   uint32_t init_mem = CFG_get_free_mem();
   DEBUG(1,"Initial free MEM: %ld bytes", init_mem);
 
+  if (currentStatus->keyboard == KEYBOARD_AMIGA) {
+    MSG_info("Enabling AMIGA keyboard");
+    OSD_ConfigSendCtrl(kCTRL_KEYB_MASK, kCTRL_KEYB_MASK);
+  } else {
+    MSG_info("Using PS/2 keyboard protocol");
+    OSD_ConfigSendCtrl(0, kCTRL_KEYB_MASK);
+  }
+
   if (!currentStatus->dram_phase) {
-    OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
+    OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE, kCTRL_DRAM_MASK); // default phase
   } else {
     if (abs(currentStatus->dram_phase)<21) {
       INFO("DRAM phase fix: %d -> %d",kDRAM_PHASE,kDRAM_PHASE + currentStatus->dram_phase);
-      OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (kDRAM_PHASE + currentStatus->dram_phase)); // phase from INI
+      OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (kDRAM_PHASE + currentStatus->dram_phase), kCTRL_DRAM_MASK); // phase from INI
     } else {
       WARNING("DRAM phase value bad, ignored!");
     }

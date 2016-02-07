@@ -52,6 +52,7 @@
 // nasty globals ...
 uint8_t osd_vscroll = 0;
 uint8_t osd_page = 0;
+static uint32_t osd_ctrl = 0x0;
 
 // a ? e1:e2 e1 a/=0, e2 a==0
 void OSD_Write(uint8_t row, const char *s, uint8_t invert)
@@ -312,14 +313,15 @@ void OSD_ConfigSendUserS(uint32_t configS)
   SPI_DisableOsd();
 }
 
-void OSD_ConfigSendCtrl(uint32_t config)
+void OSD_ConfigSendCtrl(uint32_t config, uint32_t mask)
 {
-  DEBUG(1,"ram config 0x%04X",config);
+  osd_ctrl = (osd_ctrl & ~mask) | (config & mask);
+  DEBUG(1,"ram config 0x%04X",osd_ctrl);
 
   SPI_EnableOsd();
   SPI(OSDCMD_CONFIG | 0x03); // ctrl
-  SPI((uint8_t)(config));
-  SPI((uint8_t)(config >> 8));
+  SPI((uint8_t)(osd_ctrl));
+  SPI((uint8_t)(osd_ctrl >> 8));
   SPI_DisableOsd();
 }
 

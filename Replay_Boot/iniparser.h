@@ -30,6 +30,7 @@ typedef enum {
     INI_EN_SPI,          ///< token for EN_SPI keyword (enables post-SPI usage)
     INI_SPI_CLK,         ///< token for INI_SPI_CLK keyword (sets SPI speed)
     INI_BUTTON,          ///< token for EN_BUTTON keyword (replay button behavior)
+    INI_KEYB_MODE,       ///< token for Keyboard Mode keyword (PS/2 / AMIGA keyboard protocol)
     INI_VIDEO,           ///< token for VIDEO keyword (video DAC configuration)
     INI_CONFIG,          ///< token for CONFIG keyword (config bits for FPGA/OSD)
     INI_CSTORE,          ///< token for CSTORE keyword (filename to store dynamic config part)

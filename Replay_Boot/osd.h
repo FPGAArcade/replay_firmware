@@ -162,7 +162,7 @@ void OSD_Disable(void);
 void OSD_Reset(unsigned char option);
 void OSD_ConfigSendUserD(uint32_t configD);
 void OSD_ConfigSendUserS(uint32_t configS);
-void OSD_ConfigSendCtrl(uint32_t config);
+void OSD_ConfigSendCtrl(uint32_t config, uint32_t mask);
 void OSD_ConfigSendFileIO_CHA(uint32_t config);
 void OSD_ConfigSendFileIO_CHB(uint32_t config);
 

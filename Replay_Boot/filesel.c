@@ -45,6 +45,7 @@
 */
 
 #include "filesel.h"
+#include "hardware.h"
 #include "messaging.h"
 
 extern FF_IOMAN *pIoman;
@@ -138,6 +139,8 @@ void PrintSummary(tDirScan* dir_entries)
 
 void Filesel_ScanUpdate(tDirScan* dir_entries)
 {
+  unsigned long time = Timer_Get(0);
+
   FF_DIRENT mydir;
   int comp_result, comp_result2 = 0;
   FF_ERROR tester = 0;
@@ -229,12 +232,15 @@ void Filesel_ScanUpdate(tDirScan* dir_entries)
     tester = FF_FindNext(pIoman, &mydir);
   }
   //PrintSummary(dir_entries);
+
+  DEBUG(2,"%s completed in %d ms.", __FUNCTION__, (uint32_t) ((Timer_Get(0)-time) >> 20));
 }
 
 // public
 
 void Filesel_ScanFirst(tDirScan* dir_entries)
 {
+  unsigned long time = Timer_Get(0);
 
   // mode 0 find first entry *
 
@@ -300,12 +306,16 @@ void Filesel_ScanFirst(tDirScan* dir_entries)
 
   dir_entries->total_entries = total;
   //PrintSummary(dir_entries);
+
+  DEBUG(2,"%s completed in %d ms.", __FUNCTION__, (uint32_t) ((Timer_Get(0)-time) >> 20));
 }
 
 // called on startup
 void Filesel_Init(tDirScan* dir_entries, char* pPath, char* pExt)
 {
-  //DEBUG(1,"Init entry, path %s", pPath);
+  unsigned long time = Timer_Get(0);
+
+  DEBUG(1,"Init entry, path %s", pPath);
 
   _strlcpy(dNull.FileName, "", FF_MAX_FILENAME);
   dNull.Attrib = 0;
@@ -319,6 +329,8 @@ void Filesel_Init(tDirScan* dir_entries, char* pPath, char* pExt)
   }
 
   Filesel_ChangeDir(dir_entries, pPath);
+
+  DEBUG(2,"%s completed in %d ms.", __FUNCTION__, (uint32_t) ((Timer_Get(0)-time) >> 20));
 }
 
 // called on directory change or startup
@@ -369,6 +381,8 @@ void Filesel_DelFilterChar(tDirScan* dir_entries)
 
 void Filesel_ScanFind(tDirScan* dir_entries, uint8_t search)
 {
+  unsigned long time = Timer_Get(0);
+
   FF_DIRENT mydir;
   FF_DIRENT dirent_file;
   FF_DIRENT dirent_dir;
@@ -417,6 +431,7 @@ void Filesel_ScanFind(tDirScan* dir_entries, uint8_t search)
     dir_entries->offset = 127;
     dir_entries->sel = 128;
   }
+  DEBUG(2,"%s completed in %d ms.", __FUNCTION__, (uint32_t) ((Timer_Get(0)-time) >> 20));  
 }
 
 FF_DIRENT Filesel_GetEntry(tDirScan* dir_entries, uint8_t entry)

@@ -61,6 +61,7 @@ const ini_symtab_t symtab[] = {
   { "EN_SPI"        ,INI_EN_SPI        ,FALSE },
   { "SPI_CLK"       ,INI_SPI_CLK       ,FALSE },
   { "BUTTON"        ,INI_BUTTON        ,FALSE },
+  { "HOTKEY"        ,INI_HOTKEY        ,FALSE },
   { "KEYBOARD"      ,INI_KEYB_MODE     ,FALSE },
   { "VIDEO"         ,INI_VIDEO         ,FALSE },
   { "CONFIG"        ,INI_CONFIG        ,FALSE },

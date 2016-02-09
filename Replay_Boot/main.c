@@ -315,10 +315,10 @@ int main(void)
         uint16_t key;
 
         // get keys (from Replay button, RS232 or PS/2 via OSD/FPGA)
-        key = OSD_GetKeyCode(current_status.spi_osd_enabled);
+        key = OSD_GetKeyCode(current_status.spi_osd_enabled, current_status.hotkey);
 
-        if ((key>=0x20) && (key<=0x7F)) {
-          DEBUG(3,"Key: 0x%04X - '%c'",key,key);
+        if (key && (key & KF_RELEASED) == 0) {
+          DEBUG(3,"Key: 0x%04X - '%s'",key, OSD_GetStringFromKeyCode(key));
         } else if (key) {
           DEBUG(3,"Key: 0x%04X",key);
         }

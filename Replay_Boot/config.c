@@ -620,11 +620,6 @@ button = menu
 #        ps/2 / amiga
 keyboard = ps/2
 
-# OSD hotkey combo configuration
-#
-#        f12 / ...
-hotkey = f12
-
 [UPLOAD]
 
 # enables verification feature, checks back any ROM/DATA upload
@@ -643,10 +638,6 @@ void CFG_set_status_defaults(status_t *currentStatus)
   strcpy(currentStatus->bin_file,"replay.bin");
 
   currentStatus->button   = BUTTON_MENU;
-  currentStatus->hotkey   = KEY_MENU;
-  strncpy(currentStatus->hotkey_string,
-          OSD_GetStringFromKeyCode(currentStatus->hotkey),
-          sizeof(currentStatus->hotkey_string));
   currentStatus->keyboard = KEYBOARD_PS2;
   currentStatus->osd_init = OSD_INIT_ON;
 
@@ -826,16 +817,6 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
           else if (MATCH(value,"MENU"))  pStatus->button=BUTTON_MENU;
           else return 1;
           DEBUG(1,"Button control: %s",value);
-        }
-                                       // =====================
-        if (name==INI_HOTKEY) {       // ===> HOTKEY CONFIGURATION
-          uint16_t keycode = OSD_GetKeyCodeFromString(value);
-          if (!keycode)
-            return 1;
-          pStatus->hotkey = keycode;
-          strncpy(pStatus->hotkey_string, OSD_GetStringFromKeyCode(keycode), sizeof(pStatus->hotkey_string));
-          pStatus->hotkey_string[sizeof(pStatus->hotkey_string)-1] = 0;
-          DEBUG(1,"Hotkey control: %s -> %04X / %s", value, pStatus->hotkey, pStatus->hotkey_string);
         }
                                        // =====================
         if (name==INI_KEYB_MODE) {       // ===> KEYBOARD CONFIGURATION

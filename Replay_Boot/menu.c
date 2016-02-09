@@ -447,18 +447,6 @@ void _MENU_back_dir(char *pPath)
   }
 }
 
-// A bit ugly construct due to the lack of support for variable format precision in (s)printf
-#define print_centered_status(fmt, ...)                         \
-  do {                                                          \
-    char buffer[64];                                            \
-    const char center = 16;                                     \
-    sprintf(buffer, "                " fmt, __VA_ARGS__);       \
-    size_t padding = (strlen(buffer) - center) / 2;             \
-    OSD_WriteRC(MENU_STATUS, 0,                                 \
-                buffer + (padding < center ? padding : center), \
-                0, 0x0f, 0);                                    \
-  } while (0)
-
 // TODO: colours from INI file instead of hardcoding...?
 void _MENU_update_ui(status_t *current_status)
 {
@@ -513,7 +501,7 @@ void _MENU_update_ui(status_t *current_status)
     }
 
     // print status line
-    print_centered_status("LEFT/RIGHT - %s/ESC", current_status->hotkey_string);
+    OSD_WriteRC(MENU_STATUS, 0, " LEFT/RIGHT - F12/replaybtn/ESC", 0, 0x0f, 0);
   }
   else if (current_status->popup_menu) {
     //
@@ -619,7 +607,7 @@ void _MENU_update_ui(status_t *current_status)
         }
       }
       // print status line
-      print_centered_status("UP/DOWN/RET/ESC - %s", current_status->hotkey_string);
+      OSD_WriteRC(MENU_STATUS, 0, " UP/DOWN/RET/ESC - F12/replaybtn",0,0x0f,0);
     } else {
       //
       // handling replay setup part (general menus)
@@ -684,7 +672,7 @@ void _MENU_update_ui(status_t *current_status)
         pItem = pItem->next;
       }
       // print status line
-      print_centered_status("UP/DWN/LE/RI - %s/ESC", current_status->hotkey_string);
+      OSD_WriteRC(MENU_STATUS, 0, "UP/DWN/LE/RI - F12/replaybtn/ESC",0,0x0f,0);
     }
   }
 }
@@ -737,7 +725,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
 
   // --------------------------------------------------
 
-  if (key==KEY_MENU) {
+  if (key==KEY_MENU || (key == (KEY_F10|KF_ALT))) {
     // OSD menu handling, switch it on/off
 
     if (current_status->show_menu || current_status->popup_menu ||

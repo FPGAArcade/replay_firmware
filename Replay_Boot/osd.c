@@ -475,7 +475,7 @@ uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2)
   return 0;
 }
 
-uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
+uint16_t OSD_GetKeyCode(uint8_t osd_enabled)
 {
   // front menu button stuff
   static uint32_t button_delay;
@@ -603,10 +603,6 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
         }
       }
     }
-    if (key_code == hotkey) {
-      key_code = key_break | KEY_MENU;
-      DEBUG(2,"Hotkey (%04X) detected ; Overriding with KEY_MENU (%04X)", hotkey, key_code);
-    }
     if (key_code&0x7FF) {
       if (key_code == old_key_code) {
         key_code |= KF_REPEATED;
@@ -707,140 +703,4 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
   return key_code;
 }
 
-// Conversion from string to keycode ('ctrl-c' => 0x0843), and reverse.
-static struct
-{
-  const char* string;
-  uint16_t keycode;
-} StringToKeycode [] =
-{
-  { "CTRL"  , KF_CTRL   },
-  { "SHIFT" , KF_SHIFT  },
-  { "ALT"   , KF_ALT    },
-  { "HOME"  , KEY_HOME  },
-  { "PGUP"  , KEY_PGUP  },
-  { "PGDN"  , KEY_PGDN  },
-  { "END"   , KEY_END   },
-  { "UP"    , KEY_UP    },
-  { "DOWN"  , KEY_DOWN  },
-  { "LEFT"  , KEY_LEFT  },
-  { "RIGHT" , KEY_RIGHT },
-  { "F1"    , KEY_F1    },
-  { "F2"    , KEY_F2    },
-  { "F3"    , KEY_F3    },
-  { "F4"    , KEY_F4    },
-  { "F5"    , KEY_F5    },
-  { "F6"    , KEY_F6    },
-  { "F7"    , KEY_F7    },
-  { "F8"    , KEY_F8    },
-  { "F9"    , KEY_F9    },
-  { "F10"   , KEY_F10   },
-  { "F11"   , KEY_F11   },
-  { "F12"   , KEY_F12   },
-  { "MENU"  , KEY_MENU  },
-  { "ESC"   , KEY_ESC   },
-  { "ENTER" , KEY_ENTER },
-  { "BACK"  , KEY_BACK  },
-  { "SPACE" , KEY_SPACE },
-  { 0       , 0         } // end-of-table
-};
 
-uint16_t OSD_GetKeyCodeFromString(const char* string)
-{
-  const char* value = string;
-  uint16_t keycode = 0;
-  uint16_t token_length;
-  const size_t num_mappings = sizeof(StringToKeycode) / sizeof(StringToKeycode[0]);
-
-  DEBUG(3,"Parsing keycode from '%s'", value);
-  while(value && *value) {
-    // First find the substring (token) delimiters
-    token_length = 0;
-    while(*value && !isalnum((uint8_t)*value))
-      ++value;
-    for(token_length = 0; isalnum((uint8_t)*(value+token_length)); ++token_length)
-      ;
-    if (!token_length)
-      break;
-
-    DEBUG(3,"Token is %d chars; starting with '%s'", token_length, value);
-
-    // Next find the keycode matching the substring (or, ASCII if the token has length of 1)
-    if (token_length > 1) {
-      for (int i = 0; i < num_mappings; ++i) {
-        const char* strI = StringToKeycode[i].string;
-        uint16_t keyI = StringToKeycode[i].keycode;
-
-        if (!strI) {
-          DEBUG(1,"Unknown key substring - not defined by StringToKeycode mapping : %s", value);
-          return 0;
-        }
-
-        uint16_t key = keycode & 0x7ff;
-        uint8_t is_modifer = (keyI & 0x7ff) == 0;
-
-        if (strnicmp(value, strI, token_length) == 0) {
-          // Check if we already have a full keycode defined
-          if (!is_modifer && key != 0) {
-            DEBUG(1,"Illegal keycode combo ; Found %s, but key already defined %04x", strI, keycode);
-            return 0;
-          }
-          DEBUG(3,"Found substring '%s'", strI);
-          keycode |= keyI;
-          break;
-        }
-      }
-    } else {
-      char c = toupper((uint8_t)*value);
-      if (keycode & 0x7ff) {
-        DEBUG(1,"Illegal keycode combo ; Found %c, but key already defined %04x", c, keycode);
-        return 0;
-      }
-      DEBUG(3,"Found substring '%c'", c);
-      keycode |= c;
-    }
-
-    value += token_length;
-  }
-
-  DEBUG(3, "Decoded '%s' to %04X / '%s'", string, keycode, OSD_GetStringFromKeyCode(keycode));
-  return keycode;
-}
-
-const char* OSD_GetStringFromKeyCode(uint16_t keycode)
-{
-  static char buffer[32];
-  const size_t num_mappings = sizeof(StringToKeycode) / sizeof(StringToKeycode[0]);
-  buffer[0] = 0;
-
-  for (int i = 0; i < num_mappings; ++i) {
-    const char* strI = StringToKeycode[i].string;
-    uint16_t keyI = StringToKeycode[i].keycode;
-
-    if (keycode == 0 || strI == 0)
-      break;
-
-    uint16_t key = keycode & 0x7ff;
-    uint8_t is_modifer = (keyI & 0x7ff) == 0;
-    uint8_t modifier_matches = (keycode & keyI) == keyI;
-    uint8_t key_matches = (key & keyI) == key;  // keyI & 0x7ff ??
-
-    if ((key_matches && !is_modifer) || (is_modifer && modifier_matches)) {
-      if (buffer[0] != 0)
-        strcat(buffer, "-");
-      strcat(buffer, strI);
-      keycode &= ~keyI;
-    }
-  }
-
-  if (keycode != 0) {
-    char c[2] = {0,0};
-    if (buffer[0] != 0)
-      strcat(buffer, "-");
-    c[0] = keycode & 0x7ff;
-    strcat(buffer, c);
-  }
-
-  DEBUG(3, "Converted keycode to string '%s'", buffer);
-  return buffer;
-}

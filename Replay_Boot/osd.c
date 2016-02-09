@@ -417,7 +417,7 @@ uint8_t OSD_ConvASCII(uint8_t keycode)
   const char keycode_table[128] =
     // in: keycode as given by matrix (in HEX); out: ASCII code (as char)
   { // x0  x1  x2  x3  x4  x5  x6  x7   x8  x9  xA  xB  xC  xD  xE  xF
-        0,  0,  0,  0,  0,  0,  0,  0,   0,  0,  0,  0,  0,  0,  0,  0,   // 0x
+        0,  0,  0,  0,  0,  0,  0,  0,   0,  0,  0,  0,  0,  9,  0,  0,   // 0x
         0,  0,  0,  0,  0, 'Q','1', 0,   0,  0, 'Z','S','A','W','2', 0,   // 1x
         0, 'C','X','D','E','4','3', 0,   0, ' ','V','F','T','R','5', 0,   // 2x
         0, 'N','B','H','G','Y','6', 0,   0,  0, 'M','J','U','7','8', 0,   // 3x
@@ -451,9 +451,9 @@ uint8_t OSD_ConvPosx(uint8_t keycode)
 {
   uint8_t i;
   // position keys
-  const uint8_t Pos_KEY[] = {0x6C,0x7D,0x7A,0x69,0x75,0x72,0x6B,0x74};
+  const uint8_t Pos_KEY[] = {0x6C,0x7D,0x7A,0x69,0x75,0x72,0x6B,0x74,0x71,0x70};
 
-  for (i=0; i<8; ++i) {
+  for (i=0; i<10; ++i) {
     if (Pos_KEY[i]==keycode) return i+1;
   }
 
@@ -642,7 +642,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
         const uint8_t RIGHT_KEYSEQ[] = {0x1b, 0x5b, 0x43};
         const uint8_t LEFT_KEYSEQ[]  = {0x1b, 0x5b, 0x44};
         //--
-        const uint8_t POS1_KEYSEQ[]  = {0x1b, 0x5b, 0x31, 0x7e};
+        const uint8_t HOME_KEYSEQ[]  = {0x1b, 0x5b, 0x31, 0x7e};
         const uint8_t INS_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x7e};
         const uint8_t DEL_KEYSEQ[]   = {0x1b, 0x5b, 0x33, 0x7e};
         const uint8_t END_KEYSEQ[]   = {0x1b, 0x5b, 0x34, 0x7e};
@@ -671,10 +671,10 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
         if ((!key_code) && USART_GetBuf(PGUP_KEYSEQ,sizeof(PGUP_KEYSEQ))) key_code=KEY_PGUP;
         if ((!key_code) && USART_GetBuf(PGDN_KEYSEQ,sizeof(PGDN_KEYSEQ))) key_code=KEY_PGDN;
 
-        if ((!key_code) && USART_GetBuf(POS1_KEYSEQ,sizeof(POS1_KEYSEQ))) key_code=KEY_ESC; // ignored
-        if ((!key_code) && USART_GetBuf(END_KEYSEQ,sizeof(END_KEYSEQ))) key_code=KEY_ESC; // ignored
-        if ((!key_code) && USART_GetBuf(INS_KEYSEQ,sizeof(INS_KEYSEQ))) key_code=KEY_ESC; // ignored
-        if ((!key_code) && USART_GetBuf(DEL_KEYSEQ,sizeof(DEL_KEYSEQ))) key_code=KEY_ESC; // ignored
+        if ((!key_code) && USART_GetBuf(HOME_KEYSEQ,sizeof(HOME_KEYSEQ))) key_code=KEY_HOME;
+        if ((!key_code) && USART_GetBuf(END_KEYSEQ,sizeof(END_KEYSEQ))) key_code=KEY_END;
+        if ((!key_code) && USART_GetBuf(INS_KEYSEQ,sizeof(INS_KEYSEQ))) key_code=KEY_INS;
+        if ((!key_code) && USART_GetBuf(DEL_KEYSEQ,sizeof(DEL_KEYSEQ))) key_code=KEY_DEL;
 
         if ((!key_code) && USART_GetBuf(F1_KEYSEQ,sizeof(F1_KEYSEQ))) key_code=KEY_F1;
         if ((!key_code) && USART_GetBuf(F2_KEYSEQ,sizeof(F2_KEYSEQ))) key_code=KEY_F2;
@@ -705,6 +705,8 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
       if ((key_code>0x60) && (key_code<0x7B)) {
         key_code &= 0x5F; // set uppercase
       }
+      if (key_code == 0x7f)  // If backspace sent as 'Control-? (127)' - settings in PuTTY
+        key_code = KEY_BACK;
     }
   }
 
@@ -730,6 +732,8 @@ static struct
   { "DOWN"  , KEY_DOWN  },
   { "LEFT"  , KEY_LEFT  },
   { "RIGHT" , KEY_RIGHT },
+  { "DEL"   , KEY_DEL   },
+  { "INS"   , KEY_INS   },
   { "F1"    , KEY_F1    },
   { "F2"    , KEY_F2    },
   { "F3"    , KEY_F3    },
@@ -746,6 +750,7 @@ static struct
   { "ESC"   , KEY_ESC   },
   { "ENTER" , KEY_ENTER },
   { "BACK"  , KEY_BACK  },
+  { "TAB"   , KEY_TAB   },
   { "SPACE" , KEY_SPACE },
   { 0       , 0         } // end-of-table
 };
@@ -828,7 +833,7 @@ const char* OSD_GetStringFromKeyCode(uint16_t keycode)
     uint16_t key = keycode & KEY_MASK;
     uint8_t is_modifer = (keyI & KEY_MASK) == 0;
     uint8_t modifier_matches = (keycode & keyI) == keyI;
-    uint8_t key_matches = (key & keyI) == key;
+    uint8_t key_matches = (key == (keyI & KEY_MASK));
 
     if ((key_matches && !is_modifer) || (is_modifer && modifier_matches)) {
       if (buffer[0] != 0)

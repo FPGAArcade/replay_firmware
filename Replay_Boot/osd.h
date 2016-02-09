@@ -114,6 +114,8 @@
 #define KEY_DOWN  0x106
 #define KEY_LEFT  0x107
 #define KEY_RIGHT 0x108
+#define KEY_DEL   0x109
+#define KEY_INS   0x10A
 
 #define KEY_Fx    0x200
 #define KEY_F1    0x201
@@ -138,6 +140,7 @@
 #define KEY_ESC   0x01B
 #define KEY_ENTER 0x00D
 #define KEY_BACK  0x008
+#define KEY_TAB   0x009
 #define KEY_SPACE 0x020
 
 #define KF_MASK   0xF800    // mask for flags/modifiers

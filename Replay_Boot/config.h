@@ -325,6 +325,10 @@ typedef struct {
   /** defines the on-board button function - set by ini_pre_read() */
   button_t     button;
 
+  /** defines the keyboard hotkey - set by ini_pre_read() */
+  uint16_t     hotkey;
+  char         hotkey_string[32];
+
   /** defines the keyboard protocol - set by ini_pre_read() */
   keyboard_t   keyboard;
 

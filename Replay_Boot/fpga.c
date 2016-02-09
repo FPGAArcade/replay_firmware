@@ -317,7 +317,7 @@ uint8_t FPGA_DramEye(uint8_t mode)
       }
     }
 
-    key = OSD_GetKeyCode(1);
+    key = OSD_GetKeyCode(1, KEY_MENU);
 
     if (key == KEY_LEFT) {
       ram_phase-=8;
@@ -409,7 +409,7 @@ uint8_t FPGA_ProdTest(void)
       failed = 0;
     }
 
-    key = OSD_GetKeyCode(1);
+    key = OSD_GetKeyCode(1, KEY_MENU);
     if (key == KEY_F8) {
       vidpat = (vidpat - 1) & 0x3;
     }

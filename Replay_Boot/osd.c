@@ -460,17 +460,21 @@ uint8_t OSD_ConvPosx(uint8_t keycode)
   return 0;
 }
 
-uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2)
+uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2, uint8_t keycode3)
 {
   // special keys
   const uint8_t KEY_SHIFTL  = 0x12;
   const uint8_t KEY_SHIFTR  = 0x59;
   const uint8_t KEY_ALT     = 0x11;
   const uint8_t KEY_CTRL    = 0x14;
+  const uint8_t KEY_GUIL    = 0x1f;
+  const uint8_t KEY_GUIR    = 0x27;
 
   if ((keycode1==KEY_SHIFTL) || (keycode1==KEY_SHIFTR)) return KF_SHIFT;
   if ((keycode1==KEY_ALT)    || (keycode2==KEY_ALT))    return KF_ALT;
   if ((keycode1==KEY_CTRL)   || (keycode2==KEY_CTRL))   return KF_CTRL;
+  if ((keycode2==KEY_GUIL)   || (keycode3==KEY_GUIL))   return KF_GUI;
+  if ((keycode2==KEY_GUIR)   || (keycode3==KEY_GUIR))   return KF_GUI;
 
   return 0;
 }
@@ -564,7 +568,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
       key_break=KF_RELEASED;
     }
     // check "modifier" keys first
-    x = OSD_ConvFlags(keybuf[0],keypos==2?keybuf[1]:0);
+    x = OSD_ConvFlags(keybuf[0],keypos==2?keybuf[1]:0,keypos==3?keybuf[2]:0);
     if (x) {
       ps2_flags_delay = Timer_Get(PS2FLAGSDELAY); // reset timer if we get a modifier
       if (key_break) {
@@ -607,7 +611,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
       key_code = key_break | KEY_MENU;
       DEBUG(2,"Hotkey (%04X) detected ; Overriding with KEY_MENU (%04X)", hotkey, key_code);
     }
-    if (key_code&0x7FF) {
+    if (key_code & KEY_MASK) {
       if (key_code == old_key_code) {
         key_code |= KF_REPEATED;
       } else {
@@ -714,6 +718,7 @@ static struct
   uint16_t keycode;
 } StringToKeycode [] =
 {
+  { "GUI"   , KF_GUI    },
   { "CTRL"  , KF_CTRL   },
   { "SHIFT" , KF_SHIFT  },
   { "ALT"   , KF_ALT    },
@@ -776,8 +781,8 @@ uint16_t OSD_GetKeyCodeFromString(const char* string)
           return 0;
         }
 
-        uint16_t key = keycode & 0x7ff;
-        uint8_t is_modifer = (keyI & 0x7ff) == 0;
+        uint16_t key = keycode & KEY_MASK;
+        uint8_t is_modifer = (keyI & KEY_MASK) == 0;
 
         if (strnicmp(value, strI, token_length) == 0) {
           // Check if we already have a full keycode defined
@@ -792,7 +797,7 @@ uint16_t OSD_GetKeyCodeFromString(const char* string)
       }
     } else {
       char c = toupper((uint8_t)*value);
-      if (keycode & 0x7ff) {
+      if (keycode & KEY_MASK) {
         DEBUG(1,"Illegal keycode combo ; Found %c, but key already defined %04x", c, keycode);
         return 0;
       }
@@ -820,10 +825,10 @@ const char* OSD_GetStringFromKeyCode(uint16_t keycode)
     if (keycode == 0 || strI == 0)
       break;
 
-    uint16_t key = keycode & 0x7ff;
-    uint8_t is_modifer = (keyI & 0x7ff) == 0;
+    uint16_t key = keycode & KEY_MASK;
+    uint8_t is_modifer = (keyI & KEY_MASK) == 0;
     uint8_t modifier_matches = (keycode & keyI) == keyI;
-    uint8_t key_matches = (key & keyI) == key;  // keyI & 0x7ff ??
+    uint8_t key_matches = (key & keyI) == key;
 
     if ((key_matches && !is_modifer) || (is_modifer && modifier_matches)) {
       if (buffer[0] != 0)
@@ -837,7 +842,7 @@ const char* OSD_GetStringFromKeyCode(uint16_t keycode)
     char c[2] = {0,0};
     if (buffer[0] != 0)
       strcat(buffer, "-");
-    c[0] = keycode & 0x7ff;
+    c[0] = keycode & KEY_MASK;
     strcat(buffer, c);
   }
 

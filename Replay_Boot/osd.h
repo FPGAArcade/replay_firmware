@@ -97,6 +97,7 @@
 #define OSD_SCROLL_BLANKSPACE 10
 
 /* Key Flags/Modifiers */
+#define KF_GUI      0x0400
 #define KF_CTRL     0x0800
 #define KF_SHIFT    0x1000
 #define KF_ALT      0x2000
@@ -139,6 +140,9 @@
 #define KEY_BACK  0x008
 #define KEY_SPACE 0x020
 
+#define KF_MASK   0xF800    // mask for flags/modifiers
+#define KEY_MASK  0x03FF    // mask for actual keys
+
 /*functions*/
 void OSD_Write(uint8_t row, const char *s, uint8_t invert);
 void OSD_WriteRC(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint8_t fg_col, uint8_t bg_col );
@@ -177,7 +181,7 @@ void OSD_WaitVBL(void);
 uint8_t OSD_ConvASCII(uint8_t keycode);
 uint8_t OSD_ConvFx(uint8_t keycode);
 uint8_t OSD_ConvPosx(uint8_t keycode);
-uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2);
+uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2, uint8_t keycode3);
 
 uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey);
 

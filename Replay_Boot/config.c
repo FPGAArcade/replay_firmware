@@ -644,7 +644,7 @@ void CFG_set_status_defaults(status_t *currentStatus)
 
   currentStatus->button   = BUTTON_MENU;
   currentStatus->hotkey   = KEY_MENU;
-  strncpy(currentStatus->hotkey_string,
+  _strlcpy(currentStatus->hotkey_string,
           OSD_GetStringFromKeyCode(currentStatus->hotkey),
           sizeof(currentStatus->hotkey_string));
   currentStatus->keyboard = KEYBOARD_PS2;
@@ -833,8 +833,7 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
           if (!keycode)
             return 1;
           pStatus->hotkey = keycode;
-          strncpy(pStatus->hotkey_string, OSD_GetStringFromKeyCode(keycode), sizeof(pStatus->hotkey_string));
-          pStatus->hotkey_string[sizeof(pStatus->hotkey_string)-1] = 0;
+          _strlcpy(pStatus->hotkey_string, OSD_GetStringFromKeyCode(keycode), sizeof(pStatus->hotkey_string));
           DEBUG(1,"Hotkey control: %s -> %04X / %s", value, pStatus->hotkey, pStatus->hotkey_string);
         }
                                        // =====================

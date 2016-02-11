@@ -62,6 +62,7 @@
 
 void _strncpySpace(char* pStr1, const char* pStr2, unsigned long nCount);
 void _strlcpy(char* dst, const char* src, unsigned long bufsize);
+int _stricmp_logical(const char *pS1, const char *pS2);
 int  _strnicmp(const char *pS1, const char *pS2, unsigned long n);
 int  _strncmp(const char *pS1, const char *pS2, unsigned long n);
 unsigned int _htoi (const char *ptr);

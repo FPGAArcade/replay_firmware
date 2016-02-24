@@ -58,6 +58,7 @@
 // ok, so it is :-)
 #include "loader.c"
 
+
 const uint8_t kMemtest[128] =
 {
     0x00,0x00,0xFF,0xFF,0xFF,0xFF,0x00,0x00,0xFF,0xFF,0x00,0x00,0x00,0x00,0xFF,0xFF,
@@ -69,6 +70,7 @@ const uint8_t kMemtest[128] =
     0x80,0x08,0x00,0x08,0xAA,0xAA,0x55,0x57,0x55,0x55,0xCC,0x36,0x33,0xCC,0xAA,0xA5,
     0xAA,0xAA,0x55,0x54,0x00,0x00,0xFF,0xF3,0xFF,0xFF,0x00,0x02,0x00,0x00,0xFF,0xF1
 };
+
 
 //
 // General
@@ -256,6 +258,8 @@ uint8_t FPGA_DramTrain(void)
   // 25 23        15        7
   // 00 0000 0000 0000 0000 0000 0000
 
+  //uint16_t key;
+  //do {
   memset(mBuf, 0, 512);
   for (i=0;i<128;i++) mBuf[i] = kMemtest[i];
 
@@ -273,11 +277,17 @@ uint8_t FPGA_DramTrain(void)
     if (memcmp(mBuf,&kMemtest[0],127) || (mBuf[127] != (uint8_t) i) ) {
       WARNING("!!Match fail Addr:%8X", addr);
       DumpBuffer(mBuf,128);
+      DEBUG(0,"Should be:");
+      DumpBuffer(&kMemtest[0],128);
       return 1;
     }
     addr = (0x100 << i);
   }
   DEBUG(0,"FPGA:DRAM TEST passed.");
+
+  //  key = OSD_GetKeyCode(1, KEY_MENU);
+  //} while (key != KEY_MENU);
+
   return 0;
 }
 
@@ -295,13 +305,13 @@ uint8_t FPGA_DramEye(uint8_t mode)
   OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase, kCTRL_DRAM_MASK );
   OSD_ConfigSendUserD(0x00000000); // ensure disabled
   OSD_ConfigSendUserD(0x01000000); // enable BIST
+  //OSD_ConfigSendUserD(0x03000000); // enable BIST mode 1 (bounce/burst test)
 
   do {
     Timer_Wait(200);
     stat = OSD_ConfigReadStatus();
 
     if (mode !=0)
-      /*DEBUG(0,"BIST stat: %02X", stat & 0x3C);*/
       DEBUG(0,"BIST cycles :%01X err: %01X", stat & 0x38, stat & 0x04);
 
     if (mode == 0) {
@@ -523,6 +533,31 @@ void FPGA_ClockMon(status_t *currentStatus)
       clockconfig_t clkcfg = currentStatus->clock_cfg; // copy
 
       switch (stat & 0x07) { // ignore top bit
+        //27 *  280/ 33  N/M
+        case 6 : // 114.50 MHz
+          clkcfg.pll3_m = 33;
+          clkcfg.pll3_n = 280;
+          clkcfg.p_sel[4] = 4; // pll3
+          clkcfg.p_div[4] = 2;
+          clkcfg.y_sel[4] = 1; // on
+          break;
+
+        case 5 : // 108.00 MHz
+          clkcfg.pll3_m = 27;
+          clkcfg.pll3_n = 216;
+          clkcfg.p_sel[4] = 4; // pll3
+          clkcfg.p_div[4] = 2;
+          clkcfg.y_sel[4] = 1; // on
+          break;
+
+        case 4 : // 82.00 MHz
+          clkcfg.pll3_m = 27;
+          clkcfg.pll3_n = 164;
+          clkcfg.p_sel[4] = 4; // pll3
+          clkcfg.p_div[4] = 2;
+          clkcfg.y_sel[4] = 1; // on
+          break;
+
         case 3 : // 75.25 MHz
           clkcfg.pll3_m = 2;
           clkcfg.pll3_n = 11;

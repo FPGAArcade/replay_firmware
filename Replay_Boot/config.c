@@ -1539,14 +1539,7 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   uint32_t init_mem = CFG_get_free_mem();
   DEBUG(1,"Initial free MEM: %ld bytes", init_mem);
 
-  if (currentStatus->keyboard == KEYBOARD_AMIGA) {
-    MSG_info("Enabling AMIGA keyboard");
-    OSD_ConfigSendCtrl(kCTRL_KEYB_MASK, kCTRL_KEYB_MASK);
-  } else {
-    MSG_info("Using PS/2 keyboard protocol");
-    OSD_ConfigSendCtrl(0, kCTRL_KEYB_MASK);
-  }
-
+  // Set memory phase first
   if (!currentStatus->dram_phase) {
     OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE, kCTRL_DRAM_MASK); // default phase
   } else {
@@ -1556,6 +1549,14 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
     } else {
       WARNING("DRAM phase value bad, ignored!");
     }
+  }
+
+  if (currentStatus->keyboard == KEYBOARD_AMIGA) {
+    MSG_info("Enabling AMIGA keyboard");
+    OSD_ConfigSendCtrl(kCTRL_KEYB_MASK, kCTRL_KEYB_MASK);
+  } else {
+    MSG_info("Using PS/2 keyboard protocol");
+    OSD_ConfigSendCtrl(0, kCTRL_KEYB_MASK);
   }
 
   // reset core and halt it for now

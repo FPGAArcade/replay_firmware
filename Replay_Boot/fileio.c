@@ -94,7 +94,7 @@ uint8_t FileIO_MCh_ReadBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
   // we assume read has completed and FIFO contains complete transfer
   DEBUG(3,"MCh:read buffer :%4x.",buf_tx_size);
   SPI_EnableFileIO();
-  SPI(0xA0); // should check status
+  SPI(0xA0);
   SPI_ReadBufferSingle(pBuf, buf_tx_size);
   SPI_DisableFileIO();
   return (0);

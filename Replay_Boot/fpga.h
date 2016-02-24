@@ -51,8 +51,8 @@
 #include "config.h"
 
 
-// Wolfgang: reduced phase by 10 as discussed with Mike (on 16feb2014)
-#define kDRAM_PHASE (0x68-10)
+#define kDRAM_PHASE 0x4A
+//#define kDRAM_PHASE 0x5E
 #define kDRAM_SEL   0x02
 
 #define kCTRL_DRAM_MASK 0x3ff

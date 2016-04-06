@@ -515,10 +515,6 @@ void FPGA_ClockMon(status_t *currentStatus)
 
      Configure_ClockGen(&currentStatus->clock_cfg);
 
-      // do video reset
-      Timer_Wait(100);
-      OSD_Reset(OSDCMD_CTRL_RES_VID);
-
     } else {
 
       // coder off
@@ -584,13 +580,35 @@ void FPGA_ClockMon(status_t *currentStatus)
 
       }
       Configure_ClockGen(&clkcfg);
-
-      // do video reset
-      Timer_Wait(100);
-      OSD_Reset(OSDCMD_CTRL_RES_VID);
     }
-  }
+    // let clock settle
+    Timer_Wait(100);
 
+    // set CH7301 PLL filter
+    switch (stat & 0x07) { // ignore top bit
+      case 6 :
+      case 5 :
+      case 4 :
+      case 3 :
+       // >= 65MHz
+       DEBUG(0,"DPLL high rate");
+       Write_CH7301(0x33, 0x06);
+       Write_CH7301(0x34, 0x26);
+       Write_CH7301(0x36, 0xA0);
+       break;
+
+     default :
+        //<= 65MHz
+       DEBUG(0,"DPLL low rate");
+        Write_CH7301(0x33, 0x08);
+        Write_CH7301(0x34, 0x16);
+        Write_CH7301(0x36, 0x60);
+    }
+
+    // do video reset
+    OSD_Reset(OSDCMD_CTRL_RES_VID);
+
+  }
 }
 
 //

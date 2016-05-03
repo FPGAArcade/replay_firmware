@@ -626,7 +626,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 }
 
 // insert functions
-void Drv08_GetHardfileType(fch_t *pDrive, drv08_desc_t *pDesc)
+uint8_t Drv08_GetHardfileType(fch_t *pDrive, drv08_desc_t *pDesc)
 {
   uint8_t fbuf[DRV08_BLK_SIZE];
   uint32_t i = 0;
@@ -639,15 +639,16 @@ void Drv08_GetHardfileType(fch_t *pDrive, drv08_desc_t *pDesc)
 
     if (!memcmp(fbuf, "RDSK", 4)) {
       INFO("Drv08:RDB OK");
-      return;
+      return (0);
     }
 
     if ( (!memcmp(fbuf, "DOS", 3)) || (!memcmp(fbuf, "PFS", 3)) || (!memcmp(fbuf, "SFS", 3)) ) {
       WARNING("Drv08:RDB MISSING");
-      return;
+      return (1);
     }
   }
   WARNING("Drv08:Unknown HDF format");
+  return (1);
 }
 
 void Drv08_GetHardfileGeometry(fch_t *pDrive, drv08_desc_t *pDesc)
@@ -761,7 +762,10 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
   }
   // common stuff (as only HDF supported for now...
 
-  Drv08_GetHardfileType(pDrive, pDesc);
+  if (Drv08_GetHardfileType(pDrive, pDesc)) {
+    return (1);
+  }
+
   Drv08_GetHardfileGeometry(pDrive, pDesc);
   Drv08_BuildHardfileIndex(pDrive, pDesc);
   time = Timer_Get(0) - time;

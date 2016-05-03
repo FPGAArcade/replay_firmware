@@ -1399,6 +1399,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                 }
               }
             }
+
             if ((pStatus->menu_item_act->conf_mask &
                  pStatus->item_opt_act->conf_value) !=
                  pStatus->item_opt_act->conf_value) {
@@ -1407,6 +1408,12 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                 return 1;
               }
             }
+
+            // protect from no default by setting selected to first item if not set
+            if (!pStatus->menu_item_act->selected_option) {
+              pStatus->menu_item_act->selected_option=pStatus->item_opt_act;
+            }
+
             strncpy(pStatus->item_opt_act->option_name,
                     valueList[0].strval,MAX_OPTION_STRING);
             DEBUG(3,"O2: %lx %lx",pStatus->item_opt_act,

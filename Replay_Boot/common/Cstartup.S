@@ -298,6 +298,14 @@ LoopZI:
         STRLO   R0, [R1], #4
         BLO     LoopZI
 
+/* Mark RAM (_end__ to stack pointer) with 0xFA57F00D */
+        LDR     R0, =0xFA57F00D
+        LDR     R1, =_end
+        MOV     R2, SP
+LoopFill: 
+        CMP     R1, R2
+        STRLO   R0, [R1], #4
+        BLO     LoopFill
 
 /* call C++ constructors of global objects */
         LDR   r0, =__ctors_start__

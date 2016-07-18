@@ -68,3 +68,11 @@ void * _sbrk_r(
 
 	return base;                /*  Return pointer to start of new heap area.  */
 }
+
+// only needed when using mallinfo()
+int _close(int __fildes ) { return -1; }
+int	_fstat( int __fd, struct stat *__sbuf ) { return -1; }
+int	_isatty(int __fildes ) { return 1; }
+_off_t _lseek(int __fildes, _off_t __offset, int __whence ) { return (_off_t)-1;}
+_ssize_t _write(int __fd, const void *__buf, size_t __nbyte ) { return -1; }
+_ssize_t _read(int __fd, void *__buf, size_t __nbyte ) { return -1; }

@@ -567,6 +567,7 @@ void CFG_set_CH7301_SD(void);
 void CFG_set_CH7301_HD(void);
 
 uint32_t CFG_get_free_mem(void);
+void CFG_dump_mem_stats(void);
 
 void CFG_set_status_defaults(status_t *currentStatus);
 

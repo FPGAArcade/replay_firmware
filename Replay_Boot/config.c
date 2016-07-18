@@ -58,6 +58,13 @@
 
 #include "messaging.h"
 
+#include <sys/unistd.h> // sbrk()
+#include <malloc.h> // mallinfo()
+
+extern char __FIRST_IN_RAM[];
+extern char end[];
+extern char __TOP_STACK[];
+
 /** @brief extern link to sdcard i/o manager
 
   Having this here is "ugly", but ff_ioman declares this "prototype"
@@ -491,6 +498,48 @@ uint32_t CFG_get_free_mem(void)
   DEBUG(3," Free memory %ld bytes",total);
   DEBUG(3,"===========================");
   return (total);
+}
+
+void CFG_dump_mem_stats(void)
+{
+  uint32_t ram_bytes, static_bytes, heap_bytes, avail_bytes, unused_bytes;
+  uint32_t current_stack, peak_stack;
+
+  uint8_t* p;
+  uint8_t* const RAMbeg  = (uint8_t*)__FIRST_IN_RAM;      // top of RAM
+  uint8_t* const heap    = (uint8_t*)end;                 // end of data/bss, and start of the heap
+  uint8_t* const unused  = (uint8_t*)sbrk(0);             // address of next heap block
+  uint8_t* const stack   = (uint8_t*)__builtin_frame_address(0); // current stack frame
+  uint8_t* const RAMend  = (uint8_t*)__TOP_STACK;         // end of RAM & first stack frame
+  const uint32_t sentinel = 0xFA57F00D;                   // See Cstartup.S
+  const struct mallinfo mi = mallinfo();                  // See malloc.h
+
+  ram_bytes = RAMend - RAMbeg;      // total amount of RAM
+  static_bytes = heap - RAMbeg;     // size of data/bss sections
+  heap_bytes = unused - heap;       // amount of memory mapped to malloc
+
+  // count number of sentinel words still left in RAM
+  p = unused;
+  while(*(uint32_t*)(void*)p == sentinel && p < stack)
+    p += sizeof(uint32_t);
+
+  if (p > stack)
+  {
+    ERROR("HEAP/STACK CORRUPTION! %08x > %08x", p, stack);
+    return;
+  }
+
+  unused_bytes = p - unused;        // number of 'unmapped' bytes (i.e. not used by the heap nor touched by the stack)
+  avail_bytes = unused_bytes + mi.fordblks;  // unmapped + unused bytes
+
+  current_stack = RAMend - stack;   // amount of stack space current in-use
+  peak_stack = RAMend - p;          // peak stack usage
+
+  DEBUG(1,"     ___________________________________________________");
+  DEBUG(1,"MEM | Total : %5d = %5d static  + %5d heap + %d unused + %d stack", ram_bytes, static_bytes, heap_bytes, unused_bytes, peak_stack);
+  DEBUG(1,"MEM | Heap  : %5d = %5d in-use  + %5d free", mi.arena, mi.uordblks, mi.fordblks);
+  DEBUG(1,"MEM | Stack : %5d = %5d current + %5d touched", peak_stack, current_stack, peak_stack-current_stack);
+  DEBUG(1,"MEM | Avail : %5d = %5d free    + %5d unused", avail_bytes, mi.fordblks, unused_bytes);
 }
 
 uint8_t CFG_configure_fpga(char *filename)

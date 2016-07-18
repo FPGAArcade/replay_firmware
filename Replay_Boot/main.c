@@ -314,6 +314,14 @@ int main(void)
         // MAIN LOOP
         uint16_t key;
 
+        // track memory usage, and detect heap/stack stomp
+        if (2<=debuglevel)
+        {
+          static uint16_t loop = 0;
+          if ((loop++) == 0)
+            CFG_dump_mem_stats();
+        }
+
         // get keys (from Replay button, RS232 or PS/2 via OSD/FPGA)
         key = OSD_GetKeyCode(current_status.spi_osd_enabled, current_status.hotkey);
 

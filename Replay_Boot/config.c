@@ -177,6 +177,7 @@ void CFG_call_bootloader(void)
 
   volatile uint32_t *src = (volatile uint32_t *)0x200;
   volatile uint32_t *dest = (volatile uint32_t *)0x00200000;
+  volatile uint16_t *patch = (volatile uint16_t *)0x2001d2;
 
   // set PROG low to reset FPGA (open drain)
   IO_DriveLow_OD(PIN_FPGA_PROG_L);
@@ -188,6 +189,10 @@ void CFG_call_bootloader(void)
   for(i = 0; i < 1024; i++) {
       *dest++ = *src++;
   }
+
+  // remove the GPIO button check for faster flashing iterations
+  if (*patch == 0xd156) // bne.n  200282 <Bootrom+0x116> ("goto run_flash")
+    *patch = 0x46c0;    // nop
 
   // launch bootloader in SRAM
   asm("ldr r3, = 0x00200000\n");

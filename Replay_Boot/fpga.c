@@ -751,3 +751,122 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 }
 
 
+//
+// ZLIB inflate (decompress) a stream through read/write callbacks
+//
+size_t zlib_inflate(inflate_read_func_ptr read_func, void* const read_context, const size_t read_buffer_size, inflate_write_func_ptr write_func, void* const write_context, int flags)
+{
+  const size_t write_buffer_size = 32*1024; // TINFL_LZ_DICT_SIZE
+
+  mz_uint8 read_buffer[read_buffer_size];
+  mz_uint8 write_buffer[write_buffer_size];
+
+  size_t read_buffer_avail = 0;
+  size_t total_bytes_written = 0;
+
+  size_t src_buf_offset = 0;
+  size_t dst_buf_offset = 0;
+
+  tinfl_decompressor decomp;      // 10992 bytes
+  tinfl_init(&decomp);
+
+  // update flag bits (chunked input & output)
+  flags |= TINFL_FLAG_HAS_MORE_INPUT;
+  flags &= ~TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF;
+
+  while(1) {
+
+    size_t src_buf_size = read_buffer_avail - src_buf_offset;
+    size_t dst_buf_size = write_buffer_size - dst_buf_offset;
+    tinfl_status status = tinfl_decompress(&decomp, read_buffer + src_buf_offset, &src_buf_size, write_buffer, write_buffer + dst_buf_offset, &dst_buf_size, flags);
+    src_buf_offset += src_buf_size;
+
+    if (status == TINFL_STATUS_NEEDS_MORE_INPUT) {
+      read_buffer_avail = read_func(read_buffer, read_buffer_size, read_context);
+      src_buf_offset = 0;
+    }
+
+    if ((dst_buf_size) && (!write_func(write_buffer + dst_buf_offset, dst_buf_size, write_context)))
+      break;
+
+    total_bytes_written += dst_buf_size;
+
+    if (status <= TINFL_STATUS_DONE)
+      break;
+
+    dst_buf_offset = (dst_buf_offset + dst_buf_size) & (write_buffer_size - 1);
+  }
+
+  return total_bytes_written;
+}
+
+
+//
+// GZIP decompressor
+//
+static int read_gzip_header(inflate_read_func_ptr read_func, void* const read_context)
+{
+  typedef struct
+  {
+    uint8_t sig[2];
+    uint8_t cm;
+    uint8_t flg;
+    uint8_t mtime[4];
+    uint8_t extra;
+    uint8_t os;
+  } gzip_header;
+  enum gzip_flags
+  {
+    ftext = 1 << 0,
+    fhcrc = 1 << 1,
+    fextra = 1 << 2,
+    fname = 1 << 3,
+    fcomment = 1 << 4
+  };
+
+  uint8_t c;
+  uint16_t crc;
+  gzip_header hdr;
+  size_t size = read_func(&hdr, sizeof(gzip_header), read_context);
+
+  if (size != sizeof(gzip_header)) {
+    WARNING("Unable to read GZIP header");
+    return -1;
+  }
+  if (hdr.sig[0] != 0x1f || hdr.sig[1] != 0x8b) {
+    WARNING("GZIP signature mismatch");
+    return -1;
+  }
+  if (hdr.cm != 8) {
+    WARNING("GZIP compression method is not DEFLATE");
+    return -1;
+  }
+
+  if (hdr.flg & fextra) {
+    uint16_t extra[2];
+    read_func(&extra, sizeof(extra), read_context); // subfield id
+    read_func(&extra, sizeof(extra), read_context); // length
+    size_t skip = extra[0] | (extra[1] << 8);
+    while(skip--)
+      read_func(&c, 1, read_context);
+  }
+  if (hdr.flg & fname) {
+    do { read_func(&c, sizeof(c), read_context); } while(c);
+  }
+  if (hdr.flg & fcomment) {
+    do { read_func(&c, sizeof(c), read_context); } while(c);
+  }
+  if (hdr.flg & fhcrc) {
+    read_func(&crc, sizeof(crc), read_context);
+  }
+
+  return 0;
+}
+
+size_t gunzip(inflate_read_func_ptr read_func, void* const read_context, inflate_write_func_ptr write_func, void* const write_context)
+{
+  if (read_gzip_header(read_func, read_context))
+    return 0;
+// NB - at this point we need ~45KB stack space (!!)
+  return zlib_inflate(read_func, read_context, 1024, write_func, write_context, 0);
+}

@@ -63,6 +63,7 @@ const ini_symtab_t symtab[] = {
   { "BUTTON"        ,INI_BUTTON        ,FALSE },
   { "HOTKEY"        ,INI_HOTKEY        ,FALSE },
   { "KEYBOARD"      ,INI_KEYB_MODE     ,FALSE },
+  { "CLOCKMON"      ,INI_CLOCKMON      ,FALSE },
   { "VIDEO"         ,INI_VIDEO         ,FALSE },
   { "CONFIG"        ,INI_CONFIG        ,FALSE },
   { "CSTORE"        ,INI_CSTORE        ,FALSE },

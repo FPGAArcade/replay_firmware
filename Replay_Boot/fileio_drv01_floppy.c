@@ -126,7 +126,7 @@ typedef struct
 } drv01_desc_t;
 
 
-inline uint8_t MFMDecode(uint8_t *odd, uint8_t *even)
+inline uint8_t MFMDecode(uint8_t* odd, uint8_t* even)
 {
 
   uint8_t r  = ((*odd ) & 0x55) << 1;
@@ -134,7 +134,19 @@ inline uint8_t MFMDecode(uint8_t *odd, uint8_t *even)
   return r;
 }
 
-void FileIO_Drv01_Amiga_SendHeader(uint8_t *pBuffer, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl)
+inline uint8_t MFMEncode(uint8_t d, uint8_t l)
+{
+  // strips out even bits and replaces with clock bits
+  uint8_t r = d & 0x55;
+  if (! ((r & 0x01) || (r & 0x04))) r |= 0x02; // clock bit 1
+  if (! ((r & 0x04) || (r & 0x10))) r |= 0x08; // clock bit 3
+  if (! ((r & 0x10) || (r & 0x40))) r |= 0x20; // clock bit 5
+  if (! ((r & 0x40) || (l & 0x01))) r |= 0x80; // clock bit 7
+  return r;
+}
+
+
+void FileIO_Drv01_Amiga_SendHeader(uint8_t* pBuffer, uint8_t sector, uint8_t track, uint8_t dsksynch, uint8_t dsksyncl)
 {
   //DumpBuffer(pData, 64);
 
@@ -156,35 +168,32 @@ void FileIO_Drv01_Amiga_SendHeader(uint8_t *pBuffer, uint8_t sector, uint8_t tra
   SPI(dsksyncl);
 
   // odd bits of header
-  x = 0x55;
-  checksum[0] = x;
-  SPI(x);
-  x = (track >> 1) & 0x55;
-  checksum[1] = x;
-  SPI(x);
-  x = (sector >> 1) & 0x55;
-  checksum[2] = x;
-  SPI(x);
-  // subtraction has higher prio, added brackets accordingly!
-  x = ((11 - sector) >> 1) & 0x55;
-  checksum[3] = x;
-  SPI(x);
+  x = MFMEncode(0xFF, dsksyncl);
+  checksum[0] = x; SPI(x);
+
+  x = MFMEncode(track >> 1, x);
+  checksum[1] = x; SPI(x);
+
+  x = MFMEncode(sector >> 1, x);
+  checksum[2] = x; SPI(x);
+
+  x = MFMEncode((11 - sector) >> 1, x);
+  checksum[3] = x; SPI(x);
 
   // even bits of header
-  x = 0x55;
-  checksum[0] ^= x;
-  SPI(x);
-  x = track & 0x55;
-  checksum[1] ^= x;
-  SPI(x);
-  x = sector & 0x55;
-  checksum[2] ^= x;
-  SPI(x);
-  // subtraction has higher prio, added brackets accordingly!
-  x = (11 - sector) & 0x55;
-  checksum[3] ^= x;
-  SPI(x);
+  x = MFMEncode(0xFF, x);
+  checksum[0] ^= x; SPI(x);
 
+  x = MFMEncode(track, x);
+  checksum[1] ^= x; SPI(x);
+
+  x = MFMEncode(sector, x);
+  checksum[2] ^= x; SPI(x);
+
+  x = MFMEncode((11 - sector), x);
+  checksum[3] ^= x; SPI(x);
+
+  // first clock bit here may be wrong ...
   // sector label and reserved area (changes nothing to checksum)
   i = 0x20;
   while (i--)
@@ -231,7 +240,7 @@ void FileIO_Drv01_Amiga_SendHeader(uint8_t *pBuffer, uint8_t sector, uint8_t tra
 
 }
 
-void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer, uint8_t *write_state)
+void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer, uint8_t* write_state)
 {
   uint8_t rxbuf[DRV01_ADF_WRITE_LEN*2]; // this is in addition to pBuffer. Could optimize
 
@@ -411,7 +420,7 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer, uint8_t
   FileIO_FCh_WriteStat(ch, DRV01_STAT_TRANS_ACK_OK); // no error reporting
 }
 
-void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
+void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
 {
   uint8_t  sector  = 0;
   uint8_t  track   = 0;

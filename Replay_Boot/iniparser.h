@@ -32,6 +32,7 @@ typedef enum {
     INI_BUTTON,          ///< token for EN_BUTTON keyword (replay button behavior)
     INI_HOTKEY,          ///< token for HOTKEY keyword (keyboard menu/reset/etc key combo)
     INI_KEYB_MODE,       ///< token for Keyboard Mode keyword (PS/2 / AMIGA keyboard protocol)
+    INI_CLOCKMON,        ///< toekn for CLOCKMON enable (dynamic switch of vid clock)
     INI_VIDEO,           ///< token for VIDEO keyword (video DAC configuration)
     INI_CONFIG,          ///< token for CONFIG keyword (config bits for FPGA/OSD)
     INI_CSTORE,          ///< token for CSTORE keyword (filename to store dynamic config part)

@@ -77,6 +77,7 @@ void TWI_Wait_Cmpl(void)
 //
 uint8_t Read_THS7353(uint8_t address)
 {
+  DEBUG(2,"TWI:THS7353 Read");
   uint8_t  readData;
   // device address is 0101100 = x2C
   // assume idle on entry
@@ -98,6 +99,7 @@ uint8_t Read_THS7353(uint8_t address)
 
 void Write_THS7353(uint8_t address, uint8_t data)
 {
+  DEBUG(2,"TWI:THS7353 Write");
   TWI_StartWrite(0x2C, 1, address, data);
   TWI_Wait_Tx();
 
@@ -108,6 +110,8 @@ void Write_THS7353(uint8_t address, uint8_t data)
 
 uint8_t Read_CDCE906(uint8_t address)
 {
+  DEBUG(2,"TWI:CDCE906 Read");
+
   // device address is 1101001 = x69
   // comand = 128 + address
   uint8_t readData;
@@ -129,6 +133,8 @@ uint8_t Read_CDCE906(uint8_t address)
 
 void Write_CDCE906(uint8_t address, uint8_t data)
 {
+  DEBUG(2,"TWI:CDCE906 Write");
+
   uint8_t command = 0x80 | (address & 0x7F);
 
   TWI_StartWrite(0x69, 0, 0, command);
@@ -161,7 +167,7 @@ void Configure_VidBuf(uint8_t chan, uint8_t stc, uint8_t lpf, uint8_t mode)
     case 3: DEBUG(2,"35MHz"); break;
     default: DEBUG(2,"unknown"); break;
   }
-  DEBUG(2,", LPF: ");
+  DEBUG(2,"LPF: ");
   switch (lpf) {
     case 0: DEBUG(2,"9MHz"); break;
     case 1: DEBUG(2,"16MHz"); break;
@@ -169,7 +175,7 @@ void Configure_VidBuf(uint8_t chan, uint8_t stc, uint8_t lpf, uint8_t mode)
     case 3: DEBUG(2,"bypass"); break;
     default: DEBUG(2,"unknown"); break;
   }
-  DEBUG(2,", BIAS: ");
+  DEBUG(2,"BIAS: ");
   switch (mode) {
     case 0: DEBUG(2,"off"); break;
     case 1: DEBUG(2,"mute"); break;
@@ -179,7 +185,10 @@ void Configure_VidBuf(uint8_t chan, uint8_t stc, uint8_t lpf, uint8_t mode)
     default: DEBUG(2,"unknown"); break;
   }
   uint8_t command = ((stc & 0x03) << 6 ) | ((lpf & 0x03) << 3) | (mode & 0x07);
+
+
   Write_THS7353(chan, command);
+
   if (Read_THS7353(chan) != command)
     ERROR("TWI:THS7353 chan:%d Config failure.",chan);
   else

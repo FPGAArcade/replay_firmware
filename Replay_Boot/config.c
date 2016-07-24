@@ -687,14 +687,28 @@ VERIFY = 1
 ------------------------------------------------------------------------------
 */
 
-void CFG_set_status_defaults(status_t *currentStatus)
+void CFG_set_status_defaults(status_t *currentStatus, uint8_t init)
 {
-  // assume struct has be zero'd
 
-  strcpy(currentStatus->ini_dir,"\\");
-  strcpy(currentStatus->act_dir,"\\");
-  strcpy(currentStatus->ini_file,"replay.ini");
-  strcpy(currentStatus->bin_file,"replay.bin");
+  // for init, assume struct has been zero'd
+
+  if (init) {
+    strcpy(currentStatus->ini_dir,"\\");
+    strcpy(currentStatus->act_dir,"\\");
+    strcpy(currentStatus->ini_file,"replay.ini");
+    strcpy(currentStatus->bin_file,"replay.bin");
+  }
+
+  // these will all be reset during the ini preread
+  currentStatus->twi_enabled      = 0;
+  currentStatus->spi_osd_enabled  = 0;
+  currentStatus->spi_fpga_enabled = 0;
+  currentStatus->verify_dl        = 0;
+  currentStatus->last_rom_adr     = 0;
+  currentStatus->dram_phase       = 0;
+  currentStatus->clockmon         = 0;
+  currentStatus->fileio_cha_ena   = 0;
+  currentStatus->fileio_chb_ena   = 0;
 
   currentStatus->button   = BUTTON_MENU;
   currentStatus->hotkey   = KEY_MENU;
@@ -702,13 +716,13 @@ void CFG_set_status_defaults(status_t *currentStatus)
           OSD_GetStringFromKeyCode(currentStatus->hotkey),
           sizeof(currentStatus->hotkey_string));
   currentStatus->keyboard = KEYBOARD_PS2;
-  currentStatus->osd_init = OSD_INIT_ON;
-
+  currentStatus->clockmon = FALSE;
   currentStatus->osd_init = OSD_INIT_ON;
 
   currentStatus->clock_cfg  = init_clock_config_ntsc;
   currentStatus->filter_cfg = init_vidbuf;
   currentStatus->coder_cfg  = CODER_DISABLE;
+
 
   // DAC setup?
 }
@@ -897,6 +911,15 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
           else if (MATCH(value,"AMIGA")) pStatus->keyboard=KEYBOARD_AMIGA;
           else return 1;
           DEBUG(1,"Keyboard control: %s",value);
+        }
+        if (name==INI_CLOCKMON) {       // ===> CLOCKMON
+          if (MATCH(value,"ENA"))          pStatus->clockmon=TRUE;
+          else if (MATCH(value,"ENABLE"))  pStatus->clockmon=TRUE;
+          else if (MATCH(value,"DIS"))     pStatus->clockmon=FALSE;
+          else if (MATCH(value,"DISABLE")) pStatus->clockmon=FALSE;
+          else return 1;
+          if (pStatus->clockmon)
+            MSG_info("ClockMonitor Enabled");
         }
 
         if (name==INI_OSD_INIT) {       // ===> OSD STARTUP

@@ -493,7 +493,7 @@ uint8_t FPGA_ProdTest(void)
 
 void FPGA_ClockMon(status_t *currentStatus)
 {
-  static uint8_t old_stat = 0;
+  static uint8_t old_stat = 0xFF; // so we always update first time in
   uint8_t stat = (OSD_ConfigReadStatus() >> 12) & 0xF;
 
   if (stat != old_stat) {

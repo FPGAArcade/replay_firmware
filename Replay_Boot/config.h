@@ -301,6 +301,8 @@ typedef struct {
   /** set DRAM phase config - set by ini_post_read() */
   int8_t       dram_phase;
 
+  /** set CLOCKMON enable - set by ini_pre_read() */
+  int8_t       clockmon;
   /* ======== CONFIGURATION ======== */
 
   /** "static" core configuration, set on (re-)initialisation only */
@@ -569,7 +571,7 @@ void CFG_set_CH7301_HD(void);
 uint32_t CFG_get_free_mem(void);
 void CFG_dump_mem_stats(void);
 
-void CFG_set_status_defaults(status_t *currentStatus);
+void CFG_set_status_defaults(status_t *currentStatus, uint8_t init);
 
 /** @brief INITIAL INI READER PARSE HANDLER
 

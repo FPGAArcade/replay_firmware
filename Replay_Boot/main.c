@@ -80,7 +80,7 @@ int main(void)
   // replay main status structure
   status_t current_status;
   memset((void *)&current_status,0,sizeof(status_t));
-  CFG_set_status_defaults(&current_status);
+  CFG_set_status_defaults(&current_status, TRUE);
 
   // setup message structure
   MSG_init(&current_status,1);
@@ -166,6 +166,12 @@ int main(void)
 
   // Loop forever
   while (TRUE) {
+    // eject all drives
+    for (int i=0;i<4;++i) {
+      if (FileIO_FCh_GetInserted(0,i)) FileIO_FCh_Eject(0,i);
+      if (FileIO_FCh_GetInserted(1,i)) FileIO_FCh_Eject(1,i);
+    }
+
     char full_filename[FF_MAX_PATH];
 
     // read inputs
@@ -425,7 +431,8 @@ int main(void)
         if (current_status.fileio_chb_ena !=0)
           FileIO_FCh_Process(1);
 
-        FPGA_ClockMon(&current_status);
+        if (current_status.clockmon)
+          FPGA_ClockMon(&current_status);
 
       }
     }

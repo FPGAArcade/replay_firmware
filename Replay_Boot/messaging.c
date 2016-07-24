@@ -187,6 +187,7 @@ void MSG_error(char *fmt, ...)
   // print on USART including CR/LF if enabled
   if (msg_serial) printf("ERR:  %s\r\n",s);
 
+  // FIXME. If any of the functions in here call ERROR, we are stuck in a loop..
   if (1) { // set up default FPGA always for now
     IO_DriveLow_OD(PIN_FPGA_RST_L);
 

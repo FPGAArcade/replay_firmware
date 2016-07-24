@@ -331,6 +331,10 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       OSD_Disable();
       // "kill" FPGA content and re-run setup
       current_status->fpga_load_ok=0;
+
+      // reset config
+      CFG_set_status_defaults(current_status, FALSE);
+
       // set PROG low to reset FPGA (open drain)
       IO_DriveLow_OD(PIN_FPGA_PROG_L);
       Timer_Wait(1);

@@ -10,8 +10,7 @@
 
 #define HEADLEN 56
 #define THLEN 20
-#define TRACK_BUFFER_LEN 32000
-#define TEMP_BUFFER_LEN 32000
+#define TRACK_BUFFER_LEN ((880*1024/80)+1024)
 
 
 #include <stdio.h>
@@ -31,7 +30,7 @@
 
 
 
-static USHORT Process_Track(FILE *, FILE *, UCHAR *, UCHAR *, USHORT, USHORT, USHORT);
+static USHORT Process_Track(xdms_read_func_ptr, void* const, xdms_write_func_ptr, void* const, UCHAR *, UCHAR *, USHORT, USHORT, USHORT);
 static USHORT Unpack_Track(UCHAR *, UCHAR *, USHORT, USHORT, UCHAR, UCHAR);
 static void printbandiz(UCHAR *, USHORT);
 static void dms_decrypt(UCHAR *, USHORT);
@@ -40,61 +39,33 @@ static void dms_decrypt(UCHAR *, USHORT);
 static char modes[7][7]={"NOCOMP","SIMPLE","QUICK ","MEDIUM","DEEP  ","HEAVY1","HEAVY2"};
 static USHORT PWDCRC;
 
-UCHAR *text;
+UCHAR *temp = 0;
 
 int OverrideErrors;
 
 
-USHORT Process_File(char *iname, char *oname, USHORT cmd, USHORT opt, USHORT PCRC, USHORT pwd){
-	FILE *fi, *fo=NULL;
+USHORT Process_File(xdms_read_func_ptr read_func, void* const read_context, xdms_write_func_ptr write_func, void* const write_context, USHORT cmd, USHORT opt, USHORT PCRC, USHORT pwd){
 	USHORT from, to, geninfo, c_version, cmode, hcrc, disktype, pv, ret;
 	ULONG pkfsize, unpkfsize;
 	UCHAR *b1, *b2;
 	time_t date;
 
+	UCHAR buffer1[TRACK_BUFFER_LEN];
+	UCHAR buffer2[TRACK_BUFFER_LEN];
+	UCHAR buffert[TEMP_BUFFER_LEN];
 
-	b1 = (UCHAR *)calloc((size_t)TRACK_BUFFER_LEN,1);
-	if (!b1) return ERR_NOMEMORY;
-	b2 = (UCHAR *)calloc((size_t)TRACK_BUFFER_LEN,1);
-	if (!b2) {
-		free(b1);
-		return ERR_NOMEMORY;
-	}
-	text = (UCHAR *)calloc((size_t)TEMP_BUFFER_LEN,1);
-	if (!text) {
-		free(b1);
-		free(b2);
-		return ERR_NOMEMORY;
-	}
+	b1 = buffer1;
+	memset(b1, 0x00, TRACK_BUFFER_LEN);
+	b2 = buffer2;
+	memset(b2, 0x00, TRACK_BUFFER_LEN);
+	temp = buffert;
 
-	/* if iname is NULL, input is stdin;   if oname is NULL, output is stdout */
-
-	if (iname){
-		fi = fopen(iname,"rb");
-		if (!fi) {
-			free(b1);
-			free(b2);
-			free(text);
-			return ERR_CANTOPENIN;
-		}
-	} else {
-		fi = stdin;
-	}
-
-	if (fread(b1,1,HEADLEN,fi) != HEADLEN) {
-		if (iname) fclose(fi);
-		free(b1);
-		free(b2);
-		free(text);
+	if (read_func(b1,HEADLEN,read_context) != HEADLEN) {
 		return ERR_SREAD;
 	}
 
 	if ( (b1[0] != 'D') || (b1[1] != 'M') || (b1[2] != 'S') || (b1[3] != '!') ) {
 		/*  Check the first 4 bytes of file to see if it is "DMS!"  */
-		if (iname) fclose(fi);
-		free(b1);
-		free(b2);
-		free(text);
 		return ERR_NOTDMS;
 	}
 
@@ -102,10 +73,6 @@ USHORT Process_File(char *iname, char *oname, USHORT cmd, USHORT opt, USHORT PCR
 	/* Header CRC */
 
 	if (hcrc != CreateCRC(b1+4,(ULONG)(HEADLEN-6))) {
-		if (iname) fclose(fi);
-		free(b1);
-		free(b2);
-		free(text);
 		return ERR_HCRC;
 	}
 	
@@ -124,12 +91,6 @@ USHORT Process_File(char *iname, char *oname, USHORT cmd, USHORT opt, USHORT PCR
 	PWDCRC = PCRC;
 
 	if ( (cmd == CMD_VIEW) || (cmd == CMD_VIEWFULL) ) {
-
-		if (iname)
-			printf("\n File : %s\n",iname);
-		else
-			printf("\n Data from stdin\n");
-
 
 		pv = (USHORT)(c_version/100);
 		printf(" Created with DMS version %d.%02d ",pv,c_version-pv*100);
@@ -202,10 +163,6 @@ USHORT Process_File(char *iname, char *oname, USHORT cmd, USHORT opt, USHORT PCR
 
 	if (disktype == 7) {
 		/*  It's not a DMS compressed disk image, but a FMS archive  */
-		if (iname) fclose(fi);
-		free(b1);
-		free(b2);
-		free(text);
 		return ERR_FMS;
 	}
 
@@ -218,30 +175,15 @@ USHORT Process_File(char *iname, char *oname, USHORT cmd, USHORT opt, USHORT PCR
 	if (((cmd==CMD_UNPACK) || (cmd==CMD_SHOWBANNER)) && (geninfo & 2) && (!pwd))
 		return ERR_NOPASSWD;
 
-	if (cmd == CMD_UNPACK) {
-		if (oname){
-			fo = fopen(oname,"wb");
-			if (!fo) {
-				if (iname) fclose(fi);
-				free(b1);
-				free(b2);
-				free(text);
-				return ERR_CANTOPENOUT;
-			}
-		} else {
-			fo = stdout;
-		}
-	}
-
 	ret=NO_PROBLEM;
 
 	Init_Decrunchers();
 
 	if (cmd != CMD_VIEW) {
 		if (cmd == CMD_SHOWBANNER) /*  Banner is in the first track  */
-			ret = Process_Track(fi,NULL,b1,b2,cmd,opt,(geninfo & 2)?pwd:0);
+			ret = Process_Track(read_func, read_context, write_func, write_context, b1,b2,cmd,opt,(geninfo & 2)?pwd:0);
 		else {
-			while ( (ret=Process_Track(fi,fo,b1,b2,cmd,opt,(geninfo & 2)?pwd:0)) == NO_PROBLEM ) ;
+			while ( (ret=Process_Track(read_func, read_context, write_func, write_context, b1,b2,cmd,opt,(geninfo & 2)?pwd:0)) == NO_PROBLEM ) ;
 			if ((cmd == CMD_UNPACK) && (opt == OPT_VERBOSE)) fprintf(stderr,"\n");
 		}
 	}
@@ -258,26 +200,22 @@ USHORT Process_File(char *iname, char *oname, USHORT cmd, USHORT opt, USHORT PCR
 	if (ret == ERR_NOTTRACK) ret = NO_PROBLEM;
 
 
-	if (iname) fclose(fi);
-	if ((cmd == CMD_UNPACK) && oname) fclose(fo);
-
-	free(b1);
-	free(b2);
-	free(text);
+	temp = 0;
 
 	return ret;
 }
 
 
 
-static USHORT Process_Track(FILE *fi, FILE *fo, UCHAR *b1, UCHAR *b2,
+static USHORT Process_Track(xdms_read_func_ptr read_func, void* const read_context,
+				xdms_write_func_ptr write_func, void* const write_context, UCHAR *b1, UCHAR *b2,
 			    USHORT cmd, USHORT opt, USHORT pwd)
 {
 	USHORT hcrc, dcrc, usum, number, pklen1, pklen2, unpklen, l, r;
 	UCHAR cmode, flags;
 
 
-	l = (USHORT)fread(b1,1,THLEN,fi);
+	l = (USHORT)read_func(b1,THLEN,read_context);
 
 	if (l != THLEN) {
 		if (l==0)
@@ -319,7 +257,7 @@ static USHORT Process_Track(FILE *fi, FILE *fo, UCHAR *b1, UCHAR *b2,
 
 	if ((pklen1 > TRACK_BUFFER_LEN) || (pklen2 >TRACK_BUFFER_LEN) || (unpklen > TRACK_BUFFER_LEN)) return ERR_BIGTRACK;
 
-	if (fread(b1,1,(size_t)pklen1,fi) != pklen1) return ERR_SREAD;
+	if (read_func(b1,(size_t)pklen1,read_context) != pklen1) return ERR_SREAD;
 
 	if (CreateCRC(b1,(ULONG)pklen1) != dcrc) {
 		if (OverrideErrors) {
@@ -367,7 +305,7 @@ static USHORT Process_Track(FILE *fi, FILE *fo, UCHAR *b1, UCHAR *b2,
 			}
 		}
 
-		if (fwrite(b2, 1, (size_t) unpklen, fo) != unpklen)
+		if (write_func(b2, (size_t) unpklen, write_context) != unpklen)
 			return ERR_CANTWRITE;
 
 		if (opt == OPT_VERBOSE) {

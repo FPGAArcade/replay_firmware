@@ -37,19 +37,34 @@ int init_deep_tabs=1;
 #define R       (T - 1)         /* position of root */
 #define MAX_FREQ    0x8000      /* updates tree when the */
 
+static struct data_t {
+	USHORT freq[T + 1]; /* frequency table */
 
-USHORT freq[T + 1]; /* frequency table */
+	USHORT prnt[T + N_CHAR]; /* pointers to parent nodes, except for the */
+					/* elements [T..T + N_CHAR - 1] which are used to get */
+					/* the positions of leaves corresponding to the codes. */
 
-USHORT prnt[T + N_CHAR]; /* pointers to parent nodes, except for the */
-				/* elements [T..T + N_CHAR - 1] which are used to get */
-				/* the positions of leaves corresponding to the codes. */
+	USHORT son[T];   /* pointers to child nodes (son[], son[] + 1) */
 
-USHORT son[T];   /* pointers to child nodes (son[], son[] + 1) */
+	UCHAR text[0x4000]; /* uses 16Kb dictionary  */
+}* data;
 
-
+static USHORT *freq;
+static USHORT *prnt;
+static USHORT *son;
+static UCHAR *text;
 
 void Init_DEEP_Tabs(void){
 	USHORT i, j;
+
+//	static_assert(TEMP_BUFFER_LEN >= sizeof(struct data_t), "not enough temp space");
+
+	data = (struct data_t*)temp;
+
+	freq = data->freq;
+	prnt = data->prnt;
+	son = data->son;
+	text = data->text;
 
 	for (i = 0; i < N_CHAR; i++) {
 		freq[i] = 1;

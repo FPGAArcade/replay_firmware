@@ -23,6 +23,7 @@ void Init_Decrunchers(void){
 	heavy_text_loc = 0;
 	deep_text_loc = 0x3fc4;
 	init_deep_tabs = 1;
-	memset(text,0,0x3fc8);
+	init_heavy_tabs = 1;
+	memset(temp,0,sizeof(TEMP_BUFFER_LEN));
 }
 

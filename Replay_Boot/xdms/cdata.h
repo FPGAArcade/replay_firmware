@@ -76,6 +76,7 @@
 #define DIR_SEPARATORS ":\\/"
 
 
-extern UCHAR *text;
+extern UCHAR *temp;
+#define TEMP_BUFFER_LEN 0x5500
 
 

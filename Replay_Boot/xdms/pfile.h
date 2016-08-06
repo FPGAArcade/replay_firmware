@@ -42,5 +42,7 @@
 extern int OverrideErrors;
 
 
-USHORT Process_File(char *, char *, USHORT, USHORT, USHORT, USHORT);
+typedef size_t (* const xdms_read_func_ptr)(void* buffer, size_t len, void* context);
+typedef size_t (* const xdms_write_func_ptr)(const void* buffer, size_t len, void* context);
 
+USHORT Process_File(xdms_read_func_ptr, void* const, xdms_write_func_ptr, void* const, USHORT, USHORT, USHORT, USHORT);

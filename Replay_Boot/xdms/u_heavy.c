@@ -21,19 +21,40 @@
 #define N1 510
 #define OFFSET 253
 
-USHORT left[2 * NC - 1], right[2 * NC - 1 + 9];
-static UCHAR c_len[NC], pt_len[NPT];
-static USHORT c_table[4096], pt_table[256];
+static struct data_t {
+	USHORT left[2 * NC - 1], right[2 * NC - 1 + 9];
+	UCHAR c_len[NC], pt_len[NPT];
+	USHORT c_table[4096], pt_table[256];
+	UCHAR text[8192]; /* Heavy 2 uses 8Kb  */ 
+}* data;
+
+static USHORT *left, *right;
+static UCHAR *c_len, *pt_len;
+static USHORT *c_table, *pt_table;
+static UCHAR *text;
+
 static USHORT lastlen, np;
 USHORT heavy_text_loc;
-
+int init_heavy_tabs=1;
 
 static USHORT read_tree_c(void);
 static USHORT read_tree_p(void);
-INLINE USHORT decode_c(void);
+static USHORT decode_c(void);
 static USHORT decode_p(void);
 
+void Init_HEAVY_Tabs(void){
+//	static_assert(TEMP_BUFFER_LEN >= sizeof(struct data_t), "not enough temp space");
 
+	data = (struct data_t*)(void*)temp;
+
+	left = data->left;
+	right = data->right;
+	c_len = data->c_len;
+	pt_len = data->pt_len;
+	c_table = data->c_table;
+	pt_table = data->pt_table;
+	text = data->text;
+}
 
 USHORT Unpack_HEAVY(UCHAR *in, UCHAR *out, UCHAR flags, USHORT origsize){
 	USHORT j, i, c, bitmask;
@@ -50,6 +71,8 @@ USHORT Unpack_HEAVY(UCHAR *in, UCHAR *out, UCHAR flags, USHORT origsize){
 	}
 
 	initbitbuf(in);
+
+	if (init_heavy_tabs) Init_HEAVY_Tabs();
 
 	if (flags & 2) {
 		if (read_tree_c()) return 1;
@@ -74,7 +97,7 @@ USHORT Unpack_HEAVY(UCHAR *in, UCHAR *out, UCHAR flags, USHORT origsize){
 
 
 
-INLINE USHORT decode_c(void){
+static USHORT decode_c(void){
 	USHORT i, j, m;
 
 	j = c_table[GETBITS(12)];
@@ -139,7 +162,7 @@ static USHORT read_tree_c(void){
 			DROPBITS(5);
 		}
 		for (i=n; i<510; i++) c_len[i] = 0;
-		if (make_table(510,c_len,12,c_table)) return 1;
+		if (make_table(510,c_len,12,c_table,left,right)) return 1;
 	} else {
 		n = GETBITS(9);
 		DROPBITS(9);
@@ -162,7 +185,7 @@ static USHORT read_tree_p(void){
 			DROPBITS(4);
 		}
 		for (i=n; i<np; i++) pt_len[i] = 0;
-		if (make_table(np,pt_len,8,pt_table)) return 1;
+		if (make_table(np,pt_len,8,pt_table,left,right)) return 1;
 	} else {
 		n = GETBITS(5);
 		DROPBITS(5);

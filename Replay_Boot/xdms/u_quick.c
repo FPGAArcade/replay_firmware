@@ -18,6 +18,7 @@
 
 
 USHORT quick_text_loc;
+static UCHAR *text;
 
 
 USHORT Unpack_QUICK(UCHAR *in, UCHAR *out, USHORT origsize){
@@ -25,6 +26,9 @@ USHORT Unpack_QUICK(UCHAR *in, UCHAR *out, USHORT origsize){
 	UCHAR *outend;
 
 	initbitbuf(in);
+
+//	static_assert(TEMP_BUFFER_LEN >= 0x100, "not enough temp space");
+	text = (UCHAR*)temp;
 
 	outend = out+origsize;
 	while (out < outend) {

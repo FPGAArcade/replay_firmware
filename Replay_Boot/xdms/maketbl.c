@@ -17,19 +17,22 @@ static SHORT c;
 static USHORT n, tblsiz, len, depth, maxdepth, avail;
 static USHORT codeword, bit, *tbl, TabErr;
 static UCHAR *blen;
+static USHORT *left, *right;
 
 
 static USHORT mktbl(void);
 
 
 
-USHORT make_table(USHORT nchar, UCHAR bitlen[],USHORT tablebits, USHORT table[]){
+USHORT make_table(USHORT nchar, UCHAR bitlen[],USHORT tablebits, USHORT table[], USHORT l[], USHORT r[]){
 	n = avail = nchar;
 	blen = bitlen;
 	tbl = table;
 	tblsiz = (USHORT) (1U << tablebits);
 	bit = (USHORT) (tblsiz / 2);
 	maxdepth = (USHORT)(tablebits + 1);
+	left = l;
+	right = r;
 	depth = len = 1;
 	c = -1;
 	codeword = 0;

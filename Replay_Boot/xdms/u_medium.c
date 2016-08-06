@@ -20,6 +20,7 @@
 
 
 USHORT medium_text_loc;
+static UCHAR *text;
 
 
 
@@ -29,6 +30,9 @@ USHORT Unpack_MEDIUM(UCHAR *in, UCHAR *out, USHORT origsize){
 
 
 	initbitbuf(in);
+
+//	static_assert(TEMP_BUFFER_LEN >= 0x4000, "not enough temp space");
+	text = (UCHAR*)temp;
 
 	outend = out+origsize;
 	while (out < outend) {

@@ -32,6 +32,10 @@ static void Usage(void);
 static int strcmpnc(char *, char *);
 static void strcpymax(char *, char *, int);
 static void strcatmax(char *, char *, int);
+static USHORT open_files(const char* iname, FILE** fi, const char* oname, FILE** fo);
+static void close_files(const char* iname, FILE* fi, const char* oname, FILE* fo);
+static size_t read_file(void* buffer, size_t len, void* context);
+static size_t write_file(const void* buffer, size_t len, void* context);
 static void ErrMsg(USHORT, char *, char *);
 
 
@@ -40,6 +44,7 @@ int main(int argc, char **argv){
 	int ext;
 	char iname[FNAME_MAXC+1], oname[FNAME_MAXC+1], cmdstr[FNAME_MAXC+20], *inm, *onm, *p, *q, *destdir=NULL;
 	char tname[FNAME_MAXC];
+	FILE *fi, *fo=NULL;
 
 
 	if (argc < 3) {
@@ -301,7 +306,11 @@ int main(int argc, char **argv){
 				}
 			}
 			#endif
-			ret = Process_File(inm, tname, CMD_UNPACK, opt, PCRC, pwd);
+			ret = open_files(inm, &fi, tname, &fo);
+			if (ret == NO_PROBLEM) {
+				ret = Process_File(read_file, fi, write_file, fo, CMD_UNPACK, opt, PCRC, pwd);
+				close_files(inm, fi, tname, fo);
+			}
 			if (opt != OPT_QUIET) ErrMsg(ret, inm, "Temporary file");
 			if (ret == NO_PROBLEM) {
 				if (cmd == CMD_UNPKGZ) {
@@ -345,7 +354,11 @@ int main(int argc, char **argv){
 			}
 			remove(tname);
 		} else {
-			ret = Process_File(inm, onm, cmd, opt, PCRC, pwd);
+			ret = open_files(inm, &fi, cmd == CMD_UNPACK ? onm : 0, &fo);
+			if (ret == NO_PROBLEM) {
+				ret = Process_File(read_file, fi, write_file, fo, cmd, opt, PCRC, pwd);
+				close_files(inm, fi, cmd == CMD_UNPACK ? onm : 0, fo);
+			}
 			if (opt != OPT_QUIET) ErrMsg(ret, inm, onm);
 		}
 
@@ -424,6 +437,38 @@ static void strcatmax(char *s1, char *s2, int max){
 		strcat(s1,s2);
 }
 
+static USHORT open_files(const char* iname, FILE** fi, const char* oname, FILE** fo) {
+	if (iname){
+		*fi = fopen(iname,"rb");
+		if (!*fi) {
+			return ERR_CANTOPENIN;
+		}
+	} else {
+		*fi = stdin;
+	}
+
+	if (oname){
+		*fo = fopen(oname,"wb");
+		if (!*fo) {
+			if (iname) fclose(*fi);
+			return ERR_CANTOPENOUT;
+		}
+	} else {
+		*fo = stdout;
+	}
+
+	return NO_PROBLEM;
+}
+static void close_files(const char* iname, FILE* fi, const char* oname, FILE* fo) {
+	if (iname) fclose(fi);
+	if (oname) fclose(fo);
+}
+static size_t read_file(void* buffer, size_t len, void* context){
+	return fread(buffer, sizeof(char), len, (FILE*)context);
+}
+static size_t write_file(const void* buffer, size_t len, void* context){
+	return fwrite(buffer, sizeof(char), len, (FILE*)context);
+}
 
 
 static void Usage(void)

@@ -71,8 +71,6 @@ char* GetExtension(char* filename)
 int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
 {
   int rc = 0;
-  uint32_t len1 = 0;
-  uint32_t len2 = 0;
 
   if ( (pDir1->Attrib & FF_FAT_ATTR_DIR) && !(pDir2->Attrib & FF_FAT_ATTR_DIR)) // directories first
     return -1;
@@ -80,14 +78,14 @@ int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
   if (!(pDir1->Attrib & FF_FAT_ATTR_DIR) &&  (pDir2->Attrib & FF_FAT_ATTR_DIR)) // directories first
     return 1;
 
-  rc = _strnicmp(pDir1->FileName, pDir2->FileName, FF_MAX_FILENAME);
+  // parent dir first
+  if ((pDir1->Attrib & FF_FAT_ATTR_DIR) && !strcmp("..", pDir1->FileName)) return -1;
+  if ((pDir2->Attrib & FF_FAT_ATTR_DIR) && !strcmp("..", pDir2->FileName)) return  1;
+
+  rc = _stricmp_logical(pDir1->FileName, pDir2->FileName);
   if (rc == 0) {
-    // if strings are equal, shortest one is first
-    len1 = strlen(pDir1->FileName);
-    len2 = strlen(pDir2->FileName);
-    if (len1 < len2) rc = -1; // first string shorter
-    if (len2 < len1) rc =  1; // first string shorter
-    // otherwise they are the same length, return 0
+    // if strings are equal, compare case-sensitive
+    rc = _strncmp(pDir1->FileName, pDir2->FileName, FF_MAX_FILENAME);
   }
   return(rc);
 }

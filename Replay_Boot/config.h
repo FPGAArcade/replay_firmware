@@ -315,12 +315,12 @@ typedef struct {
   uint8_t       fileio_cha_ena;
   uint8_t       fileio_cha_drv;
   fileio_mode_t fileio_cha_mode;
-  char          fileio_cha_ext[4];
+  file_ext_t*   fileio_cha_ext;
 
   uint8_t       fileio_chb_ena;
   uint8_t       fileio_chb_drv;
   fileio_mode_t fileio_chb_mode;
-  char          fileio_chb_ext[4];
+  file_ext_t*   fileio_chb_ext;
 
   /* ======== MENU handling ======== */
 

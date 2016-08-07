@@ -92,6 +92,21 @@ int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
   return(rc);
 }
 
+inline uint8_t FilterExtension(const file_ext_t* file_exts, const char* pFile_ext)
+{
+  if (!file_exts)
+    return TRUE;
+  for (const file_ext_t* ext = file_exts; ext->ext[0] != 0; ++ext)
+  {
+    if (ext->ext[0] == '*')
+      return TRUE;
+    if (strnicmp(pFile_ext, ext->ext, 3) == 0)
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
 inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
 {
   if (dir_entries->file_filter_len) {
@@ -99,15 +114,18 @@ inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
     if (strnicmp(dir_entries->file_filter,mydir->FileName,dir_entries->file_filter_len)) return(FALSE);
   }
 
-  if (mydir->Attrib & FF_FAT_ATTR_DIR) { // directories always come through here, except "."
+  if (mydir->Attrib & FF_FAT_ATTR_DIR) {
+    // directories always come through here, except "."
     if (!strcmp(".",mydir->FileName)) return(FALSE);
+    // always allow parent (..) dir
+    if (!strcmp("..",mydir->FileName)) return(TRUE);
     // hidden directories stay hidden when filtering on file extension
-    if ((dir_entries->file_ext[0] != '*') && mydir->FileName[0] == '.') return FALSE;
+    if (!FilterExtension(dir_entries->file_exts, "*") && mydir->FileName[0] == '.') return FALSE;
     return (TRUE);
   }
 
   char* pFile_ext = GetExtension(mydir->FileName);
-  if ((dir_entries->file_ext[0] == '*') || (strnicmp(pFile_ext, dir_entries->file_ext,3) == 0)) {
+  if (FilterExtension(dir_entries->file_exts, pFile_ext)) {
     return(TRUE);
   }
   return(FALSE);
@@ -118,7 +136,7 @@ void PrintSummary(tDirScan* dir_entries)
 {
   uint32_t i;
 
-  DEBUG(1,"Filesel : scan first dir:%s ext:%s entries:%lu ", dir_entries->pPath, dir_entries->file_ext, dir_entries->total_entries);
+  DEBUG(1,"Filesel : scan first dir:%s ext:%s entries:%lu ", dir_entries->pPath, dir_entries->file_exts ? dir_entries->file_exts->ext : "*", dir_entries->total_entries);
   DEBUG(1,"Filesel : prevc %d nextc %d ", dir_entries->prevc,dir_entries->nextc);
 
   DEBUG(1,"");
@@ -305,20 +323,14 @@ void Filesel_ScanFirst(tDirScan* dir_entries)
 }
 
 // called on startup
-void Filesel_Init(tDirScan* dir_entries, char* pPath, char* pExt)
+void Filesel_Init(tDirScan* dir_entries, char* pPath, const file_ext_t* pExt)
 {
   //DEBUG(1,"Init entry, path %s", pPath);
 
   _strlcpy(dNull.FileName, "", FF_MAX_FILENAME);
   dNull.Attrib = 0;
 
-  if (pExt != NULL) {
-    uint32_t len = strlen(pExt);
-    if (len>4) len=4;
-    _strlcpy(dir_entries->file_ext, pExt, 4);
-  } else {
-    _strlcpy(dir_entries->file_ext, "*",4);
-  }
+  dir_entries->file_exts = pExt;
 
   Filesel_ChangeDir(dir_entries, pPath);
 }

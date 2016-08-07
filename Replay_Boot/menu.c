@@ -194,7 +194,8 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       // open file browser
       strcpy(current_status->act_dir,current_status->ini_dir);
       // search for INI files
-      Filesel_Init(current_status->dir_scan, current_status->act_dir, "INI");
+      static const file_ext_t ini_ext[2] = { {"INI"}, {"\0"} };
+      Filesel_Init(current_status->dir_scan, current_status->act_dir, ini_ext);
       // initialize browser
       Filesel_ScanFirst(current_status->dir_scan);
       current_status->file_browser = 1;
@@ -209,7 +210,9 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
         // open file browser
         strcpy(current_status->act_dir,current_status->ini_dir);
         // search for files with given extension
-        Filesel_Init(current_status->dir_scan, current_status->act_dir, (item->option_list->option_name)+2);
+        static file_ext_t load_ext[2] = { {"\0"}, {"\0"} };
+        _strlcpy(load_ext[0].ext,(item->option_list->option_name)+2, sizeof(file_ext_t));
+        Filesel_Init(current_status->dir_scan, current_status->act_dir, load_ext);
         // initialize browser
         Filesel_ScanFirst(current_status->dir_scan);
         current_status->file_browser = 1;

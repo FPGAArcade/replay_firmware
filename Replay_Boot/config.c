@@ -1543,8 +1543,17 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
             }
           }
           if (entries>1) {
-            _strlcpy(pStatus->fileio_cha_ext,valueList[1].strval,4);
+            DEBUG(1,"ChA %d extension filters: ", entries-1);
+            pStatus->fileio_cha_ext = malloc(sizeof(file_ext_t) * entries);
+            for (uint16_t i = 0; i < entries-1; ++i) {
+              _strlcpy(pStatus->fileio_cha_ext[i].ext, valueList[i+1].strval, sizeof(file_ext_t));
+              DEBUG(1,"ChA extension %d : %s", i, pStatus->fileio_cha_ext[i].ext);
+            }
+            memset(pStatus->fileio_cha_ext[entries-1].ext, 0x00, sizeof(file_ext_t));
+          } else {
+            pStatus->fileio_cha_ext = NULL; // == "*"
           }
+
         }
 
         if (name==INI_CHB_MOUNT) {
@@ -1589,7 +1598,15 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
           }
 
           if (entries>1) {
-            _strlcpy(pStatus->fileio_chb_ext,valueList[1].strval,4);
+            DEBUG(1,"ChB %d extension filters: ", entries-1);
+            pStatus->fileio_chb_ext = malloc(sizeof(file_ext_t) * entries);
+            for (uint16_t i = 0; i < entries-1; ++i) {
+              _strlcpy(pStatus->fileio_chb_ext[i].ext, valueList[i+1].strval, sizeof(file_ext_t));
+              DEBUG(1,"ChB extension %d : %s", i, pStatus->fileio_chb_ext[i].ext);
+            }
+            memset(pStatus->fileio_chb_ext[entries-1].ext, 0x00, sizeof(file_ext_t));
+          } else {
+            pStatus->fileio_chb_ext = NULL; // == "*"
           }
         }
 
@@ -1671,8 +1688,8 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
   DEBUG(1,"FileIO ChB supported : "BYTETOBINARYPATTERN4", Driver : %01X",
     BYTETOBINARY4(currentStatus->fileio_chb_ena), currentStatus->fileio_chb_drv);
 
-  _strlcpy(currentStatus->fileio_cha_ext,"*",4);
-  _strlcpy(currentStatus->fileio_chb_ext,"*",4);
+  currentStatus->fileio_cha_ext = NULL;
+  currentStatus->fileio_chb_ext = NULL;
 
   // update status (all unmounted)
   FileIO_FCh_UpdateDriveStatus(0);
@@ -1849,6 +1866,12 @@ void CFG_free_menu(status_t *currentStatus)
     currentStatus->menu_act = currentStatus->menu_act->next;
     free(p);
   }
+
+  if (currentStatus->fileio_cha_ext) free(currentStatus->fileio_cha_ext);
+  if (currentStatus->fileio_chb_ext) free(currentStatus->fileio_chb_ext);
+  currentStatus->fileio_cha_ext = NULL;
+  currentStatus->fileio_chb_ext = NULL;
+
   currentStatus->menu_top = NULL;
   currentStatus->menu_act = NULL;
   currentStatus->menu_item_act = NULL;

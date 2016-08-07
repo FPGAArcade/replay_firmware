@@ -58,9 +58,13 @@
 #define SCAN_OK 0
 #define SCAN_END 0
 
+typedef struct file_ext {
+  char ext[4];  // "EXT\0"
+} file_ext_t;
+
 typedef struct
 {
-  char       file_ext[4]; // extension string used for scan (including /0)
+  const file_ext_t* file_exts;  // list of extension strings used for scan (including /0)
   char*      pPath;       // pointer to the path
 
   char       file_filter[11]; // filter string used for scan (including /0)
@@ -83,7 +87,7 @@ void Filesel_ScanUpdate(tDirScan* dir_entries);
 
 void Filesel_ScanFirst(tDirScan* dir_entries);
 void Filesel_ScanFind(tDirScan* dir_entries, uint8_t search);
-void Filesel_Init(tDirScan* dir_entries, char* pPath, char* pExt);
+void Filesel_Init(tDirScan* dir_entries, char* pPath, const file_ext_t* pExt);
 void Filesel_ChangeDir(tDirScan* dir_entries, char* pPath);
 void Filesel_AddFilterChar(tDirScan* dir_entries, char letter);
 void Filesel_DelFilterChar(tDirScan* dir_entries);

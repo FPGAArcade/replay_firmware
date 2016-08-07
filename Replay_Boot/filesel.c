@@ -101,6 +101,8 @@ inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
 
   if (mydir->Attrib & FF_FAT_ATTR_DIR) { // directories always come through here, except "."
     if (!strcmp(".",mydir->FileName)) return(FALSE);
+    // hidden directories stay hidden when filtering on file extension
+    if ((dir_entries->file_ext[0] != '*') && mydir->FileName[0] == '.') return FALSE;
     return (TRUE);
   }
 

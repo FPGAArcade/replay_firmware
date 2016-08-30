@@ -369,9 +369,9 @@ end:
 	@echo $(MSG_END)
 	@echo
 
-size:
+size: $(BUILDDIR)$(TARGET).elf
 	@echo
-	$(SIZE) $(BUILDDIR)$(TARGET).elf
+	$(SIZE) $<
 	@echo
 
 # Display compiler version information.

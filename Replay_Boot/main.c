@@ -59,9 +59,11 @@
 #include "osd.h"
 #include "messaging.h"
 
+extern char _binary_buildnum_start;	// from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
+
 // GLOBALS
 FF_IOMAN *pIoman = NULL;  // file system handle
-const char version[] = {__BUILDNUMBER__}; // actual build version
+const char* version = &_binary_buildnum_start; // actual build version
 
 int main(void)
 {

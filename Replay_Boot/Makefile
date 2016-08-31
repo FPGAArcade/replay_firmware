@@ -47,8 +47,17 @@
 # object, list, etc. directory
 OUTPUT_DIR = build
 
+# setup host
+ifeq ($(OS),Windows_NT)
+	HOST = Windows
+	APP_SUFFIX = exe
+else
+	HOST = $(shell uname -s)
+	APP_SUFFIX = elf
+endif
+
 # build number
-BUILD_NUM = $$(./buildnum)
+BUILD_NUM = ./buildnum_$(HOST).$(APP_SUFFIX)
 
 # MCU name and submodel
 MCU      = arm7tdmi
@@ -185,8 +194,6 @@ endif
 
 CDEFS += -D__WinARM__
 ADEFS += -D__WinARM__
-
-CDEFS += -D__BUILDNUMBER__=\"$(BUILD_NUM)\"
 
 # Compiler flags.
 
@@ -418,8 +425,11 @@ $(BUILDDIR)%.sym: $(BUILDDIR)%.elf
 .PRECIOUS : $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM)
 $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM)
 	@echo
+	$(BUILD_NUM) > buildnum
+	$(OBJCOPY) -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 	@echo $(MSG_LINKING) $@
-	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
+	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) buildnum.o --output $@ $(LDFLAGS)
+	$(REMOVE) buildnum buildnum.o
 #       $(CPP) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
 
 # Compile: create object files from C source files. ARM/Thumb
@@ -479,6 +489,7 @@ clean_list :
 	@echo
 	@echo $(MSG_CLEANING)
 	$(REMOVE) -r .dep
+	$(REMOVE) $(BUILDDIR)/isset
 	$(REMOVE) $(BUILDDIR)$(TARGET).hex
 	$(REMOVE) $(BUILDDIR)$(TARGET).bin
 	$(REMOVE) $(TARGET).s19
@@ -503,6 +514,7 @@ clean_list :
 	$(REMOVE) $(CPPSRC:.cpp=.d)
 	$(REMOVE) $(CPPSRCARM:.cpp=.s)
 	$(REMOVE) $(CPPSRCARM:.cpp=.d)
+	$(REMOVE) -r $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
 
 
 # Include the dependency files.

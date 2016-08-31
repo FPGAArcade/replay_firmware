@@ -76,7 +76,7 @@ extern char __TOP_STACK[];
 */
 extern FF_IOMAN *pIoman;
 
-extern const char version[];  // temp
+extern const char* version;  // temp
 
   // y0 - FPGA DRAM
   // y1 - Coder

@@ -3,18 +3,27 @@
 # should work with recent MinGW setups
 #
 
+# setup host
+ifeq ($(OS),Windows_NT)
+	HOST = Windows
+	APP_SUFFIX = exe
+else
+	HOST := $(shell uname -s)
+	APP_SUFFIX = elf
+endif
+
 LIBS   = -lkernel32 -luser32 -ladvapi32 -luuid -lsetupapi
 
-all: buildnum.exe
+all: buildnum_$(HOST).$(APP_SUFFIX)
 
-buildnum.exe: buildnum.c 
-	gcc -o buildnum.exe buildnum.c $(LIBS)
-	cp buildnum.exe ../../arm_sw/Replay_boot
+%.exe: buildnum.c 
+	gcc -o $@ $< $(LIBS)
+	cp $@ ../../arm_sw/Replay_boot
 
-linux:
-	gcc -o buildnum.elf buildnum.c
-	cp buildnum.elf ../../arm_sw/Replay_Boot
+%.elf: buildnum.c
+	gcc -o $@ $<
+	cp $@ ../../arm_sw/Replay_Boot
 
 clean:
-	rm -f buildnum.exe buildnum.elf
+	rm -f *.elf *.exe
 

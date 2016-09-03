@@ -107,9 +107,9 @@ inline uint8_t FilterExtension(const file_ext_t* file_exts, const char* pFile_ex
 
 inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
 {
-  if (dir_entries->file_filter_len) {
+  if (dir_entries->file_filter[0]) {
     // if we don't have a filter match, we return false
-    if (strnicmp(dir_entries->file_filter,mydir->FileName,dir_entries->file_filter_len)) return(FALSE);
+    if (!strcasestr(mydir->FileName, dir_entries->file_filter)) return(FALSE);
   }
 
   if (mydir->Attrib & FF_FAT_ATTR_DIR) {
@@ -346,13 +346,14 @@ void Filesel_ChangeDir(tDirScan* dir_entries, char* pPath)
   dir_entries->sel = 128;
 
   dir_entries->file_filter[0]=0;
-  dir_entries->file_filter_len=0;
 }
 
 // called on filter change
 void Filesel_AddFilterChar(tDirScan* dir_entries, char letter)
 {
   //DEBUG(1,"AddFilterChar entry with '%c'", letter);
+  size_t len = strlen(dir_entries->file_filter);
+
   dir_entries->total_entries = 0;
   dir_entries->prevc = 0;
   dir_entries->nextc = 0;
@@ -360,8 +361,9 @@ void Filesel_AddFilterChar(tDirScan* dir_entries, char letter)
   dir_entries->offset = 128;
   dir_entries->sel = 128;
 
-  if (dir_entries->file_filter_len<10) {
-    dir_entries->file_filter[dir_entries->file_filter_len++]=letter;
+  if (len < sizeof(dir_entries->file_filter)-1) {
+    dir_entries->file_filter[len]=letter;
+    dir_entries->file_filter[len+1]=0;
   }
 }
 void Filesel_DelFilterChar(tDirScan* dir_entries)
@@ -374,8 +376,9 @@ void Filesel_DelFilterChar(tDirScan* dir_entries)
   dir_entries->offset = 128;
   dir_entries->sel = 128;
 
-  if (dir_entries->file_filter_len>0) {
-    dir_entries->file_filter[--dir_entries->file_filter_len]=0;
+  if (dir_entries->file_filter[0]) {
+    size_t len = strlen(dir_entries->file_filter);
+    dir_entries->file_filter[len-1]=0;
   }
 }
 

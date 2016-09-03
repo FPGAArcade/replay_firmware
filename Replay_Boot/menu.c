@@ -148,9 +148,15 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           }
         } else {
           // open file browser
-          strcpy(current_status->act_dir,current_status->ini_dir);
-          // search for INI files
+          // (skip re-initing 'act_dir' here in order to keep the 'current' dir when selecting additional files)
+          // save the file_filter, so that we can restore it (in case we already had a filter)
+          const size_t size = sizeof(current_status->dir_scan->file_filter);
+          char file_filter[size];
+          memcpy(file_filter, current_status->dir_scan->file_filter, size);          
+          // search for CHA extension files
           Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->fileio_cha_ext);
+          // restore the filer
+          memcpy(current_status->dir_scan->file_filter, file_filter, size);          
           // initialize browser
           Filesel_ScanFirst(current_status->dir_scan);
           current_status->file_browser = 1;
@@ -581,11 +587,13 @@ void _MENU_update_ui(status_t *current_status)
 
       // show filter in header
       uint8_t sel = Filesel_GetSel(current_status->dir_scan);
-      if (current_status->dir_scan->file_filter_len) {
+      if (current_status->dir_scan->file_filter[0]) {
         char s[OSDMAXLEN+1];
-        strncpy (s, current_status->dir_scan->file_filter, OSDMAXLEN);
-        s[current_status->dir_scan->file_filter_len]='*';
-        s[current_status->dir_scan->file_filter_len+1]=0;
+        size_t len = strlen(current_status->dir_scan->file_filter);
+        s[0]='*';
+        memcpy(s+1, current_status->dir_scan->file_filter, len);
+        s[len+1]='*';
+        s[len+2]=0;
         OSD_WriteRC(1, 0, s ,0,0xF,1);
       }
 
@@ -706,6 +714,8 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
   static uint32_t scroll_timer;
   static uint16_t scroll_text_offset=0;
   static uint8_t  scroll_started=0;
+  static uint8_t  delayed_filescan=0;
+  static uint32_t filescan_timer;
 
   // timeout of OSD after noticing last key press (or external forced update)
   if ((current_status->show_menu || current_status->popup_menu ||
@@ -823,13 +833,15 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
     }
     if ( ((key >= '0') && (key<='9')) || ((key >= 'A') && (key<='Z')) ) {
       Filesel_AddFilterChar(current_status->dir_scan, key&0x7F);
-      Filesel_ScanFirst(current_status->dir_scan); // scan first
-      update=1;
+      // keep grace period here before re-scanning - user might be typing..
+      filescan_timer = Timer_Get(250);
+      delayed_filescan=1;
     }
     if ( key==KEY_BACK ) { // backspace removes a letter from the filter string
       Filesel_DelFilterChar(current_status->dir_scan);
-      Filesel_ScanFirst(current_status->dir_scan); // scan first
-      update=1;
+      // keep grace period here before re-scanning - user might be typing..
+      filescan_timer = Timer_Get(250);
+      delayed_filescan=1;
     }
     // quickly remove filter and rescan
     if (key == KEY_HOME) {
@@ -1049,6 +1061,14 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       }
     }
   }
+
+  // Add/DelFilterChar waits 250ms before re-scanning the directory and updating the UI
+  if (delayed_filescan && Timer_Check(filescan_timer)) {
+    Filesel_ScanFirst(current_status->dir_scan);
+    delayed_filescan=0;
+    update=1;
+  }
+
   // update menu if needed
   if (update) {
     _MENU_update_ui(current_status);

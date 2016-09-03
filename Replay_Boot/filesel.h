@@ -67,8 +67,7 @@ typedef struct
   const file_ext_t* file_exts;  // list of extension strings used for scan (including /0)
   char*      pPath;       // pointer to the path
 
-  char       file_filter[11]; // filter string used for scan (including /0)
-  uint8_t    file_filter_len;
+  char       file_filter[12]; // filter string used for scan (including /0)
 
   uint32_t   total_entries; // files + directories
   uint8_t    prevc;

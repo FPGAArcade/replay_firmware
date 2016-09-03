@@ -51,9 +51,11 @@ OUTPUT_DIR = build
 ifeq ($(OS),Windows_NT)
 	HOST = Windows
 	APP_SUFFIX = exe
+	USBDL = usbdl.exe
 else
 	HOST = $(shell uname -s)
 	APP_SUFFIX = elf
+	USBDL = usbdl_$(HOST).elf
 endif
 
 # build number
@@ -346,8 +348,8 @@ ALL_ASFLAGS = -mcpu=$(MCU) $(THUMB_IW) -I. -x assembler-with-cpp $(ASFLAGS)
 #all: begin gccversion sizebefore build sizeafter finished end
 all: begin $(BUILDDIR)/isset gccversion build finished end
 
-install:
-	../Replay_Update/FW/usbdl load $(BUILDDIR)$(TARGET).s19
+install: all $(BUILDDIR)$(TARGET).s19
+	../../bootloader/replay_loader_v1.2/$(USBDL) load $(BUILDDIR)$(TARGET).s19
 
 # set up directory for output files, inluding subdirs for libs
 $(BUILDDIR)/isset:

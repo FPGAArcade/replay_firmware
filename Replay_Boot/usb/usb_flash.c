@@ -360,12 +360,46 @@ static int  UsbSoFarCount;
 static uint8_t CurrentConfiguration;
 
 //-----------------------------------------------------------------------------
+// Send a zero-length packet on EP0. This blocks until the packet has been
+// transmitted and an ACK from the host has been received.
+//-----------------------------------------------------------------------------
+static void UsbSendZeroLength(void)
+{
+    UDP_ENDPOINT_CSR(0) |= UDP_CSR_TX_PACKET;
+
+    while(!(UDP_ENDPOINT_CSR(0) & UDP_CSR_TX_PACKET_ACKED))
+        ;
+
+    UDP_ENDPOINT_CSR(0) &= ~UDP_CSR_TX_PACKET_ACKED;
+
+    while(UDP_ENDPOINT_CSR(0) & UDP_CSR_TX_PACKET_ACKED)
+        ;
+}
+
+//-----------------------------------------------------------------------------
+// Send a STALL packet on EP0. This is needed when device doesn't support a
+// control packet, the control request has failed, or the endpoint failed.
+//-----------------------------------------------------------------------------
+static void UsbSendStall(void)
+{
+    UDP_ENDPOINT_CSR(0) |= AT91C_UDP_FORCESTALL;
+    while(!(UDP_ENDPOINT_CSR(0) & AT91C_UDP_STALLSENT))
+        ;
+    UDP_ENDPOINT_CSR(0) &= ~(AT91C_UDP_FORCESTALL | AT91C_UDP_STALLSENT);
+    while(UDP_ENDPOINT_CSR(0) & (AT91C_UDP_FORCESTALL | AT91C_UDP_STALLSENT))
+        ;
+}
+
+//-----------------------------------------------------------------------------
 // Send a packet over EP0. This blocks until the packet has been transmitted
 // and an ACK from the host has been received.
 //-----------------------------------------------------------------------------
-static void UsbSendEp0(const uint8_t *data, int len)
+static void UsbSendEp0(const uint8_t *data, int size, int wLength)
 {
     int thisTime, i;
+
+    int len = min(size, wLength);
+    uint8_t needzlp = ((len & 0x7) == 0x00) && len != wLength;
 
     do {
         thisTime = min(len, 8);
@@ -399,23 +433,11 @@ static void UsbSendEp0(const uint8_t *data, int len)
         while(UDP_ENDPOINT_CSR(0) & UDP_CSR_TX_PACKET_ACKED)
             ;
     }
-}
 
-//-----------------------------------------------------------------------------
-// Send a zero-length packet on EP0. This blocks until the packet has been
-// transmitted and an ACK from the host has been received.
-//-----------------------------------------------------------------------------
-static void UsbSendZeroLength(void)
-{
-    UDP_ENDPOINT_CSR(0) |= UDP_CSR_TX_PACKET;
-
-    while(!(UDP_ENDPOINT_CSR(0) & UDP_CSR_TX_PACKET_ACKED))
-        ;
-
-    UDP_ENDPOINT_CSR(0) &= ~UDP_CSR_TX_PACKET_ACKED;
-
-    while(UDP_ENDPOINT_CSR(0) & UDP_CSR_TX_PACKET_ACKED)
-        ;
+    // The HOST can't determine the actual data length if the size is a multiple of the packet size (8).
+    // This is only needed when the data size is less than what the HOST 'expects'.
+    if (needzlp)
+        UsbSendZeroLength();
 }
 
 //-----------------------------------------------------------------------------
@@ -446,17 +468,21 @@ static void HandleRxdSetupData(void)
         case USB_REQUEST_GET_DESCRIPTOR:
             if((usd.wValue >> 8) == USB_DESCRIPTOR_TYPE_DEVICE) {
                 UsbSendEp0((uint8_t *)&DeviceDescriptor,
-                    min(sizeof(DeviceDescriptor), usd.wLength));
+                    sizeof(DeviceDescriptor), usd.wLength);
             } else if((usd.wValue >> 8) == USB_DESCRIPTOR_TYPE_CONFIGURATION) {
                 UsbSendEp0((uint8_t *)&ConfigurationDescriptor,
-                    min(sizeof(ConfigurationDescriptor), usd.wLength));
+                    sizeof(ConfigurationDescriptor), usd.wLength);
             } else if((usd.wValue >> 8) == USB_DESCRIPTOR_TYPE_STRING) {
                 const uint8_t *s = StringDescriptors[usd.wValue & 0xff];
-                UsbSendEp0(s, min(s[0], usd.wLength));
+                if ((usd.wValue & 0xff) < sizeof(StringDescriptors) / sizeof(StringDescriptors[0]))
+                    UsbSendEp0(s, s[0], usd.wLength);
+                else
+                    UsbSendStall();
             } else if((usd.wValue >> 8) == USB_DESCRIPTOR_TYPE_HID_REPORT) {
                 UsbSendEp0((uint8_t *)&HidReportDescriptor,
-                    min(sizeof(HidReportDescriptor), usd.wLength));
-            }
+                    sizeof(HidReportDescriptor), usd.wLength);
+            } else
+                UsbSendStall();
             break;
 
         case USB_REQUEST_SET_ADDRESS:
@@ -470,13 +496,13 @@ static void HandleRxdSetupData(void)
             break;
 
         case USB_REQUEST_GET_CONFIGURATION:
-            UsbSendEp0(&CurrentConfiguration, sizeof(CurrentConfiguration));
+            UsbSendEp0(&CurrentConfiguration, sizeof(CurrentConfiguration), usd.wLength);
             break;
 
         case USB_REQUEST_GET_STATUS: {
             if(usd.bmRequestType & 0x80) {
                 uint16_t w = 0;
-                UsbSendEp0((uint8_t *)&w, sizeof(w));
+                UsbSendEp0((uint8_t *)&w, sizeof(w), usd.wLength);
             }
             break;
         }
@@ -498,7 +524,7 @@ static void HandleRxdSetupData(void)
 
         case USB_REQUEST_GET_INTERFACE: {
             uint8_t b = 0;
-            UsbSendEp0(&b, sizeof(b));
+            UsbSendEp0(&b, sizeof(b), usd.wLength);
             break;
         }
 
@@ -511,6 +537,7 @@ static void HandleRxdSetupData(void)
         case USB_REQUEST_SET_DESCRIPTOR:
         case USB_REQUEST_SYNC_FRAME:
         default:
+            UsbSendStall();
             break;
     }
 }

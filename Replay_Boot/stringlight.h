@@ -75,5 +75,11 @@ char* GetExtension(char* filename);
 
 void FF_ExpandPath(char *acPath);
 
+#if __GNUC__ >= 5
+char* strcasestr(const char *, const char *);
+#define stricmp(a,b) strcasecmp(a,b) 				// int stricmp(const char *, const char *);
+#define strnicmp(a,b,c) strncasecmp(a,b,c)			// int strnicmp(const char *, const char *, size_t);
+#endif
+
 #endif
 

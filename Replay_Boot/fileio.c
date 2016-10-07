@@ -63,8 +63,8 @@ uint8_t FileIO_MCh_WaitStat(uint8_t mask, uint8_t wanted)
   uint32_t timeout = Timer_Get(100);      // 100 ms timeout
   do {
     SPI_EnableFileIO();
-    SPI(0x87); // do Read
-    stat = SPI(0);
+    rSPI(0x87); // do Read
+    stat = rSPI(0);
     SPI_DisableFileIO();
 
     if (Timer_Check(timeout)) {
@@ -82,7 +82,7 @@ uint8_t FileIO_MCh_SendBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
     return (1); // timeout
 
   SPI_EnableFileIO();
-  SPI(0xB0);
+  rSPI(0xB0);
   SPI_WriteBufferSingle(pBuf, buf_tx_size);
   SPI_DisableFileIO();
 
@@ -94,7 +94,7 @@ uint8_t FileIO_MCh_ReadBuffer(uint8_t *pBuf, uint16_t buf_tx_size)
   // we assume read has completed and FIFO contains complete transfer
   DEBUG(3,"MCh:read buffer :%4x.",buf_tx_size);
   SPI_EnableFileIO();
-  SPI(0xA0);
+  rSPI(0xA0);
   SPI_ReadBufferSingle(pBuf, buf_tx_size);
   SPI_DisableFileIO();
   return (0);
@@ -114,16 +114,16 @@ uint8_t FileIO_MCh_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size, uint3
   FF_Seek(pFile, offset, FF_SEEK_SET);
 
   SPI_EnableFileIO();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
+  rSPI(0x80); // set address
+  rSPI((uint8_t)(base));
+  rSPI((uint8_t)(base >> 8));
+  rSPI((uint8_t)(base >> 16));
+  rSPI((uint8_t)(base >> 24));
   SPI_DisableFileIO();
 
   SPI_EnableFileIO();
-  SPI(0x81); // set direction
-  SPI(0x00); // write
+  rSPI(0x81); // set direction
+  rSPI(0x00); // write
   SPI_DisableFileIO();
 
   while (remaining_size) {
@@ -184,16 +184,16 @@ uint8_t FileIO_MCh_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size,
   FF_Seek(pFile, offset, FF_SEEK_SET);
 
   SPI_EnableFileIO();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
+  rSPI(0x80); // set address
+  rSPI((uint8_t)(base));
+  rSPI((uint8_t)(base >> 8));
+  rSPI((uint8_t)(base >> 16));
+  rSPI((uint8_t)(base >> 24));
   SPI_DisableFileIO();
 
   SPI_EnableFileIO();
-  SPI(0x81); // set direction
-  SPI(0x80); // read
+  rSPI(0x81); // set direction
+  rSPI(0x80); // read
   SPI_DisableFileIO();
 
   while (remaining_size) {
@@ -222,9 +222,9 @@ uint8_t FileIO_MCh_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size,
     while (fpga_read_left) {
       if (fpga_read_left < fpgabuf_size) fpgabuf_size = fpga_read_left;
       SPI_EnableFileIO();
-      SPI(0x84); // do Read
-      SPI((uint8_t)( fpgabuf_size - 1));
-      SPI((uint8_t)((fpgabuf_size - 1) >> 8));
+      rSPI(0x84); // do Read
+      rSPI((uint8_t)( fpgabuf_size - 1));
+      rSPI((uint8_t)((fpgabuf_size - 1) >> 8));
       SPI_DisableFileIO();
       if (FileIO_MCh_WaitStat(0x04, 0)) { // wait for read finish
         return(1);
@@ -272,16 +272,16 @@ uint8_t FileIO_MCh_MemToFile(FF_FILE *pFile, uint32_t base, uint32_t size, uint3
   if (offset) FF_Seek(pFile, offset, FF_SEEK_SET);
 
   SPI_EnableFileIO();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
+  rSPI(0x80); // set address
+  rSPI((uint8_t)(base));
+  rSPI((uint8_t)(base >> 8));
+  rSPI((uint8_t)(base >> 16));
+  rSPI((uint8_t)(base >> 24));
   SPI_DisableFileIO();
 
   SPI_EnableFileIO();
-  SPI(0x81); // set direction
-  SPI(0x80); // read
+  rSPI(0x81); // set direction
+  rSPI(0x80); // read
   SPI_DisableFileIO();
 
   while (remaining_size) {
@@ -304,9 +304,9 @@ uint8_t FileIO_MCh_MemToFile(FF_FILE *pFile, uint32_t base, uint32_t size, uint3
     while (fpga_read_left) {
       if (fpga_read_left < fpgabuf_size) fpgabuf_size = fpga_read_left;
       SPI_EnableFileIO();
-      SPI(0x84); // do Read
-      SPI((uint8_t)( fpgabuf_size - 1));
-      SPI((uint8_t)((fpgabuf_size - 1) >> 8));
+      rSPI(0x84); // do Read
+      rSPI((uint8_t)( fpgabuf_size - 1));
+      rSPI((uint8_t)((fpgabuf_size - 1) >> 8));
       SPI_DisableFileIO();
       if (FileIO_MCh_WaitStat(0x04, 0)) { // wait for read finish
         return(1);
@@ -339,16 +339,16 @@ uint8_t FileIO_MCh_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size)
   uint32_t buf_tx_size = size;
   DEBUG(3,"MCh:BufToMem Addr:%8X.",base);
   SPI_EnableFileIO();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
+  rSPI(0x80); // set address
+  rSPI((uint8_t)(base));
+  rSPI((uint8_t)(base >> 8));
+  rSPI((uint8_t)(base >> 16));
+  rSPI((uint8_t)(base >> 24));
   SPI_DisableFileIO();
 
   SPI_EnableFileIO();
-  SPI(0x81); // set direction
-  SPI(0x00); // write
+  rSPI(0x81); // set direction
+  rSPI(0x00); // write
   SPI_DisableFileIO();
 
   if (size>FILEIO_MEMBUF_SIZE) { // arb limit while debugging
@@ -370,16 +370,16 @@ uint8_t FileIO_MCh_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size)
   uint32_t buf_tx_size = size;
 
   SPI_EnableFileIO();
-  SPI(0x80); // set address
-  SPI((uint8_t)(base));
-  SPI((uint8_t)(base >> 8));
-  SPI((uint8_t)(base >> 16));
-  SPI((uint8_t)(base >> 24));
+  rSPI(0x80); // set address
+  rSPI((uint8_t)(base));
+  rSPI((uint8_t)(base >> 8));
+  rSPI((uint8_t)(base >> 16));
+  rSPI((uint8_t)(base >> 24));
   SPI_DisableFileIO();
 
   SPI_EnableFileIO();
-  SPI(0x81); // set direction
-  SPI(0x80); // read
+  rSPI(0x81); // set direction
+  rSPI(0x80); // read
   SPI_DisableFileIO();
 
   if (size>FILEIO_MEMBUF_SIZE) { // arb limit while debugging
@@ -387,9 +387,9 @@ uint8_t FileIO_MCh_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size)
     WARNING("MCh:Max MemToBuf size is %d bytes.",FILEIO_MEMBUF_SIZE);
   }
   SPI_EnableFileIO();
-  SPI(0x84); // do Read
-  SPI((uint8_t)( buf_tx_size - 1)     );
-  SPI((uint8_t)((buf_tx_size - 1) >> 8));
+  rSPI(0x84); // do Read
+  rSPI((uint8_t)( buf_tx_size - 1)     );
+  rSPI((uint8_t)((buf_tx_size - 1) >> 8));
   SPI_DisableFileIO();
 
   if (FileIO_MCh_WaitStat(0x04, 0)) // wait for read finish
@@ -418,8 +418,8 @@ inline uint8_t FileIO_FCh_GetStat(uint8_t ch)
 {
   uint8_t stat;
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_STAT_R));
-  stat = SPI(0);
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_STAT_R));
+  stat = rSPI(0);
   SPI_DisableFileIO();
   return stat;
 }
@@ -427,8 +427,8 @@ inline uint8_t FileIO_FCh_GetStat(uint8_t ch)
 inline void FileIO_FCh_WriteStat(uint8_t ch, uint8_t stat)
 {
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_STAT_W));
-  SPI(stat);
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_STAT_W));
+  rSPI(stat);
   SPI_DisableFileIO();
 }
 
@@ -452,7 +452,7 @@ void FileIo_FCh_FileReadSendDirect(uint8_t ch, fch_t *pDrive, uint32_t size)
   // on entry assumes file is in correct position
   // no flow control check, FPGA must be able to sync entire transfer.
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
   SPI_EnableDirect();
   SPI_DisableFileIO();
 

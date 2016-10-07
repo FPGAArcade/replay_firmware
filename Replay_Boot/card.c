@@ -68,7 +68,7 @@ uint8_t Card_Init(void)
   SPI_DisableCard();
 
   for(n=0; n < 10; n++)                    /*Set SDcard in SPI-Mode, Reset*/
-      SPI(0xFF);                           /*10 * 8bits = 80 clockpulses*/
+      rSPI(0xFF);                           /*10 * 8bits = 80 clockpulses*/
 
   Timer_Wait(20);           // 20ms delay
   SPI_EnableCard();
@@ -81,7 +81,7 @@ uint8_t Card_Init(void)
     if (MMC_Command(CMD8, 0x1AA) == 0x01) { // check if the card can operate with 2.7-3.6V power
       // SDHC card
       for (n = 0; n < 4; n++)
-        ocr[n] = SPI(0xFF); // get the rest of R7 response
+        ocr[n] = rSPI(0xFF); // get the rest of R7 response
 
       if (ocr[2] == 0x01 && ocr[3] == 0xAA) {
       // the card can work at 2.7-3.6V
@@ -95,7 +95,7 @@ uint8_t Card_Init(void)
               if (MMC_Command(CMD58, 0) == 0x00) {
                 // check CCS (Card Capacity Status) bit in the OCR
                 for (n = 0; n < 4; n++)
-                  ocr[n] = SPI(0xFF);
+                  ocr[n] = rSPI(0xFF);
                 // if CCS set then the card is SDHC compatible
                 cardType = (ocr[0] & 0x40) ? CARDTYPE_SDHC : CARDTYPE_SD;
               }
@@ -216,7 +216,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
   while (sectorCount--) {
 
     timeout = Timer_Get(250);      // timeout
-    while (SPI(0xFF) != 0xFE) {
+    while (rSPI(0xFF) != 0xFE) {
       if (Timer_Check(timeout)) {
         WARNING("SPI:Card_ReadM - no data token! (lba=%lu)", sector);
         SPI_DisableCard();
@@ -271,8 +271,8 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
     else
       pBuffer += 512; // point to next sector
 
-    SPI(0xFF); // read CRC lo byte
-    SPI(0xFF); // read CRC hi byte
+    rSPI(0xFF); // read CRC lo byte
+    rSPI(0xFF); // read CRC hi byte
     // ? check CRC
   }
 
@@ -303,18 +303,18 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
       return(FF_ERR_DEVICE_DRIVER_FAILED);
     }
 
-    SPI(0xFF); // one byte gap
-    SPI(0xFE); // send Data Token
+    rSPI(0xFF); // one byte gap
+    rSPI(0xFE); // send Data Token
 
     // send sector bytes TO DO -- DMA
     for (i = 0; i < 512; i++)
-      SPI(*(pBuffer++));
+      rSPI(*(pBuffer++));
 
     // calc CRC????
-    SPI(0xFF); // send CRC lo byte
-    SPI(0xFF); // send CRC hi byte
+    rSPI(0xFF); // send CRC lo byte
+    rSPI(0xFF); // send CRC hi byte
 
-    response = SPI(0xFF); // read packet response
+    response = rSPI(0xFF); // read packet response
     // Status codes
     // 010 = Data accepted
     // 101 = Data rejected due to CRC error
@@ -328,7 +328,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
     }
 
     timeout = Timer_Get(500);      // timeout
-    while (SPI(0xFF) == 0x00) {
+    while (rSPI(0xFF) == 0x00) {
       if (Timer_Check(timeout)) {
         WARNING("SPI:Card_WriteM - busy write timeout! (lba=%lu)", sector);
         SPI_DisableCard();
@@ -347,23 +347,23 @@ uint8_t MMC_Command(uint8_t cmd, uint32_t arg)
   /*flush SPI-bus*/
   uint8_t attempts = 100;
   do {
-    response = SPI(0xFF); // get response
+    response = rSPI(0xFF); // get response
   } while (response != 0xFF && attempts--);
   // this gives a minimum of 8 clocks between response and command (nRC)
   crc = 0;
-  SPI(cmd); MMC_CRC(cmd);
-  c = (uint8_t)(arg >> 24); SPI(c); MMC_CRC(c);
-  c = (uint8_t)(arg >> 16); SPI(c); MMC_CRC(c);
-  c = (uint8_t)(arg >>  8); SPI(c); MMC_CRC(c);
-  c = (uint8_t)(arg      ); SPI(c); MMC_CRC(c);
+  rSPI(cmd); MMC_CRC(cmd);
+  c = (uint8_t)(arg >> 24); rSPI(c); MMC_CRC(c);
+  c = (uint8_t)(arg >> 16); rSPI(c); MMC_CRC(c);
+  c = (uint8_t)(arg >>  8); rSPI(c); MMC_CRC(c);
+  c = (uint8_t)(arg      ); rSPI(c); MMC_CRC(c);
 
   crc = crc << 1; // *shift all bits 1 position to the left, to free position 0
   crc ++;     // set LSB to '1'
-  SPI(crc);
+  rSPI(crc);
 
   attempts = 100;
   do {
-    response = SPI(0xFF); // get response
+    response = rSPI(0xFF); // get response
   } while (response == 0xFF && attempts--);
 
   DEBUG(3,"response %02X",response);
@@ -372,21 +372,21 @@ uint8_t MMC_Command(uint8_t cmd, uint32_t arg)
 
 uint8_t MMC_Command12(void)
 {
-  SPI(CMD12);
-  SPI(0x00);
-  SPI(0x00);
-  SPI(0x00);
-  SPI(0x00);
-  SPI(0x00); // dummy CRC7
-  SPI(0xFF); // skip stuff byte
+  rSPI(CMD12);
+  rSPI(0x00);
+  rSPI(0x00);
+  rSPI(0x00);
+  rSPI(0x00);
+  rSPI(0x00); // dummy CRC7
+  rSPI(0xFF); // skip stuff byte
 
   unsigned char Ncr = 100;  // Ncr = 0..8 (SD) / 1..8 (MMC)
   do
-      response = SPI(0xFF); // get response
+      response = rSPI(0xFF); // get response
   while (response == 0xFF && Ncr--);
 
   timeout = Timer_Get(10);      // 10 ms timeout
-  while (SPI(0xFF) == 0x00) {// wait until the card is not busy
+  while (rSPI(0xFF) == 0x00) {// wait until the card is not busy
     if (Timer_Check(timeout)) {
       WARNING("SPI:Card_CMD12 (STOP) timeout!");
       SPI_DisableCard();

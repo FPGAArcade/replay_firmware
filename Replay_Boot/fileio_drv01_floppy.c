@@ -156,58 +156,58 @@ void FileIO_Drv01_Amiga_SendHeader(uint8_t* pBuffer, uint8_t sector, uint8_t tra
   uint8_t *p;
 
   // preamble
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
+  rSPI(0xAA);
+  rSPI(0xAA);
+  rSPI(0xAA);
+  rSPI(0xAA);
 
   // synchronization
-  SPI(dsksynch);
-  SPI(dsksyncl);
-  SPI(dsksynch);
-  SPI(dsksyncl);
+  rSPI(dsksynch);
+  rSPI(dsksyncl);
+  rSPI(dsksynch);
+  rSPI(dsksyncl);
 
   // odd bits of header
   x = MFMEncode(0xFF, dsksyncl);
-  checksum[0] = x; SPI(x);
+  checksum[0] = x; rSPI(x);
 
   x = MFMEncode(track >> 1, x);
-  checksum[1] = x; SPI(x);
+  checksum[1] = x; rSPI(x);
 
   x = MFMEncode(sector >> 1, x);
-  checksum[2] = x; SPI(x);
+  checksum[2] = x; rSPI(x);
 
   x = MFMEncode((11 - sector) >> 1, x);
-  checksum[3] = x; SPI(x);
+  checksum[3] = x; rSPI(x);
 
   // even bits of header
   x = MFMEncode(0xFF, x);
-  checksum[0] ^= x; SPI(x);
+  checksum[0] ^= x; rSPI(x);
 
   x = MFMEncode(track, x);
-  checksum[1] ^= x; SPI(x);
+  checksum[1] ^= x; rSPI(x);
 
   x = MFMEncode(sector, x);
-  checksum[2] ^= x; SPI(x);
+  checksum[2] ^= x; rSPI(x);
 
   x = MFMEncode((11 - sector), x);
-  checksum[3] ^= x; SPI(x);
+  checksum[3] ^= x; rSPI(x);
 
   // first clock bit here may be wrong ...
   // sector label and reserved area (changes nothing to checksum)
   i = 0x20;
   while (i--)
-    SPI(0xAA);
+    rSPI(0xAA);
 
   // send header checksum
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(checksum[0] | 0xAA);
-  SPI(checksum[1] | 0xAA);
-  SPI(checksum[2] | 0xAA);
-  SPI(checksum[3] | 0xAA);
+  rSPI(0xAA);
+  rSPI(0xAA);
+  rSPI(0xAA);
+  rSPI(0xAA);
+  rSPI(checksum[0] | 0xAA);
+  rSPI(checksum[1] | 0xAA);
+  rSPI(checksum[2] | 0xAA);
+  rSPI(checksum[3] | 0xAA);
 
   // calculate data checksum
   checksum[0] = 0;
@@ -229,14 +229,14 @@ void FileIO_Drv01_Amiga_SendHeader(uint8_t* pBuffer, uint8_t sector, uint8_t tra
   }
 
   // send data checksum
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(0xAA);
-  SPI(checksum[0] | 0xAA);
-  SPI(checksum[1] | 0xAA);
-  SPI(checksum[2] | 0xAA);
-  SPI(checksum[3] | 0xAA);
+  rSPI(0xAA);
+  rSPI(0xAA);
+  rSPI(0xAA);
+  rSPI(0xAA);
+  rSPI(checksum[0] | 0xAA);
+  rSPI(checksum[1] | 0xAA);
+  rSPI(checksum[2] | 0xAA);
+  rSPI(checksum[3] | 0xAA);
 
 }
 
@@ -259,14 +259,14 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer, uint8_t
 
 
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
-  SPI(0x00); // dummy
-             SPI(0);  // spare
-  track    = SPI(0);  //
-  dsksync  = SPI(0) << 8;
-  dsksync |= SPI(0);
-  reqsize  = SPI(0) << 8;
-  reqsize |= SPI(0);
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
+  rSPI(0x00); // dummy
+             rSPI(0);  // spare
+  track    = rSPI(0);  //
+  dsksync  = rSPI(0) << 8;
+  dsksync |= rSPI(0);
+  reqsize  = rSPI(0) << 8;
+  reqsize |= rSPI(0);
   SPI_DisableFileIO();
 
   reqsize++; // add one as reqsize is -1
@@ -283,10 +283,10 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer, uint8_t
   switch (*write_state) {
     case 0 : // find sync word
       SPI_EnableFileIO();
-      SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
+      rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
       do {
-        rx  = SPI(0) << 8;
-        rx |= SPI(0);
+        rx  = rSPI(0) << 8;
+        rx |= rSPI(0);
         count ++;
         reqsize --; // here for debug
         if (rx == 0x4489) sync = 1;
@@ -313,8 +313,8 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer, uint8_t
 
       // sanity check, look for second sync word
       SPI_EnableFileIO();
-      SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
-      rx  = SPI(0) << 8; rx |= SPI(0);
+      rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
+      rx  = rSPI(0) << 8; rx |= rSPI(0);
       SPI_DisableFileIO();
 
       if (rx != 0x4489) {
@@ -325,7 +325,7 @@ void FileIO_Drv01_ADF_Write(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer, uint8_t
 
       // read buffer
       SPI_EnableFileIO();
-      SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
+      rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
       SPI_ReadBufferSingle(rxbuf, DRV01_ADF_WRITE_LEN * 2); // *2 to get bytes
       SPI_DisableFileIO();
       /*DumpBuffer(rxbuf,DRV01_ADF_WRITE_LEN * 2);*/
@@ -431,13 +431,13 @@ void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
   drv01_desc_t* pDesc = pDrive->pDesc;
 
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
-  SPI(0x00); // dummy
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
+  rSPI(0x00); // dummy
 
-             SPI(0);  // spare
-  track    = SPI(0);
-  dsksync  = SPI(0) << 8;
-  dsksync |= SPI(0);
+             rSPI(0);  // spare
+  track    = rSPI(0);
+  dsksync  = rSPI(0) << 8;
+  dsksync |= rSPI(0);
   SPI_DisableFileIO();
 
   FileIO_FCh_WriteStat(ch, DRV01_STAT_REQ_ACK); // ack
@@ -478,19 +478,19 @@ void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
 
   // send sector
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
   FileIO_Drv01_Amiga_SendHeader(pBuffer, sector, track, (uint8_t)(dsksync >> 8), (uint8_t)dsksync);
   SPI_DisableFileIO();
 
   // odd bits of data
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x2));
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x2));
   SPI_WriteBufferSingle(pBuffer, DATA_SIZE / 2);
   SPI_DisableFileIO();
 
   // even bits of data field
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x3));
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x3));
   SPI_WriteBufferSingle(pBuffer, DATA_SIZE / 2);
   SPI_DisableFileIO();
 
@@ -498,13 +498,13 @@ void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
   /*i = DATA_SIZE / 2;*/
   /*p = pBuffer;*/
   /*while (i--)*/
-    /*SPI(*p++ >> 1 | 0xAA);*/
+    /*rSPI(*p++ >> 1 | 0xAA);*/
 
   // even bits of data field
   /*i = DATA_SIZE / 2;*/
   /*p = pBuffer;*/
   /*while (i--)*/
-    /*SPI(*p++ | 0xAA);*/
+    /*rSPI(*p++ | 0xAA);*/
 
   SPI_DisableFileIO();
 
@@ -512,17 +512,17 @@ void FileIO_Drv01_ADF_Read(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
   {
     // send gap
     SPI_EnableFileIO();
-    SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x1));
-    SPI(0xAA);
-    SPI(0xAA);
+    rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x1));
+    rSPI(0xAA);
+    rSPI(0xAA);
     SPI_DisableFileIO();
 
     SPI_EnableFileIO();
-    SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+    rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
     i = (GAP_SIZE/2) - 1;
     while (i--)
-      SPI(0xAA);
-      SPI(0xAA);
+      rSPI(0xAA);
+      rSPI(0xAA);
     SPI_DisableFileIO();
   }
   // signal transfer done
@@ -539,11 +539,11 @@ void FileIO_Drv01_SCP_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
   drv01_desc_t* pDesc = pDrive->pDesc;
 
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
-  SPI(0x00); // dummy
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
+  rSPI(0x00); // dummy
 
-             SPI(0);  // spare
-  track    = SPI(0);
+             rSPI(0);  // spare
+  track    = rSPI(0);
   SPI_DisableFileIO();
   FileIO_FCh_WriteStat(ch, DRV01_STAT_REQ_ACK); // ack
 
@@ -603,9 +603,9 @@ void FileIO_Drv01_SCP_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
     if (pDesc->scp_cur_track_offset == 0) {
       // send sync marker
       SPI_EnableFileIO();
-      SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x1));
-      SPI(0x00); // very short
-      SPI(0x04);
+      rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W | 0x1));
+      rSPI(0x00); // very short
+      rSPI(0x04);
       SPI_DisableFileIO();
     }
 
@@ -636,7 +636,7 @@ void FileIO_Drv01_SCP_Read(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
 
       FF_Read(pDrive->fSource, trans_len, 1, pBuffer);
       SPI_EnableFileIO();
-      SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+      rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
       SPI_WriteBufferSingle(pBuffer,trans_len);
       SPI_DisableFileIO();
     } else { // aligned
@@ -792,13 +792,13 @@ uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
 
   // send mode, 0 for ADF, 1 for SCP
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_W));
-  SPI(drive_number);
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_W));
+  rSPI(drive_number);
 
   switch (pDesc->format) {
-    case ADF : SPI(0x00); break;
-    case SCP : SPI(0x01); break;
-    default  : SPI(0x00);
+    case ADF : rSPI(0x00); break;
+    case SCP : rSPI(0x01); break;
+    default  : rSPI(0x00);
   }
   SPI_DisableFileIO();
 

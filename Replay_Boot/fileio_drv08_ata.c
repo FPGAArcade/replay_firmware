@@ -161,14 +161,14 @@ void Drv08_IdentifyDevice(fch_t *pDrive, drv08_desc_t *pDesc, uint16_t *pBuffer)
 inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count, uint8_t sector_number, uint8_t cylinder_low, uint8_t cylinder_high, uint8_t drive_head)
 {
     SPI_EnableFileIO();
-    SPI(FCH_CMD(ch, FILEIO_FCH_CMD_CMD_W)); // write task file registers command
-    SPI(0x00);
-    SPI(error); // error
-    SPI(sector_count); // sector count
-    SPI(sector_number); //sector number
-    SPI(cylinder_low); // cylinder low
-    SPI(cylinder_high); // cylinder high
-    SPI(drive_head); // drive/head
+    rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_CMD_W)); // write task file registers command
+    rSPI(0x00);
+    rSPI(error); // error
+    rSPI(sector_count); // sector count
+    rSPI(sector_number); //sector number
+    rSPI(cylinder_low); // cylinder low
+    rSPI(cylinder_high); // cylinder high
+    rSPI(drive_head); // drive/head
     SPI_DisableFileIO();
 }
 
@@ -225,7 +225,7 @@ void Drv08_FileReadSend(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
   }
 
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
   SPI_WriteBufferSingle(pBuffer, DRV08_BLK_SIZE);
   SPI_DisableFileIO();
 }
@@ -235,7 +235,7 @@ void Drv08_FileReadSendDirect(uint8_t ch, fch_t *pDrive, uint8_t sector_count)
   // on entry assumes file is in correct position
   // no flow control check, FPGA must be able to sink entire transfer.
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
   SPI_EnableDirect();
   SPI_DisableFileIO();
 
@@ -297,18 +297,18 @@ inline void Drv08_UpdateParams(uint8_t ch, uint8_t tfr[8], uint16_t sector, uint
   uint8_t drive = tfr[6] & 0xF0;
 
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch, FILEIO_FCH_CMD_CMD_W | 0x03)); // write task file registers command
+  rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_CMD_W | 0x03)); // write task file registers command
 
   if (lba_mode) {
-    SPI((uint8_t) (lba      ));
-    SPI((uint8_t) (lba >>  8));
-    SPI((uint8_t) (lba >> 16));
-    SPI((uint8_t) (drive | ( (lba >> 24) & 0x0F)));
+    rSPI((uint8_t) (lba      ));
+    rSPI((uint8_t) (lba >>  8));
+    rSPI((uint8_t) (lba >> 16));
+    rSPI((uint8_t) (drive | ( (lba >> 24) & 0x0F)));
   } else {
-    SPI((uint8_t)  sector);
-    SPI((uint8_t)  cylinder);
-    SPI((uint8_t) (cylinder >> 8));
-    SPI((uint8_t) (drive | (head & 0x0F)));
+    rSPI((uint8_t)  sector);
+    rSPI((uint8_t)  cylinder);
+    rSPI((uint8_t) (cylinder >> 8));
+    rSPI((uint8_t) (drive | (head & 0x0F)));
   }
   SPI_DisableFileIO();
 }
@@ -359,10 +359,10 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
     // read task file
     SPI_EnableFileIO();
-    SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
-    SPI(0x00); // dummy
+    rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
+    rSPI(0x00); // dummy
     for (i = 0; i < 8; i++) {
-      tfr[i] = SPI(0);
+      tfr[i] = rSPI(0);
     }
     SPI_DisableFileIO();
 
@@ -409,11 +409,11 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
       FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
       SPI_EnableFileIO();
-      SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W)); // write data command*/
+      rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W)); // write data command*/
       for (i = 0; i < 256; i++)
       {
-          SPI((uint8_t) fbuf16[i]);
-          SPI((uint8_t)(fbuf16[i] >> 8));
+          rSPI((uint8_t) fbuf16[i]);
+          rSPI((uint8_t)(fbuf16[i] >> 8));
       }
       SPI_DisableFileIO();
       FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);
@@ -532,7 +532,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
         // fetch
         SPI_EnableFileIO();
-        SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
+        rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
         SPI_ReadBufferSingle(fbuf, DRV08_BLK_SIZE);
         SPI_DisableFileIO();
 
@@ -590,7 +590,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
           // fetch
           SPI_EnableFileIO();
-          SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
+          rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
           SPI_ReadBufferSingle(fbuf, DRV08_BLK_SIZE);
           SPI_DisableFileIO();
 

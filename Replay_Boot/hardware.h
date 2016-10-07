@@ -69,7 +69,7 @@ void USART_update(void);
 
 //
 void SPI_Init(void);
-unsigned char SPI(unsigned char outByte) __attribute__ ((section (".fastrun")));
+unsigned char rSPI(unsigned char outByte) __attribute__ ((section (".fastrun")));
 void SPI_WriteBufferSingle(void *pBuffer, uint32_t length);
 void SPI_ReadBufferSingle(void *pBuffer, uint32_t length);
 

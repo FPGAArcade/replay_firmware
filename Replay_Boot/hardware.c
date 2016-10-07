@@ -393,7 +393,7 @@ void SPI_Init(void)
 
 }
 
-unsigned char SPI(unsigned char outByte)  // inline?
+unsigned char rSPI(unsigned char outByte)  // inline?
 {
   volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // warning, but is a must! Clear previous rubbish
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
@@ -454,7 +454,7 @@ void SPI_DisableCard(void)
 {
   SPI_Wait4XferEnd();
   AT91C_BASE_PIOA->PIO_SODR = PIN_CARD_CS_L;
-  SPI(0xFF);
+  rSPI(0xFF);
   SPI_Wait4XferEnd();
 }
 

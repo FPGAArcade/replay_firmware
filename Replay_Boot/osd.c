@@ -95,8 +95,8 @@ void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint
 
     // select OSD SPI device
     SPI_EnableOsd();
-    SPI(OSDCMD_WRITE | (row & 0x3F));
-    SPI(col + osd_page * OSDLINELEN);
+    rSPI(OSDCMD_WRITE | (row & 0x3F));
+    rSPI(col + osd_page * OSDLINELEN);
 
     i = 0;
     /*col_track = col;*/
@@ -115,15 +115,15 @@ void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint
           SPI_DisableOsd();
           // send new line number to OSD
           SPI_EnableOsd();
-          SPI(OSDCMD_WRITE | (row & 0x3F)); // col 0
-          SPI(col + osd_page * OSDLINELEN);
+          rSPI(OSDCMD_WRITE | (row & 0x3F)); // col 0
+          rSPI(col + osd_page * OSDLINELEN);
         }
         else { // normal character
           /*if (col_track >= OSDLINELEN) {*/
            /*DEBUG(1,"OSD WRAP row %d", row);*/
           /*}*/
-          SPI(b);
-          SPI(attrib); // attrib
+          rSPI(b);
+          rSPI(attrib); // attrib
           i++;
           if (i==maxlen) break;
           /*col_track++;*/
@@ -132,8 +132,8 @@ void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint
 
     if (clear) {
       for (; i < OSDLINELEN; i++) { // clear end of line
-         SPI(0x20);
-         SPI(attrib);
+         rSPI(0x20);
+         rSPI(attrib);
       }
     }
     // deselect OSD SPI device
@@ -144,22 +144,22 @@ void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint
 void OSD_SetHOffset(uint8_t row, uint8_t col, uint8_t pix)
 {
   SPI_EnableOsd();
-  SPI(OSDCMD_WRITE | (row & 0x3F));
+  rSPI(OSDCMD_WRITE | (row & 0x3F));
   // col not set for address
   SPI_DisableOsd();
 
   SPI_EnableOsd();
-  SPI(OSDCMD_SETHOFF);
-  SPI( ((col & 0x3F) << 2) | ((pix & 0xC)>>2) );
-  SPI(pix & 0x3);
+  rSPI(OSDCMD_SETHOFF);
+  rSPI( ((col & 0x3F) << 2) | ((pix & 0xC)>>2) );
+  rSPI(pix & 0x3);
   SPI_DisableOsd();
 }
 
 void OSD_SetVOffset(uint8_t row)
 {
   SPI_EnableOsd();
-  SPI(OSDCMD_SETVOFF);
-  SPI(row);
+  rSPI(OSDCMD_SETVOFF);
+  rSPI(row);
   SPI_DisableOsd();
 }
 
@@ -211,13 +211,13 @@ void OSD_WriteScroll(uint8_t row, const char *text, uint16_t pos, uint16_t len, 
     strncpy(s + remaining + OSD_SCROLL_BLANKSPACE, text, OSDMAXLEN+1-remaining-OSD_SCROLL_BLANKSPACE);
 
   SPI_EnableOsd();
-  SPI(OSDCMD_WRITE | (row & 0x3F));
-  SPI(0); // col
+  rSPI(OSDCMD_WRITE | (row & 0x3F));
+  rSPI(0); // col
 
   // need to write to len + 1 for the scroll...
   for (i = 0; i <OSDMAXLEN+1; i++) {
-    SPI(s[i]);
-    SPI(attrib);
+    rSPI(s[i]);
+    rSPI(attrib);
   }
   SPI_DisableOsd();
 }
@@ -234,13 +234,13 @@ void OSD_Clear(void)
 
   for (row = 0; row <OSDNLINE; row++) {
     SPI_EnableOsd();
-    SPI(OSDCMD_WRITE | (row & 0x3F));
-    SPI(osd_page * OSDLINELEN);
+    rSPI(OSDCMD_WRITE | (row & 0x3F));
+    rSPI(osd_page * OSDLINELEN);
 
     // clear buffer
     for (n = 0; n <OSDLINELEN; n++) {
-      SPI(0x20);
-      SPI(0x0F);
+      rSPI(0x20);
+      rSPI(0x0F);
     }
     SPI_DisableOsd();
   }
@@ -269,7 +269,7 @@ void OSD_WaitVBL(void)
 void OSD_Enable(unsigned char mode)
 {
   SPI_EnableOsd();
-  SPI(OSDCMD_ENABLE | (mode & 0xF));
+  rSPI(OSDCMD_ENABLE | (mode & 0xF));
   SPI_DisableOsd();
 }
 
@@ -277,7 +277,7 @@ void OSD_Enable(unsigned char mode)
 void OSD_Disable(void)
 {
   SPI_EnableOsd();
-  SPI(OSDCMD_DISABLE);
+  rSPI(OSDCMD_DISABLE);
   SPI_DisableOsd();
 }
 
@@ -285,7 +285,7 @@ void OSD_Reset(unsigned char option)
 {
   // soft reset or halt
   SPI_EnableOsd();
-  SPI(OSDCMD_CTRL | option);
+  rSPI(OSDCMD_CTRL | option);
   SPI_DisableOsd();
 }
 
@@ -293,11 +293,11 @@ void OSD_ConfigSendUserD(uint32_t configD)
 {
   // Dynamic config
   SPI_EnableOsd();
-  SPI(OSDCMD_CONFIG | 0x01); // dynamic
-  SPI((uint8_t)(configD));
-  SPI((uint8_t)(configD >> 8));
-  SPI((uint8_t)(configD >> 16));
-  SPI((uint8_t)(configD >> 24));
+  rSPI(OSDCMD_CONFIG | 0x01); // dynamic
+  rSPI((uint8_t)(configD));
+  rSPI((uint8_t)(configD >> 8));
+  rSPI((uint8_t)(configD >> 16));
+  rSPI((uint8_t)(configD >> 24));
   SPI_DisableOsd();
 }
 
@@ -305,11 +305,11 @@ void OSD_ConfigSendUserS(uint32_t configS)
 {
   // Static config
   SPI_EnableOsd();
-  SPI(OSDCMD_CONFIG | 0x00); // static
-  SPI((uint8_t)(configS));
-  SPI((uint8_t)(configS >> 8));
-  SPI((uint8_t)(configS >> 16));
-  SPI((uint8_t)(configS >> 24));
+  rSPI(OSDCMD_CONFIG | 0x00); // static
+  rSPI((uint8_t)(configS));
+  rSPI((uint8_t)(configS >> 8));
+  rSPI((uint8_t)(configS >> 16));
+  rSPI((uint8_t)(configS >> 24));
   SPI_DisableOsd();
 }
 
@@ -320,9 +320,9 @@ void OSD_ConfigSendCtrl(uint32_t config, uint32_t mask)
   DEBUG(1,"ram config 0x%04X",osd_ctrl);
 
   SPI_EnableOsd();
-  SPI(OSDCMD_CONFIG | 0x03); // ctrl
-  SPI((uint8_t)(osd_ctrl));
-  SPI((uint8_t)(osd_ctrl >> 8));
+  rSPI(OSDCMD_CONFIG | 0x03); // ctrl
+  rSPI((uint8_t)(osd_ctrl));
+  rSPI((uint8_t)(osd_ctrl >> 8));
   SPI_DisableOsd();
 }
 
@@ -330,8 +330,8 @@ void OSD_ConfigSendCtrl(uint32_t config, uint32_t mask)
 void OSD_ConfigSendFileIO_CHA(uint32_t config)
 {
   SPI_EnableOsd();
-  SPI(OSDCMD_CONFIG | 0x08); // fileio
-  SPI((uint8_t)(config));
+  rSPI(OSDCMD_CONFIG | 0x08); // fileio
+  rSPI((uint8_t)(config));
   SPI_DisableOsd();
 }
 
@@ -339,8 +339,8 @@ void OSD_ConfigSendFileIO_CHA(uint32_t config)
 void OSD_ConfigSendFileIO_CHB(uint32_t config)
 {
   SPI_EnableOsd();
-  SPI(OSDCMD_CONFIG | 0x09); // fileio
-  SPI((uint8_t)(config));
+  rSPI(OSDCMD_CONFIG | 0x09); // fileio
+  rSPI((uint8_t)(config));
   SPI_DisableOsd();
 }
 
@@ -349,8 +349,8 @@ uint8_t OSD_ConfigReadSysconVer(void)
   uint8_t config;
 
   SPI_EnableOsd();
-  SPI(OSDCMD_READSTAT | 0x01);
-  config = SPI(0);
+  rSPI(OSDCMD_READSTAT | 0x01);
+  config = rSPI(0);
   SPI_DisableOsd();
   return config;
 }
@@ -360,13 +360,13 @@ uint32_t OSD_ConfigReadVer(void)
   uint32_t config;
 
   SPI_EnableOsd();
-  SPI(OSDCMD_READSTAT | 0x03); // high word
-  config  = (SPI(0) & 0xFF) << 8;
+  rSPI(OSDCMD_READSTAT | 0x03); // high word
+  config  = (rSPI(0) & 0xFF) << 8;
   SPI_DisableOsd();
 
   SPI_EnableOsd();
-  SPI(OSDCMD_READSTAT | 0x02); // low word
-  config |= (SPI(0) & 0xFF);
+  rSPI(OSDCMD_READSTAT | 0x02); // low word
+  config |= (rSPI(0) & 0xFF);
   SPI_DisableOsd();
 
   return config;
@@ -377,13 +377,13 @@ uint32_t OSD_ConfigReadStatus(void)
   uint32_t config;
 
   SPI_EnableOsd();
-  SPI(OSDCMD_READSTAT | 0x07); // high word
-  config  = (SPI(0) & 0xFF) << 8;
+  rSPI(OSDCMD_READSTAT | 0x07); // high word
+  config  = (rSPI(0) & 0xFF) << 8;
   SPI_DisableOsd();
 
   SPI_EnableOsd();
-  SPI(OSDCMD_READSTAT | 0x06); // low word
-  config |= (SPI(0) & 0xFF);
+  rSPI(OSDCMD_READSTAT | 0x06); // low word
+  config |= (rSPI(0) & 0xFF);
   SPI_DisableOsd();
 
   return config;
@@ -394,8 +394,8 @@ uint32_t OSD_ConfigReadFileIO_Ena(void) // num disks supported
   uint32_t config;
 
   SPI_EnableOsd();
-  SPI(OSDCMD_READSTAT | 0x04);
-  config  = (SPI(0) & 0xFF);
+  rSPI(OSDCMD_READSTAT | 0x04);
+  config  = (rSPI(0) & 0xFF);
   SPI_DisableOsd();
   return config; // HD mask & FD mask
 }
@@ -406,8 +406,8 @@ uint32_t OSD_ConfigReadFileIO_Drv(void) // driver
   uint32_t config;
 
   SPI_EnableOsd();
-  SPI(OSDCMD_READSTAT | 0x05);
-  config  = (SPI(0) & 0xFF);
+  rSPI(OSDCMD_READSTAT | 0x05);
+  config  = (rSPI(0) & 0xFF);
   SPI_DisableOsd();
   return config; // HD mask & FD mask
 }
@@ -527,13 +527,13 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
   // ---------------------------------------------------
   if (osd_enabled) {
     SPI_EnableOsd();
-    SPI(OSDCMD_READSTAT);
-    x = SPI(0);
+    rSPI(OSDCMD_READSTAT);
+    x = rSPI(0);
     SPI_DisableOsd();
     if (x & STF_NEWKEY) {
       SPI_EnableOsd();
-      SPI(OSDCMD_READKBD);
-      x = SPI(0);
+      rSPI(OSDCMD_READKBD);
+      x = rSPI(0);
       SPI_DisableOsd();
 
       keybuf[keypos++]=x;

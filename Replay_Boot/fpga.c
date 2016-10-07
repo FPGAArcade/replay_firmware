@@ -621,7 +621,7 @@ void FPGA_ClockMon(status_t *currentStatus)
 #define _SPI_EnableFileIO() { AT91C_BASE_PIOA->PIO_CODR=PIN_FPGA_CTRL0; }
 #define _SPI_DisableFileIO() { while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY)); AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL0; }
 
-inline uint8_t _SPI(uint8_t outByte)
+inline uint8_t _rSPI(uint8_t outByte)
 {
   volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // compiler warning, but is a must!
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
@@ -634,8 +634,8 @@ inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
 {
   do {
     _SPI_EnableFileIO();
-    _SPI(0x87); // do Read
-    if ((_SPI(0) & mask) == wanted) break;
+    _rSPI(0x87); // do Read
+    if ((_rSPI(0) & mask) == wanted) break;
     _SPI_DisableFileIO();
   } while (1);
   _SPI_DisableFileIO();
@@ -665,16 +665,16 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
   }
 
   _SPI_EnableFileIO();
-  _SPI(0x80); // set address
-  _SPI((uint8_t)(base));
-  _SPI((uint8_t)(base >> 8));
-  _SPI((uint8_t)(base >> 16));
-  _SPI((uint8_t)(base >> 24));
+  _rSPI(0x80); // set address
+  _rSPI((uint8_t)(base));
+  _rSPI((uint8_t)(base >> 8));
+  _rSPI((uint8_t)(base >> 16));
+  _rSPI((uint8_t)(base >> 24));
   _SPI_DisableFileIO();
 
   _SPI_EnableFileIO();
-  _SPI(0x81); // set direction
-  _SPI(0x80); // read
+  _rSPI(0x81); // set direction
+  _rSPI(0x80); // read
   _SPI_DisableFileIO();
 
   // LOOP FOR BLOCKS TO READ TO SRAM
@@ -682,13 +682,13 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     uint32_t buf[128];
     uint32_t *ptr = &(buf[0]);
     _SPI_EnableFileIO();
-    _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
-    _SPI((uint8_t)( 512 - 1));
-    _SPI((uint8_t)((512 - 1) >> 8));
+    _rSPI(0x84); // read first buffer, FPGA stalls if we don't read this size
+    _rSPI((uint8_t)( 512 - 1));
+    _rSPI((uint8_t)((512 - 1) >> 8));
     _SPI_DisableFileIO();
     _FPGA_WaitStat(0x04, 0);
     _SPI_EnableFileIO();
-    _SPI(0xA0); // should check status
+    _rSPI(0xA0); // should check status
     _SPI_ReadBufferSingle(buf, 512);
     _SPI_DisableFileIO();
     for(j=0;j<128;++j) {
@@ -719,28 +719,28 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
   Timer_Wait(500); // take care we can send this message before we go on!
 
   _SPI_EnableFileIO();
-  _SPI(0x80); // set address
-  _SPI((uint8_t)(base));
-  _SPI((uint8_t)(base >> 8));
-  _SPI((uint8_t)(base >> 16));
-  _SPI((uint8_t)(base >> 24));
+  _rSPI(0x80); // set address
+  _rSPI((uint8_t)(base));
+  _rSPI((uint8_t)(base >> 8));
+  _rSPI((uint8_t)(base >> 16));
+  _rSPI((uint8_t)(base >> 24));
   _SPI_DisableFileIO();
 
   _SPI_EnableFileIO();
-  _SPI(0x81); // set direction
-  _SPI(0x80); // read
+  _rSPI(0x81); // set direction
+  _rSPI(0x80); // read
   _SPI_DisableFileIO();
 
   // LOOP FOR BLOCKS TO READ TO SRAM
   for(i=0;i<(len/512)+1;++i) {
     _SPI_EnableFileIO();
-    _SPI(0x84); // read first buffer, FPGA stalls if we don't read this size
-    _SPI((uint8_t)( 512 - 1));
-    _SPI((uint8_t)((512 - 1) >> 8));
+    _rSPI(0x84); // read first buffer, FPGA stalls if we don't read this size
+    _rSPI((uint8_t)( 512 - 1));
+    _rSPI((uint8_t)((512 - 1) >> 8));
     _SPI_DisableFileIO();
     _FPGA_WaitStat(0x04, 0);
     _SPI_EnableFileIO();
-    _SPI(0xA0); // should check status
+    _rSPI(0xA0); // should check status
     _SPI_ReadBufferSingle((void *)dest, 512);
     _SPI_DisableFileIO();
     for(j=0;j<128;++j) *dest++;

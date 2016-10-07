@@ -99,14 +99,14 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
     fch_t* pDrive = (fch_t*) &handle[ch][drive_number]; // get base
 
     SPI_EnableFileIO();
-    SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
-    SPI(0x00); // dummy
-    size  =  SPI(0);
-    size |= (SPI(0) << 8);
-    addr  =  SPI(0);
-    addr |= (SPI(0) << 8);
-    addr |= (SPI(0) << 16);
-    addr |= (SPI(0) << 24);
+    rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
+    rSPI(0x00); // dummy
+    size  =  rSPI(0);
+    size |= (rSPI(0) << 8);
+    addr  =  rSPI(0);
+    addr |= (rSPI(0) << 8);
+    addr |= (rSPI(0) << 16);
+    addr |= (rSPI(0) << 24);
     SPI_DisableFileIO();
 
     FileIO_FCh_WriteStat(ch, DRV00_STAT_REQ_ACK); // ack
@@ -149,7 +149,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
         }
 
         SPI_EnableFileIO();
-        SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
+        rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
         SPI_ReadBufferSingle(fbuf, cur_size);
         SPI_DisableFileIO();
         /*DumpBuffer(FDD_fBuf,cur_size);*/
@@ -167,7 +167,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
         /*DumpBuffer(FDD_fBuf,cur_size);*/
 
         SPI_EnableFileIO();
-        SPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
+        rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
         SPI_WriteBufferSingle(fbuf, act_size);
         SPI_DisableFileIO();
 
@@ -224,17 +224,17 @@ uint8_t FileIO_Drv00_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive,
   // NOTE, core may still be in reset
   // select drive
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_W | 0x0));
-  SPI(drive_number);
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_W | 0x0));
+  rSPI(drive_number);
   SPI_DisableFileIO();
 
   // write file size
   SPI_EnableFileIO();
-  SPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_W | 0x4));
-  SPI((uint8_t)(pDesc->file_size      ));
-  SPI((uint8_t)(pDesc->file_size >>  8));
-  SPI((uint8_t)(pDesc->file_size >> 16));
-  SPI((uint8_t)(pDesc->file_size >> 24));
+  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_W | 0x4));
+  rSPI((uint8_t)(pDesc->file_size      ));
+  rSPI((uint8_t)(pDesc->file_size >>  8));
+  rSPI((uint8_t)(pDesc->file_size >> 16));
+  rSPI((uint8_t)(pDesc->file_size >> 24));
   SPI_DisableFileIO();
 
   DEBUG(1,"Drv00:Size   : %lu (%lu kB)", pDesc->file_size, pDesc->file_size);

@@ -62,8 +62,14 @@ endif
 BUILD_NUM = ./buildnum_$(HOST).$(APP_SUFFIX)
 
 # MCU name and submodel
+ifeq (1,${SAM4S})
+# switch to cortex-m4 ..
+MCU      = arm7tdmi
+SUBMDL   = SAM4SD32
+else
 MCU      = arm7tdmi
 SUBMDL   = AT91SAM7S256
+endif
 
 # Toolchain prefix (i.e arm-elf -> arm-elf-gcc.exe)
 TCHAIN =  arm-none-eabi
@@ -224,6 +230,7 @@ CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
 CFLAGS += -Wa,-adhlns=$(addprefix $(BUILDDIR), $(subst $(suffix $<),.lst,$<))
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 CFLAGS += -ffunction-sections -fdata-sections
+CFLAGS += -D$(SUBMDL)
 
 # flags only for C
 CONLYFLAGS += -Wnested-externs

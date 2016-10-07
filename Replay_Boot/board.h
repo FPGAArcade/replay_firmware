@@ -52,8 +52,11 @@
 //------------------------------------------------------------------------------
 
 #include <stdint.h>
+#if defined(AT91SAM7S256)
 #include "AT91SAM7S256.h"
-//#include "AT91SAM4SD32.h"
+#else
+#include "AT91SAM4SD32.h"
+#endif
 #include "printf.h"
 #include "stringlight.h"
 

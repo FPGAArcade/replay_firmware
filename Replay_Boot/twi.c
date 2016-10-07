@@ -230,7 +230,7 @@ void Configure_ClockGen(const clockconfig_t *config)
   // px sel (divider source selection)
   // px div (divider) 0-127 divider value
   // yx sel (0= divider0 .. 5= divider5) 0x1x = on
-  DEBUG(1,"PLL clock outputs :");
+  DEBUG(0,"PLL clock outputs :");
 
   for (addr=0; addr<6; addr++) {
     switch (config->p_sel[addr])
@@ -244,9 +244,9 @@ void Configure_ClockGen(const clockconfig_t *config)
     op_freq = op_freq / config->p_div[addr];
 
     if (config->y_sel[addr] == 0) {
-       DEBUG(1," %d :      OFF",addr);
+       DEBUG(0," %d :      OFF",addr);
     } else {
-       DEBUG(1," %d : ~ %6d KHz",addr,op_freq);
+       DEBUG(0," %d : ~ %6d KHz",addr,op_freq);
     }
   }
 

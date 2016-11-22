@@ -669,11 +669,6 @@ en_spi =   1,  1
 #        off / menu / reset
 button = menu
 
-# keyboard protocol configuration
-#
-#        ps/2 / amiga
-keyboard = ps/2
-
 # OSD hotkey combo configuration
 #
 #        f12 / ...
@@ -715,7 +710,6 @@ void CFG_set_status_defaults(status_t *currentStatus, uint8_t init)
   _strlcpy(currentStatus->hotkey_string,
           OSD_GetStringFromKeyCode(currentStatus->hotkey),
           sizeof(currentStatus->hotkey_string));
-  currentStatus->keyboard = KEYBOARD_PS2;
   currentStatus->clockmon = FALSE;
   currentStatus->osd_init = OSD_INIT_ON;
 
@@ -905,12 +899,8 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
           DEBUG(1,"Hotkey control: %s -> %04X / %s", value, pStatus->hotkey, pStatus->hotkey_string);
         }
                                        // =====================
-        if (name==INI_KEYB_MODE) {       // ===> KEYBOARD CONFIGURATION
-          if (MATCH(value,"PS/2"))       pStatus->keyboard=KEYBOARD_PS2;
-          else if (MATCH(value,"PS2"))   pStatus->keyboard=KEYBOARD_PS2;
-          else if (MATCH(value,"AMIGA")) pStatus->keyboard=KEYBOARD_AMIGA;
-          else return 1;
-          DEBUG(1,"Keyboard control: %s",value);
+        if (name==INI_KEYB_MODE) {       // ===> KEYBOARD CONFIGURATION (OBSOLETE)
+          WARNING("KEYBOARD keyword is obsolete");
         }
         if (name==INI_CLOCKMON) {       // ===> CLOCKMON
           if (MATCH(value,"ENA"))          pStatus->clockmon=TRUE;
@@ -1642,22 +1632,14 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile)
 
   // Set memory phase first
   if (!currentStatus->dram_phase) {
-    OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE, kCTRL_DRAM_MASK); // default phase
+    OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
   } else {
     if (abs(currentStatus->dram_phase)<21) {
       INFO("DRAM phase fix: %d -> %d",kDRAM_PHASE,kDRAM_PHASE + currentStatus->dram_phase);
-      OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (kDRAM_PHASE + currentStatus->dram_phase), kCTRL_DRAM_MASK); // phase from INI
+      OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (kDRAM_PHASE + currentStatus->dram_phase)); // phase from INI
     } else {
       WARNING("DRAM phase value bad, ignored!");
     }
-  }
-
-  if (currentStatus->keyboard == KEYBOARD_AMIGA) {
-    MSG_info("Enabling AMIGA keyboard");
-    OSD_ConfigSendCtrl(kCTRL_KEYB_MASK, kCTRL_KEYB_MASK);
-  } else {
-    MSG_info("Using PS/2 keyboard protocol");
-    OSD_ConfigSendCtrl(0, kCTRL_KEYB_MASK);
   }
 
   // reset core and halt it for now

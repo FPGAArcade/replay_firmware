@@ -52,7 +52,6 @@
 // nasty globals ...
 uint8_t osd_vscroll = 0;
 uint8_t osd_page = 0;
-static uint32_t osd_ctrl = (0x02 << 8) | 0x50; // make sure first write is sensible if we forget to set the DRAM phase first
 
 // a ? e1:e2 e1 a/=0, e2 a==0
 void OSD_Write(uint8_t row, const char *s, uint8_t invert)
@@ -314,15 +313,12 @@ void OSD_ConfigSendUserS(uint32_t configS)
 }
 
 
-void OSD_ConfigSendCtrl(uint32_t config, uint32_t mask)
+void OSD_ConfigSendCtrl(uint32_t config)
 {
-  osd_ctrl = (osd_ctrl & ~mask) | (config & mask);
-  DEBUG(1,"ram config 0x%04X",osd_ctrl);
-
   SPI_EnableOsd();
   rSPI(OSDCMD_CONFIG | 0x03); // ctrl
-  rSPI((uint8_t)(osd_ctrl));
-  rSPI((uint8_t)(osd_ctrl >> 8));
+  rSPI((uint8_t)(config));
+  rSPI((uint8_t)(config >> 8));
   SPI_DisableOsd();
 }
 

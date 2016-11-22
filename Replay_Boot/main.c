@@ -409,7 +409,7 @@ int main(void)
             MSG_warning("    waiting for reconfig....");
             Timer_Wait(1000);
           }
-          OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE, kCTRL_DRAM_MASK); // default phase
+          OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
           FPGA_DramTrain();
           break;
         }

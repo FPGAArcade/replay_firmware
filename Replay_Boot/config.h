@@ -106,11 +106,6 @@ typedef enum {
 } button_t;
 
 typedef enum {
-  KEYBOARD_PS2,
-  KEYBOARD_AMIGA,
-} keyboard_t;
-
-typedef enum {
   OSD_INIT_OFF,
   OSD_INIT_ON,
 } osd_init_t;
@@ -330,9 +325,6 @@ typedef struct {
   /** defines the keyboard hotkey - set by ini_pre_read() */
   uint16_t     hotkey;
   char         hotkey_string[32];
-
-  /** defines the keyboard protocol - set by ini_pre_read() */
-  keyboard_t   keyboard;
 
   /** defines the osd init mode */
   osd_init_t   osd_init;

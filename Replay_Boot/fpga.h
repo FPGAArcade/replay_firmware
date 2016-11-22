@@ -55,10 +55,6 @@
 //#define kDRAM_PHASE 0x5E
 #define kDRAM_SEL   0x02
 
-#define kCTRL_DRAM_MASK 0x3ff
-#define kCTRL_SPI_MASK 0x400
-#define kCTRL_KEYB_MASK 0x800
-
 uint8_t FPGA_Default(void);
 uint8_t FPGA_Config(FF_FILE *pFile);
 

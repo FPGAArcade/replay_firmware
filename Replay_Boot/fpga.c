@@ -302,7 +302,7 @@ uint8_t FPGA_DramEye(uint8_t mode)
 
   ram_phase = kDRAM_PHASE;
   ram_ctrl  = kDRAM_SEL;
-  OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase, kCTRL_DRAM_MASK );
+  OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase);
   OSD_ConfigSendUserD(0x00000000); // ensure disabled
   OSD_ConfigSendUserD(0x01000000); // enable BIST
   //OSD_ConfigSendUserD(0x03000000); // enable BIST mode 1 (bounce/burst test)
@@ -331,7 +331,7 @@ uint8_t FPGA_DramEye(uint8_t mode)
 
     if (key == KEY_LEFT) {
       ram_phase-=8;
-      OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase, kCTRL_DRAM_MASK );
+      OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase);
       OSD_ConfigSendUserD(0x00000000); // disable BIST
       OSD_ConfigSendUserD(0x01000000); // enable BIST
 
@@ -339,7 +339,7 @@ uint8_t FPGA_DramEye(uint8_t mode)
 
     if (key == KEY_RIGHT) {
       ram_phase+=8;
-      OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase, kCTRL_DRAM_MASK );
+      OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase);
       OSD_ConfigSendUserD(0x00000000); // disable BIST
       OSD_ConfigSendUserD(0x01000000); // enable BIST
     }
@@ -360,7 +360,7 @@ uint8_t FPGA_ProdTest(void)
   DEBUG(0,"PRODTEST: phase 0");
   ram_phase = kDRAM_PHASE;
   ram_ctrl  = kDRAM_SEL;
-  OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase, kCTRL_DRAM_MASK );
+  OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase);
   FPGA_DramTrain();
 
   FPGA_DramEye(0); // /=0 for interactive
@@ -368,7 +368,7 @@ uint8_t FPGA_ProdTest(void)
   // return to nominal
   ram_phase = kDRAM_PHASE;
   ram_ctrl  = kDRAM_SEL;
-  OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase, kCTRL_DRAM_MASK );
+  OSD_ConfigSendCtrl((ram_ctrl << 8) | ram_phase);
 
   /*void OSD_ConfigSendUser(uint32_t configD, uint32_t configS)*/
   uint32_t testpat  = 0;

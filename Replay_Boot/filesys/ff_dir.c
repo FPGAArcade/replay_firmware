@@ -2576,6 +2576,93 @@ FF_T_UINT32 FF_CreateFile(FF_IOMAN *pIoman, FF_T_UINT32 DirCluster, FF_T_INT8 *F
 	return MyFile.ObjectCluster;
 }
 
+/**
+ *	@brief Creates all Directories of the specified path.
+ *
+ *	@param	pIoman	Pointer to the FF_IOMAN object.
+ *	@param	Path	Path of the directory/directories to create.
+ *
+ *	@return	FF_ERR_NULL_POINTER if pIoman was NULL.
+ *	@return FF_ERR_DIR_OBJECT_EXISTS if the object specified by path already exists.
+ *	@return	FF_ERR_DIR_INVALID_PATH
+ *	@return FF_ERR_NONE on success.
+ **/
+#ifdef FF_UNICODE_SUPPORT
+FF_ERROR FF_MkDirTree(FF_IOMAN *pIoman, const FF_T_WCHAR *Path) {
+#else
+FF_ERROR FF_MkDirTree(FF_IOMAN *pIoman, const FF_T_INT8 *Path) {
+#endif
+	FF_DIRENT	MyDir;
+	FF_T_UINT32 DirCluster;
+	FF_T_INT8 DirName[FF_MAX_FILENAME];
+	FF_ERROR	Error = FF_ERR_NONE;
+	FF_T_UINT16 len, start = 0;
+
+	DirCluster = FF_FindDir(pIoman, 0, 0, &Error);
+	if(FF_isERR(Error)) {
+		return Error;
+	}
+
+	if(!DirCluster) {
+		return FF_ERR_DIR_INVALID_PATH | FF_MKDIR;
+	}
+
+	for (FF_T_UINT16 i = 0; Path[i]; ++i) {
+
+		len = i-start;
+
+		if(Path[i] != '\\' && Path[i] != '/') {
+			continue;
+		}
+
+		if (len == 0) {
+			start = i+1;
+			continue;
+		} else if (len >= FF_MAX_FILENAME) {
+			len = FF_MAX_FILENAME-1;
+		}
+
+#ifdef FF_UNICODE_SUPPORT
+		wcsncpy(DirName, (Path + start), len);
+#else
+		strncpy(DirName, (Path + start), len);
+#endif
+		DirName[len] = 0;
+		start = i + 1;
+
+		memset (&MyDir, '\0', sizeof MyDir);
+		if(FF_FindEntryInDir(pIoman, DirCluster, DirName, 0x00, &MyDir, &Error)) {
+			if(FF_isERR(Error)) {
+				return Error;
+			}
+			if ((MyDir.Attrib & FF_FAT_ATTR_DIR) == 0) {
+				return FF_ERR_DIR_OBJECT_EXISTS | FF_MKDIR;
+			} else {
+				DirCluster = MyDir.ObjectCluster;
+				continue;
+			}
+		}
+
+		if((FF_isERR(Error)) && FF_GETERROR (Error) != FF_ERR_DIR_END_OF_DIR) {
+			return Error;
+		}
+
+		DirCluster = FF_CreateDirectory(pIoman, DirCluster, DirName, &MyDir, &Error);
+		if(FF_isERR(Error)) {
+			return Error;
+		}
+	}
+
+#ifdef FF_UNICODE_SUPPORT
+	if ((FF_T_UINT16) wcslen(Path + start)) {
+#else
+	if ((FF_T_UINT16) strlen(Path + start)) {
+#endif
+		return FF_MkDir(pIoman, Path);
+	}
+
+	return FF_ERR_NONE;
+}
 
 /**
  *	@brief Creates a Directory of the specified path.
@@ -2600,12 +2687,8 @@ FF_ERROR FF_MkDir(FF_IOMAN *pIoman, const FF_T_INT8 *Path) {
 #else
 	const FF_T_INT8	*DirName;
 #endif
-	FF_T_UINT8	EntryBuffer[32];
-	FF_T_UINT32 DotDotCluster;
 	FF_T_UINT16	i;
 	FF_ERROR	Error = FF_ERR_NONE;
-
-	FF_FETCH_CONTEXT FetchContext;
 
 	if(!pIoman) {
 		return FF_ERR_NULL_POINTER | FF_MKDIR;
@@ -2658,6 +2741,25 @@ FF_ERROR FF_MkDir(FF_IOMAN *pIoman, const FF_T_INT8 *Path) {
 		return Error;
 	}
 
+	FF_CreateDirectory(pIoman, DirCluster, DirName, &MyDir, &Error);
+
+	return Error;
+}
+
+#ifdef FF_UNICODE_SUPPORT
+FF_T_UINT32 FF_CreateDirectory(FF_IOMAN *pIoman, FF_T_UINT32 DirCluster, const FF_T_WCHAR *DirName, FF_DIRENT *pDirent, FF_ERROR *pError) {
+#else
+FF_T_UINT32 FF_CreateDirectory(FF_IOMAN *pIoman, FF_T_UINT32 DirCluster, const FF_T_INT8 *DirName, FF_DIRENT *pDirent, FF_ERROR *pError) {
+#endif
+	FF_DIRENT	MyDir;
+	FF_T_UINT8	EntryBuffer[32];
+	FF_T_UINT32 DotDotCluster;
+
+	FF_FETCH_CONTEXT FetchContext;
+
+	*pError	= FF_ERR_NONE;
+	memset (&MyDir, '\0', sizeof MyDir);
+
 #ifdef FF_UNICODE_SUPPORT
 	wcsncpy(MyDir.FileName, DirName, FF_MAX_FILENAME);
 #else
@@ -2665,35 +2767,35 @@ FF_ERROR FF_MkDir(FF_IOMAN *pIoman, const FF_T_INT8 *Path) {
 #endif
 	MyDir.Filesize		= 0;
 	MyDir.Attrib		= FF_FAT_ATTR_DIR;
-	MyDir.ObjectCluster	= FF_CreateClusterChain(pIoman, &Error);
-	if(FF_isERR(Error)) {
-		return Error;
+	MyDir.ObjectCluster	= FF_CreateClusterChain(pIoman, pError);
+	if(FF_isERR(*pError)) {
+		return 0;
 	}
 	if(!MyDir.ObjectCluster) {
 		// Couldn't allocate any space for the dir!
 		return FF_ERR_DIR_EXTEND_FAILED | FF_MKDIR;
 	}
-	Error = FF_ClearCluster(pIoman, MyDir.ObjectCluster);
-	if(FF_isERR(Error)) {
+	*pError = FF_ClearCluster(pIoman, MyDir.ObjectCluster);
+	if(FF_isERR(*pError)) {
 		FF_lockFAT(pIoman);
 		{
 			FF_UnlinkClusterChain(pIoman, MyDir.ObjectCluster, 0);
 		}
 		FF_unlockFAT(pIoman);
 		FF_FlushCache(pIoman);	// Don't override error;
-		return Error;
+		return 0;
 	}
 
-	Error = FF_CreateDirent(pIoman, DirCluster, &MyDir);
+	*pError = FF_CreateDirent(pIoman, DirCluster, &MyDir);
 
-	if(FF_isERR(Error)) {
+	if(FF_isERR(*pError)) {
 		FF_lockFAT(pIoman);
 		{
 			FF_UnlinkClusterChain(pIoman, MyDir.ObjectCluster, 0);
 		}
 		FF_unlockFAT(pIoman);
 		FF_FlushCache(pIoman);	// Don't override error;
-		return Error;
+		return 0;
 	}
 
 	EntryBuffer[0] = '.';
@@ -2705,19 +2807,19 @@ FF_ERROR FF_MkDir(FF_IOMAN *pIoman, const FF_T_INT8 *Path) {
 	FF_putShort(EntryBuffer, (FF_T_UINT16)(FF_FAT_DIRENT_CLUS_LOW), (FF_T_UINT16) MyDir.ObjectCluster);
 	FF_putLong(EntryBuffer,  (FF_T_UINT16)(FF_FAT_DIRENT_FILESIZE), 0);
 
-	Error = FF_InitEntryFetch(pIoman, MyDir.ObjectCluster, &FetchContext);
-	if(FF_isERR(Error)) {
+	*pError = FF_InitEntryFetch(pIoman, MyDir.ObjectCluster, &FetchContext);
+	if(FF_isERR(*pError)) {
 		FF_lockFAT(pIoman);
 		{
 			FF_UnlinkClusterChain(pIoman, MyDir.ObjectCluster, 0);
 		}
 		FF_unlockFAT(pIoman);
 		FF_FlushCache(pIoman);	// Don't override error;
-		return Error;
+		return 0;
 	}
 
-	Error = FF_PushEntryWithContext(pIoman, 0, &FetchContext, EntryBuffer);
-	if(FF_isERR(Error)) {
+	*pError = FF_PushEntryWithContext(pIoman, 0, &FetchContext, EntryBuffer);
+	if(FF_isERR(*pError)) {
 		FF_lockFAT(pIoman);
 		{
 			FF_UnlinkClusterChain(pIoman, MyDir.ObjectCluster, 0);
@@ -2725,7 +2827,7 @@ FF_ERROR FF_MkDir(FF_IOMAN *pIoman, const FF_T_INT8 *Path) {
 		FF_unlockFAT(pIoman);
 		FF_FlushCache(pIoman);	// Don't override error;
 		FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
-		return Error;
+		return 0;
 	}
 
 	EntryBuffer[0] = '.';
@@ -2745,8 +2847,8 @@ FF_ERROR FF_MkDir(FF_IOMAN *pIoman, const FF_T_INT8 *Path) {
 	FF_putLong(EntryBuffer,  (FF_T_UINT16)(FF_FAT_DIRENT_FILESIZE), 0);
 
 	//FF_PushEntry(pIoman, MyDir.ObjectCluster, 1, EntryBuffer);
-	Error = FF_PushEntryWithContext(pIoman, 1, &FetchContext, EntryBuffer);
-	if(FF_isERR(Error)) {
+	*pError = FF_PushEntryWithContext(pIoman, 1, &FetchContext, EntryBuffer);
+	if(FF_isERR(*pError)) {
 		FF_lockFAT(pIoman);
 		{
 			FF_UnlinkClusterChain(pIoman, MyDir.ObjectCluster, 0);
@@ -2754,20 +2856,24 @@ FF_ERROR FF_MkDir(FF_IOMAN *pIoman, const FF_T_INT8 *Path) {
 		FF_unlockFAT(pIoman);
 		FF_FlushCache(pIoman);	// Don't override error;
 		FF_CleanupEntryFetch(pIoman, &FetchContext);	// Don't override error!
-		return Error;
+		return 0;
 	}
-	Error = FF_CleanupEntryFetch(pIoman, &FetchContext);
-	if(FF_isERR(Error)) {
+	*pError = FF_CleanupEntryFetch(pIoman, &FetchContext);
+	if(FF_isERR(*pError)) {
 		FF_FlushCache(pIoman);	// Ensure dir was flushed to the disk!	// Don't override error;
-		return Error;
+		return 0;
 	}
 
-	Error = FF_FlushCache(pIoman);	// Ensure dir was flushed to the disk!
-	if(FF_isERR(Error)) {
-		return Error;
+	*pError = FF_FlushCache(pIoman);	// Ensure dir was flushed to the disk!
+	if(FF_isERR(*pError)) {
+		return 0;
 	}
 
-	return FF_ERR_NONE;
+	if(pDirent) {
+		memcpy(pDirent, &MyDir, sizeof(FF_DIRENT));
+	}
+
+	return MyDir.ObjectCluster;
 }
 
 

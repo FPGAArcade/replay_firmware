@@ -112,9 +112,11 @@ typedef struct {
 #ifdef FF_UNICODE_SUPPORT
 FF_ERROR	FF_FindFirst		(FF_IOMAN *pIoman, FF_DIRENT *pDirent, const FF_T_WCHAR *path);
 FF_ERROR	FF_MkDir			(FF_IOMAN *pIoman, const FF_T_WCHAR *Path);
+FF_ERROR	FF_MkDirTree		(FF_IOMAN *pIoman, const FF_T_WCHAR *Path);
 #else
 FF_ERROR	FF_FindFirst		(FF_IOMAN *pIoman, FF_DIRENT *pDirent, const FF_T_INT8 *path);
 FF_ERROR	FF_MkDir			(FF_IOMAN *pIoman, const FF_T_INT8 *Path);
+FF_ERROR	FF_MkDirTree		(FF_IOMAN *pIoman, const FF_T_INT8 *Path);
 #endif
 
 FF_ERROR	FF_FindNext			(FF_IOMAN *pIoman, FF_DIRENT *pDirent);
@@ -151,8 +153,10 @@ void		FF_unlockDIR		(FF_IOMAN *pIoman);
 
 #ifdef FF_UNICODE_SUPPORT
 FF_T_UINT32 FF_CreateFile(FF_IOMAN *pIoman, FF_T_UINT32 DirCluster, FF_T_WCHAR *FileName, FF_DIRENT *pDirent, FF_ERROR *pError);
+FF_T_UINT32 FF_CreateDirectory(FF_IOMAN *pIoman, FF_T_UINT32 DirCluster, const FF_T_WCHAR *DirName, FF_DIRENT *pDirent, FF_ERROR *pError);
 #else
 FF_T_UINT32 FF_CreateFile(FF_IOMAN *pIoman, FF_T_UINT32 DirCluster, FF_T_INT8 *FileName, FF_DIRENT *pDirent, FF_ERROR *pError);
+FF_T_UINT32 FF_CreateDirectory(FF_IOMAN *pIoman, FF_T_UINT32 DirCluster, const FF_T_INT8 *DirName, FF_DIRENT *pDirent, FF_ERROR *pError);
 #endif
 
 FF_ERROR		FF_CreateDirent		(FF_IOMAN *pIoman, FF_T_UINT32 DirCluster, FF_DIRENT *pDirent);

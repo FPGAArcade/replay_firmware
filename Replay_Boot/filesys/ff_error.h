@@ -78,7 +78,7 @@
 #define FF_GETFUNCTION(x)			((((unsigned)x) >> FF_FUNCTION_SHIFT) & 0xFF)
 #define FF_GETMOD_FUNC(x)			((((unsigned)x) >> FF_FUNCTION_SHIFT) & 0xFFFF)
 #define FF_ERRFLAG					0x80000000
-#define FF_isERR(x)					(x & FF_ERRFLAG)
+#define FF_isERR(x)					((x) & FF_ERRFLAG)
 
 //----- MBFullFAT Module Identifiers
 #define FF_MODULE_IOMAN				(( 1		<< FF_MODULE_SHIFT) | FF_ERRFLAG)

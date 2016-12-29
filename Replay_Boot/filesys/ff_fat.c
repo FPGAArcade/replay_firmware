@@ -957,7 +957,9 @@ FF_T_UINT32 FF_CountFreeClusters(FF_IOMAN *pIoman, FF_ERROR *pError) {
 		pBuffer = FF_GetBuffer(pIoman, pIoman->pPartition->FatBeginLBA + i, FF_MODE_READ);
 		{
 			if(!pBuffer) {
-				*pError = FF_ERR_DEVICE_DRIVER_FAILED | FF_COUNTFREECLUSTERS;
+				if(pError) {
+					*pError = FF_ERR_DEVICE_DRIVER_FAILED | FF_COUNTFREECLUSTERS;
+				}
 				return 0;
 			}
 			for(x = 0; x < EntriesPerSector; x++) {
@@ -1027,7 +1029,7 @@ FF_T_UINT32 FF_GetFreeSize(FF_IOMAN *pIoman, FF_ERROR *pError) {
 		{
 			if(!pIoman->pPartition->FreeClusterCount) {
 				 pIoman->pPartition->FreeClusterCount = FF_CountFreeClusters(pIoman, pError);
-				 if(FF_isERR(*pError)) {
+				 if(pError && FF_isERR(*pError)) {
 					  FF_unlockFAT(pIoman);
 					  return 0;
 				 }
@@ -1035,7 +1037,8 @@ FF_T_UINT32 FF_GetFreeSize(FF_IOMAN *pIoman, FF_ERROR *pError) {
 			FreeClusters = pIoman->pPartition->FreeClusterCount;
 		}
 		FF_unlockFAT(pIoman);
-		FreeSize = (FF_T_UINT32) ((FF_T_UINT32)FreeClusters * (FF_T_UINT32)((FF_T_UINT32)pIoman->pPartition->SectorsPerCluster * (FF_T_UINT32)pIoman->pPartition->BlkSize));
+		FF_T_UINT32 ClusterSize512B = (pIoman->pPartition->SectorsPerCluster * pIoman->pPartition->BlkSize) >> 9;
+		FreeSize = (FF_T_UINT32) ((FF_T_UINT32)FreeClusters * ClusterSize512B) >> 11;
 		return FreeSize;
 	}
 	return 0;

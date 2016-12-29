@@ -103,12 +103,14 @@ FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_WCHAR *path, FF_T_UINT8 Mode, FF_E
 FF_T_BOOL        FF_isDirEmpty  (FF_IOMAN *pIoman, const FF_T_WCHAR *Path);
 FF_ERROR         FF_RmFile              (FF_IOMAN *pIoman, const FF_T_WCHAR *path);
 FF_ERROR         FF_RmDir               (FF_IOMAN *pIoman, const FF_T_WCHAR *path);
+FF_ERROR         FF_RmDirTree           (FF_IOMAN *pIoman, const FF_T_WCHAR *path);
 FF_ERROR         FF_Move                (FF_IOMAN *pIoman, const FF_T_WCHAR *szSourceFile, const FF_T_WCHAR *szDestinationFile);
 #else
 FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_T_UINT8 Mode, FF_ERROR *pError);
 FF_T_BOOL        FF_isDirEmpty  (FF_IOMAN *pIoman, const FF_T_INT8 *Path);
 FF_ERROR         FF_RmFile              (FF_IOMAN *pIoman, const FF_T_INT8 *path);
 FF_ERROR         FF_RmDir               (FF_IOMAN *pIoman, const FF_T_INT8 *path);
+FF_ERROR         FF_RmDirTree           (FF_IOMAN *pIoman, const FF_T_INT8 *path);
 FF_ERROR         FF_Move                (FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT8 *szDestinationFile);
 #endif
 

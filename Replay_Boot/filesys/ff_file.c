@@ -411,6 +411,141 @@ FF_T_BOOL FF_isDirEmpty(FF_IOMAN *pIoman, const FF_T_INT8 *Path) {
 }
 
 #ifdef FF_UNICODE_SUPPORT
+FF_ERROR FF_RmDirTree(FF_IOMAN *pIoman, const FF_T_WCHAR *path) {
+#else
+FF_ERROR FF_RmDirTree(FF_IOMAN *pIoman, const FF_T_INT8 *path) {
+#endif
+
+	FF_DIRENT   		MyDir;
+	FF_ERROR    		RetVal = FF_ERR_NONE;
+	FF_ERROR    		Error = FF_ERR_NONE;
+	FF_T_UINT8          EntryBuffer[32];
+	FF_FETCH_CONTEXT    FetchContext;
+	FF_T_UINT16 		DirEntry = 0;
+	FF_T_UINT32 		LeafCluster = 0;
+	FF_T_UINT32 		RootCluster = 0;
+#ifdef FF_PATH_CACHE
+	FF_T_UINT32 i;
+#endif
+
+	if(!pIoman) {
+		return (FF_ERR_NULL_POINTER | FF_RMDIR);
+	}
+
+	// First find the diretory cluster of the 'root' folder we're about to delete
+	RetVal = FF_FindFirst(pIoman, &MyDir, path);
+	if(FF_isERR(RetVal))
+		return RetVal;
+
+	RootCluster = MyDir.DirCluster;
+
+	while(1)
+	{
+		// (Re-)Init the DIRENT to the first entry in the directory
+		MyDir.CurrentItem = 0;
+		RetVal = FF_InitEntryFetch(pIoman, MyDir.DirCluster, &MyDir.FetchContext);
+		if(FF_isERR(RetVal))
+			return RetVal;
+
+		while(!FF_isERR(RetVal = FF_FindNext(pIoman, &MyDir))) {
+
+			if (!strcmp(MyDir.FileName, ".") || !strcmp(MyDir.FileName, ".."))
+				continue;
+
+			// If we find a sub-directory, and it's one we haven't seen before (and thus emptied), then restart scanning the sub-dir
+			if ((MyDir.Attrib & FF_FAT_ATTR_DIR) && LeafCluster != MyDir.ObjectCluster) {
+				MyDir.DirCluster = MyDir.ObjectCluster;
+				break;
+			}
+
+			// The DIRENT can now be deleted.
+			FF_lockDIR(pIoman);
+			{
+				FF_lockFAT(pIoman);
+				Error = FF_UnlinkClusterChain(pIoman, MyDir.ObjectCluster, 0);
+				FF_unlockFAT(pIoman);
+
+				if(FF_isERR(Error))
+					break;
+
+				Error = FF_InitEntryFetch(pIoman, MyDir.DirCluster, &FetchContext);
+				if(FF_isERR(Error))
+					break;
+
+				DirEntry = MyDir.CurrentItem - 1;
+
+				Error = FF_RmLFNs(pIoman, DirEntry, &FetchContext);
+				if(FF_isERR(Error))
+					break;
+
+				Error = FF_FetchEntryWithContext(pIoman, DirEntry, &FetchContext, EntryBuffer);
+				if(FF_isERR(Error))
+					break;
+				EntryBuffer[0] = 0xE5;
+
+				Error = FF_PushEntryWithContext(pIoman, DirEntry, &FetchContext, EntryBuffer);
+				if(FF_isERR(Error))
+					break;
+
+#ifdef FF_PATH_CACHE
+				if (MyDir.Attrib & FF_FAT_ATTR_DIR) {
+					FF_PendSemaphore(pIoman->pSemaphore);
+					{
+						for(i = 0; i < FF_PATH_CACHE_DEPTH; i++) {
+							if(pIoman->pPartition->PathCache[i].DirCluster == MyDir.ObjectCluster) {
+								pIoman->pPartition->PathCache[i].Path[0] = '\0';
+								pIoman->pPartition->PathCache[i].DirCluster = 0;
+								break;
+							}
+						}
+					}
+					FF_ReleaseSemaphore(pIoman->pSemaphore);
+				}
+#endif
+				Error = FF_CleanupEntryFetch(pIoman, &FetchContext);
+				if(FF_isERR(Error))
+					break;
+
+				Error = FF_FlushCache(pIoman);
+				if(FF_isERR(Error))
+					break;
+			}
+			FF_unlockDIR(pIoman);
+		}
+
+		// If 'Error' is set we somehow failed to delete an entry. If so, simply clean up and return the error.
+		if(FF_isERR(Error)) {
+			FF_CleanupEntryFetch(pIoman, &FetchContext);
+			FF_unlockDIR(pIoman);
+			return Error;
+		}
+		// If 'RetVal' is not set this means we reached the 'break' in the while-loop, and we should restart in the sub-dir.
+		else if (!FF_isERR(RetVal)) {
+			continue;
+		}
+
+		// If 'RetVal' is not set to END_OF_DIR we encountered a 'real' error.
+		if (FF_GETERROR (RetVal) != FF_ERR_DIR_END_OF_DIR) {
+			return RetVal;
+		}
+
+		// Store the cluster of the most recently seen sub-directory. This directory is now empty.
+		LeafCluster = MyDir.DirCluster;
+
+		// Restart scanning from the 'root' folder
+		MyDir.DirCluster = RootCluster;
+
+		// If the leaf cluster is actually the root cluster this means we're done!
+		if (LeafCluster == MyDir.DirCluster) {
+			break;
+		}
+	}
+
+	// Finish with removing the 'root' directory itself
+	return FF_RmDir(pIoman, path);
+}
+
+#ifdef FF_UNICODE_SUPPORT
 FF_ERROR FF_RmDir(FF_IOMAN *pIoman, const FF_T_WCHAR *path) {
 #else
 FF_ERROR FF_RmDir(FF_IOMAN *pIoman, const FF_T_INT8 *path) {

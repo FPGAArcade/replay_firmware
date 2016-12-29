@@ -287,17 +287,20 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
 {
   DEBUG(3,"SPI:Card_WriteM sector %lu num %lu",sector, numSectors);
 
-  uint32_t sectorCount = numSectors;
-  uint32_t i;
+  const uint32_t sectorEnd = sector + numSectors;
+  uint32_t offset;
   SPI_EnableCard();
 
   // to do : optimise for multi-block write
 
-  if (cardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
-    sector = sector << 9;   // calculate byte address
+  for (; sector < sectorEnd; ++sector) {
 
-  while (sectorCount--) {
-    if (MMC_Command(CMD24, sector)) {
+    if (cardType != CARDTYPE_SDHC) // SDHC cards are addressed in sectors not bytes
+      offset = sector << 9;   // calculate byte address
+    else
+      offset = sector;
+
+    if (MMC_Command(CMD24, offset)) {
       WARNING("SPI:Card_WriteM CMD24 - invalid response 0x%02X (lba=%lu)", response, sector);
       SPI_DisableCard();
       return(FF_ERR_DEVICE_DRIVER_FAILED);
@@ -307,7 +310,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
     rSPI(0xFE); // send Data Token
 
     // send sector bytes TO DO -- DMA
-    for (i = 0; i < 512; i++)
+    for (offset = 0; offset < 512; offset++)
       rSPI(*(pBuffer++));
 
     // calc CRC????

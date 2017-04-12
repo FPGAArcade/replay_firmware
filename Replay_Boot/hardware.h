@@ -64,7 +64,8 @@ uint8_t USART_GetValid(void);
 uint8_t USART_Getc(void);
 uint8_t USART_Peekc(void);
 int16_t USART_CharAvail(void);
-int16_t USART_GetBuf(const uint8_t buf[], int16_t len);
+uint16_t USART_PeekBuf(uint8_t *buf, int16_t len);
+uint16_t USART_GetBuf(const uint8_t *buf, int16_t len);
 void USART_update(void);
 
 //

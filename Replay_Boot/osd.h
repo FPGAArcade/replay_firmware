@@ -80,7 +80,7 @@
 #define PS2DELAY        10          // ps/2 delay in 1ms units
 #define PS2FLAGSDELAY   500         // ps/2 delay in 1ms units
 
-#define SERIALDELAY     10          // serial timeout delay in 1ms units
+#define SER_ESC_SEQ_DELAY 5         // time to wait for next char in an USART escape-sequence, in 1ms units
 
 //#define OSDCTRLUP       0x01        /*OSD up control*/
 //#define OSDCTRLDOWN     0x02        /*OSD down control*/

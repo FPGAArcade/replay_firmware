@@ -49,6 +49,96 @@
 #include "config.h"
 #include "messaging.h"
 
+////
+// Escape sequence definitions
+//
+// If you find a missing mapping, add it where it's length fits
+// in a sorted list, as the code relies on the list to be sorted.
+//
+
+// Escape sequence struct, used for mapping sequence to key code
+typedef struct _tEscSequence {
+  const uint16_t code; // The translated keycode
+  const uint8_t  slen; // Length of 'seq'
+  const uint8_t *seq;  // Sequence following 'pfx', 'slen' bytes long
+} tEscSequence;
+
+// VT100 TAB, length 1
+const static uint8_t TAB_KEYSEQ[1]   = {0x48};
+// - Cursor keys, length 2
+const static uint8_t UP_KEYSEQ[2]    = {0x5b, 0x41};
+const static uint8_t DOWN_KEYSEQ[2]  = {0x5b, 0x42};
+const static uint8_t RIGHT_KEYSEQ[2] = {0x5b, 0x43};
+const static uint8_t LEFT_KEYSEQ[2]  = {0x5b, 0x44};
+// VT100 PF1-PF4
+const static uint8_t PF1_KEYSEQ[2]   = {0x4f, 0x50};
+const static uint8_t PF2_KEYSEQ[2]   = {0x4f, 0x51};
+const static uint8_t PF3_KEYSEQ[2]   = {0x4f, 0x52};
+const static uint8_t PF4_KEYSEQ[2]   = {0x4f, 0x53};
+// - Special keys, length 3
+const static uint8_t HOME_KEYSEQ[3]  = {0x5b, 0x31, 0x7e};
+const static uint8_t INS_KEYSEQ[3]   = {0x5b, 0x32, 0x7e};
+const static uint8_t DEL_KEYSEQ[3]   = {0x5b, 0x33, 0x7e};
+const static uint8_t END_KEYSEQ[3]   = {0x5b, 0x34, 0x7e};
+const static uint8_t PGUP_KEYSEQ[3]  = {0x5b, 0x35, 0x7e};
+const static uint8_t PGDN_KEYSEQ[3]  = {0x5b, 0x36, 0x7e};
+// - Function keys, length 4
+const static uint8_t F1_KEYSEQ[4]    = {0x5b, 0x31, 0x31, 0x7e};
+const static uint8_t F2_KEYSEQ[4]    = {0x5b, 0x31, 0x32, 0x7e};
+const static uint8_t F3_KEYSEQ[4]    = {0x5b, 0x31, 0x33, 0x7e};
+const static uint8_t F4_KEYSEQ[4]    = {0x5b, 0x31, 0x34, 0x7e};
+const static uint8_t F5_KEYSEQ[4]    = {0x5b, 0x31, 0x35, 0x7e};
+const static uint8_t F6_KEYSEQ[4]    = {0x5b, 0x31, 0x37, 0x7e};
+const static uint8_t F7_KEYSEQ[4]    = {0x5b, 0x31, 0x38, 0x7e};
+const static uint8_t F8_KEYSEQ[4]    = {0x5b, 0x31, 0x39, 0x7e};
+const static uint8_t F9_KEYSEQ[4]    = {0x5b, 0x32, 0x30, 0x7e};
+const static uint8_t F10_KEYSEQ[4]   = {0x5b, 0x32, 0x31, 0x7e};
+const static uint8_t F11_KEYSEQ[4]   = {0x5b, 0x32, 0x33, 0x7e};
+const static uint8_t F12_KEYSEQ[4]   = {0x5b, 0x32, 0x34, 0x7e};
+
+// List of all the sequence mappings.
+// @IMPORTANT: Keep sorted on slen!
+const static tEscSequence usart_esc_sequences[] = {
+  // Length 1, VT100 tab
+  {.code = KEY_TAB,   .slen = sizeof(TAB_KEYSEQ),  .seq = TAB_KEYSEQ},
+  
+  // Length 2, cursor keys
+  {.code = KEY_UP,    .slen = sizeof(UP_KEYSEQ),   .seq = UP_KEYSEQ},
+  {.code = KEY_DOWN,  .slen = sizeof(DOWN_KEYSEQ), .seq = DOWN_KEYSEQ},
+  {.code = KEY_RIGHT, .slen = sizeof(RIGHT_KEYSEQ),.seq = RIGHT_KEYSEQ},
+  {.code = KEY_LEFT,  .slen = sizeof(LEFT_KEYSEQ), .seq = LEFT_KEYSEQ},
+
+  // Length 3, VT100 PF1-PF4, here mapped to F1-F4
+  {.code = KEY_F1,  .slen = sizeof(PF1_KEYSEQ), .seq = PF1_KEYSEQ},
+  {.code = KEY_F2,  .slen = sizeof(PF2_KEYSEQ), .seq = PF2_KEYSEQ},
+  {.code = KEY_F3,  .slen = sizeof(PF3_KEYSEQ), .seq = PF3_KEYSEQ},
+  {.code = KEY_F4,  .slen = sizeof(PF4_KEYSEQ), .seq = PF4_KEYSEQ},
+
+  // Length 3 special keys
+  {.code = KEY_HOME, .slen = sizeof(HOME_KEYSEQ), .seq = HOME_KEYSEQ},
+  {.code = KEY_INS,  .slen = sizeof(INS_KEYSEQ),  .seq = INS_KEYSEQ},
+  {.code = KEY_DEL,  .slen = sizeof(DEL_KEYSEQ),  .seq = DEL_KEYSEQ},
+  {.code = KEY_END,  .slen = sizeof(END_KEYSEQ),  .seq = END_KEYSEQ},
+  {.code = KEY_PGUP, .slen = sizeof(PGUP_KEYSEQ), .seq = PGUP_KEYSEQ},
+  {.code = KEY_PGDN, .slen = sizeof(PGDN_KEYSEQ), .seq = PGDN_KEYSEQ},
+
+  // Length 4 function keys. Note that F1-F4 may be sent as PF1-PF4 if VT100
+  {.code = KEY_F1,  .slen = sizeof(F1_KEYSEQ), .seq = F1_KEYSEQ},
+  {.code = KEY_F2,  .slen = sizeof(F2_KEYSEQ), .seq = F2_KEYSEQ},
+  {.code = KEY_F3,  .slen = sizeof(F3_KEYSEQ), .seq = F3_KEYSEQ},
+  {.code = KEY_F4,  .slen = sizeof(F4_KEYSEQ), .seq = F4_KEYSEQ},
+  {.code = KEY_F5,  .slen = sizeof(F5_KEYSEQ), .seq = F5_KEYSEQ},
+  {.code = KEY_F6,  .slen = sizeof(F6_KEYSEQ), .seq = F6_KEYSEQ},
+  {.code = KEY_F7,  .slen = sizeof(F7_KEYSEQ), .seq = F7_KEYSEQ},
+  {.code = KEY_F8,  .slen = sizeof(F8_KEYSEQ), .seq = F8_KEYSEQ},
+  {.code = KEY_F9,  .slen = sizeof(F9_KEYSEQ), .seq = F9_KEYSEQ},
+  {.code = KEY_F10, .slen = sizeof(F10_KEYSEQ),.seq = F10_KEYSEQ},
+  {.code = KEY_F11, .slen = sizeof(F11_KEYSEQ),.seq = F11_KEYSEQ},
+  {.code = KEY_F12, .slen = sizeof(F12_KEYSEQ), .seq = F12_KEYSEQ}
+
+
+};
+
 // nasty globals ...
 uint8_t osd_vscroll = 0;
 uint8_t osd_page = 0;
@@ -497,8 +587,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
   static uint16_t key_flags = 0;
   static uint16_t old_key_code = 0;
 
-  // RS232 stuff
-  static uint16_t esc_received = 0;
+  // RS232 escape sequence char timeout
   static uint32_t esc_delay = 0;
 
   // check front menu button
@@ -622,89 +711,133 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
     old_key_code = 0;
   }
 
+  if(key_code) {
+    DEBUG(2, "PS/2 Key: 0x%04X", key_code);
+    return key_code;
+  }
+
   // process RS232 inputs
   // ---------------------------------------------------
-  if (!key_code && USART_GetValid()) { // fixes bug where peekc returns 0 (no char), but is valid by the time key_code=USART_Getc(); happens
+  if (!USART_GetValid()) { // fixes bug where peekc returns 0 (no char), but is valid by the time key_code=USART_Getc(); happens
+    return 0;
+  }
 
-    if (USART_Peekc()==0x1b) {
-      if (!esc_received) {
-        // lets take some time to check for further characters
-        esc_received = 1;
-        esc_delay = Timer_Get(SERIALDELAY);
-      } else if (Timer_Check(esc_delay)) {
+  if (USART_Peekc() != 0x1b) {
+    // Not in, or starting new, ESC sequence
+    key_code=USART_Getc();
+    if ((key_code > 0x60) && (key_code < 0x7B)) {
+      key_code &= 0x5F; // set uppercase
+    }
 
-        // timeout, let's see what we got...
-        const uint8_t UP_KEYSEQ[]    = {0x1b, 0x5b, 0x41};
-        const uint8_t DOWN_KEYSEQ[]  = {0x1b, 0x5b, 0x42};
-        const uint8_t RIGHT_KEYSEQ[] = {0x1b, 0x5b, 0x43};
-        const uint8_t LEFT_KEYSEQ[]  = {0x1b, 0x5b, 0x44};
-        //--
-        const uint8_t HOME_KEYSEQ[]  = {0x1b, 0x5b, 0x31, 0x7e};
-        const uint8_t INS_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x7e};
-        const uint8_t DEL_KEYSEQ[]   = {0x1b, 0x5b, 0x33, 0x7e};
-        const uint8_t END_KEYSEQ[]   = {0x1b, 0x5b, 0x34, 0x7e};
-        const uint8_t PGUP_KEYSEQ[]  = {0x1b, 0x5b, 0x35, 0x7e};
-        const uint8_t PGDN_KEYSEQ[]  = {0x1b, 0x5b, 0x36, 0x7e};
-        //--
-        const uint8_t F1_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x31, 0x7e};
-        const uint8_t F2_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x32, 0x7e};
-        const uint8_t F3_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x33, 0x7e};
-        const uint8_t F4_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x34, 0x7e};
-        const uint8_t F5_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x35, 0x7e};
-        const uint8_t F6_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x37, 0x7e};
-        const uint8_t F7_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x38, 0x7e};
-        const uint8_t F8_KEYSEQ[]    = {0x1b, 0x5b, 0x31, 0x39, 0x7e};
-        const uint8_t F9_KEYSEQ[]    = {0x1b, 0x5b, 0x32, 0x30, 0x7e};
-        const uint8_t F10_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x31, 0x7e};
-        const uint8_t F11_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x33, 0x7e};
-        const uint8_t F12_KEYSEQ[]   = {0x1b, 0x5b, 0x32, 0x34, 0x7e};
+    if (key_code == 0x7f) {  // If backspace sent as 'Control-? (127)' - settings in PuTTY
+      key_code = KEY_BACK;
+    }
+  } else {
+    // esc sequence, partial or complete
 
-        esc_received = 0;
+    // peek the buffer to see how many chars we got
+    // atm we need at most 5, but try to fill up the keybuf (which was 8 when writing this)
+    uint16_t keybuf_size = USART_PeekBuf((uint8_t *)&keybuf, sizeof(keybuf)); 
+    // @FIXME: Re-uses 'keybuf'. Should also reset 'keypos' ?
+    DEBUG(2, "esc: keybuf_size: %d", keybuf_size);
 
-        if ((!key_code) && USART_GetBuf(LEFT_KEYSEQ,sizeof(LEFT_KEYSEQ))) key_code=KEY_LEFT;
-        if ((!key_code) && USART_GetBuf(RIGHT_KEYSEQ,sizeof(RIGHT_KEYSEQ))) key_code=KEY_RIGHT;
-        if ((!key_code) && USART_GetBuf(UP_KEYSEQ,sizeof(UP_KEYSEQ))) key_code=KEY_UP;
-        if ((!key_code) && USART_GetBuf(DOWN_KEYSEQ,sizeof(DOWN_KEYSEQ))) key_code=KEY_DOWN;
-        if ((!key_code) && USART_GetBuf(PGUP_KEYSEQ,sizeof(PGUP_KEYSEQ))) key_code=KEY_PGUP;
-        if ((!key_code) && USART_GetBuf(PGDN_KEYSEQ,sizeof(PGDN_KEYSEQ))) key_code=KEY_PGDN;
+    if(keybuf_size > 1)   // 1+ chars in buffer, might be an esc seq
+    {
+      uint8_t esc_seq_idx = 0;
+      uint8_t n_matches = 0;
+      const tEscSequence *mes = NULL;
+      do { // Iterate through esc sequences.
+        const tEscSequence *eks = &usart_esc_sequences[esc_seq_idx];
+        const uint8_t slen = eks->slen;
+        const uint8_t *seq = eks->seq;
 
-        if ((!key_code) && USART_GetBuf(HOME_KEYSEQ,sizeof(HOME_KEYSEQ))) key_code=KEY_HOME;
-        if ((!key_code) && USART_GetBuf(END_KEYSEQ,sizeof(END_KEYSEQ))) key_code=KEY_END;
-        if ((!key_code) && USART_GetBuf(INS_KEYSEQ,sizeof(INS_KEYSEQ))) key_code=KEY_INS;
-        if ((!key_code) && USART_GetBuf(DEL_KEYSEQ,sizeof(DEL_KEYSEQ))) key_code=KEY_DEL;
+        // esc_sequences are sorted on slen, so we bail early if slen is larger than keybuf_size
+        if(slen > keybuf_size-1) {
+          break;
+        }
 
-        if ((!key_code) && USART_GetBuf(F1_KEYSEQ,sizeof(F1_KEYSEQ))) key_code=KEY_F1;
-        if ((!key_code) && USART_GetBuf(F2_KEYSEQ,sizeof(F2_KEYSEQ))) key_code=KEY_F2;
-        if ((!key_code) && USART_GetBuf(F3_KEYSEQ,sizeof(F3_KEYSEQ))) key_code=KEY_F3;
-        if ((!key_code) && USART_GetBuf(F4_KEYSEQ,sizeof(F4_KEYSEQ))) key_code=KEY_F4;
-        if ((!key_code) && USART_GetBuf(F5_KEYSEQ,sizeof(F5_KEYSEQ))) key_code=KEY_F5;
-        if ((!key_code) && USART_GetBuf(F6_KEYSEQ,sizeof(F6_KEYSEQ))) key_code=KEY_F6;
-        if ((!key_code) && USART_GetBuf(F7_KEYSEQ,sizeof(F7_KEYSEQ))) key_code=KEY_F7;
-        if ((!key_code) && USART_GetBuf(F8_KEYSEQ,sizeof(F8_KEYSEQ))) key_code=KEY_F8;
-        if ((!key_code) && USART_GetBuf(F9_KEYSEQ,sizeof(F9_KEYSEQ))) key_code=KEY_F9;
-        if ((!key_code) && USART_GetBuf(F10_KEYSEQ,sizeof(F10_KEYSEQ))) key_code=KEY_F10;
-        if ((!key_code) && USART_GetBuf(F11_KEYSEQ,sizeof(F11_KEYSEQ))) key_code=KEY_RESET; // ignored
-        if ((!key_code) && USART_GetBuf(F12_KEYSEQ,sizeof(F12_KEYSEQ))) key_code=KEY_MENU;
-
-        if (!key_code) {
-          key_code=KEY_ESC;
-          USART_Getc(); // take ESC key
-          // Use the lines below temporarly to check out not implemented sequences
-          // (then also comment out above lines!)
-          /*while (USART_CharAvail()>0) {*/
-            /*printf("%02x ",USART_Getc());*/
-          /*}*/
-          /*printf("\n\r");*/
+        DEBUG(3, "esc: check seq %d len %d> 0x%02x 0x%02x ..", esc_seq_idx, slen, seq[0], seq[1]);
+        if(slen <= keybuf_size-1 &&            // -1 to comp for first char, 0x1B
+           seq[0] == keybuf[1] &&              // optimization, compare first byte
+           memcmp(seq+1, &keybuf[2], slen-1) == 0) // compare rest
+        {
+          // Escape sequences are prefix-unique, meaning that if we find a second
+          // match for a prefix, it is not unique, hence we'll need to wait for more
+          // input, or a timeout.
+          n_matches++;
+          if(n_matches > 1) {
+            // second match for this keybuf/prefix, so it's not unique :(
+            mes = NULL;
+            break;
+          }
+          else {
+            mes = eks;
+          }
         }
       }
-    } else {
-      key_code=USART_Getc();
-      if ((key_code>0x60) && (key_code<0x7B)) {
-        key_code &= 0x5F; // set uppercase
+      while(++esc_seq_idx < sizeof(usart_esc_sequences)/sizeof(tEscSequence));
+
+      if(mes != NULL) // if set, there was only 1 match (the first)
+      {
+        DEBUG(2, "esc: sequence detected: key=0x%02x", mes->code);
+        key_code = mes->code;
+
+        // Use slen+1, not keybuf_size, entire seq matched, + two leading bytes
+        if(USART_GetBuf(keybuf, mes->slen+1) == 0) { 
+          DEBUG(1, "WARN: esc: USART_GetBuf failed to pick off the esc seq!");
+        }
       }
-      if (key_code == 0x7f)  // If backspace sent as 'Control-? (127)' - settings in PuTTY
-        key_code = KEY_BACK;
+      else if(n_matches != 0)
+      {
+        // There was more than 1 match, we "know" we can expect more chars
+        // @CHECKME: Could this run us into a wall of infinite timeout restarts ?
+        esc_delay = 0;// results in `new Timer_Get(SER_ESC_SEQ_DELAY)` below
+      }
     }
+
+    if(key_code == 0)
+    {
+      // ESC was (previously) hit, but did not translate to a key_code yet.
+      // either we start waiting for more chars, or we already are.
+      if (esc_delay == 0)
+      {
+        // new timeout to wait for rest of ESC sequence
+        esc_delay = Timer_Get(SER_ESC_SEQ_DELAY);
+        DEBUG(3, "esc: start timeout");
+        key_code = 0; // or return 0, but we want logging below
+      }
+      else if (esc_delay != 0 &&    // (else+check for neater debug logging)
+               Timer_Check(esc_delay)) {
+        esc_delay = 0; // Cancel the timeout
+
+        if(keybuf_size > 1 && keybuf[1] != 0x1b) { // don't log double taps..
+          DEBUG(1, "Unknown esc sequence! keybuf size %d => 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x",
+                keybuf_size, keybuf[0], keybuf[1], keybuf[2], keybuf[3], keybuf[4], keybuf[5]);
+        }
+
+        // If we get here, there is (most likely) only a single ESC in keybuf,
+        // and/or no seq matched. Consider this as if only the ESC key was hit.
+        key_code = KEY_ESC;
+        USART_Getc(); // skip ESC key
+        // If there are more chars in the keybuf (more ESC / unknown sequence),
+        // they're emitted later
+      }
+      else
+      {
+        DEBUG(3, "esc: ..waiting for more chars");
+      }
+    }
+    else
+    {
+      // We got a key_code! cancel any pending timeout
+      esc_delay = 0;
+    }
+
+  } // } else { // esc sequence, partial or complete
+
+  if(key_code != 0)
+  {
+    DEBUG(1,"USART Key: 0x%04X", key_code);
   }
 
   return key_code;

@@ -344,7 +344,29 @@ inline int16_t USART_CharAvail(void)
   return (16+USART_rxptr-USART_rdptr)&15;
 }
 
-int16_t USART_GetBuf(const uint8_t buf[], int16_t len)
+/*
+ * Returns the current rxbuf in buf, up to len bytes
+ * @returns # of bytes copied
+ */
+uint16_t USART_PeekBuf(uint8_t *buf, int16_t maxlen)
+{
+  uint16_t i, avail = USART_CharAvail();
+  if(avail == 0) {
+    return 0;
+  }
+  
+  for (i=0;i<avail && i<maxlen;++i) {
+    buf[i] = USART_rxbuf[(USART_rdptr+i)&15];
+  }
+  return i;
+}
+
+/**
+ * Compare given buf with contents of USART rxbuf. If the buffer 
+ * matches in its entirety, it is also plucked from the rxbuf.
+ * @returns 1 if match or 0 if no match
+ */
+int16_t USART_GetBuf(const uint8_t *buf, int16_t len)
 {
   uint16_t i;
 
@@ -395,7 +417,10 @@ void SPI_Init(void)
 
 unsigned char rSPI(unsigned char outByte)  // inline?
 {
-  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // warning, but is a must! Clear previous rubbish
+  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;
+  // for t not to generate a warning, add a dummy asm that 'reference' t
+  asm volatile(""
+               : "=r" (t));
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
   AT91C_BASE_SPI->SPI_TDR = outByte;
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));

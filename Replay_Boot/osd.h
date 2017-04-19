@@ -145,6 +145,7 @@
 
 #define KF_MASK   0xF800    // mask for flags/modifiers
 #define KEY_MASK  0x03FF    // mask for actual keys
+#define KEY_MASK_ASCII 0x7f // mask for printable chars
 
 /*functions*/
 void OSD_Write(uint8_t row, const char *s, uint8_t invert);

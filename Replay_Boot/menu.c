@@ -159,8 +159,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           memcpy(current_status->dir_scan->file_filter, file_filter, size);          
           // initialize browser
           Filesel_ScanFirst(current_status->dir_scan);
-          current_status->file_browser = 1;
-          current_status->show_menu=0;
+          current_status->menu_state = FILE_BROWSER;
           return 1;
         }
       }
@@ -187,8 +186,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
           Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->fileio_chb_ext);
           // initialize browser
           Filesel_ScanFirst(current_status->dir_scan);
-          current_status->file_browser = 1;
-          current_status->show_menu=0;
+          current_status->menu_state = FILE_BROWSER;
           return 1;
         }
       }
@@ -204,8 +202,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       Filesel_Init(current_status->dir_scan, current_status->act_dir, ini_ext);
       // initialize browser
       Filesel_ScanFirst(current_status->dir_scan);
-      current_status->file_browser = 1;
-      current_status->show_menu=0;
+      current_status->menu_state = FILE_BROWSER;
       return 1;
     }
     // loadselect ----------------------------------
@@ -221,8 +218,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
         Filesel_Init(current_status->dir_scan, current_status->act_dir, load_ext);
         // initialize browser
         Filesel_ScanFirst(current_status->dir_scan);
-        current_status->file_browser = 1;
-        current_status->show_menu=0;
+        current_status->menu_state = FILE_BROWSER;
         return 1;
       }
     }
@@ -241,10 +237,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
         sprintf(full_filename,"%s%s",current_status->act_dir,item->option_list->option_name);
 
         CFG_download_rom(full_filename,item->action_value,item->option_list->conf_value>>1);
-        current_status->show_menu=0;
-        current_status->file_browser=0;
-        current_status->popup_menu=0;
-        current_status->show_status=0;
+        current_status->menu_state = NO_MENU;
         OSD_Disable();
         Timer_Wait(1);
         if ((item->option_list->conf_value)&1) {
@@ -265,9 +258,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     }
     // reset ----------------------------------
     if MATCH(item->action_name,"reset") {
-      current_status->popup_menu=1;
-      current_status->show_menu=0;
-      current_status->show_status=0;
+        current_status->menu_state = POPUP_MENU;
       strcpy(current_status->popup_msg," Reset Target? ");
       current_status->selections = MENU_POPUP_YESNO;
       current_status->selected = 0;
@@ -277,9 +268,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
     }
     // reboot ----------------------------------
     if MATCH(item->action_name,"reboot") {
-      current_status->popup_menu=1;
-      current_status->show_menu=0;
-      current_status->show_status=0;
+        current_status->menu_state = POPUP_MENU;
       strcpy(current_status->popup_msg," Reboot Board? ");
       current_status->selections = MENU_POPUP_YESNO;
       current_status->selected = 0;
@@ -305,8 +294,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
         strncpy(item->option_list->option_name, FileIO_FCh_GetName(0,item->action_value), MAX_OPTION_STRING-1);
         item->option_list->option_name[MAX_OPTION_STRING-1]=0;
 
-        current_status->show_menu=1;
-        current_status->file_browser=0;
+        current_status->menu_state = SHOW_MENU;
         return 1;
       }
     }
@@ -322,8 +310,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
         strncpy(item->option_list->option_name, FileIO_FCh_GetName(1,item->action_value), MAX_OPTION_STRING-1);
         item->option_list->option_name[MAX_OPTION_STRING-1]=0;
 
-        current_status->show_menu=1;
-        current_status->file_browser=0;
+        current_status->menu_state = SHOW_MENU;
         return 1;
       }
     }
@@ -333,10 +320,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
       // set new INI file and force reload of FPGA configuration
       strcpy(current_status->ini_dir,current_status->act_dir);
       strcpy(current_status->ini_file,mydir.FileName);
-      current_status->show_menu=0;
-      current_status->popup_menu=0;
-      current_status->show_status=0;
-      current_status->file_browser=0;
+      current_status->menu_state = NO_MENU;
       OSD_Disable();
       // "kill" FPGA content and re-run setup
       current_status->fpga_load_ok=0;
@@ -376,10 +360,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
         OSD_ConfigSendUserS(staticbits);
         //not used yet: OSD_ConfigSendUserD(dynamicbits);
 
-        current_status->show_menu=0;
-        current_status->file_browser=0;
-        current_status->popup_menu=0;
-        current_status->show_status=0;
+        current_status->menu_state = NO_MENU;
         OSD_Disable();
 
         Timer_Wait(1);
@@ -437,11 +418,7 @@ void MENU_init_ui(status_t *current_status)
   OSD_SetPage(1);
 
   // clean up display flags
-  current_status->update=0;
-  current_status->show_status=0;
-  current_status->show_menu=0;
-  current_status->popup_menu=0;
-  current_status->file_browser=0;
+  current_status->menu_state = NO_MENU;
 }
 
 void _MENU_back_dir(char *pPath)
@@ -485,14 +462,14 @@ void _MENU_update_ui(status_t *current_status)
   OSD_WriteRC( 1, 0, "                                ", 0, 0, 0x01);
   OSD_WriteRC(14, 0, "                                ", 0, 0, 0x01);
 
-  if (current_status->show_status) {
+  if ((current_status->menu_state & SHOW_STATUS) != 0) {
     //
     // STATUS SCREEN
     //
     int i,j;
 
     // print status header
-    OSD_WriteRC(0, 10,          "REPLAY INFO", 0, 0xE, 0);
+    OSD_WriteRC(0, 9,          "REPLAY STATUS", 0, 0xE, 0);
 
     // print fixed status lines and a separator line
     for (i=0; i<3; i++) {
@@ -528,7 +505,7 @@ void _MENU_update_ui(status_t *current_status)
     // print status line
     print_centered_status("LEFT/RIGHT - %s/ESC", current_status->hotkey_string);
   }
-  else if (current_status->popup_menu) {
+  else if ((current_status->menu_state & POPUP_MENU) != 0) {
     //
     // POP UP MESSAGE HANDLER
     //
@@ -577,7 +554,7 @@ void _MENU_update_ui(status_t *current_status)
     OSD_WriteRC(1, 0,             "                                ",0,0,0x01);
     OSD_WriteRC(MENU_STATUS-1, 0, "                                ",0,0,0x01);
 
-    if (current_status->file_browser) {
+    if ( (current_status->menu_state & FILE_BROWSER) != 0) {
       // handling file browser part
       OSD_WriteRC(0, 10, "FILE BROWSER", 0, 0xE, 0);
 
@@ -704,22 +681,367 @@ void _MENU_update_ui(status_t *current_status)
   }
 }
 
+typedef uint8_t (*tKeyMappingCallback)(status_t *, uint16_t);
+typedef struct _tKeyMapping {
+  uint16_t            key;
+  uint16_t            mask;
+  tKeyMappingCallback action;
+} tKeyMapping;
+
+
+uint8_t key_action_menu_left(status_t *current_status, uint16_t key)
+{
+  // option_name select
+  if (current_status->item_first) {
+    // on item_name level
+    if (!current_status->menu_item_act->action_name[0]) {
+      // last option_name (only if no item with certain action)
+      if (current_status->menu_item_act->selected_option &&
+          current_status->menu_item_act->selected_option->last) {
+        current_status->menu_item_act->selected_option =
+          current_status->menu_item_act->selected_option->last;
+        // update bitfield
+        _MENU_update_bits(current_status);
+      }
+    }
+  } else {
+    // on menu level
+    if (current_status->menu_act->last) {
+      // not the first entry
+      current_status->menu_act = current_status->menu_act->last;
+    } else {
+      // we had the first entry, so switch to status page
+      current_status->menu_state = SHOW_STATUS;
+    }
+  }
+  return 1; // update
+}
+
+uint8_t key_action_menu_right(status_t *current_status, uint16_t key)
+{
+  if (current_status->item_first) {
+    // on item_name level
+    if (!current_status->menu_item_act->action_name[0]) {
+      // next option_name (only if no item with certain action)
+      if (current_status->menu_item_act->selected_option &&
+          current_status->menu_item_act->selected_option->next) {
+        current_status->menu_item_act->selected_option =
+          current_status->menu_item_act->selected_option->next;
+        // update bitfield
+        _MENU_update_bits(current_status);
+      }
+    }
+  } else {
+    // on menu level
+    if (current_status->menu_act->next) {
+      // not the last entry
+      current_status->menu_act=current_status->menu_act->next;
+    } else {
+      // we had the last entry, so switch to status page
+      current_status->menu_state = SHOW_STATUS;
+    }
+  }
+  return 1; // update
+}
+
+uint8_t key_action_menu_up(status_t *current_status, uint16_t key)
+{
+  // scoll menu/item_name list
+  if (current_status->item_first) {
+    // on item_name level
+    if (current_status->menu_item_act==current_status->item_first) {
+      // we are on top
+      if (current_status->menu_item_act->last) {
+        current_status->menu_item_act = current_status->menu_item_act->last;
+        current_status->item_first = current_status->menu_item_act;
+      } else {
+        // "exit" from item_name list
+        current_status->item_first=NULL;
+        current_status->menu_item_act=NULL;
+      }
+    }
+    else {
+      // we are in the middle
+      if (current_status->menu_item_act->last) {
+        current_status->menu_item_act = current_status->menu_item_act->last;
+      }
+    }
+  }
+  return 1;
+}
+
+uint8_t key_action_menu_down(status_t *current_status, uint16_t key)
+{
+  if (current_status->item_first) {
+    // on item_name level
+    if (current_status->menu_item_act==current_status->item_last) {
+      // we are at the end
+      if (current_status->menu_item_act->next) {
+        current_status->item_first=current_status->item_first->next;
+        current_status->menu_item_act=current_status->menu_item_act->next;
+      }
+    }
+    else {
+      // we are in the middle
+      if (current_status->menu_item_act->next) {
+        current_status->menu_item_act=current_status->menu_item_act->next;
+      }
+    }
+  }
+  else {
+    // on menu level
+    if (current_status->menu_act->item_list->item_name[0]) {
+      current_status->item_first=current_status->menu_act->item_list;
+      current_status->menu_item_act = current_status->item_first;
+    }
+  }
+  return 1;
+}
+
+uint8_t key_action_menu_enter(status_t *current_status, uint16_t key)
+{
+  if (current_status->menu_item_act->action_name[0]) {
+    // check for menu action and update display if succesfully
+    return _MENU_action(current_status->menu_item_act, current_status, 1);
+  }
+  return 0;
+}
+
+uint8_t key_action_menu_esc(status_t *current_status, uint16_t key)
+{
+  // step out of item_name list to menu list
+  if (current_status->item_first) {
+    // exit from item_name list
+    current_status->item_first=NULL;
+    current_status->menu_item_act=NULL;
+  }
+  else {
+    // exit from menu, but ask what to do
+    current_status->menu_state |= POPUP_MENU;
+    strcpy(current_status->popup_msg," Reset Target? ");
+    current_status->selections = MENU_POPUP_YESNO;
+    current_status->selected = 0;
+    current_status->do_reboot=0;
+  }
+  return 1;
+}
+
+uint8_t key_action_menu_protect(status_t *current_status, uint16_t key)
+{
+  if MATCH(current_status->menu_item_act->action_name,"cha_select") {
+    if ((current_status->fileio_cha_ena >> current_status->menu_item_act->action_value) & 1) {
+      FileIO_FCh_TogProtect(0, current_status->menu_item_act->action_value);
+      return 1;
+    }
+  }
+
+  if MATCH(current_status->menu_item_act->action_name,"chb_select") {
+    if ((current_status->fileio_chb_ena >> current_status->menu_item_act->action_value) & 1) {
+      FileIO_FCh_TogProtect(1, current_status->menu_item_act->action_value);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
+
+
+uint8_t key_action_filebrowser_left(status_t *current_status, uint16_t key)
+{
+  Filesel_Update(current_status->dir_scan, SCAN_PREV_PAGE);
+  return 1; // update
+}
+
+uint8_t key_action_filebrowser_right(status_t *current_status, uint16_t key)
+{
+  Filesel_Update(current_status->dir_scan, SCAN_NEXT_PAGE);
+  return 1; // update
+}
+
+uint8_t key_action_filebrowser_up(status_t *current_status, uint16_t key)
+{
+  Filesel_Update(current_status->dir_scan, SCAN_PREV);
+  return 1;
+}
+
+uint8_t key_action_filebrowser_down(status_t *current_status, uint16_t key)
+{
+  Filesel_Update(current_status->dir_scan, SCAN_NEXT);
+  return 1;
+}
+
+uint8_t key_action_filebrowser_enter(status_t *current_status, uint16_t key)
+{
+  FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan, current_status->dir_scan->sel);
+
+  if (mydir.Attrib & FF_FAT_ATTR_DIR) {
+    //dir_sel
+    if (_strnicmp(mydir.FileName, ".", FF_MAX_FILENAME) != 0) {
+      if (_strnicmp(mydir.FileName, "..", FF_MAX_FILENAME) == 0) {
+        _MENU_back_dir(current_status->act_dir);
+      } else {
+        // should use safe copy
+        sprintf(current_status->act_dir, "%s%s\\", current_status->act_dir,
+                mydir.FileName);
+      }
+      // sets path
+      Filesel_ChangeDir(current_status->dir_scan, current_status->act_dir);
+      Filesel_ScanFirst(current_status->dir_scan); // scan first
+      return 1;
+    }
+    return 0;
+  }
+  else {
+    // check for filebrowser action and update display if successful
+    return _MENU_action(current_status->menu_item_act,
+                        current_status, 2);
+  }
+}
+
+uint8_t key_action_filebrowser_esc(status_t *current_status, uint16_t key)
+{
+  // quit filebrowsing w/o changes
+  current_status->menu_state = SHOW_MENU;
+  return 1;
+}
+
+uint8_t key_action_filebrowser_back(status_t *current_status, uint16_t key)
+{
+  Filesel_DelFilterChar(current_status->dir_scan);
+  // keep grace period here before re-scanning - user might be typing..
+  current_status->filescan_timer = Timer_Get(250);
+  current_status->delayed_filescan=1;
+  return 0;
+}
+
+uint8_t key_action_filebrowser_home(status_t *current_status, uint16_t key)
+{
+  Filesel_ChangeDir(current_status->dir_scan, current_status->act_dir);
+  Filesel_ScanFirst(current_status->dir_scan); // scan first
+  return 1;
+}
+
+
+uint8_t key_action_filebrowser_default(status_t *current_status, uint16_t key)
+{
+  if ( ((key >= '0') && (key<='9')) || ((key >= 'A') && (key<='Z')) ) {
+    Filesel_AddFilterChar(current_status->dir_scan, key&0x7F);
+    // keep grace period here before re-scanning - user might be typing..
+    current_status->filescan_timer = Timer_Get(250);
+    current_status->delayed_filescan=1;
+  }
+  return 0;
+}
+
+
+
+uint8_t key_action_showstatus_left(status_t *current_status, uint16_t key)
+{
+  // go to first menu entry
+  while (current_status->menu_act->next) {
+    current_status->menu_act=current_status->menu_act->next;
+  }
+  current_status->menu_state = SHOW_MENU;
+  return 1;
+}
+
+uint8_t key_action_showstatus_right(status_t *current_status, uint16_t key)
+{
+  // go to last menu entry
+  while (current_status->menu_act->last) {
+    current_status->menu_act=current_status->menu_act->last;
+  }
+  current_status->menu_state = SHOW_MENU;
+  return 1;
+}
+
+
+
+uint8_t key_action_popup_left_right(status_t *current_status, uint16_t key)
+{
+  current_status->selected=current_status->selected==1?0:1;
+  return 1;
+}
+
+uint8_t key_action_popup_enter(status_t *current_status, uint16_t key)
+{
+  // ok, we don't have anything set yet to handle the result
+  current_status->menu_state = NO_MENU;
+  OSD_Disable();
+  if (current_status->selected) {
+    return _MENU_update(current_status);
+  }
+  return 0;
+}
+
+uint8_t key_action_popup_esc(status_t *current_status, uint16_t key)
+{
+  current_status->menu_state = SHOW_MENU;
+  return 1;
+}
+
+
+
+tKeyMapping keymappings_menu[] = {
+  {.mask = KEY_MASK_ASCII, .key = 'P',       .action = key_action_menu_protect},
+  {.mask = KEY_MASK,       .key = KEY_LEFT,  .action = key_action_menu_left},
+  {.mask = KEY_MASK,       .key = KEY_RIGHT, .action = key_action_menu_right},
+  {.mask = KEY_MASK,       .key = KEY_UP,    .action = key_action_menu_up},
+  {.mask = KEY_MASK,       .key = KEY_DOWN,  .action = key_action_menu_down},
+  {.mask = KEY_MASK,       .key = KEY_ENTER, .action = key_action_menu_enter},
+  {.mask = KEY_MASK,       .key = KEY_ESC,   .action = key_action_menu_esc}
+};
+
+tKeyMapping keymappings_filebrowser[] = {
+  {.mask = KEY_MASK, .key = KEY_LEFT,  .action = key_action_filebrowser_left},
+  {.mask = KEY_MASK, .key = KEY_PGUP,  .action = key_action_filebrowser_left},
+  {.mask = KEY_MASK, .key = KEY_RIGHT, .action = key_action_filebrowser_right},
+  {.mask = KEY_MASK, .key = KEY_PGDN, .action = key_action_filebrowser_right},
+  {.mask = KEY_MASK, .key = KEY_UP,    .action = key_action_filebrowser_up},
+  {.mask = KEY_MASK, .key = KEY_DOWN,  .action = key_action_filebrowser_down},
+  {.mask = KEY_MASK, .key = KEY_ENTER, .action = key_action_filebrowser_enter},
+  {.mask = KEY_MASK, .key = KEY_ESC,   .action = key_action_filebrowser_esc},
+  {.mask = KEY_MASK, .key = KEY_BACK,  .action = key_action_filebrowser_back},
+  {.mask = KEY_MASK, .key = KEY_HOME,  .action = key_action_filebrowser_home},
+  {.mask = KEY_MASK_ASCII, .key = 0,   .action = key_action_filebrowser_default}
+};
+
+tKeyMapping keymappings_showstatus[] = {
+  {.mask = KEY_MASK, .key = KEY_LEFT,  .action = key_action_showstatus_left},
+  {.mask = KEY_MASK, .key = KEY_RIGHT, .action = key_action_showstatus_right}
+};
+
+tKeyMapping keymappings_popup[] = {
+  {.mask = KEY_MASK, .key = KEY_LEFT,  .action = key_action_popup_left_right},
+  {.mask = KEY_MASK, .key = KEY_RIGHT, .action = key_action_popup_left_right},
+  {.mask = KEY_MASK, .key = KEY_ENTER, .action = key_action_popup_enter},
+  {.mask = KEY_MASK, .key = KEY_ESC,   .action = key_action_popup_esc}
+};
+
+
 uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
-{ // flag OSD update may be set already externally
-  uint8_t update=current_status->update;
-  current_status->update=0;
+{
+  // flag OSD update may be set already externally
+  uint8_t update = current_status->update;
   static uint32_t osd_timeout;
   static uint8_t  osd_timeout_cnt=0;
-
   static uint32_t scroll_timer;
   static uint16_t scroll_text_offset=0;
   static uint8_t  scroll_started=0;
-  static uint8_t  delayed_filescan=0;
-  static uint32_t filescan_timer;
+
+  tKeyMapping *key_mappings = NULL;    // set if there is a keymapping list to check
+  uint8_t key_mappings_length = 0;     // # items in keymapping list
+
+  // Ignore released keys
+  if((key & KF_RELEASED) != 0) {
+    return 0;
+  }
+  
+  current_status->update = 0;
 
   // timeout of OSD after noticing last key press (or external forced update)
-  if ((current_status->show_menu || current_status->popup_menu ||
-       current_status->file_browser || current_status->show_status)) {
+  if (current_status->menu_state != NO_MENU) {
     if (key || update) {
       // we set our timeout with any update (1 sec)
       osd_timeout=Timer_Get(1000);
@@ -732,20 +1054,14 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
         return 0;
       } else {
         // hide menu after ~30 sec
-        current_status->show_menu=0;
-        current_status->popup_menu=0;
-        current_status->show_status=0;
-        current_status->file_browser=0;
+        current_status->menu_state = NO_MENU;
         OSD_Disable();
         return 0;
       }
     }
   } else {
     if (update) {
-      current_status->show_menu=0;
-      current_status->popup_menu=0;
-      current_status->show_status=1;
-      current_status->file_browser=0;
+      current_status->menu_state = SHOW_STATUS;
       osd_timeout=Timer_Get(1000);
       // show half the time
       osd_timeout_cnt=15;
@@ -757,23 +1073,16 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
   if (key==KEY_MENU) {
     // OSD menu handling, switch it on/off
 
-    if (current_status->show_menu || current_status->popup_menu ||
-        current_status->file_browser || current_status->show_status) {
+    if (current_status->menu_state) {
       // hide menu
-      current_status->show_menu=0;
-      current_status->popup_menu=0;
-      current_status->show_status=0;
-      current_status->file_browser=0;
+      current_status->menu_state = NO_MENU;
       OSD_Disable();
       return 0;
     }
     else {
       // show menu (if there is something to show)
       if (current_status->menu_top) {
-        current_status->show_menu=0;
-        current_status->popup_menu=0;
-        current_status->show_status=1;
-        current_status->file_browser=0;
+        current_status->menu_state = SHOW_STATUS;
         update=1;
         // set timeout
         osd_timeout=Timer_Get(1000);
@@ -784,288 +1093,45 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
 
   // --------------------------------------------------
 
-  else if (current_status->popup_menu) {
+  else if (current_status->menu_state & POPUP_MENU) {
     // special pop-up handler
-
-    if ((key == KEY_LEFT) || (key == KEY_RIGHT)) {
-      current_status->selected=current_status->selected==1?0:1;
-      update=1;
-    }
-    if (key == KEY_ENTER) {
-        // ok, we don't have anything set yet to handle the result
-        current_status->show_menu=0;
-        current_status->popup_menu=0;
-        current_status->show_status=0;
-        OSD_Disable();
-        if (current_status->selected) {
-          return _MENU_update(current_status);
-        }
-        return 0;
-    }
-    if (key == KEY_ESC) {
-        current_status->popup_menu=0;
-        current_status->show_menu=1;
-        current_status->show_status=0;
-        update=1;
-    }
+    key_mappings = keymappings_popup;
+    key_mappings_length = sizeof(keymappings_popup)/sizeof(tKeyMapping);
+  }
+  else if (current_status->menu_state & FILE_BROWSER) {
+    key_mappings = keymappings_filebrowser;
+    key_mappings_length = sizeof(keymappings_filebrowser)/sizeof(tKeyMapping);
+  } else if ((current_status->menu_state & SHOW_STATUS) &&
+             (current_status->fpga_load_ok != 2)) {
+    key_mappings = keymappings_showstatus;
+    key_mappings_length = sizeof(keymappings_showstatus)/sizeof(tKeyMapping);
+  }
+  else if (current_status->menu_state & SHOW_MENU) {
+    key_mappings = keymappings_menu;
+    key_mappings_length = sizeof(keymappings_menu)/sizeof(tKeyMapping);
   }
 
-  // --------------------------------------------------
 
-  else if (current_status->file_browser) {
-    // file browser handling
+  if(key_mappings != NULL && key_mappings_length > 0) {
+    uint8_t i;
+    for(i=0; i < key_mappings_length; i++) {
+      // Mask out KF_REPEATED, as we don't care if it's repeated or not..
+      key &= ~KF_REPEATED;
+      uint16_t mskd = (key & key_mappings[i].mask);
 
-    if ((key  & ~KF_REPEATED) == KEY_UP) {
-      Filesel_Update(current_status->dir_scan, SCAN_PREV);
-      update=1;
-    }
-    if ((key  & ~KF_REPEATED) == KEY_DOWN) {
-      Filesel_Update(current_status->dir_scan, SCAN_NEXT);
-      update=1;
-    }
-    if ((key  & ~KF_REPEATED) == KEY_PGUP || (key  & ~KF_REPEATED) == KEY_LEFT) {
-      Filesel_Update(current_status->dir_scan, SCAN_PREV_PAGE);
-      update=1;
-    }
-    if ((key  & ~KF_REPEATED) == KEY_PGDN || (key  & ~KF_REPEATED) == KEY_RIGHT) {
-      Filesel_Update(current_status->dir_scan, SCAN_NEXT_PAGE);
-      update=1;
-    }
-    if ( ((key >= '0') && (key<='9')) || ((key >= 'A') && (key<='Z')) ) {
-      Filesel_AddFilterChar(current_status->dir_scan, key&0x7F);
-      // keep grace period here before re-scanning - user might be typing..
-      filescan_timer = Timer_Get(250);
-      delayed_filescan=1;
-    }
-    if ( key==KEY_BACK ) { // backspace removes a letter from the filter string
-      Filesel_DelFilterChar(current_status->dir_scan);
-      // keep grace period here before re-scanning - user might be typing..
-      filescan_timer = Timer_Get(250);
-      delayed_filescan=1;
-    }
-    // quickly remove filter and rescan
-    if (key == KEY_HOME) {
-      Filesel_ChangeDir(current_status->dir_scan, current_status->act_dir);
-      Filesel_ScanFirst(current_status->dir_scan); // scan first
-      update=1;
-    }
-    if (key == KEY_ENTER) {
-      FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan,
-                                         current_status->dir_scan->sel);
-      if (mydir.Attrib & FF_FAT_ATTR_DIR) {
-        //dir_sel
-        if (_strnicmp(mydir.FileName, ".", FF_MAX_FILENAME) != 0) {
-          if (_strnicmp(mydir.FileName, "..", FF_MAX_FILENAME) == 0) {
-            _MENU_back_dir(current_status->act_dir);
-          } else {
-            // should use safe copy
-            sprintf(current_status->act_dir, "%s%s\\", current_status->act_dir,
-                    mydir.FileName);
-          }
-          // sets path
-          Filesel_ChangeDir(current_status->dir_scan, current_status->act_dir);
-          Filesel_ScanFirst(current_status->dir_scan); // scan first
-          update=1;
-        }
-      }
-      else {
-        // check for filebrowser action and update display if successful
-        update = _MENU_action(current_status->menu_item_act,
-                              current_status, 2);
-      }
-    }
-    if (key == KEY_ESC) {
-      // quit filebrowsing w/o changes
-      current_status->file_browser=0;
-      current_status->show_menu=1;
-      update=1;
-    }
-  }
-
-  // --------------------------------------------------
-
-  else if ((current_status->show_status) && (current_status->fpga_load_ok!=2)) {
-    if ((key  & ~KF_REPEATED) == KEY_RIGHT) {
-      // go to last menu entry
-      while (current_status->menu_act->last) {
-        current_status->menu_act=current_status->menu_act->last;
-      }
-      current_status->show_menu=1;
-      current_status->show_status=0;
-      update=1;
-    }
-    if ((key  & ~KF_REPEATED) == KEY_LEFT) {
-      // go to first menu entry
-      while (current_status->menu_act->next) {
-        current_status->menu_act=current_status->menu_act->next;
-      }
-      current_status->show_menu=1;
-      current_status->show_status=0;
-      update=1;
-    }
-  }
-  else if (current_status->show_menu) {
-    // further processing if menu is visible
-
-    if ((key  & ~KF_REPEATED) == KEY_RIGHT) {
-      // option_name select or enter item_name list
-      if (current_status->item_first) {
-        // on item_name level
-        if (!current_status->menu_item_act->action_name[0]) {
-          // next option_name (only if no item with certain action)
-          if (current_status->menu_item_act->selected_option &&
-              current_status->menu_item_act->selected_option->next) {
-            current_status->menu_item_act->selected_option =
-                         current_status->menu_item_act->selected_option->next;
-            // update bitfield
-            _MENU_update_bits(current_status);
-          }
-        }
-      } else {
-        // on menu level
-        if (current_status->menu_act->next) {
-          // not the last entry
-          current_status->menu_act=current_status->menu_act->next;
-        } else {
-          // we had the last entry, so switch to status page
-          current_status->show_menu=0;
-          current_status->show_status=1;
-        }
-      }
-      update=1;
-    }
-    if ((key  & ~KF_REPEATED) == KEY_LEFT) {
-      // option_name select
-      if (current_status->item_first) {
-        // on item_name level
-        if (!current_status->menu_item_act->action_name[0]) {
-          // last option_name (only if no item with certain action)
-          if (current_status->menu_item_act->selected_option &&
-              current_status->menu_item_act->selected_option->last) {
-            current_status->menu_item_act->selected_option =
-                         current_status->menu_item_act->selected_option->last;
-            // update bitfield
-            _MENU_update_bits(current_status);
-          }
-        }
-      } else {
-        // on menu level
-        if (current_status->menu_act->last) {
-          // not the first entry
-          current_status->menu_act = current_status->menu_act->last;
-        } else {
-          // we had the first entry, so switch to status page
-          current_status->show_menu=0;
-          current_status->show_status=1;
-        }
-      }
-      update=1;
-    }
-    if ((key  & ~KF_REPEATED) == KEY_UP) {
-      // scoll menu/item_name list
-      if (current_status->item_first) {
-        // on item_name level
-        if (current_status->menu_item_act==current_status->item_first) {
-          // we are on top
-          if (current_status->menu_item_act->last) {
-            current_status->menu_item_act =
-                                          current_status->menu_item_act->last;
-            current_status->item_first = current_status->menu_item_act;
-          } else {
-            // "exit" from item_name list
-            current_status->item_first=NULL;
-            current_status->menu_item_act=NULL;
-          }
-        }
-        else {
-          // we are in the middle
-          if (current_status->menu_item_act->last) {
-            current_status->menu_item_act =
-                                          current_status->menu_item_act->last;
-          }
-        }
-      }
-      update=1;
-    }
-    if ((key  & ~KF_REPEATED) == KEY_DOWN) {
-      // scoll menu/item_name list
-      if (current_status->item_first) {
-        // on item_name level
-        if (current_status->menu_item_act==current_status->item_last) {
-          // we are at the end
-          if (current_status->menu_item_act->next) {
-            current_status->item_first=current_status->item_first->next;
-            current_status->menu_item_act=current_status->menu_item_act->next;
-          }
-        }
-        else {
-          // we are in the middle
-          if (current_status->menu_item_act->next) {
-            current_status->menu_item_act=current_status->menu_item_act->next;
-          }
-        }
-      }
-      else {
-        // on menu level
-        if (current_status->menu_act->item_list->item_name[0]) {
-          current_status->item_first=current_status->menu_act->item_list;
-          current_status->menu_item_act = current_status->item_first;
-        }
-      }
-      update=1;
-    }
-    // change file attributes
-    if (key == 'P' ) {
-        if MATCH(current_status->menu_item_act->action_name,"cha_select") {
-          if ((current_status->fileio_cha_ena >> current_status->menu_item_act->action_value) & 1) {
-            FileIO_FCh_TogProtect(0, current_status->menu_item_act->action_value);
-            update=1;
-          }
-        }
-
-        if MATCH(current_status->menu_item_act->action_name,"chb_select") {
-          if ((current_status->fileio_chb_ena >> current_status->menu_item_act->action_value) & 1) {
-            FileIO_FCh_TogProtect(1, current_status->menu_item_act->action_value);
-            update=1;
-          }
-        }
-
-    }
-
-    // step into a item_name list from menu list (see also KEY_RIGHT)
-    if (key == KEY_ENTER) {
-        if (current_status->menu_item_act->action_name[0]) {
-          // check for menu action and update display if succesfully
-          update = _MENU_action(current_status->menu_item_act,
-                                current_status, 1);
-        }
-    }
-    // step out of item_name list to menu list
-    if (key == KEY_ESC) {
-      if (current_status->item_first) {
-        // exit from item_name list
-        current_status->item_first=NULL;
-        current_status->menu_item_act=NULL;
-        update=1;
-      }
-      else {
-        // exit from menu, but ask what to do
-        current_status->popup_menu=1;
-        current_status->show_menu=0;
-        current_status->show_status=0;
-        strcpy(current_status->popup_msg," Reset Target? ");
-        current_status->selections = MENU_POPUP_YESNO;
-        current_status->selected = 0;
-        current_status->do_reboot=0;
-        update=1;
+      if((key_mappings[i].key == 0 && mskd != 0) || // 'default' (ascii chars)
+         (mskd != 0 && mskd == key_mappings[i].key)) { // 'specific' key
+        update = key_mappings[i].action(current_status, key);
+        break;
       }
     }
   }
 
+  
   // Add/DelFilterChar waits 250ms before re-scanning the directory and updating the UI
-  if (delayed_filescan && Timer_Check(filescan_timer)) {
+  if (current_status->delayed_filescan && Timer_Check(current_status->filescan_timer)) {
     Filesel_ScanFirst(current_status->dir_scan);
-    delayed_filescan=0;
+    current_status->delayed_filescan=0;
     update=1;
   }
 
@@ -1079,13 +1145,12 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
     scroll_timer = Timer_Get(1000); // restart scroll timer
     scroll_started = 0;
 
-    if ((current_status->show_menu || current_status->popup_menu ||
-         current_status->file_browser || current_status->show_status)) {
+    if (current_status->menu_state) {
       OSD_Enable(DISABLE_KEYBOARD); // just in case, enable OSD and disable KEYBOARD for core
     }
   } else {
     // scroll if needed
-    if (current_status->file_browser && current_status->scroll_pos) {
+    if ((current_status->menu_state & FILE_BROWSER) && current_status->scroll_pos) {
       uint16_t len    = current_status->scroll_len;
 
       if (!scroll_started) {
@@ -1100,7 +1165,6 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       } else if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
 
           scroll_timer = Timer_Get(20); // restart scroll timer
-
           scroll_text_offset = scroll_text_offset + 2;
 
           if (scroll_text_offset >= (len + OSD_SCROLL_BLANKSPACE) << 4)
@@ -1113,6 +1177,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
       }
     }
   }
+
   return update;
 }
 
@@ -1180,10 +1245,7 @@ uint8_t _MENU_update(status_t *current_status) {
     Timer_Wait(100);
     // fall back to status screen
     current_status->update=1;
-    current_status->show_status=1;
-    current_status->show_menu=0;
-    current_status->popup_menu=0;
-    current_status->file_browser=0;
+    current_status->menu_state = SHOW_STATUS;
   }
   return 1;
 }

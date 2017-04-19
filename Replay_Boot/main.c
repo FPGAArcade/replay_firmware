@@ -308,12 +308,11 @@ int main(void)
       Timer_Wait(100);
 
       if (current_status.osd_init == OSD_INIT_ON) {
-        current_status.show_status=1;
+        current_status.menu_state = SHOW_STATUS;
         current_status.update=1;
         OSD_Enable(DISABLE_KEYBOARD);
       } else {
-        current_status.show_status=0;
-        current_status.show_menu=0;
+        current_status.menu_state = NO_MENU;
         current_status.update=0;
       }
 

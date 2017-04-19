@@ -231,6 +231,15 @@ typedef struct menu {
 
 /* ========================================================================== */
 
+/** bitmask for current menu status */
+typedef enum _tOSDMenuState {
+  NO_MENU      = 0,
+  SHOW_MENU    = 1,
+  FILE_BROWSER = 2,
+  SHOW_STATUS  = 4,
+  POPUP_MENU   = 8
+} tOSDMenuState;
+
 /** @brief Basic replay status structure
 
     This structure contains the configuration and HW state
@@ -329,18 +338,13 @@ typedef struct {
   /** defines the osd init mode */
   osd_init_t   osd_init;
 
-  /** set to 1 if menu is visible - set by handle_ui() */
-  uint8_t      show_menu;
+  /* used in the file browser to delay rescan while typing */
+  uint8_t  delayed_filescan;
+  uint32_t filescan_timer;
 
-  /** set to 1 if file browsing is active - set by handle_ui() */
-  uint8_t      file_browser;
-
-  /** set to 1 if status screen is visible - set by handle_ui() */
-  uint8_t      show_status;
-
-  /** set to 1 if warning pop-up is visible - set by handle_ui() */
-  uint8_t      popup_menu;
-
+  /* indicated the current menu state (see typedef tOSDMenuState */
+  tOSDMenuState      menu_state;
+  
   /** set to 1 if update is pending and must be processed by handle_ui() */
   uint8_t      update;
 
@@ -354,7 +358,7 @@ typedef struct {
 
   /* ======== INI menu entry stuff ======== */
 
-  /** ink to top of menu tree (fixed, does not vary) */
+  /** link to top of menu tree (fixed, does not vary) */
   menu_t       *menu_top;
 
   /** link to a double-linked list of menus for ini_post_read(), handle_ui() */

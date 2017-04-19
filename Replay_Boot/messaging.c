@@ -223,7 +223,7 @@ void MSG_error(char *fmt, ...)
      WARNING("Check the .ini file");
      _MSG_to_osd(s,'E');
 
-     msg_status->show_status=1;
+     msg_status->menu_state = SHOW_STATUS;
      msg_status->update=1;
 
      MENU_handle_ui(0,msg_status);

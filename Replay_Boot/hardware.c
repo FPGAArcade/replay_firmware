@@ -366,7 +366,7 @@ uint16_t USART_PeekBuf(uint8_t *buf, int16_t maxlen)
  * matches in its entirety, it is also plucked from the rxbuf.
  * @returns 1 if match or 0 if no match
  */
-int16_t USART_GetBuf(const uint8_t *buf, int16_t len)
+uint16_t USART_GetBuf(const uint8_t *buf, int16_t len)
 {
   uint16_t i;
 

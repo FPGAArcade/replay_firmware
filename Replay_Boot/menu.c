@@ -446,60 +446,55 @@ void _MENU_back_dir(char *pPath)
     size_t padding = (strlen(buffer) - center) / 2;             \
     OSD_WriteRC(MENU_STATUS, 0,                                 \
                 buffer + (padding < center ? padding : center), \
-                0, 0x0f, 0);                                    \
+                0, WHITE, BLACK);                            \
   } while (0)
 
 // TODO: colours from INI file instead of hardcoding...?
 void _MENU_update_ui(status_t *current_status)
 {
-  uint8_t col = 0;
+  tOSDColor col; // used for selecting text fg color
+  uint32_t i,j; // used for loops
 
   current_status->scroll_pos=0;
 
   // clear OSD area and set the minimum header/footer lines we always need
   OSD_Clear();
-  OSD_Write  ( 0,    "      ***              ***      ", 0);
-  OSD_WriteRC( 1, 0, "                                ", 0, 0, 0x01);
-  OSD_WriteRC(14, 0, "                                ", 0, 0, 0x01);
+  OSD_Write  ( 0,    "***   F P G A  A R C A D E   ***", 0);
+  OSD_WriteRC(1, 0,  "= NO EMULATION - NO COMPROMISE =",0, DARK_MAGENTA, DARK_BLUE);
+  OSD_WriteRC(14, 0, "                                ", 0, BLACK, DARK_BLUE);
 
   if ((current_status->menu_state & SHOW_STATUS) != 0) {
     //
     // STATUS SCREEN
     //
-    int i,j;
-
-    // print status header
-    OSD_WriteRC(0, 9,          "REPLAY STATUS", 0, 0xE, 0);
 
     // print fixed status lines and a separator line
-    for (i=0; i<3; i++) {
-      OSD_WriteRC(2+i, 0, current_status->status[i], 0, 0x07, 0);
+    for (i = 0; i < 3; i++) {
+      OSD_WriteRC(2+i, 0, current_status->status[i], 0, GRAY, BLACK);
     }
-    OSD_WriteRC(2+i, 0,   "                                ", 0, 0, 0x01);
+    OSD_WriteRC(2+i, 0,   "                                ", 0, BLACK, DARK_BLUE);
 
     // finally print the "scrolling" info lines, we start with the oldest
     // entry which is always the next entry after the latest (given by idx)
-    j=current_status->info_start_idx+1;
-    for (i=0; i<8; i++) {
-      if (j>7) j=0;
+    j = current_status->info_start_idx+1;
+    for (i=0; i < 8; i++) {
+      j = j & 7;
       // do colouring of different messages
       switch (current_status->info[j][0]) {
-        case 'W':
-          //WARNING: dark yellow text (0x0E would be yellow)
-          OSD_WriteRC(6+i, 0, current_status->info[j++], 0, 0x06, 0);
-          break;
-        case 'E':
-          //ERROR: red text (0x04 would be dark red)
-          OSD_WriteRC(6+i, 0, current_status->info[j++], 0, 0x0C, 0);
-          break;
-        case 'I':
-          //INFO: gray text (0x0F would be white)
-          OSD_WriteRC(6+i, 0, current_status->info[j++], 0, 0x07, 0);
-          break;
-        default:
-          //DEBUG: cyan text
-          OSD_WriteRC(6+i, 0, current_status->info[j++], 0, 0x03, 0);
+      case 'W': // WARNING
+        col = DARK_YELLOW;
+        break;
+      case 'E': // ERROR
+        col = RED;
+        break;
+      case 'I': // INFO
+        col = GRAY;
+        break;
+      default: // DEBUG
+        col = DARK_CYAN;
+        break;
       }
+      OSD_WriteRC(6+i, 0, current_status->info[j++], 0, col, BLACK);
     }
 
     // print status line
@@ -509,37 +504,28 @@ void _MENU_update_ui(status_t *current_status)
     //
     // POP UP MESSAGE HANDLER
     //
-    uint8_t startline=(16-MENU_POPUP_HEIGHT)>>1;
-    uint8_t startcol=(32-MENU_POPUP_WIDTH)>>1;
-    uint8_t row;
+    const uint8_t startrow = (16-MENU_POPUP_HEIGHT)>>1;
+    const uint8_t startcol = (32-MENU_POPUP_WIDTH)>>1;
+    // Currently there are 2 popups. If we add more, things could be more generic
+    const static char *popup_choices[2][2] = {{"yes", "no"}, {"save", "ignore"}};
+    const char** choices = popup_choices[current_status->selections==MENU_POPUP_YESNO ? 0 : 1];
+    uint8_t row = startrow;
+    uint8_t chwidths[2] = {strlen(choices[0]), strlen(choices[1])};
+    uint8_t chcols[2] = {current_status->selected ? DARK_RED : WHITE,
+                         current_status->selected ? WHITE : DARK_RED};
 
-    // create pop-up area
-    for(row=startline;row<startline+MENU_POPUP_HEIGHT;row++) {
-      char line[]="                                ";
-      line[MENU_POPUP_WIDTH]=0;
-      OSD_WriteRC(row, startcol, line, 0, 0, 0x04);
-    }
+    // draw red popup 'box'
+    do {
+      const char line[MENU_POPUP_WIDTH]="                    ";
+      OSD_WriteRCt(row, startcol, line, MENU_POPUP_WIDTH, 0, BLACK, DARK_RED);
+    } while(++row < startrow + MENU_POPUP_HEIGHT);
 
-    // show_menu pop-up message
-    OSD_WriteRC(startline+1, startcol+1, current_status->popup_msg ,
-                0, 0x0f, 0x04);
-
-    // show_menu selectors
-    if (current_status->selections==MENU_POPUP_YESNO) {
-      OSD_WriteRC(row-2, 13, "yes no", 0, 0x0f, 0x04);
-      if (current_status->selected)
-        OSD_WriteRC(row-2, 13, "yes", 0, 0x04, 0x0f);
-      else
-        OSD_WriteRC(row-2, 17, "no", 0, 0x04, 0x0f);
-    }
-    if (current_status->selections==MENU_POPUP_SAVEIGNORE) {
-      OSD_WriteRC(row-2, 11, "save ignore", 0, 0x0f, 0x04);
-      if (current_status->selected)
-        OSD_WriteRC(row-2, 11, "save", 0, 0x04, 0x0f);
-      else
-        OSD_WriteRC(row-2, 16, "ignore", 0, 0x04, 0x0f);
-    }
-
+    // write pop-up message, centered
+    OSD_WriteRC(startrow+1, startcol+(MENU_POPUP_WIDTH>>1)-(strlen(current_status->popup_msg)>>1),
+                current_status->popup_msg, 0, WHITE, DARK_RED);
+    // write choices
+    OSD_WriteRC(row-2, startcol+2, choices[0], 0, chcols[0], chcols[1]);
+    OSD_WriteRC(row-2, startcol+MENU_POPUP_WIDTH-2-chwidths[1], choices[1], 0, chcols[1], chcols[0]);
   }
   else {
     //
@@ -548,17 +534,10 @@ void _MENU_update_ui(status_t *current_status)
     menuitem_t *pItem=current_status->item_first;
     uint8_t line=0, row=2;
 
-    // clear OSD area and set some generic stuff
-    OSD_Clear();
-    OSD_Write  (0,                "      ***              ***      ",0);
-    OSD_WriteRC(1, 0,             "                                ",0,0,0x01);
-    OSD_WriteRC(MENU_STATUS-1, 0, "                                ",0,0,0x01);
-
     if ( (current_status->menu_state & FILE_BROWSER) != 0) {
       // handling file browser part
-      OSD_WriteRC(0, 10, "FILE BROWSER", 0, 0xE, 0);
+      OSD_WriteRC(0, 3,    "      FILE  BROWSER       ", 0, YELLOW, BLACK);
 
-      uint32_t i;
       char *filename;
       FF_DIRENT entry;
 
@@ -571,7 +550,7 @@ void _MENU_update_ui(status_t *current_status)
         memcpy(s+1, current_status->dir_scan->file_filter, len);
         s[len+1]='*';
         s[len+2]=0;
-        OSD_WriteRC(1, 0, s ,0,0xF,1);
+        OSD_WriteRC(1, 0, s ,0,WHITE,DARK_BLUE);
       }
 
       // show file/directory list
@@ -579,7 +558,7 @@ void _MENU_update_ui(status_t *current_status)
         // nothing there
         char s[OSDMAXLEN+1];
         strcpy(s, "            No files                   ");
-        OSD_WriteRC(1+2, 0, s, 1, 0xC, 0);
+        OSD_WriteRC(1+2, 0, s, 1, RED, BLACK);
       } else {
         for (i = 0; i < MENU_HEIGHT; i++) {
           char s[OSDMAXLEN+1];
@@ -601,11 +580,11 @@ void _MENU_update_ui(status_t *current_status)
           if (entry.Attrib & FF_FAT_ATTR_DIR) {
             // a directory
             strncpy (s, filename, OSDMAXLEN);
-            OSD_WriteRC(i+2, 0, s, i==sel, 0xA, 0);
+            OSD_WriteRC(i+2, 0, s, i==sel, GREEN, BLACK);
           } else {
             // a file
             strncpy (s, filename, OSDMAXLEN);
-            OSD_WriteRC(i+2, 0, s, i==sel, 0xB, 0);
+            OSD_WriteRC(i+2, 0, s, i==sel, CYAN, BLACK);
           }
 
         }
@@ -616,30 +595,31 @@ void _MENU_update_ui(status_t *current_status)
       //
       // handling replay setup part (general menus)
       //
-      OSD_WriteRC(0, 10, "REPLAY SETUP", 0, 0xC, 0);
+      OSD_WriteRC(0, 3, "      REPLAY CONFIG      ", 0, RED, BLACK);
       if (!pItem) {
         // print  "selected" menu title (we pan through menus)
         OSD_WriteRC(row++, MENU_INDENT, current_status->menu_act->menu_title,
-                                         1, 0xE, 0);
+                    1, YELLOW, BLACK);
         pItem=current_status->menu_act->item_list;
         current_status->menu_item_act=NULL;
       } else {
         // print  "not selected" menu title  (we select and modify items)
         OSD_WriteRC(row++, MENU_INDENT, current_status->menu_act->menu_title,
-                                         0, 0xE, 0);
+                                         0, YELLOW, BLACK);
       }
       // show the item_name list to browse
       while (pItem && ((line++)<(MENU_HEIGHT-1))) {
 
-        OSD_WriteRCt(row++, MENU_ITEM_INDENT, pItem->item_name, MENU_OPTION_INDENT-MENU_ITEM_INDENT, 0, 0xB, 0);
+        OSD_WriteRCt(row, MENU_ITEM_INDENT, pItem->item_name,
+                     MENU_OPTION_INDENT-MENU_ITEM_INDENT, 0, CYAN, BLACK);
 
         // temp bodge to show read only flags
         if MATCH(pItem->action_name,"cha_select") {
           if ((current_status->fileio_cha_ena >> pItem->action_value) & 1) {
             if (FileIO_FCh_GetReadOnly(0,pItem->action_value)) {
-              OSD_WriteRC(row-1, 0, "R", 0, 0xA, 0); // Green>
+              OSD_WriteRC(row, 0, "R", 0, GREEN, BLACK);
             } else if (FileIO_FCh_GetProtect(0,pItem->action_value)) {
-              OSD_WriteRC(row-1, 0, "P", 0, 0xA, 0); // Green>
+              OSD_WriteRC(row, 0, "P", 0, GREEN, BLACK);
             }
           }
         }
@@ -647,30 +627,34 @@ void _MENU_update_ui(status_t *current_status)
         if MATCH(pItem->action_name,"chb_select") {
           if ((current_status->fileio_chb_ena >> pItem->action_value) & 1) {
             if (FileIO_FCh_GetReadOnly(1,pItem->action_value)) {
-              OSD_WriteRC(row-1, 0, "R", 0, 0xA, 0); // Green>
+              OSD_WriteRC(row, 0, "R", 0, GREEN, BLACK);
             } else if (FileIO_FCh_GetProtect(1,pItem->action_value)) {
-              OSD_WriteRC(row-1, 0, "P", 0, 0xA, 0); // Green>
+              OSD_WriteRC(row, 0, "P", 0, GREEN, BLACK);
             }
           }
         }
 
         // no selection yet set, set to first option in list as default
-        if (!pItem->selected_option) pItem->selected_option=pItem->option_list;
+        if (!pItem->selected_option) {
+          pItem->selected_option = pItem->option_list;
+        }
         // check for action before displaying
         _MENU_action(pItem,current_status,0);
 
-        col = 0xA; // green
-        if (pItem->conf_dynamic) col = 0xF; // White
+        col = pItem->conf_dynamic ? WHITE : GREEN;
 
         // check if we really have an option_name, otherwise show placeholder
-        if (pItem->selected_option->option_name[0])
-          OSD_WriteRCt(row-1, MENU_OPTION_INDENT,
+        if (pItem->selected_option->option_name[0]) {
+          OSD_WriteRCt(row, MENU_OPTION_INDENT,
                       pItem->selected_option->option_name,
                       MENU_WIDTH-MENU_OPTION_INDENT, // len limit
-                      pItem==current_status->menu_item_act?1:0, col, 0);
-        else
-          OSD_WriteRC(row-1, MENU_OPTION_INDENT, " ",
-                      pItem==current_status->menu_item_act?1:0, 0xA, 0);
+                      pItem==current_status->menu_item_act?1:0, col, BLACK);
+        }
+        else {
+          OSD_WriteRC(row, MENU_OPTION_INDENT, " ",
+                      pItem==current_status->menu_item_act?1:0, WHITE, BLACK);
+        }
+        row++;
         // keep last item_name shown
         current_status->item_last = pItem;
         pItem = pItem->next;
@@ -1159,7 +1143,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
           scroll_text_offset = 0;
           /*scroll_pix_offset  = 0;*/
 
-          OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, 0, len, 1, 0xB, 0);
+          OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, 0, len, 1, CYAN, 0);
           scroll_timer = Timer_Get(20); // restart scroll timer
         }
       } else if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
@@ -1171,7 +1155,8 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
             scroll_text_offset = 0;
 
           if ((scroll_text_offset & 0xF) == 0)
-            OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, scroll_text_offset>>4, len, 1, 0xB, 0);
+            OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, scroll_text_offset>>4,
+                            len, 1, CYAN, 0);
 
           OSD_SetHOffset(current_status->scroll_pos,0, (uint8_t) (scroll_text_offset & 0xF));
       }

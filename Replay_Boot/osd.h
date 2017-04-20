@@ -147,11 +147,44 @@
 #define KEY_MASK  0x03FF    // mask for actual keys
 #define KEY_MASK_ASCII 0x7f // mask for printable chars
 
+/* OSD colors
+bit 
+7      invert
+6..0   char
+11..8  fg colour
+15..12 bg colour
+
+[8:03 PM] 
+of these 2..0 RGB and bit 3 is high/low brightness
+
+[8:06 PM] 
+8 is wasted (light black) and could be reused
+*/
+
+typedef enum _tOSDColor {
+  BLACK        = 0x0,
+  DARK_BLUE    = 0x1,
+  DARK_GREEN   = 0x2,
+  DARK_CYAN    = 0x3,
+  DARK_RED     = 0x4,
+  DARK_MAGENTA = 0x5,
+  DARK_YELLOW  = 0x6,
+  GRAY         = 0x7,
+  _UNUSED_COL  = 0x8,
+  BLUE         = 0x9,
+  GREEN        = 0xa,
+  CYAN         = 0xb,
+  RED          = 0xc,
+  MAGENTA      = 0xd,
+  YELLOW       = 0xe,
+  WHITE        = 0xf
+} tOSDColor;
+
 /*functions*/
 void OSD_Write(uint8_t row, const char *s, uint8_t invert);
-void OSD_WriteRC(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint8_t fg_col, uint8_t bg_col );
-void OSD_WriteRCt(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, uint8_t fg_col, uint8_t bg_col ); // truncate
-void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, uint8_t fg_col, uint8_t bg_col, uint8_t clear );
+void OSD_WriteRC(uint8_t row, uint8_t col, const char *s, uint8_t invert, tOSDColor fg_col, tOSDColor bg_col );
+void OSD_WriteRCt(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, tOSDColor fg_col, tOSDColor bg_col ); // truncate
+void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, tOSDColor fg_col, tOSDColor bg_col, uint8_t clear );
 
 void OSD_SetHOffset(uint8_t row, uint8_t col, uint8_t pix);
 void OSD_SetVOffset(uint8_t row);
@@ -162,7 +195,7 @@ void OSD_SetPage(uint8_t page);
 void OSD_SetDisplay(uint8_t page);
 void OSD_SetDisplayScroll(uint8_t page);
 
-void OSD_WriteScroll(uint8_t row, const char *text, uint16_t pos, uint16_t len, uint8_t invert, uint8_t fg_col, uint8_t bg_col);
+void OSD_WriteScroll(uint8_t row, const char *text, uint16_t pos, uint16_t len, uint8_t invert, tOSDColor fg_col, tOSDColor bg_col);
 
 void OSD_Clear(void);
 void OSD_Enable(unsigned char mode);

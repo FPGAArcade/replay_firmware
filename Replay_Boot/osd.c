@@ -135,9 +135,8 @@ const static tEscSequence usart_esc_sequences[] = {
   {.code = KEY_F10, .slen = sizeof(F10_KEYSEQ),.seq = F10_KEYSEQ},
   {.code = KEY_F11, .slen = sizeof(F11_KEYSEQ),.seq = F11_KEYSEQ},
   {.code = KEY_F12, .slen = sizeof(F12_KEYSEQ), .seq = F12_KEYSEQ}
-
-
 };
+
 
 // nasty globals ...
 uint8_t osd_vscroll = 0;
@@ -150,13 +149,13 @@ void OSD_Write(uint8_t row, const char *s, uint8_t invert)
   OSD_WriteBase(row, 0 , s, 0, invert, 0xF, 0, 1);
 }
 
-void OSD_WriteRC(uint8_t row, uint8_t col, const char *s, uint8_t invert, uint8_t fg_col, uint8_t bg_col )
+void OSD_WriteRC(uint8_t row, uint8_t col, const char *s, uint8_t invert, tOSDColor fg_col, tOSDColor bg_col )
 {
   //
   OSD_WriteBase(row, col, s, 0, invert, fg_col, bg_col, 0);
 }
 
-void OSD_WriteRCt(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, uint8_t fg_col, uint8_t bg_col ) // truncate
+void OSD_WriteRCt(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, tOSDColor fg_col, tOSDColor bg_col ) // truncate
 {
   //
   OSD_WriteBase(row, col, s, maxlen, invert, fg_col, bg_col, 0);
@@ -164,7 +163,7 @@ void OSD_WriteRCt(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8
 
 
 // write a null-terminated string <s> to the OSD buffer starting at line row, col. If maxlen non zero, truncate string to maxlen chars
-void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, uint8_t fg_col, uint8_t bg_col, uint8_t clear )
+void OSD_WriteBase(uint8_t row, uint8_t col, const char *s, uint8_t maxlen, uint8_t invert, tOSDColor fg_col, tOSDColor bg_col, uint8_t clear )
 {
     uint16_t i;
     uint8_t b;
@@ -277,7 +276,7 @@ void OSD_SetDisplay(uint8_t page)
 }
 
 // text points at long name, pos is the start position, len is the string len
-void OSD_WriteScroll(uint8_t row, const char *text, uint16_t pos, uint16_t len, uint8_t invert, uint8_t fg_col, uint8_t bg_col)
+void OSD_WriteScroll(uint8_t row, const char *text, uint16_t pos, uint16_t len, uint8_t invert, tOSDColor fg_col, tOSDColor bg_col)
 {
   uint16_t i;
   uint8_t attrib = (fg_col & 0xF) | ((bg_col & 0xF) << 4);

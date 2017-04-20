@@ -61,6 +61,12 @@
 
 extern char _binary_buildnum_start;	// from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
+static status_t current_status;
+static void load_core_from_sdcard();
+static void load_embedded_core();
+static void init_core();
+static void main_update();
+
 // GLOBALS
 FF_IOMAN *pIoman = NULL;  // file system handle
 const char* version = &_binary_buildnum_start; // actual build version
@@ -80,7 +86,6 @@ int main(void)
   Timer_Init();
 
   // replay main status structure
-  status_t current_status;
   memset((void *)&current_status,0,sizeof(status_t));
   CFG_set_status_defaults(&current_status, TRUE);
 
@@ -174,8 +179,6 @@ int main(void)
       if (FileIO_FCh_GetInserted(1,i)) FileIO_FCh_Eject(1,i);
     }
 
-    char full_filename[FF_MAX_PATH];
-
     // read inputs
     CFG_update_status(&current_status);
     CFG_print_status(&current_status);
@@ -185,256 +188,16 @@ int main(void)
 
     // we require an functional sdcard filesystem to continue
     if (current_status.fs_mounted_ok) {
-      sprintf(full_filename,"%s%s",current_status.ini_dir,current_status.ini_file);
-
-      // free any backup stuff
-      //CFG_free_bak(&current_status);
-
-      // pre FPGA load ini file parse: FPGA bin, post ini, clocking, coder, video filter
-      // will configure clocks/video buffer with default values if non in INI file
-
-      CFG_pre_init(&current_status, full_filename); // check status - no clocks if error occurs
-
-      // load FPGA if a configuration file is given and either it is not set or a reload is requested
-      if ( (!IO_Input_H(PIN_FPGA_DONE)) && strlen(current_status.bin_file) ) {
-        int32_t status;
-
-        // make it "absolute"
-        sprintf(full_filename, "%s%s",current_status.ini_dir,current_status.bin_file);
-
-        current_status.fpga_load_ok = 0;
-        status = CFG_configure_fpga(full_filename);
-        if (status) {
-          // will not get here if config fails, but just in case...
-          MSG_fatal_error(status);  // flash we fail to configure FPGA
-          current_status.fpga_load_ok = 0;
-        } else {
-          DEBUG(1,"FPGA CONFIG \"%s\" done.",full_filename);
-          current_status.fpga_load_ok = 1;
-        }
-      }
+      load_core_from_sdcard();
     } else {
-      // set up some default to have OSD enabled
-      if (!IO_Input_H(PIN_FPGA_DONE)) {
-        // initially configure default clocks, video filter and diable video coder (may not be fitted)
-        // Add support for interlaced/codec standards (selectable by menu button?)
-        CFG_vid_timing_HD27(F60HZ);
-        CFG_set_coder(CODER_DISABLE);
-        if (!FPGA_Default()) {
-          DEBUG(1,"FPGA default set.");
-
-          current_status.fpga_load_ok=2;
-          current_status.twi_enabled=1;
-          current_status.spi_fpga_enabled=1;
-          current_status.spi_osd_enabled=1;
-
-          sprintf(current_status.status[0], "ARM |FW:%s (%ldkB free)", version,
-                                              CFG_get_free_mem()>>10);
-          sprintf(current_status.status[1], "FPGA|NO VALID SETUP ON SDCARD!");
-        } else {
-          // didn't work
-          MSG_fatal_error(1); // halt and reboot
-        }
-      }
+      load_embedded_core();
     }
 
     if ((current_status.fpga_load_ok) || (IO_Input_H(PIN_FPGA_DONE))) {
-      sprintf(full_filename,"%s%s",current_status.ini_dir,current_status.ini_file);
-
-      if (!current_status.fpga_load_ok) {
-        DEBUG(1,"FPGA has been configured by debugger.");
-        current_status.fpga_load_ok = 1;
-      }
-
-      // post load set up, release reset and wait for FPGA to settle first
-      IO_DriveHigh_OD(PIN_FPGA_RST_L);
-      Timer_Wait(200);
-
-      uint32_t spiFreq = BOARD_MCK /
-                         ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
-                         1000000;
-      DEBUG(0,"SPI clock: %d MHz", spiFreq);
-
-      if (current_status.fpga_load_ok!=2) {
-        // we free the memory of a previous setup
-        DEBUG(1,"--------------------------");
-        DEBUG(1,"CLEANUP (%ld bytes free)",CFG_get_free_mem());
-        CFG_free_menu(&current_status);
-
-        // initialize root entry properly, it is the seed of this menu tree
-        DEBUG(1,"--------------------------");
-        DEBUG(1,"PRE-INIT (%ld bytes free)",CFG_get_free_mem());
-
-        // post FPGA load ini file parse: video DAC, ROM files, etc.
-        if (CFG_init(&current_status, full_filename)) {
-          // THIS will set up DAC defaults if non found
-          CFG_free_menu(&current_status);
-          /*CFG_free_bak(&current_status);*/
-        }
-        CFG_add_default(&current_status);
-
-        if (current_status.menu_top) {
-          //
-          DEBUG(1,"--------------------------");
-          DEBUG(1,"POSTINIT (%ld bytes free)",CFG_get_free_mem());
-        }
-      } else {
-        // fall back to baked in version to report error
-        if (OSD_ConfigReadSysconVer() != 0xA5) {
-          WARNING("FPGA Syscon not detected !!");
-        }
-        uint32_t config_ver    = OSD_ConfigReadVer();
-        DEBUG(1,"FPGA ver: 0x%08x",config_ver);
-
-        // NO DRAM in the embedded core
-        OSD_Reset(OSDCMD_CTRL_RES|OSDCMD_CTRL_HALT);
-
-        CFG_vid_timing_HD27(F60HZ);
-        CFG_set_coder(CODER_DISABLE);
-        CFG_set_CH7301_HD();
-
-        // dynamic/static setup bits
-        OSD_ConfigSendUserS(0x00000000);
-        OSD_ConfigSendUserD(0x00000000); // 60HZ progressive
-
-        OSD_Reset(OSDCMD_CTRL_RES);
-        WARNING("Using hardcoded fallback!");
-      }
-
-      // we do a final update of MENU / settings and let the core run
-      // afterwards, we show the generic status menu
-      MENU_init_ui(&current_status); // must be called after core is running, but clears status
-      OSD_Reset(0);
-      Timer_Wait(100);
-
-      if (current_status.osd_init == OSD_INIT_ON) {
-        current_status.menu_state = SHOW_STATUS;
-        current_status.update=1;
-        OSD_Enable(DISABLE_KEYBOARD);
-      } else {
-        current_status.menu_state = NO_MENU;
-        current_status.update=0;
-      }
-
+      init_core();
       // we run in here as long as there is no need to reload the FPGA
       while (current_status.fpga_load_ok) {
-        // MAIN LOOP
-        uint16_t key;
-
-        // track memory usage, and detect heap/stack stomp
-        if (2<=debuglevel)
-        {
-          static uint16_t loop = 0;
-          if ((loop++) == 0)
-            CFG_dump_mem_stats();
-        }
-
-        // get keys (from Replay button, RS232 or PS/2 via OSD/FPGA)
-        key = OSD_GetKeyCode(current_status.spi_osd_enabled, current_status.hotkey);
-
-        if (key && (key & KF_RELEASED) == 0) {
-          DEBUG(3,"Key: 0x%04X - '%s'",key, OSD_GetStringFromKeyCode(key));
-        } else if (key) {
-          DEBUG(3,"Key: 0x%04X",key);
-        }
-
-        // check RS232
-        USART_update();
-
-        // check menu
-        if (current_status.spi_osd_enabled) {
-          if (MENU_handle_ui(key,&current_status)) {
-            // do further update stuff here...
-          }
-          // this key restarts the core only
-          if (key == (KEY_F11|KF_SHIFT)) {
-            // perform soft-reset
-            OSD_Reset(OSDCMD_CTRL_RES);
-            Timer_Wait(1);
-            // we should not need this, but just in case...
-            OSD_Reset(OSDCMD_CTRL);
-            Timer_Wait(100);
-          }
-        }
-
-        // this key sequence starts the bootloader
-        if ((key == KEY_RESET) || (key == (KEY_F12|KF_CTRL|KF_ALT))) {
-          CFG_call_bootloader();
-        }
-
-        // this key or key sequence starts the bootloader
-        if ((key == KEY_FLASH) || (key == (KEY_F11|KF_CTRL|KF_ALT))) {
-          // set new INI file and force reload of FPGA configuration
-          strcpy(current_status.ini_dir,"\\flash\\");
-          strcpy(current_status.act_dir,"\\flash\\");
-          strcpy(current_status.ini_file,"rApp.ini");
-          // make sure FPGA is held in reset
-          IO_DriveLow_OD(PIN_FPGA_RST_L);
-          ACTLED_ON;
-          // set PROG low to reset FPGA (open drain)
-          IO_DriveLow_OD(PIN_FPGA_PROG_L);
-          Timer_Wait(1);
-          IO_DriveHigh_OD(PIN_FPGA_PROG_L);
-          Timer_Wait(2);
-          // invalidate FPGA configuration here as well
-          current_status.fpga_load_ok = 0;
-        }
-
-        if (key == KEY_F12) {
-          if (current_status.button==BUTTON_RESET) {
-            strcpy(current_status.ini_dir,"\\");
-            strcpy(current_status.act_dir,"\\");
-            strcpy(current_status.ini_file,"replay.ini");
-            IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
-            ACTLED_ON;
-            // set PROG low to reset FPGA (open drain)
-            IO_DriveLow_OD(PIN_FPGA_PROG_L);
-            Timer_Wait(1);
-            IO_DriveHigh_OD(PIN_FPGA_PROG_L);
-            Timer_Wait(2);
-            // invalidate FPGA configuration here as well
-            current_status.fpga_load_ok = 0;
-          }
-        }
-
-        CFG_update_status(&current_status);
-        CFG_card_start(&current_status); // restart file system if card re-inserted
-
-        // we deconfigured externally!
-        if ((!IO_Input_H(PIN_FPGA_DONE)) && (current_status.fpga_load_ok)) {
-          MSG_warning("FPGA has been deconfigured.");
-          // assume this is the programmer and wait for it to be reconfigured
-          while (!IO_Input_H(PIN_FPGA_DONE)) {
-            MSG_warning("    waiting for reconfig....");
-            Timer_Wait(1000);
-          }
-          OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
-          FPGA_DramTrain();
-          break;
-        }
-
-        // we check if we are in fallback mode and a proper sdcard is available now
-        if ((current_status.fpga_load_ok==2)&&(current_status.fs_mounted_ok)) {
-          IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
-          ACTLED_ON;
-          // set PROG low to reset FPGA (open drain)
-          IO_DriveLow_OD(PIN_FPGA_PROG_L);
-          Timer_Wait(1);
-          IO_DriveHigh_OD(PIN_FPGA_PROG_L);
-          Timer_Wait(2);
-          // invalidate FPGA configuration here as well
-          current_status.fpga_load_ok = 0;
-        }
-
-        // Handle virtual drives
-        if (current_status.fileio_cha_ena !=0)
-          FileIO_FCh_Process(0);
-        if (current_status.fileio_chb_ena !=0)
-          FileIO_FCh_Process(1);
-
-        if (current_status.clockmon)
-          FPGA_ClockMon(&current_status);
-
+        main_update();
       }
     }
 
@@ -448,4 +211,266 @@ int main(void)
     Timer_Wait(500);
   }
   return 0; /* never reached */
+}
+
+static __attribute__ ((noinline)) void load_core_from_sdcard()
+{
+  char full_filename[FF_MAX_PATH];
+  sprintf(full_filename,"%s%s",current_status.ini_dir,current_status.ini_file);
+
+  // free any backup stuff
+  //CFG_free_bak(&current_status);
+
+  // pre FPGA load ini file parse: FPGA bin, post ini, clocking, coder, video filter
+  // will configure clocks/video buffer with default values if non in INI file
+
+  CFG_pre_init(&current_status, full_filename); // check status - no clocks if error occurs
+
+  // load FPGA if a configuration file is given and either it is not set or a reload is requested
+  if ( (!IO_Input_H(PIN_FPGA_DONE)) && strlen(current_status.bin_file) ) {
+    int32_t status;
+
+    // make it "absolute"
+    sprintf(full_filename, "%s%s",current_status.ini_dir,current_status.bin_file);
+
+    current_status.fpga_load_ok = 0;
+    status = CFG_configure_fpga(full_filename);
+    if (status) {
+      // will not get here if config fails, but just in case...
+      MSG_fatal_error(status);  // flash we fail to configure FPGA
+      current_status.fpga_load_ok = 0;
+    } else {
+      DEBUG(1,"FPGA CONFIG \"%s\" done.",full_filename);
+      current_status.fpga_load_ok = 1;
+    }
+  }
+}
+
+static __attribute__ ((noinline)) void load_embedded_core()
+{
+  // set up some default to have OSD enabled
+  if (!IO_Input_H(PIN_FPGA_DONE)) {
+    // initially configure default clocks, video filter and diable video coder (may not be fitted)
+    // Add support for interlaced/codec standards (selectable by menu button?)
+    CFG_vid_timing_HD27(F60HZ);
+    CFG_set_coder(CODER_DISABLE);
+    if (!FPGA_Default()) {
+      DEBUG(1,"FPGA default set.");
+
+      current_status.fpga_load_ok=2;
+      current_status.twi_enabled=1;
+      current_status.spi_fpga_enabled=1;
+      current_status.spi_osd_enabled=1;
+
+      sprintf(current_status.status[0], "ARM |FW:%s (%ldkB free)", version,
+                                          CFG_get_free_mem()>>10);
+      sprintf(current_status.status[1], "FPGA|NO VALID SETUP ON SDCARD!");
+    } else {
+      // didn't work
+      MSG_fatal_error(1); // halt and reboot
+    }
+  }
+}
+
+static __attribute__ ((noinline)) void init_core()
+{
+  char full_filename[FF_MAX_PATH];
+  sprintf(full_filename,"%s%s",current_status.ini_dir,current_status.ini_file);
+
+  if (!current_status.fpga_load_ok) {
+    DEBUG(1,"FPGA has been configured by debugger.");
+    current_status.fpga_load_ok = 1;
+  }
+
+  // post load set up, release reset and wait for FPGA to settle first
+  IO_DriveHigh_OD(PIN_FPGA_RST_L);
+  Timer_Wait(200);
+
+  uint32_t spiFreq = BOARD_MCK /
+                     ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
+                     1000000;
+  DEBUG(0,"SPI clock: %d MHz", spiFreq);
+
+  if (current_status.fpga_load_ok!=2) {
+    // we free the memory of a previous setup
+    DEBUG(1,"--------------------------");
+    DEBUG(1,"CLEANUP (%ld bytes free)",CFG_get_free_mem());
+    CFG_free_menu(&current_status);
+
+    // initialize root entry properly, it is the seed of this menu tree
+    DEBUG(1,"--------------------------");
+    DEBUG(1,"PRE-INIT (%ld bytes free)",CFG_get_free_mem());
+
+    // post FPGA load ini file parse: video DAC, ROM files, etc.
+    if (CFG_init(&current_status, full_filename)) {
+      // THIS will set up DAC defaults if non found
+      CFG_free_menu(&current_status);
+      /*CFG_free_bak(&current_status);*/
+    }
+    CFG_add_default(&current_status);
+
+    if (current_status.menu_top) {
+      //
+      DEBUG(1,"--------------------------");
+      DEBUG(1,"POSTINIT (%ld bytes free)",CFG_get_free_mem());
+    }
+  } else {
+    // fall back to baked in version to report error
+    if (OSD_ConfigReadSysconVer() != 0xA5) {
+      WARNING("FPGA Syscon not detected !!");
+    }
+    uint32_t config_ver    = OSD_ConfigReadVer();
+    DEBUG(1,"FPGA ver: 0x%08x",config_ver);
+
+    // NO DRAM in the embedded core
+    OSD_Reset(OSDCMD_CTRL_RES|OSDCMD_CTRL_HALT);
+
+    CFG_vid_timing_HD27(F60HZ);
+    CFG_set_coder(CODER_DISABLE);
+    CFG_set_CH7301_HD();
+
+    // dynamic/static setup bits
+    OSD_ConfigSendUserS(0x00000000);
+    OSD_ConfigSendUserD(0x00000000); // 60HZ progressive
+
+    OSD_Reset(OSDCMD_CTRL_RES);
+    WARNING("Using hardcoded fallback!");
+  }
+
+  // we do a final update of MENU / settings and let the core run
+  // afterwards, we show the generic status menu
+  MENU_init_ui(&current_status); // must be called after core is running, but clears status
+  OSD_Reset(0);
+  Timer_Wait(100);
+
+  if (current_status.osd_init == OSD_INIT_ON) {
+    current_status.menu_state = SHOW_STATUS;
+    current_status.update=1;
+    OSD_Enable(DISABLE_KEYBOARD);
+  } else {
+    current_status.menu_state = NO_MENU;
+    current_status.update=0;
+  }
+}
+
+static __attribute__ ((noinline)) void main_update()
+{
+  // MAIN LOOP
+  uint16_t key;
+
+  // track memory usage, and detect heap/stack stomp
+  if (2<=debuglevel)
+  {
+    static uint16_t loop = 0;
+    if ((loop++) == 0)
+      CFG_dump_mem_stats();
+  }
+
+  // get keys (from Replay button, RS232 or PS/2 via OSD/FPGA)
+  key = OSD_GetKeyCode(current_status.spi_osd_enabled, current_status.hotkey);
+
+  if (key && (key & KF_RELEASED) == 0) {
+    DEBUG(3,"Key: 0x%04X - '%s'",key, OSD_GetStringFromKeyCode(key));
+  } else if (key) {
+    DEBUG(3,"Key: 0x%04X",key);
+  }
+
+  // check RS232
+  USART_update();
+
+  // check menu
+  if (current_status.spi_osd_enabled) {
+    if (MENU_handle_ui(key,&current_status)) {
+      // do further update stuff here...
+    }
+    // this key restarts the core only
+    if (key == (KEY_F11|KF_SHIFT)) {
+      // perform soft-reset
+      OSD_Reset(OSDCMD_CTRL_RES);
+      Timer_Wait(1);
+      // we should not need this, but just in case...
+      OSD_Reset(OSDCMD_CTRL);
+      Timer_Wait(100);
+    }
+  }
+
+  // this key sequence starts the bootloader
+  if ((key == KEY_RESET) || (key == (KEY_F12|KF_CTRL|KF_ALT))) {
+    CFG_call_bootloader();
+  }
+
+  // this key or key sequence starts the bootloader
+  if ((key == KEY_FLASH) || (key == (KEY_F11|KF_CTRL|KF_ALT))) {
+    // set new INI file and force reload of FPGA configuration
+    strcpy(current_status.ini_dir,"\\flash\\");
+    strcpy(current_status.act_dir,"\\flash\\");
+    strcpy(current_status.ini_file,"rApp.ini");
+    // make sure FPGA is held in reset
+    IO_DriveLow_OD(PIN_FPGA_RST_L);
+    ACTLED_ON;
+    // set PROG low to reset FPGA (open drain)
+    IO_DriveLow_OD(PIN_FPGA_PROG_L);
+    Timer_Wait(1);
+    IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+    Timer_Wait(2);
+    // invalidate FPGA configuration here as well
+    current_status.fpga_load_ok = 0;
+  }
+
+  if (key == KEY_F12) {
+    if (current_status.button==BUTTON_RESET) {
+      strcpy(current_status.ini_dir,"\\");
+      strcpy(current_status.act_dir,"\\");
+      strcpy(current_status.ini_file,"replay.ini");
+      IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
+      ACTLED_ON;
+      // set PROG low to reset FPGA (open drain)
+      IO_DriveLow_OD(PIN_FPGA_PROG_L);
+      Timer_Wait(1);
+      IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+      Timer_Wait(2);
+      // invalidate FPGA configuration here as well
+      current_status.fpga_load_ok = 0;
+    }
+  }
+
+  CFG_update_status(&current_status);
+  CFG_card_start(&current_status); // restart file system if card re-inserted
+
+  // we deconfigured externally!
+  if ((!IO_Input_H(PIN_FPGA_DONE)) && (current_status.fpga_load_ok)) {
+    MSG_warning("FPGA has been deconfigured.");
+    // assume this is the programmer and wait for it to be reconfigured
+    while (!IO_Input_H(PIN_FPGA_DONE)) {
+      MSG_warning("    waiting for reconfig....");
+      Timer_Wait(1000);
+    }
+    OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
+    FPGA_DramTrain();
+    current_status.fpga_load_ok = 0;  // break the main loop
+    return;
+  }
+
+  // we check if we are in fallback mode and a proper sdcard is available now
+  if ((current_status.fpga_load_ok==2)&&(current_status.fs_mounted_ok)) {
+    IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
+    ACTLED_ON;
+    // set PROG low to reset FPGA (open drain)
+    IO_DriveLow_OD(PIN_FPGA_PROG_L);
+    Timer_Wait(1);
+    IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+    Timer_Wait(2);
+    // invalidate FPGA configuration here as well
+    current_status.fpga_load_ok = 0;
+  }
+
+  // Handle virtual drives
+  if (current_status.fileio_cha_ena !=0)
+    FileIO_FCh_Process(0);
+  if (current_status.fileio_chb_ena !=0)
+    FileIO_FCh_Process(1);
+
+  if (current_status.clockmon)
+    FPGA_ClockMon(&current_status);
+
 }

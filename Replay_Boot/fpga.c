@@ -623,7 +623,7 @@ void FPGA_ClockMon(status_t *currentStatus)
 
 inline uint8_t _rSPI(uint8_t outByte)
 {
-  volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // compiler warning, but is a must!
+  volatile __attribute__((unused)) uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // unused, but is a must!
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
   AT91C_BASE_SPI->SPI_TDR = outByte;
   while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));

@@ -85,7 +85,7 @@
 #define MENU_POPUP_SAVEIGNORE 2
 
 
-/** @brief ITEM ACTION HANDLER
+/** @brief ITEM ACTION HANDLER (PRIVATE!)
 
     Sets first pointer on configuration structure given any key input.
     Up/down key is used to run through menu lists or item lists.
@@ -111,7 +111,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode);
 */
 void MENU_init_ui(status_t *current_status);
 
-/** @brief OSD CONFIG UPDATER
+/** @brief OSD CONFIG UPDATER (PRIVATE!)
 
     Runs through configure structure beginning from "first" pointer and
     updates "last" pointer accordingly.
@@ -120,7 +120,7 @@ void MENU_init_ui(status_t *current_status);
 */
 void _MENU_update_ui(status_t *current_status);
 
-/** @brief REMOVE LAST PATH ENTRY
+/** @brief REMOVE LAST PATH ENTRY (PRIVATE)
 
     Helper function to remove last directory entry to go one hierarchy up.
 
@@ -151,7 +151,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status);
 */
 void _MENU_update_bits(status_t *current_status);
 
-/** @brief EXIT HANDLER
+/** @brief EXIT HANDLER (PRIVATE!)
 
     Called from menu structure if user selects "yes" in the pop-up
     shown when leaving the menu (and accepting to perform the updates)
@@ -160,6 +160,13 @@ void _MENU_update_bits(status_t *current_status);
     @return 1 if executed succesfully
 */
 uint8_t _MENU_update(status_t *current_status);
+
+/** @brief SET MENU STATE
+
+    @param current_status status structure containing configuration structure
+    @param state - new state to transition into
+*/
+void MENU_set_state(status_t *current_status, tOSDMenuState state);
 
 //void menu_insert_fd(char *path, adfTYPE *drive);
 

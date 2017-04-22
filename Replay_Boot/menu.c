@@ -53,330 +53,357 @@
 #include "fileio.h"
 #include "messaging.h"
 
+
+/** structure handling directory browsing */
+static tDirScan* dir_scan = 0;
+
+typedef enum {
+    ACTION_DISPLAY = 0,
+    ACTION_MENU_EXECUTE = 1,
+    ACTION_BROWSER_EXECUTE = 2,
+    ACTION_INIT = 255
+} tActionType;
+
+// handle display action ===================================================
+static uint8_t _MENU_action_display(menuitem_t *item, status_t *current_status)
+{
+  // cha select,0...3 ----------------------------------
+  if MATCH(item->action_name,"cha_select") {
+    if ((current_status->fileio_cha_ena >> item->action_value) & 1) { // protects agains illegal values also
+      if (!FileIO_FCh_GetInserted(0,item->action_value)) {
+        if (current_status->fileio_cha_mode == REMOVABLE)
+          strcpy(item->selected_option->option_name,"<RETURN> to set");
+        else
+          strcpy(item->selected_option->option_name,"Not mounted");
+      } else {
+        strncpy(item->selected_option->option_name, FileIO_FCh_GetName(0,item->action_value), MAX_OPTION_STRING-1);
+      }
+    } else {
+      item->selected_option->option_name[0]=0;
+    }
+    return 1;
+  }
+  // chb select,0...3 ----------------------------------
+  if MATCH(item->action_name,"chb_select") {
+    if ((current_status->fileio_chb_ena >> item->action_value) & 1) { // protects agains illegal values also
+      if (!FileIO_FCh_GetInserted(1,item->action_value)) {
+        if (current_status->fileio_chb_mode == REMOVABLE)
+          strcpy(item->selected_option->option_name,"<RETURN> to set");
+        else
+          strcpy(item->selected_option->option_name,"Not mounted");
+      } else {
+        strncpy(item->selected_option->option_name, FileIO_FCh_GetName(1,item->action_value), MAX_OPTION_STRING-1);
+      }
+    } else {
+      item->selected_option->option_name[0]=0;
+    }
+    return 1;
+  }
+  // iniselect ----------------------------------
+  if MATCH(item->action_name,"iniselect") {
+    strcpy(item->selected_option->option_name,"<RETURN> to set");
+    return 1;
+  }
+  // loadselect ----------------------------------
+  if MATCH(item->action_name,"loadselect") {
+    //nothing to do here
+    return 1;
+  }
+  // storeselect ---------------------------------
+  if MATCH(item->action_name,"storeselect") {
+    //nothing to do here
+    return 1;
+  }
+  // backup ini ----------------------------------
+  if MATCH(item->action_name,"backup") {
+    strcpy(item->selected_option->option_name,"<RETURN> saves");
+    return 1;
+  }
+  // reset ----------------------------------
+  if MATCH(item->action_name,"reset") {
+    strcpy(item->selected_option->option_name,"<RETURN> resets");
+    return 1;
+  }
+  // reboot ----------------------------------
+  if MATCH(item->action_name,"reboot") {
+    strcpy(item->selected_option->option_name,"<RETURN> boots");
+    return 1;
+  }
+  return 0;
+}
+
+// menu execute action =====================================================
+static uint8_t _MENU_action_menu_execute(menuitem_t *item, status_t *current_status)
+{
+  // fileio cha select
+  if MATCH(item->action_name,"cha_select") {
+    if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
+      if (FileIO_FCh_GetInserted(0,item->action_value)) {
+        if (current_status->fileio_cha_mode == REMOVABLE) {
+          // deselect file
+          strcpy(item->selected_option->option_name,"<RETURN> to set");
+          item->selected_option=NULL;
+          FileIO_FCh_Eject(0,item->action_value);
+          return 1;
+        } else {
+          // tried to eject fixed drive... nothing for now.
+        }
+      } else {
+        // open file browser
+        // (skip re-initing 'act_dir' here in order to keep the 'current' dir when selecting additional files)
+        // save the file_filter, so that we can restore it (in case we already had a filter)
+        MENU_set_state(current_status, FILE_BROWSER);
+        // search for CHA extension files
+        Filesel_Init(dir_scan, current_status->act_dir, current_status->fileio_cha_ext);
+        // restore the filer
+        memcpy(dir_scan->file_filter, current_status->previous_file_filter, sizeof(dir_scan->file_filter));
+        // initialize browser
+        Filesel_ScanFirst(dir_scan);
+        return 1;
+      }
+    }
+    return 0;
+  }
+
+  // fileio chb select
+  if MATCH(item->action_name,"chb_select") {
+    if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
+      if (FileIO_FCh_GetInserted(1,item->action_value)) {
+        if (current_status->fileio_chb_mode == REMOVABLE) {
+        // deselect file
+          strcpy(item->selected_option->option_name,"<RETURN> to set");
+          item->selected_option=NULL;
+          FileIO_FCh_Eject(1,item->action_value);
+          return 1;
+        } else {
+          // tried to eject fixed drive... nothing for now.
+        }
+      } else {
+        // allocate dir_scan structure
+        MENU_set_state(current_status, FILE_BROWSER);
+        // open file browser
+        strcpy(current_status->act_dir,current_status->ini_dir);
+        // search for INI files
+        Filesel_Init(dir_scan, current_status->act_dir, current_status->fileio_chb_ext);
+        // initialize browser
+        Filesel_ScanFirst(dir_scan);
+        return 1;
+      }
+    }
+    return 0;
+  }
+
+  // iniselect ----------------------------------
+  if MATCH(item->action_name,"iniselect") {
+    // allocate dir_scan structure
+    MENU_set_state(current_status, FILE_BROWSER);
+    // open file browser
+    strcpy(current_status->act_dir,current_status->ini_dir);
+    // search for INI files
+    static const file_ext_t ini_ext[2] = { {"INI"}, {"\0"} };
+    Filesel_Init(dir_scan, current_status->act_dir, ini_ext);
+    // initialize browser
+    Filesel_ScanFirst(dir_scan);
+    return 1;
+  }
+  // loadselect ----------------------------------
+  if MATCH(item->action_name,"loadselect") {
+    if ((item->option_list) && (item->option_list->option_name[0]='*')
+        && (item->option_list->option_name[1]='.') && (item->option_list->option_name[2])) {
+      DEBUG(1,"LOAD from: %s ext: %s",current_status->act_dir,(item->option_list->option_name)+2);
+      // allocate dir_scan structure
+      MENU_set_state(current_status, FILE_BROWSER);
+      // open file browser
+      strcpy(current_status->act_dir,current_status->ini_dir);
+      // search for files with given extension
+      static file_ext_t load_ext[2] = { {"\0"}, {"\0"} };
+      _strlcpy(load_ext[0].ext,(item->option_list->option_name)+2, sizeof(file_ext_t));
+      Filesel_Init(dir_scan, current_status->act_dir, load_ext);
+      // initialize browser
+      Filesel_ScanFirst(dir_scan);
+      return 1;
+    }
+  }
+  // storeselect ----------------------------------
+  if MATCH(item->action_name,"storeselect") {
+    if ((item->option_list) && (item->option_list->option_name)) {
+      char full_filename[FF_MAX_PATH];
+      DEBUG(1,"STORE to: %s file: %s",current_status->act_dir,(item->option_list->option_name));
+      // store with given size to given adress and optional verification run
+      // conf value is the memory size to store and a 1 bit halt flag (LSB)
+      if ((item->option_list->conf_value)&1) {
+        // halt the core if requested
+        OSD_Reset(OSDCMD_CTRL_HALT);
+        Timer_Wait(1);
+      }
+      sprintf(full_filename,"%s%s",current_status->act_dir,item->option_list->option_name);
+
+      CFG_download_rom(full_filename,item->action_value,item->option_list->conf_value>>1);
+      MENU_set_state(current_status, NO_MENU);
+      OSD_Disable();
+      Timer_Wait(1);
+      if ((item->option_list->conf_value)&1) {
+        // continue operation of the core if requested
+        OSD_Reset(0);
+      }
+      Timer_Wait(1);
+      return 1;
+
+      return 1;
+    }
+  }
+  // backup ----------------------------------
+  if MATCH(item->action_name,"backup") {
+    CFG_save_all(current_status, current_status->act_dir, "backup.ini");
+    current_status->update=1;
+    return 1;
+  }
+  // reset ----------------------------------
+  if MATCH(item->action_name,"reset") {
+    MENU_set_state(current_status, POPUP_MENU);
+    strcpy(current_status->popup_msg," Reset Target? ");
+    current_status->selections = MENU_POPUP_YESNO;
+    current_status->selected = 0;
+    current_status->update=1;
+    current_status->do_reboot=0;
+    return 1;
+  }
+  // reboot ----------------------------------
+  if MATCH(item->action_name,"reboot") {
+    MENU_set_state(current_status, POPUP_MENU);
+    strcpy(current_status->popup_msg," Reboot Board? ");
+    current_status->selections = MENU_POPUP_YESNO;
+    current_status->selected = 0;
+    current_status->update=1;
+    current_status->do_reboot=1;
+    return 1;
+  }
+  return 0;
+}
+
+// browser execute action ==================================================
+static uint8_t _MENU_action_browser_execute(menuitem_t *item, status_t *current_status)
+{
+  // *****
+  FF_DIRENT mydir = Filesel_GetEntry(dir_scan,
+                                     dir_scan->sel);
+  // insert is ok for fixed or removable
+  // cha_select
+  if MATCH(item->action_name,"cha_select") {
+    if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
+      item->selected_option=item->option_list;
+
+      char file_path[FF_MAX_PATH] = "";
+      sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
+      FileIO_FCh_Insert(0,item->action_value, file_path);
+
+      strncpy(item->option_list->option_name, FileIO_FCh_GetName(0,item->action_value), MAX_OPTION_STRING-1);
+      item->option_list->option_name[MAX_OPTION_STRING-1]=0;
+
+      MENU_set_state(current_status, SHOW_MENU);
+      return 1;
+    }
+  }
+  // chb_select
+  if MATCH(item->action_name,"chb_select") {
+    if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
+      item->selected_option=item->option_list;
+
+      char file_path[FF_MAX_PATH] = "";
+      sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
+      FileIO_FCh_Insert(1,item->action_value, file_path);
+
+      strncpy(item->option_list->option_name, FileIO_FCh_GetName(1,item->action_value), MAX_OPTION_STRING-1);
+      item->option_list->option_name[MAX_OPTION_STRING-1]=0;
+
+      MENU_set_state(current_status, SHOW_MENU);
+      return 1;
+    }
+  }
+
+  // iniselect ----------------------------------
+  if MATCH(item->action_name,"iniselect") {
+    // set new INI file and force reload of FPGA configuration
+    strcpy(current_status->ini_dir,current_status->act_dir);
+    strcpy(current_status->ini_file,mydir.FileName);
+    MENU_set_state(current_status, NO_MENU);
+    OSD_Disable();
+    // "kill" FPGA content and re-run setup
+    current_status->fpga_load_ok=0;
+
+    // reset config
+    CFG_set_status_defaults(current_status, FALSE);
+
+    // set PROG low to reset FPGA (open drain)
+    IO_DriveLow_OD(PIN_FPGA_PROG_L);
+    Timer_Wait(1);
+    IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+    Timer_Wait(2);
+    // NO update here!
+    return 0;
+  }
+  // loadselect ----------------------------------
+  if MATCH(item->action_name,"loadselect") {
+    if ((current_status->act_dir[0]) && (mydir.FileName[0])) {
+      char full_filename[FF_MAX_PATH];
+      // upload with auto-size to given adress and optional verification run
+      // conf value is 8 bit format, 1 bit halt flag, 1 bit reset flag, 1 bit verification flag (LSB)
+      if ((item->option_list->conf_value>>2)&1) {
+        // halt the core if requested
+        OSD_Reset(OSDCMD_CTRL_HALT);
+        Timer_Wait(1);
+      }
+      sprintf(full_filename,"%s%s",current_status->act_dir,mydir.FileName);
+
+      uint32_t staticbits = current_status->config_s;
+      uint32_t dynamicbits = current_status->config_d;
+      DEBUG(1,"OLD config - S:%08lx D:%08lx",staticbits,dynamicbits);
+      CFG_upload_rom(full_filename,item->action_value,0,item->option_list->conf_value&1,(item->option_list->conf_value>>3)&255,&staticbits,&dynamicbits);
+      DEBUG(1,"NEW config - S:%08lx D:%08lx",staticbits,dynamicbits);
+      current_status->config_s = staticbits;
+      //not used yet: current_status->config_d = dynamicbits;
+      // send bits to FPGA
+      OSD_ConfigSendUserS(staticbits);
+      //not used yet: OSD_ConfigSendUserD(dynamicbits);
+
+      MENU_set_state(current_status, NO_MENU);
+      OSD_Disable();
+
+      Timer_Wait(1);
+      if ((item->option_list->conf_value>>2)&1) {
+        // continue operation of the core if requested
+        OSD_Reset(0);
+      }
+      if ((item->option_list->conf_value>>1)&1) {
+        // perform soft-reset if requested
+        OSD_Reset(OSDCMD_CTRL_RES);
+      }
+      Timer_Wait(1);
+      return 1;
+    }
+  }
+  return 0;
+}
+
 // ==============================================
 // == PLATFORM DEPENDENT MENU CHANGES --> HERE !
 // ==============================================
-uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode)
+uint8_t _MENU_action(menuitem_t *item, status_t *current_status, tActionType mode)
 {
   // check first if we need to do anything...
   if (!item->action_name[0]) return 0;
 
   // INIT ====================================================================
-  if (mode==255) {
+  if (mode == ACTION_INIT) {
     // not used yet - take care, *item is NULL for this callback
   }
   // handle display action ===================================================
-  if (mode==0) {
-
-    // cha select,0...3 ----------------------------------
-    if MATCH(item->action_name,"cha_select") {
-      if ((current_status->fileio_cha_ena >> item->action_value) & 1) { // protects agains illegal values also
-        if (!FileIO_FCh_GetInserted(0,item->action_value)) {
-          if (current_status->fileio_cha_mode == REMOVABLE)
-            strcpy(item->selected_option->option_name,"<RETURN> to set");
-          else
-            strcpy(item->selected_option->option_name,"Not mounted");
-        } else {
-          strncpy(item->selected_option->option_name, FileIO_FCh_GetName(0,item->action_value), MAX_OPTION_STRING-1);
-        }
-      } else {
-        item->selected_option->option_name[0]=0;
-      }
-      return 1;
-    }
-    // chb select,0...3 ----------------------------------
-    if MATCH(item->action_name,"chb_select") {
-      if ((current_status->fileio_chb_ena >> item->action_value) & 1) { // protects agains illegal values also
-        if (!FileIO_FCh_GetInserted(1,item->action_value)) {
-          if (current_status->fileio_chb_mode == REMOVABLE)
-            strcpy(item->selected_option->option_name,"<RETURN> to set");
-          else
-            strcpy(item->selected_option->option_name,"Not mounted");
-        } else {
-          strncpy(item->selected_option->option_name, FileIO_FCh_GetName(1,item->action_value), MAX_OPTION_STRING-1);
-        }
-      } else {
-        item->selected_option->option_name[0]=0;
-      }
-      return 1;
-    }
-    // iniselect ----------------------------------
-    if MATCH(item->action_name,"iniselect") {
-      strcpy(item->selected_option->option_name,"<RETURN> to set");
-      return 1;
-    }
-    // loadselect ----------------------------------
-    if MATCH(item->action_name,"loadselect") {
-      //nothing to do here
-      return 1;
-    }
-    // storeselect ---------------------------------
-    if MATCH(item->action_name,"storeselect") {
-      //nothing to do here
-      return 1;
-    }
-    // backup ini ----------------------------------
-    if MATCH(item->action_name,"backup") {
-      strcpy(item->selected_option->option_name,"<RETURN> saves");
-      return 1;
-    }
-    // reset ----------------------------------
-    if MATCH(item->action_name,"reset") {
-      strcpy(item->selected_option->option_name,"<RETURN> resets");
-      return 1;
-    }
-    // reboot ----------------------------------
-    if MATCH(item->action_name,"reboot") {
-      strcpy(item->selected_option->option_name,"<RETURN> boots");
-      return 1;
-    }
-  }
+  if (mode == ACTION_DISPLAY) { return _MENU_action_display(item, current_status); }
   // menu execute action =====================================================
-  if (mode==1) {
-    // fileio cha select
-    if MATCH(item->action_name,"cha_select") {
-      if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
-        if (FileIO_FCh_GetInserted(0,item->action_value)) {
-          if (current_status->fileio_cha_mode == REMOVABLE) {
-            // deselect file
-            strcpy(item->selected_option->option_name,"<RETURN> to set");
-            item->selected_option=NULL;
-            FileIO_FCh_Eject(0,item->action_value);
-            return 1;
-          } else {
-            // tried to eject fixed drive... nothing for now.
-          }
-        } else {
-          // open file browser
-          // (skip re-initing 'act_dir' here in order to keep the 'current' dir when selecting additional files)
-          // save the file_filter, so that we can restore it (in case we already had a filter)
-          const size_t size = sizeof(current_status->dir_scan->file_filter);
-          char file_filter[size];
-          memcpy(file_filter, current_status->dir_scan->file_filter, size);          
-          // search for CHA extension files
-          Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->fileio_cha_ext);
-          // restore the filer
-          memcpy(current_status->dir_scan->file_filter, file_filter, size);          
-          // initialize browser
-          Filesel_ScanFirst(current_status->dir_scan);
-          current_status->menu_state = FILE_BROWSER;
-          return 1;
-        }
-      }
-      return 0;
-    }
-
-    // fileio chb select
-    if MATCH(item->action_name,"chb_select") {
-      if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
-        if (FileIO_FCh_GetInserted(1,item->action_value)) {
-          if (current_status->fileio_chb_mode == REMOVABLE) {
-          // deselect file
-            strcpy(item->selected_option->option_name,"<RETURN> to set");
-            item->selected_option=NULL;
-            FileIO_FCh_Eject(1,item->action_value);
-            return 1;
-          } else {
-            // tried to eject fixed drive... nothing for now.
-          }
-        } else {
-          // open file browser
-          strcpy(current_status->act_dir,current_status->ini_dir);
-          // search for INI files
-          Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->fileio_chb_ext);
-          // initialize browser
-          Filesel_ScanFirst(current_status->dir_scan);
-          current_status->menu_state = FILE_BROWSER;
-          return 1;
-        }
-      }
-      return 0;
-    }
-
-    // iniselect ----------------------------------
-    if MATCH(item->action_name,"iniselect") {
-      // open file browser
-      strcpy(current_status->act_dir,current_status->ini_dir);
-      // search for INI files
-      static const file_ext_t ini_ext[2] = { {"INI"}, {"\0"} };
-      Filesel_Init(current_status->dir_scan, current_status->act_dir, ini_ext);
-      // initialize browser
-      Filesel_ScanFirst(current_status->dir_scan);
-      current_status->menu_state = FILE_BROWSER;
-      return 1;
-    }
-    // loadselect ----------------------------------
-    if MATCH(item->action_name,"loadselect") {
-      if ((item->option_list) && (item->option_list->option_name[0]='*')
-          && (item->option_list->option_name[1]='.') && (item->option_list->option_name[2])) {
-        DEBUG(1,"LOAD from: %s ext: %s",current_status->act_dir,(item->option_list->option_name)+2);
-        // open file browser
-        strcpy(current_status->act_dir,current_status->ini_dir);
-        // search for files with given extension
-        static file_ext_t load_ext[2] = { {"\0"}, {"\0"} };
-        _strlcpy(load_ext[0].ext,(item->option_list->option_name)+2, sizeof(file_ext_t));
-        Filesel_Init(current_status->dir_scan, current_status->act_dir, load_ext);
-        // initialize browser
-        Filesel_ScanFirst(current_status->dir_scan);
-        current_status->menu_state = FILE_BROWSER;
-        return 1;
-      }
-    }
-    // storeselect ----------------------------------
-    if MATCH(item->action_name,"storeselect") {
-      if ((item->option_list) && (item->option_list->option_name)) {
-        char full_filename[FF_MAX_PATH];
-        DEBUG(1,"STORE to: %s file: %s",current_status->act_dir,(item->option_list->option_name));
-        // store with given size to given adress and optional verification run
-        // conf value is the memory size to store and a 1 bit halt flag (LSB)
-        if ((item->option_list->conf_value)&1) {
-          // halt the core if requested
-          OSD_Reset(OSDCMD_CTRL_HALT);
-          Timer_Wait(1);
-        }
-        sprintf(full_filename,"%s%s",current_status->act_dir,item->option_list->option_name);
-
-        CFG_download_rom(full_filename,item->action_value,item->option_list->conf_value>>1);
-        current_status->menu_state = NO_MENU;
-        OSD_Disable();
-        Timer_Wait(1);
-        if ((item->option_list->conf_value)&1) {
-          // continue operation of the core if requested
-          OSD_Reset(0);
-        }
-        Timer_Wait(1);
-        return 1;
-
-        return 1;
-      }
-    }
-    // backup ----------------------------------
-    if MATCH(item->action_name,"backup") {
-      CFG_save_all(current_status, current_status->act_dir, "backup.ini");
-      current_status->update=1;
-      return 1;
-    }
-    // reset ----------------------------------
-    if MATCH(item->action_name,"reset") {
-        current_status->menu_state = POPUP_MENU;
-      strcpy(current_status->popup_msg," Reset Target? ");
-      current_status->selections = MENU_POPUP_YESNO;
-      current_status->selected = 0;
-      current_status->update=1;
-      current_status->do_reboot=0;
-      return 1;
-    }
-    // reboot ----------------------------------
-    if MATCH(item->action_name,"reboot") {
-        current_status->menu_state = POPUP_MENU;
-      strcpy(current_status->popup_msg," Reboot Board? ");
-      current_status->selections = MENU_POPUP_YESNO;
-      current_status->selected = 0;
-      current_status->update=1;
-      current_status->do_reboot=1;
-      return 1;
-    }
-  }
+  if (mode == ACTION_MENU_EXECUTE) { return _MENU_action_menu_execute(item, current_status); }
   // browser execute action ==================================================
-  if (mode==2) { // *****
-    FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan,
-                                       current_status->dir_scan->sel);
-    // insert is ok for fixed or removable
-    // cha_select
-    if MATCH(item->action_name,"cha_select") {
-      if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
-        item->selected_option=item->option_list;
+  if (mode == ACTION_BROWSER_EXECUTE) { return _MENU_action_browser_execute(item, current_status); }
 
-        char file_path[FF_MAX_PATH] = "";
-        sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
-        FileIO_FCh_Insert(0,item->action_value, file_path);
-
-        strncpy(item->option_list->option_name, FileIO_FCh_GetName(0,item->action_value), MAX_OPTION_STRING-1);
-        item->option_list->option_name[MAX_OPTION_STRING-1]=0;
-
-        current_status->menu_state = SHOW_MENU;
-        return 1;
-      }
-    }
-    // chb_select
-    if MATCH(item->action_name,"chb_select") {
-      if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
-        item->selected_option=item->option_list;
-
-        char file_path[FF_MAX_PATH] = "";
-        sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
-        FileIO_FCh_Insert(1,item->action_value, file_path);
-
-        strncpy(item->option_list->option_name, FileIO_FCh_GetName(1,item->action_value), MAX_OPTION_STRING-1);
-        item->option_list->option_name[MAX_OPTION_STRING-1]=0;
-
-        current_status->menu_state = SHOW_MENU;
-        return 1;
-      }
-    }
-
-    // iniselect ----------------------------------
-    if MATCH(item->action_name,"iniselect") {
-      // set new INI file and force reload of FPGA configuration
-      strcpy(current_status->ini_dir,current_status->act_dir);
-      strcpy(current_status->ini_file,mydir.FileName);
-      current_status->menu_state = NO_MENU;
-      OSD_Disable();
-      // "kill" FPGA content and re-run setup
-      current_status->fpga_load_ok=0;
-
-      // reset config
-      CFG_set_status_defaults(current_status, FALSE);
-
-      // set PROG low to reset FPGA (open drain)
-      IO_DriveLow_OD(PIN_FPGA_PROG_L);
-      Timer_Wait(1);
-      IO_DriveHigh_OD(PIN_FPGA_PROG_L);
-      Timer_Wait(2);
-      // NO update here!
-      return 0;
-    }
-    // loadselect ----------------------------------
-    if MATCH(item->action_name,"loadselect") {
-      if ((current_status->act_dir[0]) && (mydir.FileName[0])) {
-        char full_filename[FF_MAX_PATH];
-        // upload with auto-size to given adress and optional verification run
-        // conf value is 8 bit format, 1 bit halt flag, 1 bit reset flag, 1 bit verification flag (LSB)
-        if ((item->option_list->conf_value>>2)&1) {
-          // halt the core if requested
-          OSD_Reset(OSDCMD_CTRL_HALT);
-          Timer_Wait(1);
-        }
-        sprintf(full_filename,"%s%s",current_status->act_dir,mydir.FileName);
-
-        uint32_t staticbits = current_status->config_s;
-        uint32_t dynamicbits = current_status->config_d;
-        DEBUG(1,"OLD config - S:%08lx D:%08lx",staticbits,dynamicbits);
-        CFG_upload_rom(full_filename,item->action_value,0,item->option_list->conf_value&1,(item->option_list->conf_value>>3)&255,&staticbits,&dynamicbits);
-        DEBUG(1,"NEW config - S:%08lx D:%08lx",staticbits,dynamicbits);
-        current_status->config_s = staticbits;
-        //not used yet: current_status->config_d = dynamicbits;
-        // send bits to FPGA
-        OSD_ConfigSendUserS(staticbits);
-        //not used yet: OSD_ConfigSendUserD(dynamicbits);
-
-        current_status->menu_state = NO_MENU;
-        OSD_Disable();
-
-        Timer_Wait(1);
-        if ((item->option_list->conf_value>>2)&1) {
-          // continue operation of the core if requested
-          OSD_Reset(0);
-        }
-        if ((item->option_list->conf_value>>1)&1) {
-          // perform soft-reset if requested
-          OSD_Reset(OSDCMD_CTRL_RES);
-        }
-        Timer_Wait(1);
-        return 1;
-      }
-    }
-  }
   return 0;
 }
 
@@ -406,7 +433,7 @@ void MENU_init_ui(status_t *current_status)
   current_status->item_last = NULL;
 
   // we may do some initialization here...
-  _MENU_action(NULL,current_status,255);
+  _MENU_action(NULL, current_status, ACTION_INIT);
 
   // clean up both OSD pages
   OSD_SetPage(0);
@@ -418,7 +445,7 @@ void MENU_init_ui(status_t *current_status)
   OSD_SetPage(1);
 
   // clean up display flags
-  current_status->menu_state = NO_MENU;
+  MENU_set_state(current_status, NO_MENU);
 }
 
 void _MENU_back_dir(char *pPath)
@@ -449,12 +476,221 @@ void _MENU_back_dir(char *pPath)
                 0, WHITE, BLACK);                            \
   } while (0)
 
-// TODO: colours from INI file instead of hardcoding...?
-void _MENU_update_ui(status_t *current_status)
+//
+// STATUS SCREEN
+//
+static void _MENU_show_status(status_t *current_status)
 {
   tOSDColor col; // used for selecting text fg color
   uint32_t i,j; // used for loops
 
+  // print fixed status lines and a separator line
+  for (i = 0; i < 3; i++) {
+    OSD_WriteRC(2+i, 0, current_status->status[i], 0, GRAY, BLACK);
+  }
+  OSD_WriteRC(2+i, 0,   "                                ", 0, BLACK, DARK_BLUE);
+
+  // finally print the "scrolling" info lines, we start with the oldest
+  // entry which is always the next entry after the latest (given by idx)
+  j = current_status->info_start_idx+1;
+  for (i=0; i < 8; i++) {
+    j = j & 7;
+    // do colouring of different messages
+    switch (current_status->info[j][0]) {
+    case 'W': // WARNING
+      col = DARK_YELLOW;
+      break;
+    case 'E': // ERROR
+      col = RED;
+      break;
+    case 'I': // INFO
+      col = GRAY;
+      break;
+    default: // DEBUG
+      col = DARK_CYAN;
+      break;
+    }
+    OSD_WriteRC(6+i, 0, current_status->info[j++], 0, col, BLACK);
+  }
+
+  // print status line
+  print_centered_status("LEFT/RIGHT - %s/ESC", current_status->hotkey_string);
+}
+
+//
+// POP UP MESSAGE HANDLER
+//
+static void _MENU_show_popup(status_t *current_status)
+{
+  const uint8_t startrow = (16-MENU_POPUP_HEIGHT)>>1;
+  const uint8_t startcol = (32-MENU_POPUP_WIDTH)>>1;
+  // Currently there are 2 popups. If we add more, things could be more generic
+  const static char *popup_choices[2][2] = {{"yes", "no"}, {"save", "ignore"}};
+  const char** choices = popup_choices[current_status->selections==MENU_POPUP_YESNO ? 0 : 1];
+  uint8_t row = startrow;
+  uint8_t chwidths[2] = {strlen(choices[0]), strlen(choices[1])};
+  uint8_t chcols[2] = {current_status->selected ? DARK_RED : WHITE,
+                       current_status->selected ? WHITE : DARK_RED};
+
+  // draw red popup 'box'
+  do {
+    const char line[MENU_POPUP_WIDTH]="                    ";
+    OSD_WriteRCt(row, startcol, line, MENU_POPUP_WIDTH, 0, BLACK, DARK_RED);
+  } while(++row < startrow + MENU_POPUP_HEIGHT);
+
+  // write pop-up message, centered
+  OSD_WriteRC(startrow+1, startcol+(MENU_POPUP_WIDTH>>1)-(strlen(current_status->popup_msg)>>1),
+              current_status->popup_msg, 0, WHITE, DARK_RED);
+  // write choices
+  OSD_WriteRC(row-2, startcol+2, choices[0], 0, chcols[0], chcols[1]);
+  OSD_WriteRC(row-2, startcol+MENU_POPUP_WIDTH-2-chwidths[1], choices[1], 0, chcols[1], chcols[0]);
+}
+
+//
+// FILEBROWSER HANDLER
+//
+void _MENU_show_file_browser(status_t *current_status)
+{
+  uint32_t i; // used for loops
+
+  // handling file browser part
+  OSD_WriteRC(0, 3,    "      FILE  BROWSER       ", 0, YELLOW, BLACK);
+
+  char *filename;
+  FF_DIRENT entry;
+
+  // show filter in header
+  uint8_t sel = Filesel_GetSel(dir_scan);
+  if (dir_scan->file_filter[0]) {
+    char s[OSDMAXLEN+1];
+    size_t len = strlen(dir_scan->file_filter);
+    s[0]='*';
+    memcpy(s+1, dir_scan->file_filter, len);
+    s[len+1]='*';
+    s[len+2]=0;
+    OSD_WriteRC(1, 0, s ,0,WHITE,DARK_BLUE);
+  }
+
+  // show file/directory list
+  if (dir_scan->total_entries == 0) {
+    // nothing there
+    char s[OSDMAXLEN+1];
+    strcpy(s, "            No files                   ");
+    OSD_WriteRC(1+2, 0, s, 1, RED, BLACK);
+  } else {
+    for (i = 0; i < MENU_HEIGHT; i++) {
+      char s[OSDMAXLEN+1];
+      memset(s, ' ', OSDMAXLEN); // clear line buffer
+      s[OSDMAXLEN] = 0; // set temporary string length to OSD line length
+
+      entry = Filesel_GetLine(dir_scan, i);
+      filename = entry.FileName;
+
+      uint16_t len = strlen(filename);
+      if (i==sel) {
+        if (len > OSDLINELEN) { // enable scroll if long name
+          strncpy (current_status->scroll_txt, filename, FF_MAX_FILENAME);
+          current_status->scroll_pos=i+2;
+          current_status->scroll_len=len;
+        }
+      }
+
+      if (entry.Attrib & FF_FAT_ATTR_DIR) {
+        // a directory
+        strncpy (s, filename, OSDMAXLEN);
+        OSD_WriteRC(i+2, 0, s, i==sel, GREEN, BLACK);
+      } else {
+        // a file
+        strncpy (s, filename, OSDMAXLEN);
+        OSD_WriteRC(i+2, 0, s, i==sel, CYAN, BLACK);
+      }
+
+    }
+  }
+  // print status line
+  print_centered_status("UP/DOWN/RET/ESC - %s", current_status->hotkey_string);
+}
+
+//
+// SETUP MENUS / GENERAL CONFIG HANDLER
+//
+void _MENU_show_config_menu(status_t *current_status)
+{
+  tOSDColor col; // used for selecting text fg color
+  menuitem_t *pItem=current_status->item_first;
+  uint8_t line=0, row=2;
+
+  OSD_WriteRC(0, 3, "      REPLAY CONFIG      ", 0, RED, BLACK);
+  if (!pItem) {
+    // print  "selected" menu title (we pan through menus)
+    OSD_WriteRC(row++, MENU_INDENT, current_status->menu_act->menu_title,
+                1, YELLOW, BLACK);
+    pItem=current_status->menu_act->item_list;
+    current_status->menu_item_act=NULL;
+  } else {
+    // print  "not selected" menu title  (we select and modify items)
+    OSD_WriteRC(row++, MENU_INDENT, current_status->menu_act->menu_title,
+                                     0, YELLOW, BLACK);
+  }
+  // show the item_name list to browse
+  while (pItem && ((line++)<(MENU_HEIGHT-1))) {
+
+    OSD_WriteRCt(row, MENU_ITEM_INDENT, pItem->item_name,
+                 MENU_OPTION_INDENT-MENU_ITEM_INDENT, 0, CYAN, BLACK);
+
+    // temp bodge to show read only flags
+    if MATCH(pItem->action_name,"cha_select") {
+      if ((current_status->fileio_cha_ena >> pItem->action_value) & 1) {
+        if (FileIO_FCh_GetReadOnly(0,pItem->action_value)) {
+          OSD_WriteRC(row, 0, "R", 0, GREEN, BLACK);
+        } else if (FileIO_FCh_GetProtect(0,pItem->action_value)) {
+          OSD_WriteRC(row, 0, "P", 0, GREEN, BLACK);
+        }
+      }
+    }
+
+    if MATCH(pItem->action_name,"chb_select") {
+      if ((current_status->fileio_chb_ena >> pItem->action_value) & 1) {
+        if (FileIO_FCh_GetReadOnly(1,pItem->action_value)) {
+          OSD_WriteRC(row, 0, "R", 0, GREEN, BLACK);
+        } else if (FileIO_FCh_GetProtect(1,pItem->action_value)) {
+          OSD_WriteRC(row, 0, "P", 0, GREEN, BLACK);
+        }
+      }
+    }
+
+    // no selection yet set, set to first option in list as default
+    if (!pItem->selected_option) {
+      pItem->selected_option = pItem->option_list;
+    }
+    // check for action before displaying
+    _MENU_action(pItem, current_status, ACTION_DISPLAY);
+
+    col = pItem->conf_dynamic ? WHITE : GREEN;
+
+    // check if we really have an option_name, otherwise show placeholder
+    if (pItem->selected_option->option_name[0]) {
+      OSD_WriteRCt(row, MENU_OPTION_INDENT,
+                  pItem->selected_option->option_name,
+                  MENU_WIDTH-MENU_OPTION_INDENT, // len limit
+                  pItem==current_status->menu_item_act?1:0, col, BLACK);
+    }
+    else {
+      OSD_WriteRC(row, MENU_OPTION_INDENT, " ",
+                  pItem==current_status->menu_item_act?1:0, WHITE, BLACK);
+    }
+    row++;
+    // keep last item_name shown
+    current_status->item_last = pItem;
+    pItem = pItem->next;
+  }
+  // print status line
+  print_centered_status("UP/DWN/LE/RI - %s/ESC", current_status->hotkey_string);
+}
+
+// TODO: colours from INI file instead of hardcoding...?
+void _MENU_update_ui(status_t *current_status)
+{
   current_status->scroll_pos=0;
 
   // clear OSD area and set the minimum header/footer lines we always need
@@ -463,206 +699,10 @@ void _MENU_update_ui(status_t *current_status)
   OSD_WriteRC(1, 0,  "= NO EMULATION - NO COMPROMISE =",0, DARK_MAGENTA, DARK_BLUE);
   OSD_WriteRC(14, 0, "                                ", 0, BLACK, DARK_BLUE);
 
-  if ((current_status->menu_state & SHOW_STATUS) != 0) {
-    //
-    // STATUS SCREEN
-    //
-
-    // print fixed status lines and a separator line
-    for (i = 0; i < 3; i++) {
-      OSD_WriteRC(2+i, 0, current_status->status[i], 0, GRAY, BLACK);
-    }
-    OSD_WriteRC(2+i, 0,   "                                ", 0, BLACK, DARK_BLUE);
-
-    // finally print the "scrolling" info lines, we start with the oldest
-    // entry which is always the next entry after the latest (given by idx)
-    j = current_status->info_start_idx+1;
-    for (i=0; i < 8; i++) {
-      j = j & 7;
-      // do colouring of different messages
-      switch (current_status->info[j][0]) {
-      case 'W': // WARNING
-        col = DARK_YELLOW;
-        break;
-      case 'E': // ERROR
-        col = RED;
-        break;
-      case 'I': // INFO
-        col = GRAY;
-        break;
-      default: // DEBUG
-        col = DARK_CYAN;
-        break;
-      }
-      OSD_WriteRC(6+i, 0, current_status->info[j++], 0, col, BLACK);
-    }
-
-    // print status line
-    print_centered_status("LEFT/RIGHT - %s/ESC", current_status->hotkey_string);
-  }
-  else if ((current_status->menu_state & POPUP_MENU) != 0) {
-    //
-    // POP UP MESSAGE HANDLER
-    //
-    const uint8_t startrow = (16-MENU_POPUP_HEIGHT)>>1;
-    const uint8_t startcol = (32-MENU_POPUP_WIDTH)>>1;
-    // Currently there are 2 popups. If we add more, things could be more generic
-    const static char *popup_choices[2][2] = {{"yes", "no"}, {"save", "ignore"}};
-    const char** choices = popup_choices[current_status->selections==MENU_POPUP_YESNO ? 0 : 1];
-    uint8_t row = startrow;
-    uint8_t chwidths[2] = {strlen(choices[0]), strlen(choices[1])};
-    uint8_t chcols[2] = {current_status->selected ? DARK_RED : WHITE,
-                         current_status->selected ? WHITE : DARK_RED};
-
-    // draw red popup 'box'
-    do {
-      const char line[MENU_POPUP_WIDTH]="                    ";
-      OSD_WriteRCt(row, startcol, line, MENU_POPUP_WIDTH, 0, BLACK, DARK_RED);
-    } while(++row < startrow + MENU_POPUP_HEIGHT);
-
-    // write pop-up message, centered
-    OSD_WriteRC(startrow+1, startcol+(MENU_POPUP_WIDTH>>1)-(strlen(current_status->popup_msg)>>1),
-                current_status->popup_msg, 0, WHITE, DARK_RED);
-    // write choices
-    OSD_WriteRC(row-2, startcol+2, choices[0], 0, chcols[0], chcols[1]);
-    OSD_WriteRC(row-2, startcol+MENU_POPUP_WIDTH-2-chwidths[1], choices[1], 0, chcols[1], chcols[0]);
-  }
-  else {
-    //
-    // SETUP and FILEBROWSER HANDLER
-    //
-    menuitem_t *pItem=current_status->item_first;
-    uint8_t line=0, row=2;
-
-    if ( (current_status->menu_state & FILE_BROWSER) != 0) {
-      // handling file browser part
-      OSD_WriteRC(0, 3,    "      FILE  BROWSER       ", 0, YELLOW, BLACK);
-
-      char *filename;
-      FF_DIRENT entry;
-
-      // show filter in header
-      uint8_t sel = Filesel_GetSel(current_status->dir_scan);
-      if (current_status->dir_scan->file_filter[0]) {
-        char s[OSDMAXLEN+1];
-        size_t len = strlen(current_status->dir_scan->file_filter);
-        s[0]='*';
-        memcpy(s+1, current_status->dir_scan->file_filter, len);
-        s[len+1]='*';
-        s[len+2]=0;
-        OSD_WriteRC(1, 0, s ,0,WHITE,DARK_BLUE);
-      }
-
-      // show file/directory list
-      if (current_status->dir_scan->total_entries == 0) {
-        // nothing there
-        char s[OSDMAXLEN+1];
-        strcpy(s, "            No files                   ");
-        OSD_WriteRC(1+2, 0, s, 1, RED, BLACK);
-      } else {
-        for (i = 0; i < MENU_HEIGHT; i++) {
-          char s[OSDMAXLEN+1];
-          memset(s, ' ', OSDMAXLEN); // clear line buffer
-          s[OSDMAXLEN] = 0; // set temporary string length to OSD line length
-
-          entry = Filesel_GetLine(current_status->dir_scan, i);
-          filename = entry.FileName;
-
-          uint16_t len = strlen(filename);
-          if (i==sel) {
-            if (len > OSDLINELEN) { // enable scroll if long name
-              strncpy (current_status->scroll_txt, filename, FF_MAX_FILENAME);
-              current_status->scroll_pos=i+2;
-              current_status->scroll_len=len;
-            }
-          }
-
-          if (entry.Attrib & FF_FAT_ATTR_DIR) {
-            // a directory
-            strncpy (s, filename, OSDMAXLEN);
-            OSD_WriteRC(i+2, 0, s, i==sel, GREEN, BLACK);
-          } else {
-            // a file
-            strncpy (s, filename, OSDMAXLEN);
-            OSD_WriteRC(i+2, 0, s, i==sel, CYAN, BLACK);
-          }
-
-        }
-      }
-      // print status line
-      print_centered_status("UP/DOWN/RET/ESC - %s", current_status->hotkey_string);
-    } else {
-      //
-      // handling replay setup part (general menus)
-      //
-      OSD_WriteRC(0, 3, "      REPLAY CONFIG      ", 0, RED, BLACK);
-      if (!pItem) {
-        // print  "selected" menu title (we pan through menus)
-        OSD_WriteRC(row++, MENU_INDENT, current_status->menu_act->menu_title,
-                    1, YELLOW, BLACK);
-        pItem=current_status->menu_act->item_list;
-        current_status->menu_item_act=NULL;
-      } else {
-        // print  "not selected" menu title  (we select and modify items)
-        OSD_WriteRC(row++, MENU_INDENT, current_status->menu_act->menu_title,
-                                         0, YELLOW, BLACK);
-      }
-      // show the item_name list to browse
-      while (pItem && ((line++)<(MENU_HEIGHT-1))) {
-
-        OSD_WriteRCt(row, MENU_ITEM_INDENT, pItem->item_name,
-                     MENU_OPTION_INDENT-MENU_ITEM_INDENT, 0, CYAN, BLACK);
-
-        // temp bodge to show read only flags
-        if MATCH(pItem->action_name,"cha_select") {
-          if ((current_status->fileio_cha_ena >> pItem->action_value) & 1) {
-            if (FileIO_FCh_GetReadOnly(0,pItem->action_value)) {
-              OSD_WriteRC(row, 0, "R", 0, GREEN, BLACK);
-            } else if (FileIO_FCh_GetProtect(0,pItem->action_value)) {
-              OSD_WriteRC(row, 0, "P", 0, GREEN, BLACK);
-            }
-          }
-        }
-
-        if MATCH(pItem->action_name,"chb_select") {
-          if ((current_status->fileio_chb_ena >> pItem->action_value) & 1) {
-            if (FileIO_FCh_GetReadOnly(1,pItem->action_value)) {
-              OSD_WriteRC(row, 0, "R", 0, GREEN, BLACK);
-            } else if (FileIO_FCh_GetProtect(1,pItem->action_value)) {
-              OSD_WriteRC(row, 0, "P", 0, GREEN, BLACK);
-            }
-          }
-        }
-
-        // no selection yet set, set to first option in list as default
-        if (!pItem->selected_option) {
-          pItem->selected_option = pItem->option_list;
-        }
-        // check for action before displaying
-        _MENU_action(pItem,current_status,0);
-
-        col = pItem->conf_dynamic ? WHITE : GREEN;
-
-        // check if we really have an option_name, otherwise show placeholder
-        if (pItem->selected_option->option_name[0]) {
-          OSD_WriteRCt(row, MENU_OPTION_INDENT,
-                      pItem->selected_option->option_name,
-                      MENU_WIDTH-MENU_OPTION_INDENT, // len limit
-                      pItem==current_status->menu_item_act?1:0, col, BLACK);
-        }
-        else {
-          OSD_WriteRC(row, MENU_OPTION_INDENT, " ",
-                      pItem==current_status->menu_item_act?1:0, WHITE, BLACK);
-        }
-        row++;
-        // keep last item_name shown
-        current_status->item_last = pItem;
-        pItem = pItem->next;
-      }
-      // print status line
-      print_centered_status("UP/DWN/LE/RI - %s/ESC", current_status->hotkey_string);
-    }
-  }
+  if (current_status->menu_state == SHOW_STATUS) { _MENU_show_status(current_status); }
+  else if (current_status->menu_state == POPUP_MENU) { _MENU_show_popup(current_status) ; }
+  else if (current_status->menu_state == FILE_BROWSER) { _MENU_show_file_browser(current_status); } 
+  else { _MENU_show_config_menu(current_status); }
 }
 
 typedef uint8_t (*tKeyMappingCallback)(status_t *, uint16_t);
@@ -695,7 +735,7 @@ uint8_t key_action_menu_left(status_t *current_status, uint16_t key)
       current_status->menu_act = current_status->menu_act->last;
     } else {
       // we had the first entry, so switch to status page
-      current_status->menu_state = SHOW_STATUS;
+      MENU_set_state(current_status, SHOW_STATUS);
     }
   }
   return 1; // update
@@ -722,7 +762,7 @@ uint8_t key_action_menu_right(status_t *current_status, uint16_t key)
       current_status->menu_act=current_status->menu_act->next;
     } else {
       // we had the last entry, so switch to status page
-      current_status->menu_state = SHOW_STATUS;
+      MENU_set_state(current_status, SHOW_STATUS);
     }
   }
   return 1; // update
@@ -786,7 +826,7 @@ uint8_t key_action_menu_enter(status_t *current_status, uint16_t key)
 {
   if (current_status->menu_item_act->action_name[0]) {
     // check for menu action and update display if succesfully
-    return _MENU_action(current_status->menu_item_act, current_status, 1);
+    return _MENU_action(current_status->menu_item_act, current_status, ACTION_MENU_EXECUTE);
   }
   return 0;
 }
@@ -801,7 +841,7 @@ uint8_t key_action_menu_esc(status_t *current_status, uint16_t key)
   }
   else {
     // exit from menu, but ask what to do
-    current_status->menu_state |= POPUP_MENU;
+    MENU_set_state(current_status, POPUP_MENU);
     strcpy(current_status->popup_msg," Reset Target? ");
     current_status->selections = MENU_POPUP_YESNO;
     current_status->selected = 0;
@@ -833,31 +873,31 @@ uint8_t key_action_menu_protect(status_t *current_status, uint16_t key)
 
 uint8_t key_action_filebrowser_left(status_t *current_status, uint16_t key)
 {
-  Filesel_Update(current_status->dir_scan, SCAN_PREV_PAGE);
+  Filesel_Update(dir_scan, SCAN_PREV_PAGE);
   return 1; // update
 }
 
 uint8_t key_action_filebrowser_right(status_t *current_status, uint16_t key)
 {
-  Filesel_Update(current_status->dir_scan, SCAN_NEXT_PAGE);
+  Filesel_Update(dir_scan, SCAN_NEXT_PAGE);
   return 1; // update
 }
 
 uint8_t key_action_filebrowser_up(status_t *current_status, uint16_t key)
 {
-  Filesel_Update(current_status->dir_scan, SCAN_PREV);
+  Filesel_Update(dir_scan, SCAN_PREV);
   return 1;
 }
 
 uint8_t key_action_filebrowser_down(status_t *current_status, uint16_t key)
 {
-  Filesel_Update(current_status->dir_scan, SCAN_NEXT);
+  Filesel_Update(dir_scan, SCAN_NEXT);
   return 1;
 }
 
 uint8_t key_action_filebrowser_enter(status_t *current_status, uint16_t key)
 {
-  FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan, current_status->dir_scan->sel);
+  FF_DIRENT mydir = Filesel_GetEntry(dir_scan, dir_scan->sel);
 
   if (mydir.Attrib & FF_FAT_ATTR_DIR) {
     //dir_sel
@@ -870,8 +910,8 @@ uint8_t key_action_filebrowser_enter(status_t *current_status, uint16_t key)
                 mydir.FileName);
       }
       // sets path
-      Filesel_ChangeDir(current_status->dir_scan, current_status->act_dir);
-      Filesel_ScanFirst(current_status->dir_scan); // scan first
+      Filesel_ChangeDir(dir_scan, current_status->act_dir);
+      Filesel_ScanFirst(dir_scan); // scan first
       return 1;
     }
     return 0;
@@ -879,20 +919,20 @@ uint8_t key_action_filebrowser_enter(status_t *current_status, uint16_t key)
   else {
     // check for filebrowser action and update display if successful
     return _MENU_action(current_status->menu_item_act,
-                        current_status, 2);
+                        current_status, ACTION_BROWSER_EXECUTE);
   }
 }
 
 uint8_t key_action_filebrowser_esc(status_t *current_status, uint16_t key)
 {
   // quit filebrowsing w/o changes
-  current_status->menu_state = SHOW_MENU;
+  MENU_set_state(current_status, SHOW_MENU);
   return 1;
 }
 
 uint8_t key_action_filebrowser_back(status_t *current_status, uint16_t key)
 {
-  Filesel_DelFilterChar(current_status->dir_scan);
+  Filesel_DelFilterChar(dir_scan);
   // keep grace period here before re-scanning - user might be typing..
   current_status->filescan_timer = Timer_Get(250);
   current_status->delayed_filescan=1;
@@ -901,8 +941,8 @@ uint8_t key_action_filebrowser_back(status_t *current_status, uint16_t key)
 
 uint8_t key_action_filebrowser_home(status_t *current_status, uint16_t key)
 {
-  Filesel_ChangeDir(current_status->dir_scan, current_status->act_dir);
-  Filesel_ScanFirst(current_status->dir_scan); // scan first
+  Filesel_ChangeDir(dir_scan, current_status->act_dir);
+  Filesel_ScanFirst(dir_scan); // scan first
   return 1;
 }
 
@@ -910,7 +950,7 @@ uint8_t key_action_filebrowser_home(status_t *current_status, uint16_t key)
 uint8_t key_action_filebrowser_default(status_t *current_status, uint16_t key)
 {
   if ( ((key >= '0') && (key<='9')) || ((key >= 'A') && (key<='Z')) ) {
-    Filesel_AddFilterChar(current_status->dir_scan, key&0x7F);
+    Filesel_AddFilterChar(dir_scan, key&0x7F);
     // keep grace period here before re-scanning - user might be typing..
     current_status->filescan_timer = Timer_Get(250);
     current_status->delayed_filescan=1;
@@ -926,7 +966,7 @@ uint8_t key_action_showstatus_left(status_t *current_status, uint16_t key)
   while (current_status->menu_act->next) {
     current_status->menu_act=current_status->menu_act->next;
   }
-  current_status->menu_state = SHOW_MENU;
+  MENU_set_state(current_status, SHOW_MENU);
   return 1;
 }
 
@@ -936,7 +976,7 @@ uint8_t key_action_showstatus_right(status_t *current_status, uint16_t key)
   while (current_status->menu_act->last) {
     current_status->menu_act=current_status->menu_act->last;
   }
-  current_status->menu_state = SHOW_MENU;
+  MENU_set_state(current_status, SHOW_MENU);
   return 1;
 }
 
@@ -951,7 +991,7 @@ uint8_t key_action_popup_left_right(status_t *current_status, uint16_t key)
 uint8_t key_action_popup_enter(status_t *current_status, uint16_t key)
 {
   // ok, we don't have anything set yet to handle the result
-  current_status->menu_state = NO_MENU;
+  MENU_set_state(current_status, NO_MENU);
   OSD_Disable();
   if (current_status->selected) {
     return _MENU_update(current_status);
@@ -961,7 +1001,7 @@ uint8_t key_action_popup_enter(status_t *current_status, uint16_t key)
 
 uint8_t key_action_popup_esc(status_t *current_status, uint16_t key)
 {
-  current_status->menu_state = SHOW_MENU;
+  MENU_set_state(current_status, SHOW_MENU);
   return 1;
 }
 
@@ -1038,14 +1078,14 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
         return 0;
       } else {
         // hide menu after ~30 sec
-        current_status->menu_state = NO_MENU;
+        MENU_set_state(current_status, NO_MENU);
         OSD_Disable();
         return 0;
       }
     }
   } else {
     if (update) {
-      current_status->menu_state = SHOW_STATUS;
+      MENU_set_state(current_status, SHOW_STATUS);
       osd_timeout=Timer_Get(1000);
       // show half the time
       osd_timeout_cnt=15;
@@ -1059,14 +1099,14 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
 
     if (current_status->menu_state) {
       // hide menu
-      current_status->menu_state = NO_MENU;
+      MENU_set_state(current_status, NO_MENU);
       OSD_Disable();
       return 0;
     }
     else {
       // show menu (if there is something to show)
       if (current_status->menu_top) {
-        current_status->menu_state = SHOW_STATUS;
+        MENU_set_state(current_status, SHOW_STATUS);
         update=1;
         // set timeout
         osd_timeout=Timer_Get(1000);
@@ -1077,20 +1117,20 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
 
   // --------------------------------------------------
 
-  else if (current_status->menu_state & POPUP_MENU) {
+  else if (current_status->menu_state == POPUP_MENU) {
     // special pop-up handler
     key_mappings = keymappings_popup;
     key_mappings_length = sizeof(keymappings_popup)/sizeof(tKeyMapping);
   }
-  else if (current_status->menu_state & FILE_BROWSER) {
+  else if (current_status->menu_state == FILE_BROWSER) {
     key_mappings = keymappings_filebrowser;
     key_mappings_length = sizeof(keymappings_filebrowser)/sizeof(tKeyMapping);
-  } else if ((current_status->menu_state & SHOW_STATUS) &&
+  } else if ((current_status->menu_state == SHOW_STATUS) &&
              (current_status->fpga_load_ok != 2)) {
     key_mappings = keymappings_showstatus;
     key_mappings_length = sizeof(keymappings_showstatus)/sizeof(tKeyMapping);
   }
-  else if (current_status->menu_state & SHOW_MENU) {
+  else if (current_status->menu_state == SHOW_MENU) {
     key_mappings = keymappings_menu;
     key_mappings_length = sizeof(keymappings_menu)/sizeof(tKeyMapping);
   }
@@ -1114,7 +1154,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
   
   // Add/DelFilterChar waits 250ms before re-scanning the directory and updating the UI
   if (current_status->delayed_filescan && Timer_Check(current_status->filescan_timer)) {
-    Filesel_ScanFirst(current_status->dir_scan);
+    Filesel_ScanFirst(dir_scan);
     current_status->delayed_filescan=0;
     update=1;
   }
@@ -1134,7 +1174,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status)
     }
   } else {
     // scroll if needed
-    if ((current_status->menu_state & FILE_BROWSER) && current_status->scroll_pos) {
+    if ((current_status->menu_state == FILE_BROWSER) && current_status->scroll_pos) {
       uint16_t len    = current_status->scroll_len;
 
       if (!scroll_started) {
@@ -1230,8 +1270,30 @@ uint8_t _MENU_update(status_t *current_status) {
     Timer_Wait(100);
     // fall back to status screen
     current_status->update=1;
-    current_status->menu_state = SHOW_STATUS;
+    MENU_set_state(current_status, SHOW_STATUS);
   }
   return 1;
 }
 
+void MENU_set_state(status_t *current_status, tOSDMenuState state)
+{
+  if (current_status->menu_state == state)
+    return;
+
+  DEBUG(1,"_MENU_set_state(%d)", state);
+
+  if (state == FILE_BROWSER) {
+    if (CFG_get_free_mem() < sizeof(tDirScan)) {
+      ERROR("MENU: Out of memory!");
+    }
+    dir_scan = malloc(sizeof(tDirScan));
+    memset(dir_scan, 0x00, sizeof(tDirScan));    
+  } else if (dir_scan) {
+    memcpy(current_status->previous_file_filter, dir_scan->file_filter, sizeof(dir_scan->file_filter));          
+    free(dir_scan);
+    dir_scan = 0;
+  }
+
+  // const_cast and write the new value
+  *(tOSDMenuState*)(&current_status->menu_state) = state;
+}

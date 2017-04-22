@@ -342,8 +342,8 @@ typedef struct {
   uint8_t  delayed_filescan;
   uint32_t filescan_timer;
 
-  /* indicated the current menu state (see typedef tOSDMenuState */
-  tOSDMenuState      menu_state;
+  /* indicated the current menu state (see typedef tOSDMenuState) READ-ONLY! */
+  const tOSDMenuState menu_state;
   
   /** set to 1 if update is pending and must be processed by handle_ui() */
   uint8_t      update;
@@ -409,8 +409,8 @@ typedef struct {
 
   /* ======== file browser stuff menu ======== */
 
-  /** structure handling directory browsing */
-  tDirScan     *dir_scan;
+  /** store previous file filter (manual search string) */
+  char         previous_file_filter[sizeof(((tDirScan*)0)->file_filter)];
 
   /** the actual browser directory path */
   char         act_dir[FF_MAX_PATH];

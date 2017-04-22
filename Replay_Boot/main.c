@@ -58,6 +58,7 @@
 #include "menu.h"
 #include "osd.h"
 #include "messaging.h"
+#include <sys/unistd.h> // sbrk()
 
 extern char _binary_buildnum_start;	// from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
@@ -93,9 +94,10 @@ int main(void)
   MSG_init(&current_status,1);
 
   // directory scan structure
-  tDirScan dir_status;
-  current_status.dir_scan = &dir_status;
-  memset((void *)&dir_status,0,sizeof(tDirScan));
+// this is kept private in menu.c for now..
+//  tDirScan dir_status;
+//  current_status.dir_scan = &dir_status;
+//  memset((void *)&dir_status,0,sizeof(tDirScan));
   // end of variables
 
   SPI_Init();
@@ -344,11 +346,11 @@ static __attribute__ ((noinline)) void init_core()
   Timer_Wait(100);
 
   if (current_status.osd_init == OSD_INIT_ON) {
-    current_status.menu_state = SHOW_STATUS;
+    MENU_set_state(&current_status, SHOW_STATUS);
     current_status.update=1;
     OSD_Enable(DISABLE_KEYBOARD);
   } else {
-    current_status.menu_state = NO_MENU;
+    MENU_set_state(&current_status, NO_MENU);
     current_status.update=0;
   }
 }
@@ -357,6 +359,15 @@ static __attribute__ ((noinline)) void main_update()
 {
   // MAIN LOOP
   uint16_t key;
+
+  if (0) { // track available stack headroom; needed for gunzip
+    static uint16_t loop = 0;
+    uint8_t* const unused  = (uint8_t*)sbrk(0);             // address of next heap block
+    uint8_t* const stack   = (uint8_t*)__builtin_frame_address(0); // current stack frame
+    uint32_t avail = stack - unused;
+    if ((loop++) == 0)
+      DEBUG(1,"AVAIL = $%x (%d) bytes ( STACK_END = %8x ; HEAP_TOP = %8x )", avail, avail, stack, unused);
+  }
 
   // track memory usage, and detect heap/stack stomp
   if (2<=debuglevel)

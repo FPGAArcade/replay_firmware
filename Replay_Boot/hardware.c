@@ -610,7 +610,7 @@ void SSC_WriteBufferSingle(void *pBuffer, uint32_t length, uint32_t wait)
 //
 void TWI_Configure(void)
 {
-  volatile uint32_t read;
+  volatile __attribute__((unused)) uint32_t read;
   // PA4  SCL                     output  (TWI)
   // PA3  SDA                     output  (TWI)
 

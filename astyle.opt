@@ -1,0 +1,26 @@
+# astyle --options=astyle.opt --recursive src\*.cpp src\*.h test\*.cpp test\*.h
+######################################################################################
+
+# Set the initial style
+--style=kr
+
+# Add brackets to unbracketed one line conditional statements
+add-brackets
+#keep-one-line-blocks
+
+# Pad empty lines around header blocks
+-F
+
+# attach a pointer or reference operator (*, &, or ^) to the variable name
+align-pointer=type
+align-reference=type
+
+
+indent-modifiers
+indent-switches
+indent-preprocessor
+indent-col1-comments
+
+pad-oper
+pad-header
+#unpad-paren

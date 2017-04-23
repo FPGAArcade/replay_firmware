@@ -59,27 +59,26 @@
 #define SCAN_END 0
 
 typedef struct file_ext {
-  char ext[4];  // "EXT\0"
+    char ext[4];  // "EXT\0"
 } file_ext_t;
 
-typedef struct
-{
-  const file_ext_t* file_exts;  // list of extension strings used for scan (including /0)
-  char*      pPath;       // pointer to the path
+typedef struct {
+    const file_ext_t* file_exts;  // list of extension strings used for scan (including /0)
+    char*      pPath;       // pointer to the path
 
-  char       file_filter[12]; // filter string used for scan (including /0)
+    char       file_filter[12]; // filter string used for scan (including /0)
 
-  uint32_t   total_entries; // files + directories
-  uint8_t    prevc;
-  uint8_t    nextc;
-  uint8_t    refc; // ref valid
+    uint32_t   total_entries; // files + directories
+    uint8_t    prevc;
+    uint8_t    nextc;
+    uint8_t    refc; // ref valid
 
-  uint8_t    offset; // 128 = ref, >128 next, <128 prev
-  uint8_t    sel; // as above
+    uint8_t    offset; // 128 = ref, >128 next, <128 prev
+    uint8_t    sel; // as above
 
-  FF_DIRENT  dPrev[MAXDIRENTRIES];
-  FF_DIRENT  dRef;
-  FF_DIRENT  dNext[MAXDIRENTRIES];
+    FF_DIRENT  dPrev[MAXDIRENTRIES];
+    FF_DIRENT  dRef;
+    FF_DIRENT  dNext[MAXDIRENTRIES];
 } tDirScan;
 
 void Filesel_ScanUpdate(tDirScan* dir_entries);

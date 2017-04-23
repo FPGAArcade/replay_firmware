@@ -88,76 +88,77 @@ typedef enum {
     HDF
 } drv08_format_t;
 
-typedef struct
-{
-  drv08_format_t format;
+typedef struct {
+    drv08_format_t format;
 
-  uint32_t file_size;
-  uint16_t cylinders;
-  uint16_t heads;
-  uint16_t sectors;
-  uint16_t sectors_per_block;
-  uint32_t index[1024];
-  uint32_t index_size;
+    uint32_t file_size;
+    uint16_t cylinders;
+    uint16_t heads;
+    uint16_t sectors;
+    uint16_t sectors_per_block;
+    uint32_t index[1024];
+    uint32_t index_size;
 } drv08_desc_t;
 
-void Drv08_SwapBytes(uint8_t *ptr, uint32_t len)
+void Drv08_SwapBytes(uint8_t* ptr, uint32_t len)
 {
-  uint8_t x;
-  len >>= 1;
-  while (len--) {
-    x = ptr[0];
-    ptr[0] = ptr[1];
-    ptr[1] = x;
-    ptr += 2;
-  }
+    uint8_t x;
+    len >>= 1;
+
+    while (len--) {
+        x = ptr[0];
+        ptr[0] = ptr[1];
+        ptr[1] = x;
+        ptr += 2;
+    }
 }
 
-uint32_t Drv08_chs2lba(drv08_desc_t *pDesc, uint16_t cylinder, uint8_t head, uint16_t sector)
+uint32_t Drv08_chs2lba(drv08_desc_t* pDesc, uint16_t cylinder, uint8_t head, uint16_t sector)
 {
-  return(cylinder * pDesc->heads + head) * pDesc->sectors + sector - 1;
+    return (cylinder * pDesc->heads + head) * pDesc->sectors + sector - 1;
 }
 
-void Drv08_IdentifyDevice(fch_t *pDrive, drv08_desc_t *pDesc, uint16_t *pBuffer) // buffer needs to be >=512 bytes
-{ // builds Identify Device struct
+void Drv08_IdentifyDevice(fch_t* pDrive, drv08_desc_t* pDesc, uint16_t* pBuffer) // buffer needs to be >=512 bytes
+{
+    // builds Identify Device struct
 
-  char *p;
-  uint32_t total_sectors = pDesc->cylinders * pDesc->heads * pDesc->sectors;
+    char* p;
+    uint32_t total_sectors = pDesc->cylinders * pDesc->heads * pDesc->sectors;
 
-  memset(pBuffer, 0, 512);
+    memset(pBuffer, 0, 512);
 
-  pBuffer[0] = 1 << 6; // hard disk
-  pBuffer[1] = pDesc->cylinders; // cyl count
-  pBuffer[3] = pDesc->heads;     // head count
-  pBuffer[6] = pDesc->sectors;   // sectors per track
-  memcpy((char*)&pBuffer[10], "FPGA ARCADE ATA DRV ", 20); // serial number
-  memcpy((char*)&pBuffer[23], ".100    ", 8); // firmware version
-  //
-  p = (char*)&pBuffer[27];
-  memcpy(p, "Replay                                  ", 40); // model name - byte swapped
-  p += 8;
-  strncpy(p,(char *)pDrive->name,16);      // file name as part of model name - byte swapped
-  Drv08_SwapBytes((uint8_t*)&pBuffer[27], 40);
-  //
-  pBuffer[47] = 0x8010; //maximum sectors per block in Read/Write Multiple command (16 in this case) 8K bytes (4K * 16)
-  pBuffer[53] = 1;
-  pBuffer[54] = pDesc->cylinders;
-  pBuffer[55] = pDesc->heads;
-  pBuffer[56] = pDesc->sectors;
-  pBuffer[57] = (uint16_t) total_sectors;
-  pBuffer[58] = (uint16_t)(total_sectors >> 16);
-  pBuffer[60] = (uint16_t) total_sectors;
-  pBuffer[61] = (uint16_t)(total_sectors >> 16);
+    pBuffer[0] = 1 << 6; // hard disk
+    pBuffer[1] = pDesc->cylinders; // cyl count
+    pBuffer[3] = pDesc->heads;     // head count
+    pBuffer[6] = pDesc->sectors;   // sectors per track
+    memcpy((char*)&pBuffer[10], "FPGA ARCADE ATA DRV ", 20); // serial number
+    memcpy((char*)&pBuffer[23], ".100    ", 8); // firmware version
+    //
+    p = (char*)&pBuffer[27];
+    memcpy(p, "Replay                                  ", 40); // model name - byte swapped
+    p += 8;
+    strncpy(p, (char*)pDrive->name, 16);     // file name as part of model name - byte swapped
+    Drv08_SwapBytes((uint8_t*)&pBuffer[27], 40);
+    //
+    pBuffer[47] = 0x8010; //maximum sectors per block in Read/Write Multiple command (16 in this case) 8K bytes (4K * 16)
+    pBuffer[53] = 1;
+    pBuffer[54] = pDesc->cylinders;
+    pBuffer[55] = pDesc->heads;
+    pBuffer[56] = pDesc->sectors;
+    pBuffer[57] = (uint16_t) total_sectors;
+    pBuffer[58] = (uint16_t)(total_sectors >> 16);
+    pBuffer[60] = (uint16_t) total_sectors;
+    pBuffer[61] = (uint16_t)(total_sectors >> 16);
 }
 
-  /*--$DA2000 Data               < tf0*/
-  /*--$DA2004 Error / Feature    < tf1*/
-  /*--$DA2008 SectorCount        < tf2*/
-  /*--$DA200C SectorNumber       < tf3*/
-  /*--$DA2010 CylinderLow        < tf4*/
-  /*--$DA2014 CylinderHigh       < tf5*/
-  /*--$DA2018 Device/Head        < tf6*/
-  /*--$DA201C Status / Command   < tf7*/
+/*--$DA2000 Data               < tf0*/
+/*--$DA2004 Error / Feature    < tf1*/
+/*--$DA2008 SectorCount        < tf2*/
+/*--$DA200C SectorNumber       < tf3*/
+/*--$DA2010 CylinderLow        < tf4*/
+/*--$DA2014 CylinderHigh       < tf5*/
+/*--$DA2018 Device/Head        < tf6*/
+/*--$DA201C Status / Command   < tf7*/
 inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count, uint8_t sector_number, uint8_t cylinder_low, uint8_t cylinder_high, uint8_t drive_head)
 {
     SPI_EnableFileIO();
@@ -173,163 +174,172 @@ inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count,
 }
 
 
-FF_ERROR Drv08_HardFileSeek(fch_t *pDrive, drv08_desc_t *pDesc, uint32_t lba)
+FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
 {
 
-  uint32_t time = Timer_Get(0);
+    uint32_t time = Timer_Get(0);
 
-  FF_IOMAN  *pIoman = pDrive->fSource->pIoman;
-  uint32_t lba_byte = lba << 9;
+    FF_IOMAN*  pIoman = pDrive->fSource->pIoman;
+    uint32_t lba_byte = lba << 9;
 
-  // first check if we are moving to the same cluster
-  FF_T_UINT32 nNewCluster = FF_getClusterChainNumber(pIoman, lba_byte, 1);
+    // first check if we are moving to the same cluster
+    FF_T_UINT32 nNewCluster = FF_getClusterChainNumber(pIoman, lba_byte, 1);
 
-  if ((nNewCluster < pDrive->fSource->CurrentCluster) || (nNewCluster > (pDrive->fSource->CurrentCluster + 1)) )
-  {
-    // reposition using table
-    uint16_t idx = lba >> (pDesc->index_size - 9); // 9 as lba is in 512 byte sectors
-    uint32_t pos = lba_byte & (-1 << pDesc->index_size);
+    if ((nNewCluster < pDrive->fSource->CurrentCluster) || (nNewCluster > (pDrive->fSource->CurrentCluster + 1)) ) {
+        // reposition using table
+        uint16_t idx = lba >> (pDesc->index_size - 9); // 9 as lba is in 512 byte sectors
+        uint32_t pos = lba_byte & (-1 << pDesc->index_size);
 
-    nNewCluster = FF_getClusterChainNumber(pIoman, pos, 1);
+        nNewCluster = FF_getClusterChainNumber(pIoman, pos, 1);
 
-    Assert(idx<1024);
-    uint32_t index_cluster = pDesc->index[idx];
+        Assert(idx < 1024);
+        uint32_t index_cluster = pDesc->index[idx];
 
-    pDrive->fSource->FilePointer        = pos;
-    pDrive->fSource->CurrentCluster     = nNewCluster;
-    pDrive->fSource->AddrCurrentCluster = index_cluster;
+        pDrive->fSource->FilePointer        = pos;
+        pDrive->fSource->CurrentCluster     = nNewCluster;
+        pDrive->fSource->AddrCurrentCluster = index_cluster;
 
-    //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, nNewCluster, index_cluster);
-  }
+        //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, nNewCluster, index_cluster);
+    }
 
-  FF_ERROR err = FF_Seek(pDrive->fSource, lba_byte, FF_SEEK_SET);
+    FF_ERROR err = FF_Seek(pDrive->fSource, lba_byte, FF_SEEK_SET);
 
-  time = Timer_Get(0) - time;
+    time = Timer_Get(0) - time;
 
-  if ((time >> 20) > 100)
-    DEBUG(1,"Long seek time %lu ms.", time >> 20);
+    if ((time >> 20) > 100) {
+        DEBUG(1, "Long seek time %lu ms.", time >> 20);
+    }
 
-  return err;
+    return err;
 }
 
-void Drv08_FileReadSend(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
+void Drv08_FileReadSend(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
 {
 
-  uint32_t bytes_r = FF_Read(pDrive->fSource, DRV08_BLK_SIZE, 1, pBuffer);
+    uint32_t bytes_r = FF_Read(pDrive->fSource, DRV08_BLK_SIZE, 1, pBuffer);
 
-  /*DumpBuffer(pBuffer,DRV08_BLK_SIZE);*/
+    /*DumpBuffer(pBuffer,DRV08_BLK_SIZE);*/
 
-  // add error handling
-  if (bytes_r != DRV08_BLK_SIZE) {
-    DEBUG(1,"Drv08:!! Read Fail!!");
-  }
+    // add error handling
+    if (bytes_r != DRV08_BLK_SIZE) {
+        DEBUG(1, "Drv08:!! Read Fail!!");
+    }
 
-  SPI_EnableFileIO();
-  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
-  SPI_WriteBufferSingle(pBuffer, DRV08_BLK_SIZE);
-  SPI_DisableFileIO();
+    SPI_EnableFileIO();
+    rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_W));
+    SPI_WriteBufferSingle(pBuffer, DRV08_BLK_SIZE);
+    SPI_DisableFileIO();
 }
 
-void Drv08_FileReadSendDirect(uint8_t ch, fch_t *pDrive, uint8_t sector_count)
+void Drv08_FileReadSendDirect(uint8_t ch, fch_t* pDrive, uint8_t sector_count)
 {
-  // on entry assumes file is in correct position
-  // no flow control check, FPGA must be able to sink entire transfer.
-  SPI_EnableFileIO();
-  rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W));
-  SPI_EnableDirect();
-  SPI_DisableFileIO();
+    // on entry assumes file is in correct position
+    // no flow control check, FPGA must be able to sink entire transfer.
+    SPI_EnableFileIO();
+    rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_W));
+    SPI_EnableDirect();
+    SPI_DisableFileIO();
 
-  uint32_t bytes_r = FF_ReadDirect(pDrive->fSource, DRV08_BLK_SIZE, sector_count);
+    uint32_t bytes_r = FF_ReadDirect(pDrive->fSource, DRV08_BLK_SIZE, sector_count);
 
-  SPI_DisableDirect();
+    SPI_DisableDirect();
 
-  // add error handling
-  if (bytes_r != (DRV08_BLK_SIZE * sector_count)) {
-    DEBUG(1,"Drv08:!! Direct Read Fail!!");
-  }
+    // add error handling
+    if (bytes_r != (DRV08_BLK_SIZE * sector_count)) {
+        DEBUG(1, "Drv08:!! Direct Read Fail!!");
+    }
 
 }
 
-void Drv08_FileWrite(uint8_t ch, fch_t *pDrive, uint8_t *pBuffer)
+void Drv08_FileWrite(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
 {
-  // fix error handling
-  uint32_t bytes_w = FF_Write(pDrive->fSource, DRV08_BLK_SIZE, 1, pBuffer);
-  if (bytes_w != DRV08_BLK_SIZE) {
-    DEBUG(1,"Drv08:!! Write Fail!!");
-  }
+    // fix error handling
+    uint32_t bytes_w = FF_Write(pDrive->fSource, DRV08_BLK_SIZE, 1, pBuffer);
+
+    if (bytes_w != DRV08_BLK_SIZE) {
+        DEBUG(1, "Drv08:!! Write Fail!!");
+    }
 }
 
-inline void Drv08_GetParams(uint8_t tfr[8], drv08_desc_t *pDesc,  // inputs
-                            uint16_t *sector, uint16_t *cylinder, uint8_t *head, uint16_t *sector_count, uint32_t *lba, uint8_t *lba_mode)
+inline void Drv08_GetParams(uint8_t tfr[8], drv08_desc_t* pDesc,  // inputs
+                            uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint16_t* sector_count, uint32_t* lba, uint8_t* lba_mode)
 {
-  // given the register file, extract address and sector count.
-  // then convert this into an LBA.
+    // given the register file, extract address and sector count.
+    // then convert this into an LBA.
 
-  *sector_count = tfr[2];
-  *sector       = tfr[3]; // note, 8>16 bit
-  *cylinder     = tfr[4] | tfr[5]<<8;
-  *head         = tfr[6] & 0x0F;
-  *lba_mode     = (tfr[6] & 0x40);
+    *sector_count = tfr[2];
+    *sector       = tfr[3]; // note, 8>16 bit
+    *cylinder     = tfr[4] | tfr[5] << 8;
+    *head         = tfr[6] & 0x0F;
+    *lba_mode     = (tfr[6] & 0x40);
 
-  if (*sector_count == 0)
-    *sector_count = 0x100;
+    if (*sector_count == 0) {
+        *sector_count = 0x100;
+    }
 
-  if (*lba_mode)
-    *lba = (*head)<<24 | (*cylinder)<<8 | (*sector);
-  else
-    *lba = ( ((*cylinder) * pDesc->heads + (*head)) * pDesc->sectors) + (*sector) - 1;
+    if (*lba_mode) {
+        *lba = (*head) << 24 | (*cylinder) << 8 | (*sector);
 
-  if (DRV08_DEBUG) {
-    #ifdef DRV08_PARAM_DEBUG
-      DEBUG(1,"sector   : %d", *sector);
-      DEBUG(1,"cylinder : %d", *cylinder);
-      DEBUG(1,"head     : %d", *head);
-      DEBUG(1,"lba      : %ld", *lba);
-      DEBUG(1,"count    : %d", *sector_count);
-    #endif
-  }
+    } else {
+        *lba = ( ((*cylinder) * pDesc->heads + (*head)) * pDesc->sectors) + (*sector) - 1;
+    }
+
+    if (DRV08_DEBUG) {
+#ifdef DRV08_PARAM_DEBUG
+        DEBUG(1, "sector   : %d", *sector);
+        DEBUG(1, "cylinder : %d", *cylinder);
+        DEBUG(1, "head     : %d", *head);
+        DEBUG(1, "lba      : %ld", *lba);
+        DEBUG(1, "count    : %d", *sector_count);
+#endif
+    }
 }
 
 inline void Drv08_UpdateParams(uint8_t ch, uint8_t tfr[8], uint16_t sector, uint16_t cylinder, uint8_t head, uint32_t lba, uint8_t lba_mode)
 {
-  // note, we can only update the taskfile when BUSY
-  // all params inputs
-  uint8_t drive = tfr[6] & 0xF0;
+    // note, we can only update the taskfile when BUSY
+    // all params inputs
+    uint8_t drive = tfr[6] & 0xF0;
 
-  SPI_EnableFileIO();
-  rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_CMD_W | 0x03)); // write task file registers command
+    SPI_EnableFileIO();
+    rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_CMD_W | 0x03)); // write task file registers command
 
-  if (lba_mode) {
-    rSPI((uint8_t) (lba      ));
-    rSPI((uint8_t) (lba >>  8));
-    rSPI((uint8_t) (lba >> 16));
-    rSPI((uint8_t) (drive | ( (lba >> 24) & 0x0F)));
-  } else {
-    rSPI((uint8_t)  sector);
-    rSPI((uint8_t)  cylinder);
-    rSPI((uint8_t) (cylinder >> 8));
-    rSPI((uint8_t) (drive | (head & 0x0F)));
-  }
-  SPI_DisableFileIO();
+    if (lba_mode) {
+        rSPI((uint8_t) (lba      ));
+        rSPI((uint8_t) (lba >>  8));
+        rSPI((uint8_t) (lba >> 16));
+        rSPI((uint8_t) (drive | ( (lba >> 24) & 0x0F)));
+
+    } else {
+        rSPI((uint8_t)  sector);
+        rSPI((uint8_t)  cylinder);
+        rSPI((uint8_t) (cylinder >> 8));
+        rSPI((uint8_t) (drive | (head & 0x0F)));
+    }
+
+    SPI_DisableFileIO();
 }
 
-inline void Drv08_IncParams(drv08_desc_t *pDesc,  // inputs
-                            uint16_t *sector, uint16_t *cylinder, uint8_t *head, uint32_t *lba)
+inline void Drv08_IncParams(drv08_desc_t* pDesc,  // inputs
+                            uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint32_t* lba)
 {
-  // increment address.
-  // At command completion, the Command Block Registers contain the cylinder, head and sector number of the last sector read
-  if (*sector == pDesc->sectors) {
-    *sector = 1;
-    (*head)++;
-    if (*head == pDesc->heads) {
-      *head =0;
-      (*cylinder)++;
+    // increment address.
+    // At command completion, the Command Block Registers contain the cylinder, head and sector number of the last sector read
+    if (*sector == pDesc->sectors) {
+        *sector = 1;
+        (*head)++;
+
+        if (*head == pDesc->heads) {
+            *head = 0;
+            (*cylinder)++;
+        }
+
+    } else {
+        (*sector)++;
     }
-  } else {
-    (*sector)++;
-  }
-  // and the LBA
-  (*lba)++;
+
+    // and the LBA
+    (*lba)++;
 }
 //
 //
@@ -341,8 +351,8 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
     // to do, check how expensive this allocation is every time.
     // static buffer?
 
-    uint16_t  fbuf16[DRV08_BUF_SIZE/2]; // to get 16 bit alignment for id.
-    uint8_t  *fbuf = (uint8_t*) fbuf16; // reuse the buffer
+    uint16_t  fbuf16[DRV08_BUF_SIZE / 2]; // to get 16 bit alignment for id.
+    uint8_t*  fbuf = (uint8_t*) fbuf16; // reuse the buffer
 
     uint8_t  tfr[8];
     uint16_t i;
@@ -359,11 +369,13 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
     // read task file
     SPI_EnableFileIO();
-    rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_CMD_R | 0x0));
+    rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_CMD_R | 0x0));
     rSPI(0x00); // dummy
+
     for (i = 0; i < 8; i++) {
-      tfr[i] = rSPI(0);
+        tfr[i] = rSPI(0);
     }
+
     SPI_DisableFileIO();
 
     unit = tfr[6] & 0x10 ? 1 : 0; // master/slave selection
@@ -371,356 +383,433 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
     //
     if (DRV08_DEBUG)
-      DEBUG(1,"Drv08:CMD %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X u:%d",
-            tfr[0],tfr[1],tfr[2],tfr[3],tfr[4],tfr[5],tfr[6],tfr[7],unit);
+        DEBUG(1, "Drv08:CMD %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X u:%d",
+              tfr[0], tfr[1], tfr[2], tfr[3], tfr[4], tfr[5], tfr[6], tfr[7], unit);
 
 
     fch_t* pDrive = &handle[ch][unit]; // get base
     drv08_desc_t* pDesc = pDrive->pDesc;
 
     if (!FileIO_FCh_GetInserted(ch, unit)) {
-      DEBUG(1,"Drv08:Process Ch:%d Unit:%d not mounted", ch, unit);
-      Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
-      return;
+        DEBUG(1, "Drv08:Process Ch:%d Unit:%d not mounted", ch, unit);
+        Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+        return;
     }
 
     //
     if        ((tfr[7] & 0xF0) == DRV08_CMD_RECALIBRATE) { // Recalibrate 0x10-0x1F (class 3 command: no data)
-      //
-      if (DRV08_DEBUG) DEBUG(1,"Drv08:Recalibrate");
-      //
-      Drv08_WriteTaskFile (ch, 0, 0, 1, 0, 0, tfr[6] & 0xF0);
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);
-      //
+        //
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Recalibrate");
+        }
+
+        //
+        Drv08_WriteTaskFile (ch, 0, 0, 1, 0, 0, tfr[6] & 0xF0);
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);
+        //
+
     } else if (tfr[7] == DRV08_CMD_EXECUTE_DEVICE_DIAGNOSTIC) {
-      //
-      if (DRV08_DEBUG) DEBUG(1,"Drv08:Execute Device Diagnostic");
-      //
-      Drv08_WriteTaskFile (ch,0x01, 0x01, 0x01, 0x00, 0x00, 0x00);
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_END);
-      //
+        //
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Execute Device Diagnostic");
+        }
+
+        //
+        Drv08_WriteTaskFile (ch, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00);
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END);
+        //
+
     } else if (tfr[7] == DRV08_CMD_IDENTIFY_DEVICE) {
-      //
-      if (DRV08_DEBUG) DEBUG(1,"Drv08:Identify Device");
-      //
-      Drv08_IdentifyDevice(pDrive, pDesc, fbuf16);
-      Drv08_WriteTaskFile (ch,0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+        //
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Identify Device");
+        }
 
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
-      SPI_EnableFileIO();
-      rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_W)); // write data command*/
-      for (i = 0; i < 256; i++)
-      {
-          rSPI((uint8_t) fbuf16[i]);
-          rSPI((uint8_t)(fbuf16[i] >> 8));
-      }
-      SPI_DisableFileIO();
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);
-      //
-    } else if (tfr[7] == DRV08_CMD_INITIALIZE_DEVICE_PARAMETERS) {
-      //
-      if (DRV08_DEBUG) DEBUG(1,"Drv08:Initialize Device Parameters");
-      //
-      Drv08_WriteTaskFile (ch,0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);
-      //
-    } else if (tfr[7] == DRV08_CMD_SET_MULTIPLE_MODE) {
-      //
-      if (DRV08_DEBUG) DEBUG(1,"Drv08:Set Multiple Mode");
-      //
-      pDesc->sectors_per_block = tfr[2];
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);
-      //
-    } else if (tfr[7] == DRV08_CMD_READ_SECTORS) {
-      //
-      if (DRV08_DEBUG) DEBUG(1,"Drv08:Read Sectors");
-      //
-      Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-      Drv08_HardFileSeek(pDrive, pDesc, lba);
+        //
+        Drv08_IdentifyDevice(pDrive, pDesc, fbuf16);
+        Drv08_WriteTaskFile (ch, 0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
 
-      while (sector_count)
-      {
         FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
-        FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM); // wait for nearly empty buffer
-        FileIO_FCh_WriteStat(ch, DRV08_STATUS_IRQ);
+        SPI_EnableFileIO();
+        rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_W)); // write data command*/
 
-        if (!first) {
-          Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
-          Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
+        for (i = 0; i < 256; i++) {
+            rSPI((uint8_t) fbuf16[i]);
+            rSPI((uint8_t)(fbuf16[i] >> 8));
         }
-        first = 0;
 
-        /*Drv08_FileReadSend(ch, pDrive, fbuf);*/
-        Drv08_FileReadSendDirect(ch, pDrive,1); // read and send block
+        SPI_DisableFileIO();
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);
+        //
+
+    } else if (tfr[7] == DRV08_CMD_INITIALIZE_DEVICE_PARAMETERS) {
+        //
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Initialize Device Parameters");
+        }
+
+        //
+        Drv08_WriteTaskFile (ch, 0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);
+        //
+
+    } else if (tfr[7] == DRV08_CMD_SET_MULTIPLE_MODE) {
+        //
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Set Multiple Mode");
+        }
+
+        //
+        pDesc->sectors_per_block = tfr[2];
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);
+        //
+
+    } else if (tfr[7] == DRV08_CMD_READ_SECTORS) {
+        //
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Read Sectors");
+        }
+
+        //
+        Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
+        Drv08_HardFileSeek(pDrive, pDesc, lba);
+
+        while (sector_count) {
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
+            FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM); // wait for nearly empty buffer
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_IRQ);
+
+            if (!first) {
+                Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
+                Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
+            }
+
+            first = 0;
+
+            /*Drv08_FileReadSend(ch, pDrive, fbuf);*/
+            Drv08_FileReadSendDirect(ch, pDrive, 1); // read and send block
 
 
-        sector_count--; // decrease sector count
-      }
-      //
+            sector_count--; // decrease sector count
+        }
+
+        //
+
     } else if (tfr[7] == DRV08_CMD_READ_MULTIPLE) { // Read Multiple Sectors (multiple sector transfer per IRQ)
-      //
-      if (DRV08_DEBUG) DEBUG(1,"Drv08:Read Sectors Multiple");
-      //
-      if (pDesc->sectors_per_block == 0) {
-        WARNING("Drv08:Set Multiple not done");
-        Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
-        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
-        return;
-      }
-
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
-
-      Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-      Drv08_HardFileSeek(pDrive, pDesc, lba);
-
-      while (sector_count) {
-        block_count = sector_count;
-        if (block_count > pDesc->sectors_per_block)
-            block_count = pDesc->sectors_per_block;
-
-        FileIO_FCh_WriteStat(ch, DRV08_STATUS_IRQ);
-
-        // calc final sector number in block
-        i = block_count;
-        while (i--) {
-          if (!first) Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
-          first = 0;
+        //
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Read Sectors Multiple");
         }
-        // update, this should be done at the end really, but we need to make sure the transfer has not completed
-        Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
 
-        // do transfer
-        while (block_count) {
-          i = block_count;
-          if (i > DRV08_MAX_READ_BURST) i = DRV08_MAX_READ_BURST;
-          FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM);
-          Drv08_FileReadSendDirect(ch, pDrive, i); // read and send block(s)
+        //
+        if (pDesc->sectors_per_block == 0) {
+            WARNING("Drv08:Set Multiple not done");
+            Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+            return;
+        }
 
-          sector_count-= i;
-          block_count -= i;
-        } // end block
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
 
-      }  // end sector
-      //
+        Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
+        Drv08_HardFileSeek(pDrive, pDesc, lba);
+
+        while (sector_count) {
+            block_count = sector_count;
+
+            if (block_count > pDesc->sectors_per_block) {
+                block_count = pDesc->sectors_per_block;
+            }
+
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_IRQ);
+
+            // calc final sector number in block
+            i = block_count;
+
+            while (i--) {
+                if (!first) {
+                    Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
+                }
+
+                first = 0;
+            }
+
+            // update, this should be done at the end really, but we need to make sure the transfer has not completed
+            Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
+
+            // do transfer
+            while (block_count) {
+                i = block_count;
+
+                if (i > DRV08_MAX_READ_BURST) {
+                    i = DRV08_MAX_READ_BURST;
+                }
+
+                FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM);
+                Drv08_FileReadSendDirect(ch, pDrive, i); // read and send block(s)
+
+                sector_count -= i;
+                block_count -= i;
+            } // end block
+
+        }  // end sector
+
+        //
+
     } else if (tfr[7] == DRV08_CMD_READ_VERIFY) { // Read verify
-      //
-      if (DRV08_DEBUG) DEBUG(1,"Drv08:Read Verify");
-      //
-      Drv08_WriteTaskFile (ch,0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+        //
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Read Verify");
+        }
 
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ); // IRQ or not?
+        //
+        Drv08_WriteTaskFile (ch, 0, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ); // IRQ or not?
 
     } else if (tfr[7] == DRV08_CMD_WRITE_SECTORS) {  // write sectors
-      //
-      if (DRV08_DEBUG) DEBUG(1,"Drv08:Write Sectors");
-      //
-      if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
-        WARNING("Drv08:W Read only disk!");
-        Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
-        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
-        return;
-      }
-      //
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
-      Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-      Drv08_HardFileSeek(pDrive, pDesc, lba);
-
-      while (sector_count)
-      {
-        FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_TO_ARM, FILEIO_REQ_OK_TO_ARM); // wait for data
-
-        // fetch
-        SPI_EnableFileIO();
-        rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
-        SPI_ReadBufferSingle(fbuf, DRV08_BLK_SIZE);
-        SPI_DisableFileIO();
-
-        // safe to do after fetch, STATUS_END clears busy
-        if (!first) {
-          Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
-          Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
+        //
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Write Sectors");
         }
-        first = 0;
 
-        sector_count--; // decrease sector count
+        //
+        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
+            WARNING("Drv08:W Read only disk!");
+            Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+            return;
+        }
 
-        // release core
-        if (sector_count)
-          FileIO_FCh_WriteStat(ch, DRV08_STATUS_IRQ);
-        else
-          FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ); // last one
+        //
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
+        Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
+        Drv08_HardFileSeek(pDrive, pDesc, lba);
 
-        // optimal to put this after the status update, but then we cannot indicate write failure
-        // write to file
-        Drv08_FileWrite(ch, pDrive, fbuf);
-      }
+        while (sector_count) {
+            FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_TO_ARM, FILEIO_REQ_OK_TO_ARM); // wait for data
+
+            // fetch
+            SPI_EnableFileIO();
+            rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_R));
+            SPI_ReadBufferSingle(fbuf, DRV08_BLK_SIZE);
+            SPI_DisableFileIO();
+
+            // safe to do after fetch, STATUS_END clears busy
+            if (!first) {
+                Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
+                Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
+            }
+
+            first = 0;
+
+            sector_count--; // decrease sector count
+
+            // release core
+            if (sector_count) {
+                FileIO_FCh_WriteStat(ch, DRV08_STATUS_IRQ);
+
+            } else {
+                FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);    // last one
+            }
+
+            // optimal to put this after the status update, but then we cannot indicate write failure
+            // write to file
+            Drv08_FileWrite(ch, pDrive, fbuf);
+        }
+
     } else if (tfr[7] == DRV08_CMD_WRITE_MULTIPLE) { // write sectors
-      //
-      if (DRV08_DEBUG) DEBUG(1,"Drv08:Write Sectors Multiple");
-      //
-      if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
-        WARNING("Drv08:W Read only disk!");
-        Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
-        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
-        return;
-      }
-      //
-      if (pDesc->sectors_per_block == 0) {
-        WARNING("Drv08:Set Multiple not done");
-        Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
-        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
-        return;
-      }
-
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
-
-      Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-      Drv08_HardFileSeek(pDrive, pDesc, lba);
-
-      while (sector_count)
-      {
-        block_count = sector_count;
-        if (block_count > pDesc->sectors_per_block)
-            block_count = pDesc->sectors_per_block;
-
-        while (block_count) {
-
-          FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_TO_ARM, FILEIO_REQ_OK_TO_ARM); // wait for data
-
-          // fetch
-          SPI_EnableFileIO();
-          rSPI(FCH_CMD(ch,FILEIO_FCH_CMD_FIFO_R));
-          SPI_ReadBufferSingle(fbuf, DRV08_BLK_SIZE);
-          SPI_DisableFileIO();
-
-          // write to file
-          Drv08_FileWrite(ch, pDrive, fbuf);
-
-          if (!first) {
-            Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
-          }
-          first = 0;
-
-          block_count--;
-          sector_count--; // decrease sector count
+        //
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Write Sectors Multiple");
         }
-        Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
 
-        // release core
-        if (sector_count)
-          FileIO_FCh_WriteStat(ch, DRV08_STATUS_IRQ);
-        else
-          FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ); // last one
+        //
+        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
+            WARNING("Drv08:W Read only disk!");
+            Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+            return;
+        }
 
-      } // end sector
-      //
+        //
+        if (pDesc->sectors_per_block == 0) {
+            WARNING("Drv08:Set Multiple not done");
+            Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+            return;
+        }
+
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
+
+        Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
+        Drv08_HardFileSeek(pDrive, pDesc, lba);
+
+        while (sector_count) {
+            block_count = sector_count;
+
+            if (block_count > pDesc->sectors_per_block) {
+                block_count = pDesc->sectors_per_block;
+            }
+
+            while (block_count) {
+
+                FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_TO_ARM, FILEIO_REQ_OK_TO_ARM); // wait for data
+
+                // fetch
+                SPI_EnableFileIO();
+                rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_R));
+                SPI_ReadBufferSingle(fbuf, DRV08_BLK_SIZE);
+                SPI_DisableFileIO();
+
+                // write to file
+                Drv08_FileWrite(ch, pDrive, fbuf);
+
+                if (!first) {
+                    Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
+                }
+
+                first = 0;
+
+                block_count--;
+                sector_count--; // decrease sector count
+            }
+
+            Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
+
+            // release core
+            if (sector_count) {
+                FileIO_FCh_WriteStat(ch, DRV08_STATUS_IRQ);
+
+            } else {
+                FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ);    // last one
+            }
+
+        } // end sector
+
+        //
+
     } else {
-      //
-      WARNING("Drv08:Unknown ATA command:");
-      WARNING("%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X",
-           tfr[0],tfr[1],tfr[2],tfr[3],tfr[4],tfr[5],tfr[6],tfr[7]);
-      Drv08_WriteTaskFile(ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
-      FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+        //
+        WARNING("Drv08:Unknown ATA command:");
+        WARNING("%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X",
+                tfr[0], tfr[1], tfr[2], tfr[3], tfr[4], tfr[5], tfr[6], tfr[7]);
+        Drv08_WriteTaskFile(ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+        FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
     }
 }
 
 // insert functions
-uint8_t Drv08_GetHardfileType(fch_t *pDrive, drv08_desc_t *pDesc)
+uint8_t Drv08_GetHardfileType(fch_t* pDrive, drv08_desc_t* pDesc)
 {
-  uint8_t fbuf[DRV08_BLK_SIZE];
-  uint32_t i = 0;
+    uint8_t fbuf[DRV08_BLK_SIZE];
+    uint32_t i = 0;
 
-  FF_Seek(pDrive->fSource, 0, FF_SEEK_SET);
-  for (i = 0; i < 16; ++i) { // check first 16 blocks
-    FF_Read(pDrive->fSource, DRV08_BLK_SIZE, 1, fbuf);
+    FF_Seek(pDrive->fSource, 0, FF_SEEK_SET);
 
-    /*DumpBuffer(fbuf, 32);*/
+    for (i = 0; i < 16; ++i) { // check first 16 blocks
+        FF_Read(pDrive->fSource, DRV08_BLK_SIZE, 1, fbuf);
 
-    if (!memcmp(fbuf, "RDSK", 4)) {
-      INFO("Drv08:RDB OK");
-      return (0);
+        /*DumpBuffer(fbuf, 32);*/
+
+        if (!memcmp(fbuf, "RDSK", 4)) {
+            INFO("Drv08:RDB OK");
+            return (0);
+        }
+
+        if ( (!memcmp(fbuf, "DOS", 3)) || (!memcmp(fbuf, "PFS", 3)) || (!memcmp(fbuf, "SFS", 3)) ) {
+            WARNING("Drv08:RDB MISSING");
+            return (1);
+        }
     }
 
-    if ( (!memcmp(fbuf, "DOS", 3)) || (!memcmp(fbuf, "PFS", 3)) || (!memcmp(fbuf, "SFS", 3)) ) {
-      WARNING("Drv08:RDB MISSING");
-      return (1);
-    }
-  }
-  WARNING("Drv08:Unknown HDF format");
-  return (1);
+    WARNING("Drv08:Unknown HDF format");
+    return (1);
 }
 
-void Drv08_GetHardfileGeometry(fch_t *pDrive, drv08_desc_t *pDesc)
-{ // this function comes from WinUAE, should return the same CHS as WinUAE
-   uint32_t total;
-   uint32_t i;
-   uint32_t head = 0;
-   uint32_t cyl  = 0;
-   uint32_t spt  = 0;
-   uint32_t sptt[] = { 63, 127, 255, 0 };
-   uint32_t size = pDesc->file_size;
+void Drv08_GetHardfileGeometry(fch_t* pDrive, drv08_desc_t* pDesc)
+{
+    // this function comes from WinUAE, should return the same CHS as WinUAE
+    uint32_t total;
+    uint32_t i;
+    uint32_t head = 0;
+    uint32_t cyl  = 0;
+    uint32_t spt  = 0;
+    uint32_t sptt[] = { 63, 127, 255, 0 };
+    uint32_t size = pDesc->file_size;
 
-   if (size == 0)
-     return;
+    if (size == 0) {
+        return;
+    }
 
     total = size / 512;
 
-    for (i = 0; sptt[i] !=0; i++) {
+    for (i = 0; sptt[i] != 0; i++) {
         spt = sptt[i];
+
         for (head = 4; head <= 16; head++) {
             cyl = total / (head * spt);
+
             if (size <= 512 * 1024 * 1024) {
-              if (cyl <= 1023)
-                 break;
+                if (cyl <= 1023) {
+                    break;
+                }
+
             } else {
-              if (cyl < 16383)
-                break;
-              if (cyl < 32767 && head >= 5)
-                break;
-              if (cyl <= 65535)
-                break;
+                if (cyl < 16383) {
+                    break;
+                }
+
+                if (cyl < 32767 && head >= 5) {
+                    break;
+                }
+
+                if (cyl <= 65535) {
+                    break;
+                }
             }
         }
-        if (head <= 16)
-          break;
+
+        if (head <= 16) {
+            break;
+        }
     }
+
     pDesc->cylinders         = (unsigned short)cyl;
     pDesc->heads             = (unsigned short)head;
     pDesc->sectors           = (unsigned short)spt;
     pDesc->sectors_per_block = 0; // catch if not set to !=0
 }
 
-void Drv08_BuildHardfileIndex(fch_t *pDrive, drv08_desc_t *pDesc)
+void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
 {
-  pDesc->index_size= 16; // indexing size
+    pDesc->index_size = 16; // indexing size
 
-  uint64_t i; // 64 as the last index (> filesize) can cause a 32 bit int to wrap
-  uint64_t j;
-  uint32_t idx = 0;
+    uint64_t i; // 64 as the last index (> filesize) can cause a 32 bit int to wrap
+    uint64_t j;
+    uint32_t idx = 0;
 
-  i = pDesc->file_size >> 10; // file size divided by 1024 (index table size)
-  j = 1 << pDesc->index_size;
+    i = pDesc->file_size >> 10; // file size divided by 1024 (index table size)
+    j = 1 << pDesc->index_size;
 
-  while (j < i) // find greater or equal power of two
-  {
-    j <<= 1;
-    pDesc->index_size++;
-  }
+    while (j < i) { // find greater or equal power of two
+        j <<= 1;
+        pDesc->index_size++;
+    }
 
-  // index 22 for 4G file 0 - FFFFFFFF
-  // 2^22 = 0040,0000 step size
-  //
-  DEBUG(1,"index size %08X j %08X",pDesc->index_size,j); // j step size
+    // index 22 for 4G file 0 - FFFFFFFF
+    // 2^22 = 0040,0000 step size
+    //
+    DEBUG(1, "index size %08X j %08X", pDesc->index_size, j); // j step size
 
-  for (i=0; i<pDesc->file_size; i+= j)
-  {
-     FF_Seek(pDrive->fSource, i, FF_SEEK_SET);
-     //DEBUG(1,"index %08x %08x %08x",i,  pDrive->fSource->AddrCurrentCluster, pDrive->fSource->CurrentCluster);
-     Assert(idx<1024);
-     pDesc->index[idx++] = pDrive->fSource->AddrCurrentCluster;
-     // call me paranoid
-  };
+    for (i = 0; i < pDesc->file_size; i += j) {
+        FF_Seek(pDrive->fSource, i, FF_SEEK_SET);
+        //DEBUG(1,"index %08x %08x %08x",i,  pDrive->fSource->AddrCurrentCluster, pDrive->fSource->CurrentCluster);
+        Assert(idx < 1024);
+        pDesc->index[idx++] = pDrive->fSource->AddrCurrentCluster;
+        // call me paranoid
+    };
 }
 
 //
@@ -729,52 +818,55 @@ void Drv08_BuildHardfileIndex(fch_t *pDrive, drv08_desc_t *pDesc)
 
 void FileIO_Drv08_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t status) // ata
 {
-  // only one format supported at the moment.
-  // we don't know what drive yet, status does not contain unit id (although it could ...)
-  Drv08_ATA_Handle(ch, handle);
+    // only one format supported at the moment.
+    // we don't know what drive yet, status does not contain unit id (although it could ...)
+    Drv08_ATA_Handle(ch, handle);
 }
 
-uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t *pDrive, char *ext)
+uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive, char* ext)
 {
-  DEBUG(1,"Drv08:InsertInit");
+    DEBUG(1, "Drv08:InsertInit");
 
-  uint32_t time = Timer_Get(0);
+    uint32_t time = Timer_Get(0);
 
-  //pDrive points to the base fch_t struct for this unit. It contains a pointer (pDesc) to our drv08_desc_t
+    //pDrive points to the base fch_t struct for this unit. It contains a pointer (pDesc) to our drv08_desc_t
 
-  pDrive->pDesc = calloc(1, sizeof(drv08_desc_t)); // 0 everything
-  if (pDrive->pDesc == NULL) {
-    WARNING("Drv08:Failed to allocate memory.");
-    return (1);
-  }
+    pDrive->pDesc = calloc(1, sizeof(drv08_desc_t)); // 0 everything
 
-  drv08_desc_t* pDesc = pDrive->pDesc;
+    if (pDrive->pDesc == NULL) {
+        WARNING("Drv08:Failed to allocate memory.");
+        return (1);
+    }
 
-  pDesc->format    = (drv08_format_t)XXX;
-  pDesc->file_size =  pDrive->fSource->Filesize;
+    drv08_desc_t* pDesc = pDrive->pDesc;
 
-  if (strnicmp(ext, "HDF",3) == 0) {
-    //
-    pDesc->format    = (drv08_format_t)HDF;
-  } else {
-    WARNING("Drv08:Unsupported format.");
-    return (1);
-  }
-  // common stuff (as only HDF supported for now...
+    pDesc->format    = (drv08_format_t)XXX;
+    pDesc->file_size =  pDrive->fSource->Filesize;
 
-  if (Drv08_GetHardfileType(pDrive, pDesc)) {
-    return (1);
-  }
+    if (strnicmp(ext, "HDF", 3) == 0) {
+        //
+        pDesc->format    = (drv08_format_t)HDF;
 
-  Drv08_GetHardfileGeometry(pDrive, pDesc);
-  Drv08_BuildHardfileIndex(pDrive, pDesc);
-  time = Timer_Get(0) - time;
+    } else {
+        WARNING("Drv08:Unsupported format.");
+        return (1);
+    }
 
-  INFO("SIZE: %lu (%lu MB)", pDesc->file_size, pDesc->file_size >> 20);
-  INFO("CHS : %u.%u.%u", pDesc->cylinders, pDesc->heads, pDesc->sectors);
-  INFO("      --> %lu MB", ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
-  INFO("Opened in %lu ms", time >> 20);
+    // common stuff (as only HDF supported for now...
 
-  return (0);
+    if (Drv08_GetHardfileType(pDrive, pDesc)) {
+        return (1);
+    }
+
+    Drv08_GetHardfileGeometry(pDrive, pDesc);
+    Drv08_BuildHardfileIndex(pDrive, pDesc);
+    time = Timer_Get(0) - time;
+
+    INFO("SIZE: %lu (%lu MB)", pDesc->file_size, pDesc->file_size >> 20);
+    INFO("CHS : %u.%u.%u", pDesc->cylinders, pDesc->heads, pDesc->sectors);
+    INFO("      --> %lu MB", ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
+    INFO("Opened in %lu ms", time >> 20);
+
+    return (0);
 }
 

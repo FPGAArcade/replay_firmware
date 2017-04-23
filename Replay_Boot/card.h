@@ -50,8 +50,8 @@
 #include "fullfat.h"
 
 uint8_t Card_Init(void);
-FF_T_SINT32 Card_ReadM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void *pParam) __attribute__ ((section (".fastrun")));
-FF_T_SINT32 Card_WriteM(FF_T_UINT8 *pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void *pParam);
+FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam) __attribute__ ((section (".fastrun")));
+FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam);
 
 
 #define CARDTYPE_NONE 0

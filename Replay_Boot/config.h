@@ -86,28 +86,28 @@
 
 /** AD723 TV coder modes - TODO: where to put ? */
 typedef enum {
-  CODER_DISABLE,
-  CODER_PAL,
-  CODER_NTSC,
-  CODER_PAL_NOTRAP,
-  CODER_NTSC_NOTRAP
+    CODER_DISABLE,
+    CODER_PAL,
+    CODER_NTSC,
+    CODER_PAL_NOTRAP,
+    CODER_NTSC_NOTRAP
 } coder_t;
 
 typedef enum {
-  F50HZ,
-  F60HZ
+    F50HZ,
+    F60HZ
 } framerate_t;
 
 /** Replay menu button modes - TODO: where to put ? */
 typedef enum {
-  BUTTON_OFF,
-  BUTTON_MENU,
-  BUTTON_RESET
+    BUTTON_OFF,
+    BUTTON_MENU,
+    BUTTON_RESET
 } button_t;
 
 typedef enum {
-  OSD_INIT_OFF,
-  OSD_INIT_ON,
+    OSD_INIT_OFF,
+    OSD_INIT_ON,
 } osd_init_t;
 
 typedef enum {
@@ -124,17 +124,17 @@ typedef enum {
 */
 typedef struct itemoption {
 
-  /** link to previous option entry */
-  struct itemoption *last;
+    /** link to previous option entry */
+    struct itemoption* last;
 
-  /** link to next option entry */
-  struct itemoption *next;
+    /** link to next option entry */
+    struct itemoption* next;
 
-  /** option name */
-  char              option_name[MAX_OPTION_STRING];
+    /** option name */
+    char              option_name[MAX_OPTION_STRING];
 
-  /** option value */
-  uint32_t          conf_value;
+    /** option value */
+    uint32_t          conf_value;
 
 } itemoption_t;
 
@@ -145,32 +145,32 @@ typedef struct itemoption {
 */
 typedef struct menuitem {
 
-  /** link to previous item entry */
-  struct menuitem   *last;
+    /** link to previous item entry */
+    struct menuitem*   last;
 
-  /** link to next item entry */
-  struct menuitem   *next;
+    /** link to next item entry */
+    struct menuitem*   next;
 
-  /** item name */
-  char              item_name[MAX_ITEM_STRING];
+    /** item name */
+    char              item_name[MAX_ITEM_STRING];
 
-  /** link to options list for this item */
-  itemoption_t      *option_list;
+    /** link to options list for this item */
+    itemoption_t*      option_list;
 
-  /** link to default option for options */
-  itemoption_t      *selected_option;
+    /** link to default option for options */
+    itemoption_t*      selected_option;
 
-  /** binary mask for this item */
-  uint32_t          conf_mask;
+    /** binary mask for this item */
+    uint32_t          conf_mask;
 
-  /** select if dynamic or static item */
-  uint8_t           conf_dynamic;
+    /** select if dynamic or static item */
+    uint8_t           conf_dynamic;
 
-  /** action of item (will be processed by the action handler) */
-  char              action_name[MAX_ITEM_STRING];
+    /** action of item (will be processed by the action handler) */
+    char              action_name[MAX_ITEM_STRING];
 
-  /** action value of item (will be processed by the action handler) */
-  uint32_t          action_value;
+    /** action value of item (will be processed by the action handler) */
+    uint32_t          action_value;
 
 } menuitem_t;
 
@@ -180,17 +180,17 @@ typedef struct menuitem {
 */
 typedef struct menu {
 
-  /** link to previous menu entry */
-  struct menu       *last;
+    /** link to previous menu entry */
+    struct menu*       last;
 
-  /** link to next menu entry */
-  struct menu       *next;
+    /** link to next menu entry */
+    struct menu*       next;
 
-  /** title of this menu entry */
-  char              menu_title[MAX_MENU_STRING];
+    /** title of this menu entry */
+    char              menu_title[MAX_MENU_STRING];
 
-  /** link to item list for this menu */
-  menuitem_t        *item_list;
+    /** link to item list for this menu */
+    menuitem_t*        item_list;
 
 } menu_t;
 
@@ -199,33 +199,33 @@ typedef struct menu {
 /** @brief ROM download backup structure
 */
 //typedef struct rom_list {
-  ///** link to next menu entry */
-  //struct rom_list   *next;
+///** link to next menu entry */
+//struct rom_list   *next;
 
-  ///** value of this menu entry */
-  //char              rom_bak[MAX_LINE_LEN];
+///** value of this menu entry */
+//char              rom_bak[MAX_LINE_LEN];
 
 //} rom_list_t;
 
 /** @brief DATA download backup structure
 */
 //typedef struct data_list {
-  ///** link to next menu entry */
-  //struct data_list  *next;
+///** link to next menu entry */
+//struct data_list  *next;
 
-  ///** value of this menu entry */
-  //char              data_bak[MAX_LINE_LEN];
+///** value of this menu entry */
+//char              data_bak[MAX_LINE_LEN];
 
 //} data_list_t;
 
 /** @brief INFO download backup structure
 */
 //typedef struct info_list {
-  ///** link to next menu entry */
-  //struct info_list  *next;
+///** link to next menu entry */
+//struct info_list  *next;
 
-  ///** value of this menu entry */
-  //char              info_bak[MAX_LINE_LEN];
+///** value of this menu entry */
+//char              info_bak[MAX_LINE_LEN];
 
 //} info_list_t;
 
@@ -233,11 +233,11 @@ typedef struct menu {
 
 /** bitmask for current menu status */
 typedef enum _tOSDMenuState {
-  NO_MENU      = 0,
-  SHOW_MENU    = 1,
-  FILE_BROWSER = 2,
-  SHOW_STATUS  = 4,
-  POPUP_MENU   = 8
+    NO_MENU      = 0,
+    SHOW_MENU    = 1,
+    FILE_BROWSER = 2,
+    SHOW_STATUS  = 4,
+    POPUP_MENU   = 8
 } tOSDMenuState;
 
 /** @brief Basic replay status structure
@@ -249,204 +249,204 @@ typedef enum _tOSDMenuState {
 */
 typedef struct {
 
-  /* ======== input pins ========== */
+    /* ======== input pins ========== */
 
-  /** set to 1 if AD723 is fitted on board - updated by update_status() */
-  uint8_t      coder_fitted;
+    /** set to 1 if AD723 is fitted on board - updated by update_status() */
+    uint8_t      coder_fitted;
 
-  /** set to 1 if SD-card is in the slot  - updated by update_status() */
-  uint8_t      card_detected;
+    /** set to 1 if SD-card is in the slot  - updated by update_status() */
+    uint8_t      card_detected;
 
-  /** set to 1 if SD-card is write protected - updated by update_status() */
-  uint8_t      card_write_protect;
+    /** set to 1 if SD-card is write protected - updated by update_status() */
+    uint8_t      card_write_protect;
 
-  /* ======== replay state ========== */
+    /* ======== replay state ========== */
 
-  /** set to 1 if SD-card is successfully initialized - set by card_start() */
-  uint8_t      card_init_ok;
+    /** set to 1 if SD-card is successfully initialized - set by card_start() */
+    uint8_t      card_init_ok;
 
-  /** set to 1 if SD-card is successfully mounted - set by card_start()*/
-  uint8_t      fs_mounted_ok;
+    /** set to 1 if SD-card is successfully mounted - set by card_start()*/
+    uint8_t      fs_mounted_ok;
 
-  /** set to 1 if FPGA got successfully configured - set in main() loop */
-  uint8_t      fpga_load_ok;
+    /** set to 1 if FPGA got successfully configured - set in main() loop */
+    uint8_t      fpga_load_ok;
 
-  /* ======== general INI environment ======== */
+    /* ======== general INI environment ======== */
 
-  /** current directory used for INI/CNF/BIN and starting point for browsing */
-  char         ini_dir[FF_MAX_PATH];
+    /** current directory used for INI/CNF/BIN and starting point for browsing */
+    char         ini_dir[FF_MAX_PATH];
 
-  /** local initialization filename "*.INI" */
-  char         ini_file[FF_MAX_FILENAME];
+    /** local initialization filename "*.INI" */
+    char         ini_file[FF_MAX_FILENAME];
 
-  /** local configuration filename "*.CNF" - implementation TODO */
-  char         conf_file[FF_MAX_FILENAME];
+    /** local configuration filename "*.CNF" - implementation TODO */
+    char         conf_file[FF_MAX_FILENAME];
 
-  /* ======== FPGA initialization ======== */
+    /* ======== FPGA initialization ======== */
 
-  /** local FPGA configuration filename "*.BIN", file may be compressed */
-  char         bin_file[FF_MAX_FILENAME];
+    /** local FPGA configuration filename "*.BIN", file may be compressed */
+    char         bin_file[FF_MAX_FILENAME];
 
-  /** set to 1 if TWI is routed through FPGA - set by ini_pre_read() */
-  uint8_t      twi_enabled;
+    /** set to 1 if TWI is routed through FPGA - set by ini_pre_read() */
+    uint8_t      twi_enabled;
 
-  /** set to 1 if SPI for OSD is available on FPGA - set by ini_pre_read() */
-  uint8_t      spi_osd_enabled;
+    /** set to 1 if SPI for OSD is available on FPGA - set by ini_pre_read() */
+    uint8_t      spi_osd_enabled;
 
-  /** set to 1 if SPI for config is available on FPGA - set by ini_pre_read() */
-  uint8_t      spi_fpga_enabled;
+    /** set to 1 if SPI for config is available on FPGA - set by ini_pre_read() */
+    uint8_t      spi_fpga_enabled;
 
-  /** set to 1 if ROM/DATA uploads shall be verified - set by ini_post_read() */
-  uint8_t      verify_dl;
+    /** set to 1 if ROM/DATA uploads shall be verified - set by ini_post_read() */
+    uint8_t      verify_dl;
 
-  /** next address where to load a ROM content - set by ini_post_read() */
-  uint32_t     last_rom_adr;
+    /** next address where to load a ROM content - set by ini_post_read() */
+    uint32_t     last_rom_adr;
 
-  /** set DRAM phase config - set by ini_post_read() */
-  int8_t       dram_phase;
+    /** set DRAM phase config - set by ini_post_read() */
+    int8_t       dram_phase;
 
-  /** set CLOCKMON enable - set by ini_pre_read() */
-  int8_t       clockmon;
-  /* ======== CONFIGURATION ======== */
+    /** set CLOCKMON enable - set by ini_pre_read() */
+    int8_t       clockmon;
+    /* ======== CONFIGURATION ======== */
 
-  /** "static" core configuration, set on (re-)initialisation only */
-  uint32_t     config_s;
+    /** "static" core configuration, set on (re-)initialisation only */
+    uint32_t     config_s;
 
-  /** dynamic core configuration, set "on the fly" when changed in menu */
-  uint32_t     config_d;
+    /** dynamic core configuration, set "on the fly" when changed in menu */
+    uint32_t     config_d;
 
-  /** note, this is a bit mask (3..0) */
-  uint8_t       fileio_cha_ena;
-  uint8_t       fileio_cha_drv;
-  fileio_mode_t fileio_cha_mode;
-  file_ext_t*   fileio_cha_ext;
+    /** note, this is a bit mask (3..0) */
+    uint8_t       fileio_cha_ena;
+    uint8_t       fileio_cha_drv;
+    fileio_mode_t fileio_cha_mode;
+    file_ext_t*   fileio_cha_ext;
 
-  uint8_t       fileio_chb_ena;
-  uint8_t       fileio_chb_drv;
-  fileio_mode_t fileio_chb_mode;
-  file_ext_t*   fileio_chb_ext;
+    uint8_t       fileio_chb_ena;
+    uint8_t       fileio_chb_drv;
+    fileio_mode_t fileio_chb_mode;
+    file_ext_t*   fileio_chb_ext;
 
-  /* ======== MENU handling ======== */
+    /* ======== MENU handling ======== */
 
-  /** defines the on-board button function - set by ini_pre_read() */
-  button_t     button;
+    /** defines the on-board button function - set by ini_pre_read() */
+    button_t     button;
 
-  /** defines the keyboard hotkey - set by ini_pre_read() */
-  uint16_t     hotkey;
-  char         hotkey_string[32];
+    /** defines the keyboard hotkey - set by ini_pre_read() */
+    uint16_t     hotkey;
+    char         hotkey_string[32];
 
-  /** defines the osd init mode */
-  osd_init_t   osd_init;
+    /** defines the osd init mode */
+    osd_init_t   osd_init;
 
-  /* used in the file browser to delay rescan while typing */
-  uint8_t  delayed_filescan;
-  uint32_t filescan_timer;
+    /* used in the file browser to delay rescan while typing */
+    uint8_t  delayed_filescan;
+    uint32_t filescan_timer;
 
-  /* indicated the current menu state (see typedef tOSDMenuState) READ-ONLY! */
-  const tOSDMenuState menu_state;
-  
-  /** set to 1 if update is pending and must be processed by handle_ui() */
-  uint8_t      update;
+    /* indicated the current menu state (see typedef tOSDMenuState) READ-ONLY! */
+    const tOSDMenuState menu_state;
 
-  /** set to a line number if scrolling is required within handle_ui() */
-  uint8_t      scroll_pos;
-  uint16_t     scroll_len;
-  char         scroll_txt[FF_MAX_FILENAME];
+    /** set to 1 if update is pending and must be processed by handle_ui() */
+    uint8_t      update;
 
-  /** set to 1 if pop-up is requested for reboot (otherwise only FPGA reset) */
-  uint8_t      do_reboot;
+    /** set to a line number if scrolling is required within handle_ui() */
+    uint8_t      scroll_pos;
+    uint16_t     scroll_len;
+    char         scroll_txt[FF_MAX_FILENAME];
 
-  /* ======== INI menu entry stuff ======== */
+    /** set to 1 if pop-up is requested for reboot (otherwise only FPGA reset) */
+    uint8_t      do_reboot;
 
-  /** link to top of menu tree (fixed, does not vary) */
-  menu_t       *menu_top;
+    /* ======== INI menu entry stuff ======== */
 
-  /** link to a double-linked list of menus for ini_post_read(), handle_ui() */
-  menu_t       *menu_act;
+    /** link to top of menu tree (fixed, does not vary) */
+    menu_t*       menu_top;
 
-  /** link to a double-linked list of items ini_post_read(), handle_ui() */
-  menuitem_t   *menu_item_act;
+    /** link to a double-linked list of menus for ini_post_read(), handle_ui() */
+    menu_t*       menu_act;
 
-  /** link to a double-linked list of options ini_post_read(), handle_ui() */
-  itemoption_t *item_opt_act;
+    /** link to a double-linked list of items ini_post_read(), handle_ui() */
+    menuitem_t*   menu_item_act;
 
-  /* ======== OSD menu stuff ======== */
+    /** link to a double-linked list of options ini_post_read(), handle_ui() */
+    itemoption_t* item_opt_act;
 
-  /** link to first menu entry shown on OSD - set by ini_post_read() */
-  menu_t       *menu_first;
+    /* ======== OSD menu stuff ======== */
 
-  /** link to last menu entry shown on OSD - set by ini_post_read() */
-  menu_t       *menu_last;
+    /** link to first menu entry shown on OSD - set by ini_post_read() */
+    menu_t*       menu_first;
 
-  /** link to first item entry shown on OSD - set by ini_post_read() */
-  menuitem_t   *item_first;
+    /** link to last menu entry shown on OSD - set by ini_post_read() */
+    menu_t*       menu_last;
 
-  /** link to last item entry shown on OSD - set by ini_post_read() */
-  menuitem_t   *item_last;
+    /** link to first item entry shown on OSD - set by ini_post_read() */
+    menuitem_t*   item_first;
 
-  /* ======== warning pop-up handling ======== */
+    /** link to last item entry shown on OSD - set by ini_post_read() */
+    menuitem_t*   item_last;
 
-  /** pop-up OSD "warning" message */
-  char         popup_msg[MAX_MENU_STRING];
+    /* ======== warning pop-up handling ======== */
 
-  /** pop-up OSD selection type: "yes/no", ... */
-  uint8_t      selections;
+    /** pop-up OSD "warning" message */
+    char         popup_msg[MAX_MENU_STRING];
 
-  /** which pop-up choice is selected (1/0 => "yes/no") - set by handle_ui() */
-  uint8_t      selected;
+    /** pop-up OSD selection type: "yes/no", ... */
+    uint8_t      selections;
 
-  /* ======== status page ======== */
+    /** which pop-up choice is selected (1/0 => "yes/no") - set by handle_ui() */
+    uint8_t      selected;
 
-  /** 3 status lines always shown on replay OSD */
-  char         status[3][MAX_MENU_STRING];
+    /* ======== status page ======== */
 
-  /** latest 8 info lines shown on replay OSD */
-  char         info[8][MAX_MENU_STRING];
+    /** 3 status lines always shown on replay OSD */
+    char         status[3][MAX_MENU_STRING];
 
-  /** instead of scrolling in array, we scroll moving the start index
-       of the info array*/
-  uint8_t      info_start_idx;
+    /** latest 8 info lines shown on replay OSD */
+    char         info[8][MAX_MENU_STRING];
 
-  /* ======== file browser stuff menu ======== */
+    /** instead of scrolling in array, we scroll moving the start index
+         of the info array*/
+    uint8_t      info_start_idx;
 
-  /** store previous file filter (manual search string) */
-  char         previous_file_filter[sizeof(((tDirScan*)0)->file_filter)];
+    /* ======== file browser stuff menu ======== */
 
-  /** the actual browser directory path */
-  char         act_dir[FF_MAX_PATH];
+    /** store previous file filter (manual search string) */
+    char         previous_file_filter[sizeof(((tDirScan*)0)->file_filter)];
 
-  /* ======== remember clock / video config  ======== */
+    /** the actual browser directory path */
+    char         act_dir[FF_MAX_PATH];
 
-  clockconfig_t  clock_cfg;
-  vidbuf_t       filter_cfg;
-  coder_t        coder_cfg;
+    /* ======== remember clock / video config  ======== */
 
-  /* ======== used for config backup only ======== */
+    clockconfig_t  clock_cfg;
+    vidbuf_t       filter_cfg;
+    coder_t        coder_cfg;
 
-  /** clock line backup */
-  //char         clock_bak[MAX_LINE_LEN];
-  /** coder line backup */
-  //char         coder_bak[MAX_LINE_LEN];
-  /** vfilter line backup */
-  //char         vfilter_bak[MAX_LINE_LEN];
-  /** video line backup */
-  //char         video_bak[MAX_LINE_LEN];
-  /** rom lines backup */
-  //rom_list_t   *rom_bak;
-  /** rom lines backup position */
-  //rom_list_t   *rom_bak_last;
-  /** data lines backup */
-  //data_list_t  *data_bak;
-  /** data lines backup position*/
-  //data_list_t  *data_bak_last;
-  /** info lines backup */
-  //info_list_t  *info_bak;
-  /** info lines backup position*/
-  //info_list_t  *info_bak_last;
-  /** SPI clock backup */
-  //int32_t      spiclk_bak;
-  /** SPI clock last value */
-  //int32_t      spiclk_old;
+    /* ======== used for config backup only ======== */
+
+    /** clock line backup */
+    //char         clock_bak[MAX_LINE_LEN];
+    /** coder line backup */
+    //char         coder_bak[MAX_LINE_LEN];
+    /** vfilter line backup */
+    //char         vfilter_bak[MAX_LINE_LEN];
+    /** video line backup */
+    //char         video_bak[MAX_LINE_LEN];
+    /** rom lines backup */
+    //rom_list_t   *rom_bak;
+    /** rom lines backup position */
+    //rom_list_t   *rom_bak_last;
+    /** data lines backup */
+    //data_list_t  *data_bak;
+    /** data lines backup position*/
+    //data_list_t  *data_bak_last;
+    /** info lines backup */
+    //info_list_t  *info_bak;
+    /** info lines backup position*/
+    //info_list_t  *info_bak_last;
+    /** SPI clock backup */
+    //int32_t      spiclk_bak;
+    /** SPI clock last value */
+    //int32_t      spiclk_old;
 } status_t;
 
 /* ========================================================================== */
@@ -477,7 +477,7 @@ void CFG_call_bootloader(void);
 
     @param currentStatus pointer to the replay board status dataset
 */
-void CFG_update_status(status_t *currentStatus);
+void CFG_update_status(status_t* currentStatus);
 
 /** @brief DEBUG-PRINT REPLAY FLAGS
 
@@ -485,7 +485,7 @@ void CFG_update_status(status_t *currentStatus);
 
     @param currentStatus pointer to the replay board status dataset
 */
-void CFG_print_status(status_t *currentStatus);
+void CFG_print_status(status_t* currentStatus);
 
 /* ========================================================================== */
 
@@ -495,7 +495,7 @@ void CFG_print_status(status_t *currentStatus);
 
     @param currentStatus pointer to the replay board status dataset
 */
-void CFG_card_start(status_t *currentStatus);
+void CFG_card_start(status_t* currentStatus);
 
 /* ========================================================================== */
 
@@ -513,8 +513,8 @@ void CFG_card_start(status_t *currentStatus);
 
     @return 0 when transmission was successful, others indicate a failure
 */
-uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size,
-                       uint8_t verify, uint8_t format, uint32_t *sconf, uint32_t *dconf);
+uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
+                       uint8_t verify, uint8_t format, uint32_t* sconf, uint32_t* dconf);
 
 /* ========================================================================== */
 
@@ -528,7 +528,7 @@ uint8_t CFG_upload_rom(char *filename, uint32_t base, uint32_t size,
 
     @return 0 when transmission was successful, others indicate a failure
 */
-uint8_t CFG_download_rom(char *filename, uint32_t base, uint32_t size);
+uint8_t CFG_download_rom(char* filename, uint32_t base, uint32_t size);
 
 /* ========================================================================== */
 
@@ -548,7 +548,7 @@ void CFG_set_coder(coder_t standard);
     @param filename (absolute) filename to the FPGA configuration file
     @return 0 when FPGA got configured, others indicate a failure
 */
-uint8_t CFG_configure_fpga(char *filename);
+uint8_t CFG_configure_fpga(char* filename);
 
 /** @brief DETERMINE FREE RAM
 
@@ -567,7 +567,7 @@ void CFG_set_CH7301_HD(void);
 uint32_t CFG_get_free_mem(void);
 void CFG_dump_mem_stats(void);
 
-void CFG_set_status_defaults(status_t *currentStatus, uint8_t init);
+void CFG_set_status_defaults(status_t* currentStatus, uint8_t init);
 
 /** @brief INITIAL INI READER PARSE HANDLER
 
@@ -580,8 +580,8 @@ void CFG_set_status_defaults(status_t *currentStatus, uint8_t init);
 
     @return 0 on success, others indicate a failure
 */
-uint8_t _CFG_pre_parse_handler(void *status, const ini_symbols_t section,
-                               const ini_symbols_t name, const char *value);
+uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
+                               const ini_symbols_t name, const char* value);
 
 /** @brief INITIAL INI READER
 
@@ -593,7 +593,7 @@ uint8_t _CFG_pre_parse_handler(void *status, const ini_symbols_t section,
     @param iniFile (absolute) filename of the INI file to parse
     @return 0 on success, others indicate a failure
 */
-uint8_t CFG_pre_init(status_t *currentStatus, const char *iniFile);
+uint8_t CFG_pre_init(status_t* currentStatus, const char* iniFile);
 
 /** @brief FINAL INI READER PARSE HANDLER
 
@@ -605,8 +605,8 @@ uint8_t CFG_pre_init(status_t *currentStatus, const char *iniFile);
     @param value value of given name entry
     @return 0 on success, others indicate a failure
 */
-uint8_t _CFG_parse_handler(void *status, const ini_symbols_t section,
-                           const ini_symbols_t name, const char *value);
+uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
+                           const ini_symbols_t name, const char* value);
 
 /** @brief FINAL INI READER
 
@@ -620,7 +620,7 @@ uint8_t _CFG_parse_handler(void *status, const ini_symbols_t section,
     @param iniFile (absolute) filename of the INI file to parse
     @return 0 on success, others indicate a failure
 */
-uint8_t CFG_init(status_t *currentStatus, const char *iniFile);
+uint8_t CFG_init(status_t* currentStatus, const char* iniFile);
 
 /** @brief ADD DEFAULT MENU
 
@@ -628,7 +628,7 @@ uint8_t CFG_init(status_t *currentStatus, const char *iniFile);
 
     @param currentStatus pointer to the replay board status dataset
 */
-void CFG_add_default(status_t *currentStatus);
+void CFG_add_default(status_t* currentStatus);
 
 /** @brief FREE DYNAMIC MENU MEMORY
 
@@ -636,7 +636,7 @@ void CFG_add_default(status_t *currentStatus);
 
     @param currentStatus pointer to the replay board status dataset
 */
-void CFG_free_menu(status_t *currentStatus);
+void CFG_free_menu(status_t* currentStatus);
 
 /** @brief FREE BACKUP MEMORY
 
@@ -655,7 +655,7 @@ void CFG_free_menu(status_t *currentStatus);
     @param iniFile filename in which the INI settings are written
     @return 0 on success, others indicate a failure
 */
-void CFG_save_all(status_t *currentStatus, const char *iniDir,
-                  const char *iniFile);
+void CFG_save_all(status_t* currentStatus, const char* iniDir,
+                  const char* iniFile);
 
 #endif

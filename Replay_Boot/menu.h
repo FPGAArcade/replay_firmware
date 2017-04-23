@@ -101,7 +101,7 @@
     @return 1 if executed succesfully
 */
 
-uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode);
+uint8_t _MENU_action(menuitem_t* item, status_t* current_status, uint8_t mode);
 
 /** @brief OSD CONFIG INIT
 
@@ -109,7 +109,7 @@ uint8_t _MENU_action(menuitem_t *item, status_t *current_status, uint8_t mode);
 
     @param current_status status structure containing configuration structure
 */
-void MENU_init_ui(status_t *current_status);
+void MENU_init_ui(status_t* current_status);
 
 /** @brief OSD CONFIG UPDATER (PRIVATE!)
 
@@ -118,7 +118,7 @@ void MENU_init_ui(status_t *current_status);
 
     @param current_status status structure containing configuration structure
 */
-void _MENU_update_ui(status_t *current_status);
+void _MENU_update_ui(status_t* current_status);
 
 /** @brief REMOVE LAST PATH ENTRY (PRIVATE)
 
@@ -126,7 +126,7 @@ void _MENU_update_ui(status_t *current_status);
 
     @param pPath string containing the path to modify
 */
-void _MENU_back_dir(char *pPath);
+void _MENU_back_dir(char* pPath);
 
 /** @brief OSD CONFIG HANDLER
 
@@ -140,7 +140,7 @@ void _MENU_back_dir(char *pPath);
     @param current_status status structure containing configuration structure
     @return one if key press caused a UI update run
 */
-uint8_t MENU_handle_ui(uint16_t key, status_t *current_status);
+uint8_t MENU_handle_ui(uint16_t key, status_t* current_status);
 
 /** @brief CONFIG SETUP FROM OSD
 
@@ -149,7 +149,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t *current_status);
 
     @param current_status status structure containing configuration structure
 */
-void _MENU_update_bits(status_t *current_status);
+void _MENU_update_bits(status_t* current_status);
 
 /** @brief EXIT HANDLER (PRIVATE!)
 
@@ -159,14 +159,14 @@ void _MENU_update_bits(status_t *current_status);
     @param current_status status structure containing configuration structure
     @return 1 if executed succesfully
 */
-uint8_t _MENU_update(status_t *current_status);
+uint8_t _MENU_update(status_t* current_status);
 
 /** @brief SET MENU STATE
 
     @param current_status status structure containing configuration structure
     @param state - new state to transition into
 */
-void MENU_set_state(status_t *current_status, tOSDMenuState state);
+void MENU_set_state(status_t* current_status, tOSDMenuState state);
 
 //void menu_insert_fd(char *path, adfTYPE *drive);
 

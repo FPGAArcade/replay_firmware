@@ -78,47 +78,46 @@
 
 #define FCH_MAX_NUM 4
 
-typedef struct
-{
+typedef struct {
     uint8_t  status; /*status of floppy*/
-    FF_FILE *fSource;
-    void    *pDesc;  /*pointer to format specific struct */
+    FF_FILE* fSource;
+    void*    pDesc;  /*pointer to format specific struct */
     //
     char     name[MAX_DISPLAY_FILENAME];
 } fch_t;
 
 uint8_t FileIO_MCh_WaitStat(uint8_t mask, uint8_t wanted);
-uint8_t FileIO_MCh_SendBuffer(uint8_t *pBuf, uint16_t buf_tx_size);
-uint8_t FileIO_MCh_ReadBuffer(uint8_t *pBuf, uint16_t buf_tx_size);
+uint8_t FileIO_MCh_SendBuffer(uint8_t* pBuf, uint16_t buf_tx_size);
+uint8_t FileIO_MCh_ReadBuffer(uint8_t* pBuf, uint16_t buf_tx_size);
 
-uint8_t FileIO_MCh_FileToMem(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset);
-uint8_t FileIO_MCh_FileToMemVerify(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset);
-uint8_t FileIO_MCh_MemToFile(FF_FILE *pFile, uint32_t base, uint32_t size, uint32_t offset);
+uint8_t FileIO_MCh_FileToMem(FF_FILE* pFile, uint32_t base, uint32_t size, uint32_t offset);
+uint8_t FileIO_MCh_FileToMemVerify(FF_FILE* pFile, uint32_t base, uint32_t size, uint32_t offset);
+uint8_t FileIO_MCh_MemToFile(FF_FILE* pFile, uint32_t base, uint32_t size, uint32_t offset);
 
-uint8_t FileIO_MCh_BufToMem(uint8_t *pBuf, uint32_t base, uint32_t size);
-uint8_t FileIO_MCh_MemToBuf(uint8_t *pBuf, uint32_t base, uint32_t size);
+uint8_t FileIO_MCh_BufToMem(uint8_t* pBuf, uint32_t base, uint32_t size);
+uint8_t FileIO_MCh_MemToBuf(uint8_t* pBuf, uint32_t base, uint32_t size);
 
 // ch is 0 for 'A' and 1 for 'B'
 uint8_t FCH_CMD(uint8_t ch, uint8_t cmd);
 uint8_t FileIO_FCh_GetStat(uint8_t ch);
 void    FileIO_FCh_WriteStat(uint8_t ch, uint8_t stat);
 uint8_t FileIO_FCh_WaitStat(uint8_t ch, uint8_t mask, uint8_t wanted);
-void    FileIo_FCh_FileReadSendDirect(uint8_t ch, fch_t *pDrive, uint32_t size);
+void    FileIo_FCh_FileReadSendDirect(uint8_t ch, fch_t* pDrive, uint32_t size);
 
 void    FileIO_FCh_Process(uint8_t ch);
 void    FileIO_FCh_UpdateDriveStatus(uint8_t ch);
 
-void    FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char *path);
+void    FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char* path);
 void    FileIO_FCh_Eject(uint8_t ch, uint8_t drive_number);
 
-uint8_t FileIO_FCh_GetInserted(uint8_t ch,uint8_t drive_number);
-uint8_t FileIO_FCh_GetReadOnly(uint8_t ch,uint8_t drive_number);
-uint8_t FileIO_FCh_GetProtect(uint8_t ch,uint8_t drive_number);
-void    FileIO_FCh_TogProtect(uint8_t ch,uint8_t drive_number);
+uint8_t FileIO_FCh_GetInserted(uint8_t ch, uint8_t drive_number);
+uint8_t FileIO_FCh_GetReadOnly(uint8_t ch, uint8_t drive_number);
+uint8_t FileIO_FCh_GetProtect(uint8_t ch, uint8_t drive_number);
+void    FileIO_FCh_TogProtect(uint8_t ch, uint8_t drive_number);
 
-char*   FileIO_FCh_GetName(uint8_t ch,uint8_t drive_number);
+char*   FileIO_FCh_GetName(uint8_t ch, uint8_t drive_number);
 
-void    FileIO_FCh_SetDriver(uint8_t ch,uint8_t type);
+void    FileIO_FCh_SetDriver(uint8_t ch, uint8_t type);
 
 void    FileIO_FCh_Init(void); // all chans
 

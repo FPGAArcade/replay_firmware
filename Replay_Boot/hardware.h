@@ -64,15 +64,15 @@ uint8_t USART_GetValid(void);
 uint8_t USART_Getc(void);
 uint8_t USART_Peekc(void);
 int16_t USART_CharAvail(void);
-uint16_t USART_PeekBuf(uint8_t *buf, int16_t len);
-uint16_t USART_GetBuf(const uint8_t *buf, int16_t len);
+uint16_t USART_PeekBuf(uint8_t* buf, int16_t len);
+uint16_t USART_GetBuf(const uint8_t* buf, int16_t len);
 void USART_update(void);
 
 //
 void SPI_Init(void);
 unsigned char rSPI(unsigned char outByte) __attribute__ ((section (".fastrun")));
-void SPI_WriteBufferSingle(void *pBuffer, uint32_t length);
-void SPI_ReadBufferSingle(void *pBuffer, uint32_t length);
+void SPI_WriteBufferSingle(void* pBuffer, uint32_t length);
+void SPI_ReadBufferSingle(void* pBuffer, uint32_t length);
 
 void SPI_Wait4XferEnd(void);
 void SPI_EnableCard(void);
@@ -89,7 +89,7 @@ void SSC_EnableTxRx(void);
 void SSC_DisableTxRx(void);
 void SSC_Write(uint32_t frame);
 void SSC_WaitDMA(void);
-void SSC_WriteBufferSingle(void *pBuffer, uint32_t length, uint32_t wait);
+void SSC_WriteBufferSingle(void* pBuffer, uint32_t length, uint32_t wait);
 //
 void TWI_Configure(void);
 void TWI_Stop(void);
@@ -107,6 +107,6 @@ uint32_t Timer_Get(uint32_t offset);
 uint32_t Timer_Check(uint32_t t);
 void Timer_Wait(uint32_t time);
 //
-void DumpBuffer(const uint8_t *pBuffer, uint32_t size);
+void DumpBuffer(const uint8_t* pBuffer, uint32_t size);
 
 #endif

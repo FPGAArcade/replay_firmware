@@ -49,10 +49,10 @@
 #include "board.h"
 
 unsigned long SWI_Handler_User(unsigned long reg0,
-	unsigned long reg1,
-	unsigned long reg2,
-	unsigned long swi_num )
+                               unsigned long reg1,
+                               unsigned long reg2,
+                               unsigned long swi_num )
 {
 
-	return 0;
+    return 0;
 }

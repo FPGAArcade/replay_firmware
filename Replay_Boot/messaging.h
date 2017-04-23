@@ -86,7 +86,7 @@
     @param status central replay status structure
     @param serial_on set to 1 to use serial output as well
 */
-void MSG_init(status_t *status, uint8_t serial_on);
+void MSG_init(status_t* status, uint8_t serial_on);
 
 /** @brief SERIAL DEBUG MESSAGE
 
@@ -102,7 +102,7 @@ void MSG_init(status_t *status, uint8_t serial_on);
 */
 void MSG_fatal_error(uint8_t error);
 
-void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char *fmt, ...);
+void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char* fmt, ...);
 
 /** @brief OSD/SERIAL INFO MESSAGE
 
@@ -112,7 +112,7 @@ void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char *fmt, .
 
     @param fmt printf conform arguments
 */
-void MSG_info(char *fmt, ...);
+void MSG_info(char* fmt, ...);
 
 /** @brief OSD/SERIAL WARNING MESSAGE
 
@@ -121,7 +121,7 @@ void MSG_info(char *fmt, ...);
 
     @param fmt printf conform arguments
 */
-void MSG_warning(char *fmt, ...);
+void MSG_warning(char* fmt, ...);
 
 /** @brief OSD/SERIAL ERROR MESSAGE
 
@@ -130,15 +130,15 @@ void MSG_warning(char *fmt, ...);
 
     @param fmt printf conform arguments
 */
-void MSG_error(char *fmt, ...);
+void MSG_error(char* fmt, ...);
 
 // ASSERT
 #ifdef ASSERT
-  void AssertionFailure(char *exp, char *file, char *baseFile, int line);
-  #define Assert(exp)  if (exp) ; \
-        else AssertionFailure( #exp, __FILE__, __BASE_FILE__, __LINE__ )
+void AssertionFailure(char* exp, char* file, char* baseFile, int line);
+#define Assert(exp)  if (exp) ; \
+    else AssertionFailure( #exp, __FILE__, __BASE_FILE__, __LINE__ )
 #else
-  #define Assert(exp)
+#define Assert(exp)
 #endif
 
 #endif

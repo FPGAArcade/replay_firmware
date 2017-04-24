@@ -46,8 +46,12 @@
 
 #include "osd.h"
 #include "hardware.h"
-#include "config.h"
+#include "hardware/io.h"
+#include "hardware/spi.h"
+#include "hardware/usart.h"
+#include "hardware/timer.h"
 #include "messaging.h"
+#include "config.h"
 
 ////
 // Escape sequence definitions

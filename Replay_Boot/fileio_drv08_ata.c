@@ -45,7 +45,8 @@
 */
 
 #include "fileio_drv.h"
-#include "hardware.h"
+#include "hardware/spi.h"
+#include "hardware/timer.h"
 #include "messaging.h"
 
 const uint8_t DRV08_DEBUG = 0;

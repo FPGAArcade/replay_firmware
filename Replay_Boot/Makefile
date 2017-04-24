@@ -125,7 +125,7 @@ SRC += common/Cstartup_SAM7.c
 
 # List C source files here which must be compiled in ARM-Mode.
 # use file-extension c for "c-only"-files
-SRCARM = hardware.c
+SRCARM = hardware.c hardware/usart.c hardware/spi.c hardware/ssc.c hardware/twi.c hardware/irq.c hardware/timer.c hardware/io.c
 
 # List C++ source files here.
 # use file-extension cpp for C++-files (use extension .cpp)
@@ -357,12 +357,15 @@ ALL_ASFLAGS = -mcpu=$(MCU) $(THUMB_IW) -I. -x assembler-with-cpp $(ASFLAGS)
 #all: begin gccversion sizebefore build sizeafter finished end
 all: begin $(BUILDDIR)/isset gccversion build finished end
 
-install: all $(BUILDDIR)$(TARGET).s19
+install: all usbdl
+
+usbdl: $(BUILDDIR)$(TARGET).s19
 	../../bootloader/replay_loader_v1.2/$(USBDL) load $(BUILDDIR)$(TARGET).s19
 
 # set up directory for output files, inluding subdirs for libs
 $(BUILDDIR)/isset:
 	mkdir -p $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
+	mkdir -p $(addprefix $(BUILDDIR), hardware)
 	echo ok > $(BUILDDIR)/isset
 #       mkdir -p $(OUTDIR)
 
@@ -429,7 +432,6 @@ $(BUILDDIR)%.sym: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_SYMBOL_TABLE) $@
 	$(NM) -n $< > $@
-
 
 # Link: create ELF output file from object files.
 .SECONDARY : $(BUILDDIR)$(TARGET).elf

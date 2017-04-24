@@ -141,4 +141,10 @@ void AssertionFailure(char* exp, char* file, char* baseFile, int line);
 #define Assert(exp)
 #endif
 
+
+//
+// Debug
+//
+void DumpBuffer(const uint8_t* pBuffer, uint32_t size);
+
 #endif

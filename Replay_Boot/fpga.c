@@ -49,7 +49,9 @@
 
 #include "fpga.h"
 #include "fileio.h"
-#include "hardware.h"
+#include "hardware/io.h"
+#include "hardware/ssc.h"
+#include "hardware/timer.h"
 #include "osd.h"  // for keyboard input to DRAM debug only
 #include "messaging.h"
 

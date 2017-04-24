@@ -48,7 +48,8 @@
 #include "menu.h"
 
 #include "osd.h"
-#include "hardware.h"
+#include "hardware/io.h"
+#include "hardware/timer.h"
 #include "filesel.h"
 #include "fileio.h"
 #include "messaging.h"
@@ -770,8 +771,8 @@ void _MENU_update_ui(status_t* current_status)
     // clear OSD area and set the minimum header/footer lines we always need
     OSD_Clear();
     OSD_Write  ( 0,    "***   F P G A  A R C A D E   ***", 0);
-    OSD_WriteRC(1, 0,  "= NO EMULATION - NO COMPROMISE =", 0, DARK_MAGENTA, DARK_BLUE);
-    OSD_WriteRC(14, 0, "                                ", 0, BLACK, DARK_BLUE);
+    OSD_WriteRC(1,  0,  "= REPLAY RETRO GAMING PLATFORM =", 0, BLACK, DARK_BLUE);
+    OSD_WriteRC(14, 0,  "= NO EMULATION - NO COMPROMISE =", 0, DARK_MAGENTA, DARK_BLUE);
 
     if (current_status->menu_state == SHOW_STATUS) {
         _MENU_show_status(current_status);

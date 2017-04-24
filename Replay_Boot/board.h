@@ -182,6 +182,9 @@
 #define DBGU_TXD                AT91C_PA10_DTXD
 #define DBGU_RXD                AT91C_PA9_DRXD
 
+// Macros to toggle state of activity LED on board
+#define ACTLED_OFF AT91C_BASE_PIOA->PIO_SODR = PIN_ACT_LED;
+#define ACTLED_ON  AT91C_BASE_PIOA->PIO_CODR = PIN_ACT_LED;
 
 //---------------------------------------------------------------------------
 

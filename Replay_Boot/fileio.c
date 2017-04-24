@@ -46,6 +46,8 @@
 #include "fileio.h"
 #include "fileio_drv.h"
 #include "hardware.h"
+#include "hardware/spi.h"
+#include "hardware/timer.h"
 #include "messaging.h"
 
 extern FF_IOMAN* pIoman;

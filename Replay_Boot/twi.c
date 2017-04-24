@@ -45,7 +45,7 @@
 */
 
 #include "twi.h"
-#include "hardware.h"
+#include "hardware/twi.h"
 #include "messaging.h"
 
 #define TWI_TIMEOUTMAX 50000

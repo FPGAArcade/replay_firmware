@@ -102,8 +102,8 @@ USHORT Process_File(xdms_read_func_ptr read_func, void* const read_context, xdms
 		printf(" Creation date : %s",ctime(&date));
 		printf(" Lowest track in archive : %d\n",from);
 		printf(" Highest track in archive : %d\n",to);
-		printf(" Packed data size : %u\n",pkfsize);
-		printf(" Unpacked data size : %u\n",unpkfsize);
+		printf(" Packed data size : %lu\n",pkfsize);
+		printf(" Unpacked data size : %lu\n",unpkfsize);
 		printf(" Disk type of archive : ");
 
 		/*  The original DMS from SDS software (DMS up to 1.11) used other values    */

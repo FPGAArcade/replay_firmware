@@ -59,7 +59,7 @@ void Init_DEEP_Tabs(void){
 
 //	static_assert(TEMP_BUFFER_LEN >= sizeof(struct data_t), "not enough temp space");
 
-	data = (struct data_t*)temp;
+	data = (struct data_t*)(void*)temp;
 
 	freq = data->freq;
 	prnt = data->prnt;

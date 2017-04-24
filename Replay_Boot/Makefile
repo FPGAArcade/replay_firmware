@@ -112,7 +112,7 @@ SRC += fileio_drv08_ata.c
 SRC += fileio.c
 SRC += osd.c
 SRC += menu.c
-SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unaligned.c filesys/ff_unicode.c
+SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unicode.c
 SRC += filesys/ff_memory.c filesys/ff_safety.c filesys/ff_blk.c filesys/ff_ioman.c filesys/ff_fat.c
 SRC += filesys/ff_crc.c filesys/ff_dir.c filesys/ff_error.c filesys/ff_file.c filesys/ff_hash.c
 SRC += usb/cdc_enumerate.c usb/usb_flash.c
@@ -226,7 +226,7 @@ CFLAGS += $(CDEFS) $(CINCS)
 CFLAGS += -O$(OPT)
 CFLAGS += -Wall -Wcast-align -Wimplicit
 CFLAGS += -Wpointer-arith -Wswitch
-CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
+CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused -Werror
 CFLAGS += -Wa,-adhlns=$(addprefix $(BUILDDIR), $(subst $(suffix $<),.lst,$<))
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 CFLAGS += -ffunction-sections -fdata-sections

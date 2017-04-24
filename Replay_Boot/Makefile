@@ -276,11 +276,11 @@ MATH_LIB = -lm
 #  -Wl,...:     tell GCC to pass this to linker.
 #    -Map:      create map file
 #    --cref:    add cross reference to  map file
-LDFLAGS = -nostartfiles -Wl,-Map=$(BUILDDIR)$(TARGET).map,--cref,--gc-sections
-LDFLAGS += -lc
-LDFLAGS += $(NEWLIBLPC) $(MATH_LIB)
+LDFLAGS = -nostartfiles -nostdlib -Wl,-Map=$(BUILDDIR)$(TARGET).map,--cref,--gc-sections
+#LDFLAGS += -lc
+#LDFLAGS += $(NEWLIBLPC) $(MATH_LIB)
 LDFLAGS += -lc -lgcc
-LDFLAGS += $(CPLUSPLUS_LIB)
+#LDFLAGS += $(CPLUSPLUS_LIB)
 LDFLAGS += $(patsubst %,-L%,$(EXTRA_LIBDIRS))
 LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))
 

@@ -49,9 +49,6 @@
 
 extern FF_IOMAN* pIoman;
 
-/*static char null_string[] = "";*/
-FF_DIRENT dNull;
-
 /*
 char* GetExtension(char* filename)
 {
@@ -384,9 +381,6 @@ void Filesel_Init(tDirScan* dir_entries, char* pPath, const file_ext_t* pExt)
 {
     //DEBUG(1,"Init entry, path %s", pPath);
 
-    _strlcpy(dNull.FileName, "", FF_MAX_FILENAME);
-    dNull.Attrib = 0;
-
     dir_entries->file_exts = pExt;
 
     Filesel_ChangeDir(dir_entries, pPath);
@@ -533,7 +527,7 @@ FF_DIRENT Filesel_GetEntry(tDirScan* dir_entries, uint8_t entry)
         }
     }
 
-    return dNull;
+    return dir_entries->dNull;
 }
 
 FF_DIRENT Filesel_GetLine(tDirScan* dir_entries, uint8_t pos)

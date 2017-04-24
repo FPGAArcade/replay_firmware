@@ -79,6 +79,7 @@ typedef struct {
     FF_DIRENT  dPrev[MAXDIRENTRIES];
     FF_DIRENT  dRef;
     FF_DIRENT  dNext[MAXDIRENTRIES];
+    const FF_DIRENT dNull;    /*static char null_string[] = "";*/
 } tDirScan;
 
 void Filesel_ScanUpdate(tDirScan* dir_entries);

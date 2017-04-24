@@ -52,10 +52,12 @@ ifeq ($(OS),Windows_NT)
 	HOST = Windows
 	APP_SUFFIX = exe
 	USBDL = usbdl.exe
+	ASTYLE = AStyle.exe
 else
 	HOST = $(shell uname -s)
 	APP_SUFFIX = elf
 	USBDL = usbdl_$(HOST).elf
+	ASTYLE = astyle_$(HOST)
 endif
 
 # build number
@@ -525,6 +527,8 @@ clean_list :
 	$(REMOVE) $(CPPSRCARM:.cpp=.d)
 	$(REMOVE) -r $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
 
+astyle :
+	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n *.h *.c
 
 # Include the dependency files.
 -include $(shell mkdir .dep 2>/dev/null) $(wildcard .dep/*)

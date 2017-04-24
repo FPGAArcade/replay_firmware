@@ -236,8 +236,8 @@ typedef enum _tOSDMenuState {
     NO_MENU      = 0,
     SHOW_MENU    = 1,
     FILE_BROWSER = 2,
-    SHOW_STATUS  = 4,
-    POPUP_MENU   = 8
+    SHOW_STATUS  = 3,
+    POPUP_MENU   = 4
 } tOSDMenuState;
 
 /** @brief Basic replay status structure

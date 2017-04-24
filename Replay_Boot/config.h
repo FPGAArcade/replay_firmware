@@ -372,12 +372,6 @@ typedef struct {
 
     /* ======== OSD menu stuff ======== */
 
-    /** link to first menu entry shown on OSD - set by ini_post_read() */
-    menu_t*       menu_first;
-
-    /** link to last menu entry shown on OSD - set by ini_post_read() */
-    menu_t*       menu_last;
-
     /** link to first item entry shown on OSD - set by ini_post_read() */
     menuitem_t*   item_first;
 

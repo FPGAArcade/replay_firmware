@@ -480,9 +480,7 @@ void MENU_init_ui(status_t* current_status)
     }
 
     // we start with the list of menu entries
-    current_status->menu_first = current_status->menu_act;
     current_status->item_first = NULL;
-    current_status->menu_last = NULL;
     current_status->item_last = NULL;
 
     // we may do some initialization here...

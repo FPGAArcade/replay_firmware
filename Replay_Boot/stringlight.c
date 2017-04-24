@@ -68,7 +68,6 @@ void _strncpySpace(char* pStr1, const char* pStr2, unsigned long nCount)
 void _strlcpy(char* dst, const char* src, unsigned long bufsize)
 {
     unsigned long srclen = strlen(src);
-    unsigned long result = srclen; /* Result is always the length of the src string */
 
     if (bufsize > 0) {
         if (srclen >= bufsize) {
@@ -81,8 +80,6 @@ void _strlcpy(char* dst, const char* src, unsigned long bufsize)
 
         dst[srclen] = '\0';
     }
-
-    //return result;
 }
 
 int _stricmp_logical(const char* pS1, const char* pS2)

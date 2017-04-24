@@ -1111,7 +1111,7 @@ uint8_t key_action_popup_esc(status_t* current_status, uint16_t key)
 
 
 
-tKeyMapping keymappings_menu[] = {
+const tKeyMapping keymappings_menu[] = {
     {.mask = KEY_MASK_ASCII, .key = 'P',       .action = key_action_menu_protect},
     {.mask = KEY_MASK,       .key = KEY_LEFT,  .action = key_action_menu_left},
     {.mask = KEY_MASK,       .key = KEY_RIGHT, .action = key_action_menu_right},
@@ -1121,7 +1121,7 @@ tKeyMapping keymappings_menu[] = {
     {.mask = KEY_MASK,       .key = KEY_ESC,   .action = key_action_menu_esc}
 };
 
-tKeyMapping keymappings_filebrowser[] = {
+const tKeyMapping keymappings_filebrowser[] = {
     {.mask = KEY_MASK, .key = KEY_LEFT,  .action = key_action_filebrowser_left},
     {.mask = KEY_MASK, .key = KEY_PGUP,  .action = key_action_filebrowser_left},
     {.mask = KEY_MASK, .key = KEY_RIGHT, .action = key_action_filebrowser_right},
@@ -1135,12 +1135,12 @@ tKeyMapping keymappings_filebrowser[] = {
     {.mask = KEY_MASK_ASCII, .key = 0,   .action = key_action_filebrowser_default}
 };
 
-tKeyMapping keymappings_showstatus[] = {
+const tKeyMapping keymappings_showstatus[] = {
     {.mask = KEY_MASK, .key = KEY_LEFT,  .action = key_action_showstatus_left},
     {.mask = KEY_MASK, .key = KEY_RIGHT, .action = key_action_showstatus_right}
 };
 
-tKeyMapping keymappings_popup[] = {
+const tKeyMapping keymappings_popup[] = {
     {.mask = KEY_MASK, .key = KEY_LEFT,  .action = key_action_popup_left_right},
     {.mask = KEY_MASK, .key = KEY_RIGHT, .action = key_action_popup_left_right},
     {.mask = KEY_MASK, .key = KEY_ENTER, .action = key_action_popup_enter},
@@ -1158,7 +1158,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t* current_status)
     static uint16_t scroll_text_offset = 0;
     static uint8_t  scroll_started = 0;
 
-    tKeyMapping* key_mappings = NULL;    // set if there is a keymapping list to check
+    const tKeyMapping* key_mappings = NULL;    // set if there is a keymapping list to check
     uint8_t key_mappings_length = 0;     // # items in keymapping list
 
     // Ignore released keys

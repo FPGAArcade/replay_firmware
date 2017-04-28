@@ -118,12 +118,17 @@ inline uint8_t FilterExtension(const file_ext_t* file_exts, const char* pFile_ex
 
 inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
 {
+    uint8_t hide_hidden_entries;              // "hidden" = files/dirs that start with '.'
+
     if (dir_entries->file_filter[0]) {
         // if we don't have a filter match, we return false
         if (!strcasestr(mydir->FileName, dir_entries->file_filter)) {
             return (FALSE);
         }
     }
+
+    // hidden files/directories stay hidden when filtering on file extension
+    hide_hidden_entries = !FilterExtension(dir_entries->file_exts, "*") && mydir->FileName[0] == '.';
 
     if (mydir->Attrib & FF_FAT_ATTR_DIR) {
         // directories always come through here, except "."
@@ -136,12 +141,15 @@ inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
             return (TRUE);
         }
 
-        // hidden directories stay hidden when filtering on file extension
-        if (!FilterExtension(dir_entries->file_exts, "*") && mydir->FileName[0] == '.') {
+        if (hide_hidden_entries) {
             return FALSE;
         }
 
         return (TRUE);
+    }
+
+    if (hide_hidden_entries) {
+        return FALSE;
     }
 
     char* pFile_ext = GetExtension(mydir->FileName);

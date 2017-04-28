@@ -13,7 +13,7 @@
 
 #include <stdlib.h>
 #include <sys/stat.h>
-#include "Board.h"
+#include "board.h"
 
 int isatty(int file); /* avoid warning */
 

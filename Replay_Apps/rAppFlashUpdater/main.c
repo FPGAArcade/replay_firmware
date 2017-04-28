@@ -14,8 +14,6 @@
 // for sprintf
 #include "printf.h"
 
-const char version[] = {__BUILDNUMBER__};
-
 // we copy the actual bootloader from flash to the RAM and call it
 // (we assume there is no collision with the actual stack)
 void _call_bootloader(void)

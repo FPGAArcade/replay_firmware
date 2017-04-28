@@ -49,8 +49,14 @@
 # object, list, etc. directory
 OUTPUT_DIR = build
 
-# build number
-BUILD_NUM = $$(./buildnum)
+# setup host
+ifeq ($(OS),Windows_NT)
+	HOST = Windows
+	APP_SUFFIX = exe
+else
+	HOST = $(shell uname -s)
+	APP_SUFFIX = elf
+endif
 
 # MCU name and submodel
 MCU      = arm7tdmi
@@ -176,8 +182,6 @@ endif
 
 CDEFS += -D__WinARM__
 ADEFS += -D__WinARM__
-
-CDEFS += -D__BUILDNUMBER__=\"$(BUILD_NUM)\"
 
 # Compiler flags.
 
@@ -327,6 +331,18 @@ ALL_ASFLAGS = -mcpu=$(MCU) $(THUMB_IW) -I. -x assembler-with-cpp $(ASFLAGS)
 # Default target.
 #all: begin gccversion sizebefore build sizeafter finished end
 all: begin $(BUILDDIR)/isset gccversion build finished end
+
+install: all
+	$(COPY) build/main.bin sdcard/rApp_ARM.bin
+	$(COPY) ../../../arm_sw/Replay_Boot/build/main.bin sdcard/main.bin
+	$(COPY) rApp_template_NTSC_30FPS.ini sdcard/rApp_NTSC_30FPS.ini
+	$(COPY) rApp_template_NTSC_60FPS.ini sdcard/rApp_NTSC_60FPS.ini
+	$(COPY) rApp_template_PAL_25FPS.ini sdcard/rApp_PAL_25FPS.ini
+	$(COPY) rApp_template_PAL_50FPS.ini sdcard/rApp_PAL_50FPS.ini
+	cd sdcard && ../../../../tools/genupd/genupd.$(APP_SUFFIX) >> rApp_NTSC_30FPS.ini
+	cd sdcard && ../../../../tools/genupd/genupd.$(APP_SUFFIX) >> rApp_NTSC_60FPS.ini
+	cd sdcard && ../../../../tools/genupd/genupd.$(APP_SUFFIX) >> rApp_PAL_25FPS.ini
+	cd sdcard && ../../../../tools/genupd/genupd.$(APP_SUFFIX) >> rApp_PAL_50FPS.ini
 
 # set up directory for output files, inluding subdirs for libs
 $(BUILDDIR)/isset:

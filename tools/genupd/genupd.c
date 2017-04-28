@@ -16,16 +16,18 @@
 // $id:$
 //
 
-main() {
+int main() {
     FILE *binFile;
     uint32_t sum=0;
     uint32_t len=0;
     uint32_t val=0;
+    uint32_t ret=0;
 
     sum=0;len=0;
     binFile=fopen("bootrom.bin","rb");
     if (!binFile) {
         printf("# bootrom file not readable\n");
+        ++ret;
     } else {
       while (!feof(binFile)) {
         if (fread(&val,sizeof(val),1,binFile)) {
@@ -45,6 +47,7 @@ main() {
     binFile=fopen("main.bin","rb");
     if (!binFile) {
         printf("# main loader file not readable\n");
+        ++ret;
     } else {
       while (!feof(binFile)) {
         if (fread(&val,sizeof(val),1,binFile)) {
@@ -64,6 +67,7 @@ main() {
     binFile=fopen("rApp_ARM.bin","rb");
     if (!binFile) {
         printf("# file not readable\n");
+        ++ret;
     } else {
       while (!feof(binFile)) {
         if (fread(&val,sizeof(val),1,binFile)) {
@@ -76,4 +80,5 @@ main() {
       printf("ROM = rApp_ARM.bin,0x%04lx,0x00000000\n",len);
       printf("LAUNCH = 0x00000000,0x%04lx,0x%08lx\n",len,sum);
     }
+    return ret;
 }

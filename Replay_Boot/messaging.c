@@ -303,12 +303,54 @@ void AssertionFailure(char* exp, char* file, char* baseFile, int line)
 //
 void DumpBuffer(const uint8_t* pBuffer, uint32_t size)
 {
-    DEBUG(1, "DumpBuffer:");
-    uint32_t i;
+    DEBUG(1, "DumpBuffer: address = %08x ; size = %d (0x%x) bytes", pBuffer, size, size);
+    uint32_t i, j, len;
+    char format[150];
+    char alphas[27];
+    strcpy(format, "\t0x%08X: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X ");
 
     for (i = 0; i < size; i += 16) {
-        DEBUG(1, "0x%08X: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", i,
+        len = size - i;
+
+        // last line is less than 16 bytes? rewrite the format string
+        if (len < 16) {
+            strcpy(format, "\t0x%08X: ");
+
+            for (j = 0; j < 16; ++j) {
+                if (j < len) {
+                    strcat(format, "%02X");
+
+                } else {
+                    strcat(format, "__");
+                }
+
+                if ((j & 0x3) == 0x3) {
+                    strcat(format, " ");
+                }
+            }
+
+        } else {
+            len = 16;
+        }
+
+        // create the ascii representation
+        for (j = 0; j < len; ++j) {
+            alphas[j] = (isalnum(pBuffer[i + j]) ? pBuffer[i + j] : '.');
+        }
+
+        for (; j < 16; ++j) {
+            alphas[j] = '_';
+        }
+
+        alphas[j] = 0;
+
+        j = strlen(format);
+        tfp_sprintf(format + j, "'%s'", alphas);
+
+        DEBUG(1, format, i,
               pBuffer[i + 0], pBuffer[i + 1], pBuffer[i + 2], pBuffer[i + 3], pBuffer[i + 4], pBuffer[i + 5], pBuffer[i + 6], pBuffer[i + 7],
               pBuffer[i + 8], pBuffer[i + 9], pBuffer[i + 10], pBuffer[i + 11], pBuffer[i + 12], pBuffer[i + 13], pBuffer[i + 14], pBuffer[i + 15]);
+
+        format[j] = '\0';
     }
 }

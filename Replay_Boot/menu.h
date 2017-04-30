@@ -140,7 +140,7 @@ void _MENU_back_dir(char* pPath);
     @param current_status status structure containing configuration structure
     @return one if key press caused a UI update run
 */
-uint8_t MENU_handle_ui(uint16_t key, status_t* current_status);
+uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status);
 
 /** @brief CONFIG SETUP FROM OSD
 

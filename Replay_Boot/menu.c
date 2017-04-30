@@ -65,6 +65,8 @@ typedef enum {
     ACTION_INIT = 255
 } tActionType;
 
+static const uint8_t osd_timeout_secs = 30; // TODO: Configurable
+
 // handle display action ===================================================
 static uint8_t _MENU_action_display(menuitem_t* item, status_t* current_status)
 {
@@ -770,7 +772,7 @@ void _MENU_update_ui(status_t* current_status)
 
     // clear OSD area and set the minimum header/footer lines we always need
     OSD_Clear();
-    OSD_Write  ( 0,    "***   F P G A  A R C A D E   ***", 0);
+    OSD_Write  (    0,  "***   F P G A  A R C A D E   ***", 0);
     OSD_WriteRC(1,  0,  "= REPLAY RETRO GAMING PLATFORM =", 0, BLACK, DARK_BLUE);
     OSD_WriteRC(14, 0,  "= NO EMULATION - NO COMPROMISE =", 0, DARK_MAGENTA, DARK_BLUE);
 
@@ -788,7 +790,7 @@ void _MENU_update_ui(status_t* current_status)
     }
 }
 
-typedef uint8_t (*tKeyMappingCallback)(status_t*, uint16_t);
+typedef uint8_t (*tKeyMappingCallback)(status_t*, const uint16_t);
 typedef struct _tKeyMapping {
     uint16_t            key;
     uint16_t            mask;
@@ -796,7 +798,7 @@ typedef struct _tKeyMapping {
 } tKeyMapping;
 
 
-uint8_t key_action_menu_left(status_t* current_status, uint16_t key)
+static uint8_t key_action_menu_left(status_t* current_status, const uint16_t key)
 {
     // option_name select
     if (current_status->item_first) {
@@ -827,7 +829,7 @@ uint8_t key_action_menu_left(status_t* current_status, uint16_t key)
     return 1; // update
 }
 
-uint8_t key_action_menu_right(status_t* current_status, uint16_t key)
+static uint8_t key_action_menu_right(status_t* current_status, const uint16_t key)
 {
     if (current_status->item_first) {
         // on item_name level
@@ -857,7 +859,7 @@ uint8_t key_action_menu_right(status_t* current_status, uint16_t key)
     return 1; // update
 }
 
-uint8_t key_action_menu_up(status_t* current_status, uint16_t key)
+static uint8_t key_action_menu_up(status_t* current_status, const uint16_t key)
 {
     // scoll menu/item_name list
     if (current_status->item_first) {
@@ -885,7 +887,7 @@ uint8_t key_action_menu_up(status_t* current_status, uint16_t key)
     return 1;
 }
 
-uint8_t key_action_menu_down(status_t* current_status, uint16_t key)
+static uint8_t key_action_menu_down(status_t* current_status, const uint16_t key)
 {
     if (current_status->item_first) {
         // on item_name level
@@ -914,7 +916,7 @@ uint8_t key_action_menu_down(status_t* current_status, uint16_t key)
     return 1;
 }
 
-uint8_t key_action_menu_enter(status_t* current_status, uint16_t key)
+static uint8_t key_action_menu_enter(status_t* current_status, const uint16_t key)
 {
     if (current_status->menu_item_act->action_name[0]) {
         // check for menu action and update display if succesfully
@@ -924,7 +926,7 @@ uint8_t key_action_menu_enter(status_t* current_status, uint16_t key)
     return 0;
 }
 
-uint8_t key_action_menu_esc(status_t* current_status, uint16_t key)
+static uint8_t key_action_menu_esc(status_t* current_status, const uint16_t key)
 {
     // step out of item_name list to menu list
     if (current_status->item_first) {
@@ -944,7 +946,7 @@ uint8_t key_action_menu_esc(status_t* current_status, uint16_t key)
     return 1;
 }
 
-uint8_t key_action_menu_protect(status_t* current_status, uint16_t key)
+static uint8_t key_action_menu_protect(status_t* current_status, const uint16_t key)
 {
     if MATCH(current_status->menu_item_act->action_name, "cha_select") {
         if ((current_status->fileio_cha_ena >> current_status->menu_item_act->action_value) & 1) {
@@ -966,31 +968,31 @@ uint8_t key_action_menu_protect(status_t* current_status, uint16_t key)
 
 
 
-uint8_t key_action_filebrowser_left(status_t* current_status, uint16_t key)
+static uint8_t key_action_filebrowser_left(status_t* current_status, const uint16_t key)
 {
     Filesel_Update(dir_scan, SCAN_PREV_PAGE);
     return 1; // update
 }
 
-uint8_t key_action_filebrowser_right(status_t* current_status, uint16_t key)
+static uint8_t key_action_filebrowser_right(status_t* current_status, const uint16_t key)
 {
     Filesel_Update(dir_scan, SCAN_NEXT_PAGE);
     return 1; // update
 }
 
-uint8_t key_action_filebrowser_up(status_t* current_status, uint16_t key)
+static uint8_t key_action_filebrowser_up(status_t* current_status, const uint16_t key)
 {
     Filesel_Update(dir_scan, SCAN_PREV);
     return 1;
 }
 
-uint8_t key_action_filebrowser_down(status_t* current_status, uint16_t key)
+static uint8_t key_action_filebrowser_down(status_t* current_status, const uint16_t key)
 {
     Filesel_Update(dir_scan, SCAN_NEXT);
     return 1;
 }
 
-uint8_t key_action_filebrowser_enter(status_t* current_status, uint16_t key)
+static uint8_t key_action_filebrowser_enter(status_t* current_status, const uint16_t key)
 {
     FF_DIRENT mydir = Filesel_GetEntry(dir_scan, dir_scan->sel);
 
@@ -1021,14 +1023,14 @@ uint8_t key_action_filebrowser_enter(status_t* current_status, uint16_t key)
     }
 }
 
-uint8_t key_action_filebrowser_esc(status_t* current_status, uint16_t key)
+static uint8_t key_action_filebrowser_esc(status_t* current_status, const uint16_t key)
 {
     // quit filebrowsing w/o changes
     MENU_set_state(current_status, SHOW_MENU);
     return 1;
 }
 
-uint8_t key_action_filebrowser_back(status_t* current_status, uint16_t key)
+static uint8_t key_action_filebrowser_back(status_t* current_status, const uint16_t key)
 {
     Filesel_DelFilterChar(dir_scan);
     // keep grace period here before re-scanning - user might be typing..
@@ -1037,7 +1039,7 @@ uint8_t key_action_filebrowser_back(status_t* current_status, uint16_t key)
     return 0;
 }
 
-uint8_t key_action_filebrowser_home(status_t* current_status, uint16_t key)
+static uint8_t key_action_filebrowser_home(status_t* current_status, const uint16_t key)
 {
     Filesel_ChangeDir(dir_scan, current_status->act_dir);
     Filesel_ScanFirst(dir_scan); // scan first
@@ -1045,7 +1047,7 @@ uint8_t key_action_filebrowser_home(status_t* current_status, uint16_t key)
 }
 
 
-uint8_t key_action_filebrowser_default(status_t* current_status, uint16_t key)
+static uint8_t key_action_filebrowser_default(status_t* current_status, const uint16_t key)
 {
     if ( ((key >= '0') && (key <= '9')) || ((key >= 'A') && (key <= 'Z')) ) {
         Filesel_AddFilterChar(dir_scan, key & 0x7F);
@@ -1059,7 +1061,7 @@ uint8_t key_action_filebrowser_default(status_t* current_status, uint16_t key)
 
 
 
-uint8_t key_action_showstatus_left(status_t* current_status, uint16_t key)
+static uint8_t key_action_showstatus_left(status_t* current_status, const uint16_t key)
 {
     // go to first menu entry
     while (current_status->menu_act->next) {
@@ -1070,7 +1072,7 @@ uint8_t key_action_showstatus_left(status_t* current_status, uint16_t key)
     return 1;
 }
 
-uint8_t key_action_showstatus_right(status_t* current_status, uint16_t key)
+static uint8_t key_action_showstatus_right(status_t* current_status, const uint16_t key)
 {
     // go to last menu entry
     while (current_status->menu_act->last) {
@@ -1083,13 +1085,13 @@ uint8_t key_action_showstatus_right(status_t* current_status, uint16_t key)
 
 
 
-uint8_t key_action_popup_left_right(status_t* current_status, uint16_t key)
+static uint8_t key_action_popup_left_right(status_t* current_status, const uint16_t key)
 {
     current_status->selected = current_status->selected == 1 ? 0 : 1;
     return 1;
 }
 
-uint8_t key_action_popup_enter(status_t* current_status, uint16_t key)
+static uint8_t key_action_popup_enter(status_t* current_status, const uint16_t key)
 {
     // ok, we don't have anything set yet to handle the result
     MENU_set_state(current_status, NO_MENU);
@@ -1102,7 +1104,7 @@ uint8_t key_action_popup_enter(status_t* current_status, uint16_t key)
     return 0;
 }
 
-uint8_t key_action_popup_esc(status_t* current_status, uint16_t key)
+static uint8_t key_action_popup_esc(status_t* current_status, const uint16_t key)
 {
     MENU_set_state(current_status, SHOW_MENU);
     return 1;
@@ -1147,7 +1149,7 @@ const tKeyMapping keymappings_popup[] = {
 };
 
 
-uint8_t MENU_handle_ui(uint16_t key, status_t* current_status)
+uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
 {
     // flag OSD update may be set already externally
     uint8_t update = current_status->update;
@@ -1175,7 +1177,7 @@ uint8_t MENU_handle_ui(uint16_t key, status_t* current_status)
             osd_timeout_cnt = 0;
 
         } else if (Timer_Check(osd_timeout)) {
-            if (osd_timeout_cnt++ < 30) {
+            if (osd_timeout_cnt++ < osd_timeout_secs) {
                 // we set our timeout again with any update (1 sec)
                 osd_timeout = Timer_Get(1000);
                 return 0;
@@ -1247,12 +1249,11 @@ uint8_t MENU_handle_ui(uint16_t key, status_t* current_status)
 
         for (i = 0; i < key_mappings_length; i++) {
             // Mask out KF_REPEATED, as we don't care if it's repeated or not..
-            key &= ~KF_REPEATED;
-            uint16_t mskd = (key & key_mappings[i].mask);
+            uint16_t mskd = (key & key_mappings[i].mask) & ~KF_REPEATED;
 
             if ((key_mappings[i].key == 0 && mskd != 0) || // 'default' (ascii chars)
                     (mskd != 0 && mskd == key_mappings[i].key)) { // 'specific' key
-                update = key_mappings[i].action(current_status, key);
+                update = (*key_mappings[i].action)(current_status, key);
                 break;
             }
         }

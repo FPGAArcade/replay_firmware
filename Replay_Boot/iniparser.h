@@ -3,14 +3,11 @@
 #ifndef INIPARSER_H_INCLUDED
 #define INIPARSER_H_INCLUDED
 
-#include "board.h"
-#include "fullfat.h"
+#include <stdint.h>
+#include "ff_file.h"
 
 /** maximum length of a line in the INI file */
 #define MAX_LINE_LEN 128
-
-/** maximum length of a key in the LUT */
-#define MAX_KEYLENGTH 15
 
 // ===========================================================
 
@@ -54,9 +51,9 @@ typedef enum {
 
 /// used as LUT for mapping keywords to tokens
 typedef struct {
-    const char keyword[MAX_KEYLENGTH];  ///< keyword as string to match
-    const ini_symbols_t token;          ///< token for the given keyword
-    const uint8_t section;              ///< 1 if keyword must be a section name
+    const char* keyword;         ///< keyword as string to match
+    const ini_symbols_t token;   ///< token for the given keyword
+    const uint8_t section;       ///< 1 if keyword must be a section name
 } ini_symtab_t;
 
 /** @brief INI FILE PARSER

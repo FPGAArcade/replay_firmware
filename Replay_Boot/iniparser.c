@@ -48,41 +48,40 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /** Definitions of the symbols we can detect */
 const ini_symtab_t symtab[] = {
-    // in text  ,token to use ,is section
-    { "SETUP"         , INI_SETUP         , TRUE  },
-    { "INFO"          , INI_INFO          , FALSE },
-    { "OSD_INIT"      , INI_OSD_INIT      , FALSE },
-    { "BIN"           , INI_BIN           , FALSE },
-    { "CLOCK"         , INI_CLOCK         , FALSE },
-    { "PHASE"         , INI_PHASE         , FALSE },
-    { "CODER"         , INI_CODER         , FALSE },
-    { "VFILTER"       , INI_VFILTER       , FALSE },
-    { "EN_TWI"        , INI_EN_TWI        , FALSE },
-    { "EN_SPI"        , INI_EN_SPI        , FALSE },
-    { "SPI_CLK"       , INI_SPI_CLK       , FALSE },
-    { "BUTTON"        , INI_BUTTON        , FALSE },
-    { "HOTKEY"        , INI_HOTKEY        , FALSE },
-    { "KEYBOARD"      , INI_KEYB_MODE     , FALSE },
-    { "CLOCKMON"      , INI_CLOCKMON      , FALSE },
-    { "VIDEO"         , INI_VIDEO         , FALSE },
-    { "CONFIG"        , INI_CONFIG        , FALSE },
-    { "CSTORE"        , INI_CSTORE        , FALSE },
-    { "UPLOAD"        , INI_UPLOAD        , TRUE  },
-    { "FILES"         , INI_FILES         , TRUE  },
-    { "VERIFY"        , INI_VERIFY        , FALSE },
-    { "ROM"           , INI_ROM           , FALSE },
-    { "CHA_MOUNT"     , INI_CHA_MOUNT     , FALSE },
-    { "CHB_MOUNT"     , INI_CHB_MOUNT     , FALSE },
-    { "CHA_CFG"       , INI_CHA_CFG       , FALSE },
-    { "CHB_CFG"       , INI_CHB_CFG       , FALSE },
-    { "DATA"          , INI_DATA          , FALSE },
-    { "LAUNCH"        , INI_LAUNCH        , FALSE },
-    { "MENU"          , INI_MENU          , TRUE  },
-    { "TITLE"         , INI_TITLE         , FALSE },
-    { "ITEM"          , INI_ITEM          , FALSE },
-    { "OPTION"        , INI_OPTION        , FALSE },
-    { ""              , INI_UNKNOWN       , FALSE,}, // no match found
-    { ""              , INI_START         , TRUE, }, // start value, can never match
+    {.keyword = "SETUP"    , .token = INI_SETUP    , .section = TRUE  },
+    {.keyword = "INFO"     , .token = INI_INFO     , .section = FALSE },
+    {.keyword = "OSD_INIT" , .token = INI_OSD_INIT , .section = FALSE },
+    {.keyword = "BIN"      , .token = INI_BIN      , .section = FALSE },
+    {.keyword = "CLOCK"    , .token = INI_CLOCK    , .section = FALSE },
+    {.keyword = "PHASE"    , .token = INI_PHASE    , .section = FALSE },
+    {.keyword = "CODER"    , .token = INI_CODER    , .section = FALSE },
+    {.keyword = "VFILTER"  , .token = INI_VFILTER  , .section = FALSE },
+    {.keyword = "EN_TWI"   , .token = INI_EN_TWI   , .section = FALSE },
+    {.keyword = "EN_SPI"   , .token = INI_EN_SPI   , .section = FALSE },
+    {.keyword = "SPI_CLK"  , .token = INI_SPI_CLK  , .section = FALSE },
+    {.keyword = "BUTTON"   , .token = INI_BUTTON   , .section = FALSE },
+    {.keyword = "HOTKEY"   , .token = INI_HOTKEY   , .section = FALSE },
+    {.keyword = "KEYBOARD" , .token = INI_KEYB_MODE, .section = FALSE },
+    {.keyword = "CLOCKMON" , .token = INI_CLOCKMON , .section = FALSE },
+    {.keyword = "VIDEO"    , .token = INI_VIDEO    , .section = FALSE },
+    {.keyword = "CONFIG"   , .token = INI_CONFIG   , .section = FALSE },
+    {.keyword = "CSTORE"   , .token = INI_CSTORE   , .section = FALSE },
+    {.keyword = "UPLOAD"   , .token = INI_UPLOAD   , .section = TRUE  },
+    {.keyword = "FILES"    , .token = INI_FILES    , .section = TRUE  },
+    {.keyword = "VERIFY"   , .token = INI_VERIFY   , .section = FALSE },
+    {.keyword = "ROM"      , .token = INI_ROM      , .section = FALSE },
+    {.keyword = "CHA_MOUNT", .token = INI_CHA_MOUNT, .section = FALSE },
+    {.keyword = "CHB_MOUNT", .token = INI_CHB_MOUNT, .section = FALSE },
+    {.keyword = "CHA_CFG"  , .token = INI_CHA_CFG  , .section = FALSE },
+    {.keyword = "CHB_CFG"  , .token = INI_CHB_CFG  , .section = FALSE },
+    {.keyword = "DATA"     , .token = INI_DATA     , .section = FALSE },
+    {.keyword = "LAUNCH"   , .token = INI_LAUNCH   , .section = FALSE },
+    {.keyword = "MENU"     , .token = INI_MENU     , .section = TRUE  },
+    {.keyword = "TITLE"    , .token = INI_TITLE    , .section = FALSE },
+    {.keyword = "ITEM"     , .token = INI_ITEM     , .section = FALSE },
+    {.keyword = "OPTION"   , .token = INI_OPTION   , .section = FALSE },
+    {.keyword = ""         , .token = INI_UNKNOWN  , .section = FALSE,}, // no match found
+    {.keyword = ""         , .token = INI_START    , .section = TRUE } // start value, can never match
 };
 
 // ==========================================================================
@@ -102,11 +101,10 @@ static char* StripTrailingSpaces(char* s)
 /** returns pointer to first non-white char */
 static char* FindFirstChar(const char* s)
 {
-    if (!s || (strlen(s) == 0) ) {
+    if (!s || (s[0] == 0) ) {
         return NULL;
     }
 
-    // TODO:
     while ((*s) && isspace((int)(*s))) { // we do int casting to avoid warning
         s++;
     }
@@ -123,7 +121,6 @@ static char* FindLastChar(const char* s)
         return NULL;
     }
 
-    // TODO:
     while ((p > s) && isspace((int)(*p))) { // we do int casting to avoid warning
         --p;
     }

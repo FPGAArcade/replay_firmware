@@ -820,7 +820,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
         // atm we need at most 5, but try to fill up the keybuf (which was 8 when writing this)
         uint16_t keybuf_size = USART_PeekBuf((uint8_t*)&keybuf, sizeof(keybuf));
         // @FIXME: Re-uses 'keybuf'. Should also reset 'keypos' ?
-        DEBUG(2, "esc: keybuf_size: %d", keybuf_size);
+        DEBUG(3, "esc: keybuf_size: %d", keybuf_size);
 
         if (keybuf_size > 1) { // 1+ chars in buffer, might be an esc seq
             uint8_t esc_seq_idx = 0;
@@ -859,7 +859,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
             } while (++esc_seq_idx < sizeof(usart_esc_sequences) / sizeof(tEscSequence));
 
             if (mes != NULL) { // if set, there was only 1 match (the first)
-                DEBUG(2, "esc: sequence detected: key=0x%02x", mes->code);
+                DEBUG(3, "esc: sequence detected: key=0x%02x", mes->code);
                 key_code = mes->code;
 
                 // Use slen+1, not keybuf_size, entire seq matched, + two leading bytes
@@ -888,7 +888,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
                 esc_delay = 0; // Cancel the timeout
 
                 if (keybuf_size > 1 && keybuf[1] != 0x1b) { // don't log double taps..
-                    DEBUG(1, "Unknown esc sequence! keybuf size %d => 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x",
+                    DEBUG(0, "Unknown esc sequence! keybuf size %d => 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x",
                           keybuf_size, keybuf[0], keybuf[1], keybuf[2], keybuf[3], keybuf[4], keybuf[5]);
                 }
 
@@ -911,7 +911,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
     } // } else { // esc sequence, partial or complete
 
     if (key_code != 0) {
-        DEBUG(1, "USART Key: 0x%04X", key_code);
+        DEBUG(2, "USART Key: 0x%04X", key_code);
     }
 
     return key_code;

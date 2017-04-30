@@ -406,10 +406,10 @@ static __attribute__ ((noinline)) void main_update()
     key = OSD_GetKeyCode(current_status.spi_osd_enabled, current_status.hotkey);
 
     if (key && (key & KF_RELEASED) == 0) {
-        DEBUG(3, "Key: 0x%04X - '%s'", key, OSD_GetStringFromKeyCode(key));
+        DEBUG(2, "Key: 0x%04X - '%s'", key, OSD_GetStringFromKeyCode(key));
 
     } else if (key) {
-        DEBUG(3, "Key: 0x%04X", key);
+        DEBUG(2, "Key: 0x%04X", key);
     }
 
     // check RS232

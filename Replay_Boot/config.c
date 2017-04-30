@@ -833,299 +833,983 @@ void CFG_set_status_defaults(status_t* currentStatus, uint8_t init)
     // DAC setup?
 }
 
-uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
-                               const ini_symbols_t name, const char* value)
-{
-    status_t* pStatus = (status_t*) status;
 
-    if (section == INI_UNKNOWN) {
-        // end of INI file
-        DEBUG(3, "callback EOF");
+// === Configuration file option callbacks
+// =======================================
+
+static uint8_t _CFG_handle_SETUP_BIN(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    strncpy(pStatus->bin_file, value, sizeof(pStatus->bin_file));
+    DEBUG(2, "Will use %s for the FPGA.", pStatus->bin_file);
+    return 0;
+}
+
+static uint8_t _CFG_handle_SETUP_CLOCK(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    /*strcpy(pStatus->clock_bak,value);*/
+    if (MATCH(value, "PAL")) {
+        pStatus->clock_cfg = init_clock_config_pal;
+        /*Configure_ClockGen(&init_clock_config_pal);*/
+
+    } else if (MATCH(value, "NTSC")) {
+        pStatus->clock_cfg = init_clock_config_ntsc;
+        /*Configure_ClockGen(&init_clock_config_ntsc);*/
+
+    } else if (MATCH(value, "HD74")) {
+        /*Configure_ClockGen(&init_clock_config_hd74);*/
+        pStatus->clock_cfg = init_clock_config_hd74;
 
     } else {
-        if (name == INI_UNKNOWN) {
-            // new [section] line
-            DEBUG(3, "callback new section");
+        ini_list_t valueList[32];
+        uint16_t entries = ParseList(value, valueList, 32);
+
+        if (entries == 24) {
+            clockconfig_t clkcfg = {
+                valueList[0].intval, valueList[1].intval,       // pll1 m,n
+                valueList[2].intval, valueList[3].intval,       // pll2 m,n
+                valueList[4].intval, valueList[5].intval,       // pll3 m,n
+                {
+                    valueList[6].intval, valueList[7].intval,
+                    valueList[8].intval, valueList[9].intval,
+                    valueList[10].intval, valueList[11].intval,
+                },//p0,1,2,3,4,5
+                {
+                    valueList[12].intval, valueList[13].intval,
+                    valueList[14].intval, valueList[15].intval,
+                    valueList[16].intval, valueList[17].intval,
+                },//d0,1,2,3,4,5
+                {
+                    valueList[18].intval, valueList[19].intval,
+                    valueList[20].intval, valueList[21].intval,
+                    valueList[22].intval, valueList[23].intval
+                } //y0,1,2,3,4,5
+            };
+            // sanity check??? nope
+            pStatus->clock_cfg = clkcfg;
+            /*Configure_ClockGen(&clkcfg);*/
 
         } else {
-            // new name=value line
-            DEBUG(3, "callback [%d] <%d>=\"%s\" ", section, name, value);
-
-            // -------------------------------------------------------
-            if (section == INI_SETUP) {
-                // =====================
-                if (name == INI_BIN) {        // ===> SET BIN FILE
-                    strncpy(pStatus->bin_file, value, sizeof(pStatus->bin_file));
-                    DEBUG(2, "Will use %s for the FPGA.", pStatus->bin_file);
-                }
-
-                // =====================
-                if (name == INI_CLOCK) {      // ===> PLL/CLOCKING CONFIGURATION
-                    /*strcpy(pStatus->clock_bak,value);*/
-                    if (MATCH(value, "PAL")) {
-                        pStatus->clock_cfg = init_clock_config_pal;
-                        /*Configure_ClockGen(&init_clock_config_pal);*/
-
-                    } else if (MATCH(value, "NTSC")) {
-                        pStatus->clock_cfg = init_clock_config_ntsc;
-                        /*Configure_ClockGen(&init_clock_config_ntsc);*/
-
-                    } else if (MATCH(value, "HD74")) {
-                        /*Configure_ClockGen(&init_clock_config_hd74);*/
-                        pStatus->clock_cfg = init_clock_config_hd74;
-
-                    } else {
-                        ini_list_t valueList[32];
-                        uint16_t entries = ParseList(value, valueList, 32);
-
-                        if (entries == 24) {
-                            clockconfig_t clkcfg = {
-                                valueList[0].intval, valueList[1].intval,       // pll1 m,n
-                                valueList[2].intval, valueList[3].intval,       // pll2 m,n
-                                valueList[4].intval, valueList[5].intval,       // pll3 m,n
-                                {
-                                    valueList[6].intval, valueList[7].intval,
-                                    valueList[8].intval, valueList[9].intval,
-                                    valueList[10].intval, valueList[11].intval,
-                                },//p0,1,2,3,4,5
-                                {
-                                    valueList[12].intval, valueList[13].intval,
-                                    valueList[14].intval, valueList[15].intval,
-                                    valueList[16].intval, valueList[17].intval,
-                                },//d0,1,2,3,4,5
-                                {
-                                    valueList[18].intval, valueList[19].intval,
-                                    valueList[20].intval, valueList[21].intval,
-                                    valueList[22].intval, valueList[23].intval
-                                } //y0,1,2,3,4,5
-                            };
-                            // sanity check??? nope
-                            pStatus->clock_cfg = clkcfg;
-                            /*Configure_ClockGen(&clkcfg);*/
-
-                        } else {
-                            return 1;
-                        }
-                    }
-                }
-
-                // =====================
-                if (name == INI_CODER) {      // ===> CODER CONFIGURATION (OPTIONAL)
-                    coder_t codcfg;
-
-                    /*strcpy(pStatus->coder_bak,value);*/
-                    if (MATCH(value, "DISABLE")) {
-                        codcfg = CODER_DISABLE;
-
-                    } else if (MATCH(value, "PAL")) {
-                        codcfg = CODER_PAL;
-
-                    } else if (MATCH(value, "NTSC")) {
-                        codcfg = CODER_NTSC;
-
-                    } else if (MATCH(value, "PAL_NOTRAP")) {
-                        codcfg = CODER_PAL_NOTRAP;
-
-                    } else if (MATCH(value, "NTSC_NOTRAP")) {
-                        codcfg = CODER_NTSC_NOTRAP;
-
-                    } else {
-                        return 1;
-                    }
-
-                    if (pStatus->coder_fitted) {
-                        /*CFG_set_coder(codcfg);*/
-                        pStatus->coder_cfg = codcfg;
-
-                    } else {
-                        DEBUG(1, "No coder fitted to update!");
-                    }
-                }
-
-                // =====================
-                if (name == INI_VFILTER) {    // ===> VIDEO FILTER CONFIGURATION
-                    ini_list_t valueList[8];
-                    /*strcpy(pStatus->vfilter_bak,value);*/
-                    uint16_t entries = ParseList(value, valueList, 8);
-
-                    if (entries == 3) {
-                        /*Configure_VidBuf(1, valueList[0].intval, valueList[1].intval, valueList[2].intval);*/
-                        /*Configure_VidBuf(2, valueList[0].intval, valueList[1].intval, valueList[2].intval);*/
-                        /*Configure_VidBuf(3, valueList[0].intval, valueList[1].intval, valueList[2].intval);*/
-
-                        pStatus->filter_cfg.stc  = valueList[0].intval;
-                        pStatus->filter_cfg.lpf  = valueList[1].intval;
-                        pStatus->filter_cfg.mode = valueList[2].intval;
-
-                    } else {
-                        return 1;
-                    }
-                }
-
-                // =====================
-                if (name == INI_PHASE) {     // ===> DRAM PHASE CONFIG
-                    ini_list_t valueList[8];
-                    uint16_t entries = ParseList(value, valueList, 8);
-
-                    if (entries == 1) {
-                        pStatus->dram_phase = valueList[0].intval;
-                        DEBUG(1, "DRAM phase: %d", pStatus->dram_phase);
-
-                    } else {
-                        return 1;
-                    }
-                }
-
-                // =====================
-                if (name == INI_EN_TWI) {     // ===> ALLOW TWI POST-CONFIGURATIONS
-                    ini_list_t valueList[8];
-                    uint16_t entries = ParseList(value, valueList, 8);
-
-                    if (entries == 1) {
-                        pStatus->twi_enabled = valueList[0].intval;
-                        DEBUG(1, "TWI passthrough: %s", pStatus->twi_enabled ? "ENABLED" : "-");
-
-                    } else {
-                        return 1;
-                    }
-                }
-
-                // =====================
-                if (name == INI_EN_SPI) {     // ===> ALLOW SPI POST-CONFIGURATIONS/ACCESS
-                    ini_list_t valueList[8];
-                    uint16_t entries = ParseList(value, valueList, 8);
-
-                    if (entries == 2) {
-                        pStatus->spi_fpga_enabled = valueList[0].intval;
-                        pStatus->spi_osd_enabled = valueList[1].intval;
-                        DEBUG(1, "SPI control: %s %s ", pStatus->spi_fpga_enabled ? "FPGA" : "-"
-                              , pStatus->spi_osd_enabled ? "OSD" : "-");
-
-                    } else {
-                        return 1;
-                    }
-                }
-
-                // =====================
-                if (name == INI_SPI_CLK) {     // ===> SPI CLOCK SETUP
-                    ini_list_t valueList[8];
-                    uint16_t entries = ParseList(value, valueList, 8);
-
-                    if (entries == 1) {
-                        // we allow only reducing clock to avoid issues with sdcard settings
-                        if (valueList[0].intval >
-                                ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8)) {
-                            /*pStatus->spiclk_old = ((AT91C_BASE_SPI->SPI_CSR[0] &*/
-                            /*AT91C_SPI_SCBR) >> 8);*/
-                            AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL |
-                                                         (valueList[0].intval << 8);
-                            uint32_t spiFreq = BOARD_MCK /
-                                               ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
-                                               1000000;
-                            DEBUG(1, "New SPI clock: %d MHz", spiFreq);
-                            /*pStatus->spiclk_bak = valueList[0].intval;*/
-                        }
-
-                    } else {
-                        return 1;
-                    }
-                }
-
-                // =====================
-                if (name == INI_BUTTON) {     // ===> BUTTON CONFIGURATION
-                    if (MATCH(value, "OFF")) {
-                        pStatus->button = BUTTON_OFF;
-
-                    } else if (MATCH(value, "RESET")) {
-                        pStatus->button = BUTTON_RESET;
-
-                    } else if (MATCH(value, "MENU")) {
-                        pStatus->button = BUTTON_MENU;
-
-                    } else {
-                        return 1;
-                    }
-
-                    DEBUG(1, "Button control: %s", value);
-                }
-
-                // =====================
-                if (name == INI_HOTKEY) {     // ===> HOTKEY CONFIGURATION
-                    uint16_t keycode = OSD_GetKeyCodeFromString(value);
-
-                    if (!keycode) {
-                        return 1;
-                    }
-
-                    pStatus->hotkey = keycode;
-                    _strlcpy(pStatus->hotkey_string, OSD_GetStringFromKeyCode(keycode), sizeof(pStatus->hotkey_string));
-                    DEBUG(1, "Hotkey control: %s -> %04X / %s", value, pStatus->hotkey, pStatus->hotkey_string);
-                }
-
-                // =====================
-                if (name == INI_KEYB_MODE) {     // ===> KEYBOARD CONFIGURATION (OBSOLETE)
-                    WARNING("KEYBOARD keyword is obsolete");
-                }
-
-                if (name == INI_CLOCKMON) {     // ===> CLOCKMON
-                    if (MATCH(value, "ENA")) {
-                        pStatus->clockmon = TRUE;
-
-                    } else if (MATCH(value, "ENABLE")) {
-                        pStatus->clockmon = TRUE;
-
-                    } else if (MATCH(value, "DIS")) {
-                        pStatus->clockmon = FALSE;
-
-                    } else if (MATCH(value, "DISABLE")) {
-                        pStatus->clockmon = FALSE;
-
-                    } else {
-                        return 1;
-                    }
-
-                    if (pStatus->clockmon) {
-                        MSG_info("ClockMonitor Enabled");
-                    }
-                }
-
-                if (name == INI_OSD_INIT) {     // ===> OSD STARTUP
-                    if (MATCH(value, "OFF")) {
-                        pStatus->osd_init = OSD_INIT_OFF;
-
-                    } else if (MATCH(value, "ON")) {
-                        pStatus->osd_init = OSD_INIT_ON;
-
-                    } else {
-                        return 1;
-                    }
-
-                    DEBUG(1, "OSD init: %s", value);
-                }
-
-            }
-
-            // -------------------------------------------------------
-            if (section == INI_UPLOAD) {
-                // =====================
-                if (name == INI_VERIFY) {     // ===> ENABLES VERIFICATIONS OF UPLOADS
-                    ini_list_t valueList[8];
-                    uint16_t entries = ParseList(value, valueList, 8);
-
-                    if (entries == 1) {
-                        pStatus->verify_dl = valueList[0].intval;
-                        DEBUG(1, "UPLOAD verification: %s", pStatus->verify_dl ? "ENABLED" : "DISABLED");
-
-                    } else {
-                        return 1;
-                    }
-                }
-            }
+            return 1;
         }
     }
 
     return 0;
 }
+
+
+
+static uint8_t _CFG_handle_SETUP_CODER(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    coder_t codcfg;
+
+    /*strcpy(pStatus->coder_bak,value);*/
+    if (MATCH(value, "DISABLE")) {
+        codcfg = CODER_DISABLE;
+
+    } else if (MATCH(value, "PAL")) {
+        codcfg = CODER_PAL;
+
+    } else if (MATCH(value, "NTSC")) {
+        codcfg = CODER_NTSC;
+
+    } else if (MATCH(value, "PAL_NOTRAP")) {
+        codcfg = CODER_PAL_NOTRAP;
+
+    } else if (MATCH(value, "NTSC_NOTRAP")) {
+        codcfg = CODER_NTSC_NOTRAP;
+
+    } else {
+        WARNING("coder config invalid!");
+        return 1;
+    }
+
+    if (pStatus->coder_fitted) {
+        /*CFG_set_coder(codcfg);*/
+        pStatus->coder_cfg = codcfg;
+
+        DEBUG(1, "Coder configured");
+
+    } else {
+        DEBUG(0, "No coder fitted!");
+    }
+
+    return 0;
+}
+
+
+
+static uint8_t _CFG_handle_SETUP_VFILTER(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    /*strcpy(pStatus->vfilter_bak,value);*/
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if (entries == 3) {
+        /*Configure_VidBuf(1, valueList[0].intval, valueList[1].intval, valueList[2].intval);*/
+        /*Configure_VidBuf(2, valueList[0].intval, valueList[1].intval, valueList[2].intval);*/
+        /*Configure_VidBuf(3, valueList[0].intval, valueList[1].intval, valueList[2].intval);*/
+
+        pStatus->filter_cfg.stc  = valueList[0].intval;
+        pStatus->filter_cfg.lpf  = valueList[1].intval;
+        pStatus->filter_cfg.mode = valueList[2].intval;
+
+        DEBUG(1, "VFILTER mode: %d", pStatus->filter_cfg.mode);
+        return 0;
+    }
+
+    WARNING("VFILTER config invalid");
+    return 1;
+}
+
+
+static uint8_t _CFG_handle_SETUP_PHASE(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if (entries == 1) {
+        pStatus->dram_phase = valueList[0].intval;
+        DEBUG(1, "DRAM phase: %d", pStatus->dram_phase);
+        return 0;
+    }
+
+    WARNING("Invalid DRAM phase config");
+    return 1;
+}
+
+static uint8_t _CFG_handle_SETUP_EN_TWI(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if (entries == 1) {
+        pStatus->twi_enabled = valueList[0].intval;
+        DEBUG(1, "TWI passthrough: %s", pStatus->twi_enabled ? "ENABLED" : "-");
+        return 0;
+    }
+
+    return 1;
+}
+
+static uint8_t _CFG_handle_SETUP_EN_SPI(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if (entries == 2) {
+        pStatus->spi_fpga_enabled = valueList[0].intval;
+        pStatus->spi_osd_enabled = valueList[1].intval;
+        DEBUG(1, "SPI control: %s %s ", pStatus->spi_fpga_enabled ? "FPGA" : "-"
+              , pStatus->spi_osd_enabled ? "OSD" : "-");
+        return 0;
+    }
+
+    return 1;
+}
+
+static uint8_t _CFG_handle_SETUP_SPI_CLK(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if (entries == 1) {
+        // we allow only reducing clock to avoid issues with sdcard settings
+        if (valueList[0].intval >
+                ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8)) {
+            /*pStatus->spiclk_old = ((AT91C_BASE_SPI->SPI_CSR[0] &*/
+            /*AT91C_SPI_SCBR) >> 8);*/
+            AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL |
+                                         (valueList[0].intval << 8);
+            uint32_t spiFreq = BOARD_MCK /
+                               ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
+                               1000000;
+            DEBUG(1, "New SPI clock: %d MHz", spiFreq);
+            /*pStatus->spiclk_bak = valueList[0].intval;*/
+        }
+
+        return 0;
+    }
+
+    return 1;
+}
+
+static uint8_t _CFG_handle_SETUP_BUTTON(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    if (MATCH(value, "OFF")) {
+        pStatus->button = BUTTON_OFF;
+
+    } else if (MATCH(value, "RESET")) {
+        pStatus->button = BUTTON_RESET;
+
+    } else if (MATCH(value, "MENU")) {
+        pStatus->button = BUTTON_MENU;
+
+    } else {
+        return 1;
+    }
+
+    DEBUG(1, "Button control: %s", value);
+    return 0;
+}
+
+static uint8_t _CFG_handle_SETUP_HOTKEY(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    uint16_t keycode = OSD_GetKeyCodeFromString(value);
+
+    if (keycode) {
+        pStatus->hotkey = keycode;
+        _strlcpy(pStatus->hotkey_string, OSD_GetStringFromKeyCode(keycode), sizeof(pStatus->hotkey_string));
+        DEBUG(1, "Hotkey control: %s -> %04X / %s", value, pStatus->hotkey, pStatus->hotkey_string);
+        return 0;
+    }
+
+    return 1;
+}
+
+/*static uint8_t _CFG_handle_SETUP_INI_KEYB_MODE(status_t *pStatus, const ini_symbols_t name, const char *value)
+{
+  WARNING("KEYBOARD keyword is obsolete");
+  return 0;
+}*/
+
+static uint8_t _CFG_handle_SETUP_CLOCKMON(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    if (MATCH(value, "ENA")) {
+        pStatus->clockmon = TRUE;
+
+    } else if (MATCH(value, "ENABLE")) {
+        pStatus->clockmon = TRUE;
+
+    } else if (MATCH(value, "DIS")) {
+        pStatus->clockmon = FALSE;
+
+    } else if (MATCH(value, "DISABLE")) {
+        pStatus->clockmon = FALSE;
+
+    } else {
+        return 1;
+    }
+
+    if (pStatus->clockmon) {
+        MSG_info("ClockMonitor Enabled");
+    }
+
+    return 0;
+}
+
+static uint8_t _CFG_handle_SETUP_OSD_INIT(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    if (MATCH(value, "OFF")) {
+        pStatus->osd_init = OSD_INIT_OFF;
+
+    } else if (MATCH(value, "ON")) {
+        pStatus->osd_init = OSD_INIT_ON;
+
+    } else {
+        return 1;
+    }
+
+    DEBUG(1, "OSD init: %s", value);
+    return 0;
+}
+
+
+static uint8_t _CFG_handle_SETUP_VIDEO(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    /*strcpy(pStatus->video_bak,value);*/
+    if (pStatus->twi_enabled) {
+        ini_list_t valueList[32];
+        uint16_t entries = ParseList(value, valueList, 32);
+
+        if (entries == 16) {
+            const vidconfig_t vid_config = {
+                valueList[ 0].intval, valueList[ 1].intval,
+                valueList[ 2].intval, valueList[ 3].intval,
+                valueList[ 4].intval, valueList[ 5].intval,
+                valueList[ 6].intval, valueList[ 7].intval,
+                valueList[ 8].intval, valueList[ 9].intval,
+                valueList[10].intval, valueList[11].intval,
+                valueList[12].intval, valueList[13].intval,
+                valueList[14].intval, valueList[15].intval,
+            };
+            Configure_CH7301(&vid_config);
+
+        } else {
+            WARNING("VIDEO config invalid");
+            return 1;
+        }
+
+        DEBUG(2, "VIDEO: %s", value);
+        return 0;
+    }
+
+    WARNING("VIDEO config but TWI disabled");
+    return 1;
+}
+
+
+static uint8_t _CFG_handle_SETUP_CONFIG(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    if (pStatus->spi_fpga_enabled) {
+        ini_list_t valueList[8];
+        uint16_t entries = ParseList(value, valueList, 8);
+
+        if (entries == 2) {
+            pStatus->config_s = valueList[0].intval;
+            pStatus->config_d = valueList[1].intval;
+            DEBUG(2, "CONFIG: static=0x%08X, dynamic=0x%08X",
+                  pStatus->config_s, pStatus->config_d);
+            return 0;
+        }
+
+        WARNING("FPGA config: invalid");
+
+    } else {
+        WARNING("FPGA config: SPI disabled");
+    }
+
+    return 1;
+}
+
+static uint8_t _CFG_handle_SETUP_INFO(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if (entries == 1) {
+        // we do this to get rid of ""
+        /*if (pStatus->info_bak) {*/
+        /*pStatus->info_bak_last->next=malloc(sizeof(info_list_t));*/
+        /*pStatus->info_bak_last=pStatus->info_bak_last->next;*/
+        /*} else {*/
+        /*pStatus->info_bak=malloc(sizeof(info_list_t));*/
+        /*pStatus->info_bak_last=pStatus->info_bak;*/
+        /*}*/
+        /*pStatus->info_bak_last->next=NULL;*/
+        /*strcpy(pStatus->info_bak_last->info_bak,valueList[0].strval);*/
+
+        MSG_info(valueList[0].strval);
+    }
+
+    return 0;
+}
+
+
+
+
+
+
+
+static uint8_t _CFG_handle_MENU_TITLE(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if (entries == 1) {
+        DEBUG(2, "TITLE: %s ", value);
+        DEBUG(3, "T1: %lx %lx %lx ", pStatus->menu_act,
+              pStatus->menu_act->next, pStatus->menu_act->item_list);
+
+        // we filled this menu branch already with items
+        if (pStatus->menu_top) {   // add further entry
+            // prepare next level and set pointers correctly
+            pStatus->menu_act->next = malloc(sizeof(menu_t));
+            // link back
+            pStatus->menu_act->next->last = pStatus->menu_act;
+            // step in linked list
+            pStatus->menu_act = pStatus->menu_act->next;
+
+        } else {                   // first top entry
+            // prepare top level
+            pStatus->menu_act = malloc(sizeof(menu_t));
+            pStatus->menu_act->last = NULL;
+            // set top level
+            pStatus->menu_top = pStatus->menu_act;
+        }
+
+        pStatus->menu_act->next = NULL;
+        pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
+        pStatus->menu_item_act = pStatus->menu_act->item_list;
+        pStatus->menu_item_act->item_name[0] = 0;
+        pStatus->menu_item_act->next = NULL;
+        pStatus->menu_item_act->last = NULL;
+        pStatus->menu_item_act->option_list = NULL;
+        pStatus->menu_item_act->selected_option = NULL;
+        pStatus->menu_item_act->action_name[0] = 0;
+        // store title to actual branch
+        strncpy(pStatus->menu_act->menu_title,
+                valueList[0].strval, MAX_MENU_STRING);
+
+        DEBUG(3, "T2: %lx %lx %lx ", pStatus->menu_act,
+              pStatus->menu_act->next, pStatus->menu_act->item_list);
+        return 0;
+    }
+
+    return 1;
+}
+
+static uint8_t _CFG_handle_MENU_ITEM(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if ((entries == 2) || (entries == 3) || (entries == 4)) {
+        DEBUG(2, "ITEM: %s ", value);
+        DEBUG(3, "I1: %lx %lx %lx ", pStatus->menu_item_act,
+              pStatus->menu_item_act->next,
+              pStatus->menu_item_act->option_list);
+
+        // item string is set, so this is a new item
+        // (happens with all but the seed item entry of a menu)
+        if (pStatus->menu_item_act->item_name[0]) {
+            pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+            // link back
+            pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+            // step in linked list
+            pStatus->menu_item_act = pStatus->menu_item_act->next;
+        }
+
+        // basic settings
+        pStatus->menu_item_act->next = NULL;
+        pStatus->menu_item_act->option_list = NULL;
+        pStatus->menu_item_act->selected_option = NULL;
+        pStatus->menu_item_act->action_name[0] = 0;
+        strncpy(pStatus->menu_item_act->item_name,
+                valueList[0].strval, MAX_MENU_STRING);
+
+        // special item with own handler, options handled there or ignored
+        if (entries == 2) {
+            strncpy(pStatus->menu_item_act->action_name, valueList[1].strval,
+                    MAX_ITEM_STRING);
+            pStatus->menu_item_act->action_value = 0;
+        }
+
+        // absolute mask item or action handler with value
+        if (entries == 3) {
+            pStatus->menu_item_act->conf_mask = valueList[1].intval;
+
+            if (MATCH(valueList[2].strval, "DYNAMIC") ||
+                    MATCH(valueList[2].strval, "DYN") ||
+                    MATCH(valueList[2].strval, "D")) {
+                pStatus->menu_item_act->conf_dynamic = 1;
+
+            } else if (MATCH(valueList[2].strval, "STATIC") ||
+                       MATCH(valueList[2].strval, "STAT") ||
+                       MATCH(valueList[2].strval, "S")) {
+                pStatus->menu_item_act->conf_dynamic = 0;
+
+            } else {
+                strncpy(pStatus->menu_item_act->action_name,
+                        valueList[1].strval, MAX_ITEM_STRING);
+                pStatus->menu_item_act->action_value = valueList[2].intval;
+            }
+        }
+
+        // value/shift mask item
+        if (entries == 4) {
+            pStatus->menu_item_act->conf_mask = valueList[1].intval <<
+                                                valueList[2].intval;
+
+            if (MATCH(valueList[3].strval, "DYNAMIC") ||
+                    MATCH(valueList[3].strval, "DYN") ||
+                    MATCH(valueList[3].strval, "D")) {
+                pStatus->menu_item_act->conf_dynamic = 1;
+
+            } else if (MATCH(valueList[3].strval, "STATIC") ||
+                       MATCH(valueList[3].strval, "STAT") ||
+                       MATCH(valueList[3].strval, "S")) {
+                pStatus->menu_item_act->conf_dynamic = 0;
+
+            } else {
+                pStatus->menu_item_act->conf_dynamic = 0;
+                WARNING("Menu items must be static or dynamic");
+                return 1;
+            }
+        }
+
+        pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
+        pStatus->item_opt_act = pStatus->menu_item_act->option_list;
+        pStatus->item_opt_act->next = NULL;
+        pStatus->item_opt_act->last = NULL;
+        pStatus->item_opt_act->option_name[0] = 0;
+        DEBUG(3, "I2: %lx %lx %lx ", pStatus->menu_item_act,
+              pStatus->menu_item_act->next,
+              pStatus->menu_item_act->option_list);
+
+        return 0;
+    }
+
+    return 1;
+}
+
+static uint8_t _CFG_handle_MENU_OPTION(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    uint8_t nocheck = 0;
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    /*DEBUG(1,"entries: %d ",entries);*/
+    /*for (int i=0;i<entries;++i){*/
+    /*DEBUG(1,"value %d : \"%s\"",i, valueList[i].strval);*/
+    /*}*/
+
+    if ((entries == 2) || (entries == 3)) {
+        DEBUG(2, "OPTION: %s ", value);
+        DEBUG(3, "O1: %lx %lx", pStatus->item_opt_act,
+              pStatus->item_opt_act->next);
+
+        // option string is set, so we add a new one
+        // (happens with all but the seed option entry of a menu item)
+        if (pStatus->item_opt_act->option_name[0]) {
+            pStatus->item_opt_act->next = malloc(sizeof(menuitem_t));
+            // link back
+            pStatus->item_opt_act->next->last = pStatus->item_opt_act;
+            // step in linked list
+            pStatus->item_opt_act = pStatus->item_opt_act->next;
+            pStatus->item_opt_act->next = NULL;
+        }
+
+        pStatus->item_opt_act->conf_value = valueList[1].intval;
+
+        if (entries == 3) {
+            if (MATCH(valueList[2].strval, "FLAGS") ||
+                    MATCH(valueList[2].strval, "F")) {
+                nocheck = 1;
+
+            } else {
+                if (MATCH(valueList[2].strval, "DEFAULT") ||
+                        MATCH(valueList[2].strval, "DEF") ||
+                        MATCH(valueList[2].strval, "D")) {
+                    pStatus->menu_item_act->selected_option = pStatus->item_opt_act;
+
+                } else {
+                    WARNING("bad option type - use 'default' or none");
+                    return 1;
+                }
+            }
+        }
+
+        if ((pStatus->menu_item_act->conf_mask &
+                pStatus->item_opt_act->conf_value) !=
+                pStatus->item_opt_act->conf_value) {
+            if (!nocheck) {
+                WARNING("item mask does not fit to value");
+                return 1;
+            }
+        }
+
+        // protect from no default by setting selected to first item if not set
+        if (!pStatus->menu_item_act->selected_option) {
+            pStatus->menu_item_act->selected_option = pStatus->item_opt_act;
+        }
+
+        strncpy(pStatus->item_opt_act->option_name,
+                valueList[0].strval, MAX_OPTION_STRING);
+        DEBUG(3, "O2: %lx %lx", pStatus->item_opt_act,
+              pStatus->item_opt_act->next);
+
+        return 0;
+    }
+
+    return 1;
+}
+
+
+static uint8_t _CFG_handle_UPLOAD_VERIFY(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if (entries == 1) {
+        pStatus->verify_dl = valueList[0].intval;
+    }
+
+    DEBUG(1, "UPLOAD verification: %s", pStatus->verify_dl ? "ENABLED" : "DISABLED");
+    return 0;
+}
+
+
+static uint8_t _CFG_handle_UPLOAD_DATA(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    //      (name is relative to INI path)
+    /*if (pStatus->data_bak) {*/
+    /*pStatus->data_bak_last->next=malloc(sizeof(data_list_t));*/
+    /*pStatus->data_bak_last=pStatus->data_bak_last->next;*/
+    /*} else {*/
+    /*pStatus->data_bak=malloc(sizeof(data_list_t));*/
+    /*pStatus->data_bak_last=pStatus->data_bak;*/
+    /*}*/
+    /*pStatus->data_bak_last->next=NULL;*/
+    /*strcpy(pStatus->data_bak_last->data_bak,value);*/
+    if (!pStatus->spi_fpga_enabled) {
+        WARNING("UPLOAD DATA: SPI disabled");
+        return 1;
+    }
+
+    ini_list_t valueList[32];
+    uint16_t entries = ParseList(value, valueList, 32);
+
+    // check for maximum of 16 entries
+    // (plus address and dataset length), check both lengths
+    if ((entries <= 18) && ((entries - 2) == valueList[entries - 1].intval)) {
+        uint8_t buf[16];
+
+        for (int i = 0; i < (entries - 2); buf[i] = valueList[i].intval, i++);
+
+        DEBUG(2, "Data upload @ 0x%08lX (%ld byte)",
+              valueList[entries - 2].intval, entries - 2);
+
+        if (FileIO_MCh_BufToMem(buf, valueList[entries - 2].intval,
+                                valueList[entries - 1].intval)) {
+            WARNING("DATA upload to FPGA failed");
+            return 1;
+        }
+
+        if (pStatus->verify_dl) {
+            // required to readback data and check it again...
+            uint8_t tmpbuf[16];
+            FileIO_MCh_MemToBuf(tmpbuf, valueList[entries - 2].intval,
+                                valueList[entries - 1].intval);
+
+            for (int i = 0; i < (entries - 2); i++) {
+                if (tmpbuf[i] != buf[i]) {
+                    WARNING("DATA verification failed");
+                    return 1;
+                }
+            }
+
+            return 0;
+
+        } else {
+            return FileIO_MCh_BufToMem(buf, valueList[entries - 2].intval,
+                                       valueList[entries - 1].intval);
+        }
+    }
+
+    return 1;
+}
+
+
+// ===> Get data from FPGA and execute
+static uint8_t _CFG_handle_UPLOAD_LAUNCH(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[8];
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if (entries == 3) {
+        uint32_t start   = valueList[0].intval;
+        uint32_t length  = valueList[1].intval;
+        uint32_t checksum = valueList[2].intval;
+        DEBUG(2, "LAUNCH FROM MEMORY @ 0x%lx, l:%d (s:0x%x),", start, length, checksum);
+        FPGA_ExecMem(start, (uint16_t)length, checksum);
+        return 0;
+
+    } else {
+        return 1;
+    }
+}
+
+
+static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    // (name is relative to INI path)
+    /*if (pStatus->rom_bak) {*/
+    /*pStatus->rom_bak_last->next=malloc(sizeof(rom_list_t));*/
+    /*pStatus->rom_bak_last=pStatus->rom_bak_last->next;*/
+    /*} else {*/
+    /*pStatus->rom_bak=malloc(sizeof(rom_list_t));*/
+    /*pStatus->rom_bak_last=pStatus->rom_bak;*/
+    /*}*/
+    /*pStatus->rom_bak_last->next=NULL;*/
+    /*strcpy(pStatus->rom_bak_last->rom_bak,value);*/
+    if (!pStatus->spi_fpga_enabled) {
+        WARNING("ROM upload, but SPI disabled");
+    }
+
+    ini_list_t valueList[8];
+    uint16_t entries = ParseList(value, valueList, 8);
+
+    if ((entries == 4) && (strlen(valueList[0].strval))) {
+        char fullname[FF_MAX_PATH];
+        // set address properly
+        pStatus->last_rom_adr = valueList[2].intval + valueList[1].intval;
+        // prepare filename
+        sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+
+        uint32_t staticbits = pStatus->config_s;
+        uint32_t dynamicbits = pStatus->config_d;
+        DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
+        DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)",
+              valueList[2].intval, valueList[1].intval);
+
+        if (CFG_upload_rom(fullname, valueList[2].intval, valueList[1].intval,
+                           pStatus->verify_dl, valueList[3].intval, &staticbits, &dynamicbits)) {
+            WARNING("ROM upload to FPGA failed");
+            return 1;
+
+        } else {
+            DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
+            pStatus->config_s = staticbits;
+            //not used yet: pStatus->config_d = dynamicbits;
+            // send bits to FPGA
+            OSD_ConfigSendUserS(staticbits);
+            //not used yet: OSD_ConfigSendUserD(dynamicbits);
+            return 0;
+        }
+
+    } else if ((entries == 3) && (strlen(valueList[0].strval))) {
+        char fullname[FF_MAX_PATH];
+        // set address properly
+        pStatus->last_rom_adr = valueList[2].intval + valueList[1].intval;
+        // prepare filename
+        sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+
+        uint32_t staticbits = pStatus->config_s;
+        uint32_t dynamicbits = pStatus->config_d;
+        DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
+        DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)",
+              valueList[2].intval, valueList[1].intval);
+
+        if (CFG_upload_rom(fullname, valueList[2].intval, valueList[1].intval,
+                           pStatus->verify_dl, 0, &staticbits, &dynamicbits)) {
+            WARNING("ROM upload to FPGA failed");
+            return 1;
+
+        } else {
+            DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
+            pStatus->config_s = staticbits;
+            //not used yet: pStatus->config_d = dynamicbits;
+            // send bits to FPGA
+            OSD_ConfigSendUserS(staticbits);
+            //not used yet: OSD_ConfigSendUserD(dynamicbits);
+            return 0;
+        }
+
+    } else if ((entries == 2) && (strlen(valueList[0].strval))) {
+        char fullname[FF_MAX_PATH];
+        uint32_t adr = pStatus->last_rom_adr;
+        // increment address properly
+        pStatus->last_rom_adr = adr + valueList[1].intval;
+        // prepare filename
+        sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+
+        uint32_t staticbits = pStatus->config_s;
+        uint32_t dynamicbits = pStatus->config_d;
+        DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
+        DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)",
+              adr, valueList[1].intval);
+
+        if (CFG_upload_rom(fullname, adr, valueList[1].intval,
+                           pStatus->verify_dl, 0, &staticbits, &dynamicbits)) {
+            WARNING("ROM upload to FPGA failed");
+            return 1;
+
+        } else {
+            DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
+            pStatus->config_s = staticbits;
+            //not used yet: pStatus->config_d = dynamicbits;
+            // send bits to FPGA
+            OSD_ConfigSendUserS(staticbits);
+            //not used yet: OSD_ConfigSendUserD(dynamicbits);
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+
+
+static uint8_t _CFG_handle_FILES_CHA_MOUNT(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[2];
+    uint16_t entries = ParseList(value, valueList, 2);
+    uint8_t  unit = 0;
+
+    if ((entries == 1) || (entries == 2)) {
+        if (entries == 2) {
+            unit = valueList[1].intval;
+        }
+
+        if (unit < FCH_MAX_NUM) {
+            if (strlen(valueList[0].strval)) {
+                char fullname[FF_MAX_PATH];
+                // prepare filename
+                sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+                FileIO_FCh_Insert(0, unit, fullname);
+            };
+
+        } else {
+            DEBUG(1, "Illegal FileIO ChA number");
+        };
+
+    }
+
+    return 0;
+}
+
+static uint8_t _CFG_handle_FILES_CHA_CFG(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[5];
+    uint16_t entries = ParseList(value, valueList, 5);
+
+    if (entries > 0) {
+        if        (MATCH(valueList[0].strval, "REMOVABLE")) {
+            pStatus->fileio_cha_mode = (fileio_mode_t) REMOVABLE;
+            DEBUG(1, "ChA Removable");
+
+        } else if (MATCH(valueList[0].strval, "FIXED")) {
+            pStatus->fileio_cha_mode = (fileio_mode_t) FIXED;
+            DEBUG(1, "ChA Fixed");
+
+        } else {
+            WARNING("ChA bad drive type - use 'removable' or fixed");
+            return 1;
+        }
+    }
+
+    if (entries > 1) {
+        DEBUG(1, "ChA %d extension filters: ", entries - 1);
+        pStatus->fileio_cha_ext = malloc(sizeof(file_ext_t) * entries);
+
+        for (uint16_t i = 0; i < entries - 1; ++i) {
+            _strlcpy(pStatus->fileio_cha_ext[i].ext, valueList[i + 1].strval, sizeof(file_ext_t));
+            DEBUG(1, "ChA extension %d : %s", i, pStatus->fileio_cha_ext[i].ext);
+        }
+
+        memset(pStatus->fileio_cha_ext[entries - 1].ext, 0x00, sizeof(file_ext_t));
+
+    } else {
+        pStatus->fileio_cha_ext = NULL; // == "*"
+    }
+
+    return 0;
+}
+
+static uint8_t _CFG_handle_FILES_CHB_MOUNT(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[2];
+    uint16_t entries = ParseList(value, valueList, 2);
+    uint8_t  unit = 0;
+
+    if ((entries == 1) || (entries == 2)) {
+        if (entries == 2) {
+            unit = valueList[1].intval;
+        }
+
+        if (unit < FCH_MAX_NUM) {
+            if (strlen(valueList[0].strval)) {
+                char fullname[FF_MAX_PATH];
+                // prepare filename
+                sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+                FileIO_FCh_Insert(1, unit, fullname);
+            };
+
+        } else {
+            DEBUG(1, "Illegal FileIO ChB number");
+        };
+
+    }
+
+    return 0;
+}
+
+
+static uint8_t _CFG_handle_FILES_CHB_CFG(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[1];
+    uint16_t entries = ParseList(value, valueList, 5);
+
+    if (entries > 0) {
+        if (MATCH(valueList[0].strval, "REMOVABLE")) {
+            pStatus->fileio_chb_mode = (fileio_mode_t) REMOVABLE;
+            DEBUG(1, "ChB Removable");
+
+        } else if (MATCH(valueList[0].strval, "FIXED")) {
+            pStatus->fileio_chb_mode = (fileio_mode_t) FIXED;
+            DEBUG(1, "ChB Fixed");
+
+        } else {
+            WARNING("ChB bad drive type - use 'removable' or fixed");
+            return 1;
+        }
+    }
+
+    if (entries > 1) {
+        DEBUG(1, "ChB %d extension filters: ", entries - 1);
+        pStatus->fileio_chb_ext = malloc(sizeof(file_ext_t) * entries);
+
+        for (uint16_t i = 0; i < entries - 1; ++i) {
+            _strlcpy(pStatus->fileio_chb_ext[i].ext, valueList[i + 1].strval, sizeof(file_ext_t));
+            DEBUG(1, "ChB extension %d : %s", i, pStatus->fileio_chb_ext[i].ext);
+        }
+
+        memset(pStatus->fileio_chb_ext[entries - 1].ext, 0x00, sizeof(file_ext_t));
+
+    } else {
+        pStatus->fileio_chb_ext = NULL; // == "*"
+    }
+
+    return 0;
+}
+
+
+
+uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
+                               const ini_symbols_t name, const char* value)
+{
+    if (section == INI_SETUP) {
+        switch (name) {
+            case INI_BIN:
+                return _CFG_handle_SETUP_BIN((status_t*)status, name, value);
+
+            case INI_CLOCK:
+                return _CFG_handle_SETUP_CLOCK((status_t*)status, name, value);
+
+            case INI_CODER:
+                return _CFG_handle_SETUP_CODER((status_t*)status, name, value);
+
+            case INI_PHASE:
+                return _CFG_handle_SETUP_PHASE((status_t*)status, name, value);
+
+            case INI_VFILTER:
+                return _CFG_handle_SETUP_VFILTER((status_t*)status, name, value);
+
+            case INI_EN_TWI:
+                return _CFG_handle_SETUP_EN_TWI((status_t*)status, name, value);
+
+            case INI_EN_SPI:
+                return _CFG_handle_SETUP_EN_SPI((status_t*)status, name, value);
+
+            case INI_SPI_CLK:
+                return _CFG_handle_SETUP_SPI_CLK((status_t*)status, name, value);
+
+            case INI_BUTTON:
+                return _CFG_handle_SETUP_BUTTON((status_t*)status, name, value);
+
+            case INI_HOTKEY:
+                return _CFG_handle_SETUP_HOTKEY((status_t*)status, name, value);
+
+            case INI_CLOCKMON:
+                return _CFG_handle_SETUP_CLOCKMON((status_t*)status, name, value);
+
+            case INI_OSD_INIT:
+                return _CFG_handle_SETUP_OSD_INIT((status_t*)status, name, value);
+
+            default:
+                break;
+        }
+
+    } else if (section == INI_UPLOAD) {
+        if (name == INI_VERIFY) {
+            return _CFG_handle_UPLOAD_VERIFY((status_t*)status, name, value);
+        }
+    }
+
+
+    return 0;
+}
+
 
 uint8_t CFG_pre_init(status_t* currentStatus, const char* iniFile)
 {
@@ -1240,639 +1924,69 @@ option = "H+V",      3
 uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                            const ini_symbols_t name, const char* value)
 {
-    status_t* pStatus = (status_t*) status;
+    status_t* pStatus = (status_t*)status;
 
-    if (section == INI_START) {
-        // start of INI file
-        DEBUG(3, "callback SOF");
-    }
+    if (section == INI_SETUP) {
+        switch (name) {
+            case INI_CONFIG:
+                return _CFG_handle_SETUP_CONFIG(pStatus, name, value);
 
-    if (section == INI_UNKNOWN) {
-        // end of INI file
-        DEBUG(3, "callback EOF");
+            case INI_INFO:
+                return _CFG_handle_SETUP_INFO(pStatus, name, value);
 
-    } else {
-        if (name == INI_UNKNOWN) {
-            // new [section] line
-            DEBUG(3, "callback new section");
+            case INI_VIDEO:
+                return _CFG_handle_SETUP_VIDEO(pStatus, name, value);
 
-        } else {
-            // new name=value line
-            DEBUG(3, "callback [%d] <%d>=\"%s\" ", section, name, value);
+            default:
+                break;
+        }
 
-            // -------------------------------------------------------
-            if (section == INI_SETUP) {
-                // =====================
-                if (name == INI_VIDEO) {        // ===> FINAL VIDEO CONFIGURATION
-                    /*strcpy(pStatus->video_bak,value);*/
-                    if (pStatus->twi_enabled) {
-                        ini_list_t valueList[32];
-                        uint16_t entries = ParseList(value, valueList, 32);
+    } else if (section == INI_MENU) {
+        switch (name) {
+            case INI_TITLE:
+                return _CFG_handle_MENU_TITLE(pStatus, name, value);
 
-                        if (entries == 16) {
-                            const vidconfig_t vid_config = {
-                                valueList[ 0].intval, valueList[ 1].intval,
-                                valueList[ 2].intval, valueList[ 3].intval,
-                                valueList[ 4].intval, valueList[ 5].intval,
-                                valueList[ 6].intval, valueList[ 7].intval,
-                                valueList[ 8].intval, valueList[ 9].intval,
-                                valueList[10].intval, valueList[11].intval,
-                                valueList[12].intval, valueList[13].intval,
-                                valueList[14].intval, valueList[15].intval,
-                            };
-                            Configure_CH7301(&vid_config);
+            case INI_ITEM:
+                return _CFG_handle_MENU_ITEM(pStatus, name, value);
 
-                        } else {
-                            return 1;
-                        }
+            case INI_OPTION:
+                return _CFG_handle_MENU_OPTION(pStatus, name, value);
 
-                        DEBUG(2, "VIDEO: %s", value);
+            default:
+                break;
+        }
 
-                    } else {
-                        WARNING("VIDEO config but TWI disabled");
-                        return 1;
-                    }
-                }
+    } else if (section == INI_UPLOAD) {
+        switch (name) {
+            case INI_DATA:
+                return _CFG_handle_UPLOAD_DATA(pStatus, name, value);
 
-                // =====================
-                if (name == INI_CONFIG) {      // ===> SET CONFIGURATION BITS
-                    if (pStatus->spi_fpga_enabled) {
-                        ini_list_t valueList[8];
-                        uint16_t entries = ParseList(value, valueList, 8);
+            case INI_LAUNCH:
+                return _CFG_handle_UPLOAD_LAUNCH(pStatus, name, value);
 
-                        if (entries == 2) {
-                            pStatus->config_s = valueList[0].intval;
-                            pStatus->config_d = valueList[1].intval;
+            case INI_ROM:
+                return _CFG_handle_UPLOAD_ROM(pStatus, name, value);
 
-                        } else {
-                            return 1;
-                        }
+            default:
+                break;
+        }
 
-                        DEBUG(2, "CONFIG: static=0x%08X, dynamic=0x%08X",
-                              pStatus->config_s, pStatus->config_d);
+    } else if (section == INI_FILES) {
+        switch (name) {
+            case INI_CHA_MOUNT:
+                return _CFG_handle_FILES_CHA_MOUNT(pStatus, name, value);
 
-                    } else {
-                        WARNING("FPGA config but SPI disabled");
-                        return 1;
-                    }
-                }
+            case INI_CHB_MOUNT:
+                return _CFG_handle_FILES_CHB_MOUNT(pStatus, name, value);
 
-                // =====================
-                if (name == INI_INFO) {        // ===> SHOW INFO LINE
-                    ini_list_t valueList[8];
-                    uint16_t entries = ParseList(value, valueList, 8);
+            case INI_CHA_CFG:
+                return _CFG_handle_FILES_CHA_CFG(pStatus, name, value);
 
-                    if (entries == 1) {
-                        // we do this to get rid of ""
-                        /*if (pStatus->info_bak) {*/
-                        /*pStatus->info_bak_last->next=malloc(sizeof(info_list_t));*/
-                        /*pStatus->info_bak_last=pStatus->info_bak_last->next;*/
-                        /*} else {*/
-                        /*pStatus->info_bak=malloc(sizeof(info_list_t));*/
-                        /*pStatus->info_bak_last=pStatus->info_bak;*/
-                        /*}*/
-                        /*pStatus->info_bak_last->next=NULL;*/
-                        /*strcpy(pStatus->info_bak_last->info_bak,valueList[0].strval);*/
+            case INI_CHB_CFG:
+                return _CFG_handle_FILES_CHB_CFG(pStatus, name, value);
 
-                        MSG_info(valueList[0].strval);
-                    }
-                }
-            }
-
-            // -------------------------------------------------------
-            if (section == INI_UPLOAD) {
-                // =====================
-                if (name == INI_ROM) {        // ===> UPLOAD A ROM FILE
-                    // (name is relative to INI path)
-                    /*if (pStatus->rom_bak) {*/
-                    /*pStatus->rom_bak_last->next=malloc(sizeof(rom_list_t));*/
-                    /*pStatus->rom_bak_last=pStatus->rom_bak_last->next;*/
-                    /*} else {*/
-                    /*pStatus->rom_bak=malloc(sizeof(rom_list_t));*/
-                    /*pStatus->rom_bak_last=pStatus->rom_bak;*/
-                    /*}*/
-                    /*pStatus->rom_bak_last->next=NULL;*/
-                    /*strcpy(pStatus->rom_bak_last->rom_bak,value);*/
-                    if (pStatus->spi_fpga_enabled) {
-                        ini_list_t valueList[8];
-                        uint16_t entries = ParseList(value, valueList, 8);
-
-                        if ((entries == 4) && (strlen(valueList[0].strval))) {
-                            char fullname[FF_MAX_PATH];
-                            // set address properly
-                            pStatus->last_rom_adr = valueList[2].intval + valueList[1].intval;
-                            // prepare filename
-                            sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
-
-                            uint32_t staticbits = pStatus->config_s;
-                            uint32_t dynamicbits = pStatus->config_d;
-                            DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
-                            DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)",
-                                  valueList[2].intval, valueList[1].intval);
-
-                            if (CFG_upload_rom(fullname, valueList[2].intval, valueList[1].intval,
-                                               pStatus->verify_dl, valueList[3].intval, &staticbits, &dynamicbits)) {
-                                WARNING("ROM upload to FPGA failed");
-                                return 1;
-
-                            } else {
-                                DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
-                                pStatus->config_s = staticbits;
-                                //not used yet: pStatus->config_d = dynamicbits;
-                                // send bits to FPGA
-                                OSD_ConfigSendUserS(staticbits);
-                                //not used yet: OSD_ConfigSendUserD(dynamicbits);
-                                return 0;
-                            }
-
-                        } else if ((entries == 3) && (strlen(valueList[0].strval))) {
-                            char fullname[FF_MAX_PATH];
-                            // set address properly
-                            pStatus->last_rom_adr = valueList[2].intval + valueList[1].intval;
-                            // prepare filename
-                            sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
-
-                            uint32_t staticbits = pStatus->config_s;
-                            uint32_t dynamicbits = pStatus->config_d;
-                            DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
-                            DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)",
-                                  valueList[2].intval, valueList[1].intval);
-
-                            if (CFG_upload_rom(fullname, valueList[2].intval, valueList[1].intval,
-                                               pStatus->verify_dl, 0, &staticbits, &dynamicbits)) {
-                                WARNING("ROM upload to FPGA failed");
-                                return 1;
-
-                            } else {
-                                DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
-                                pStatus->config_s = staticbits;
-                                //not used yet: pStatus->config_d = dynamicbits;
-                                // send bits to FPGA
-                                OSD_ConfigSendUserS(staticbits);
-                                //not used yet: OSD_ConfigSendUserD(dynamicbits);
-                                return 0;
-                            }
-
-                        } else if ((entries == 2) && (strlen(valueList[0].strval))) {
-                            char fullname[FF_MAX_PATH];
-                            uint32_t adr = pStatus->last_rom_adr;
-                            // increment address properly
-                            pStatus->last_rom_adr = adr + valueList[1].intval;
-                            // prepare filename
-                            sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
-
-                            uint32_t staticbits = pStatus->config_s;
-                            uint32_t dynamicbits = pStatus->config_d;
-                            DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
-                            DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)",
-                                  adr, valueList[1].intval);
-
-                            if (CFG_upload_rom(fullname, adr, valueList[1].intval,
-                                               pStatus->verify_dl, 0, &staticbits, &dynamicbits)) {
-                                WARNING("ROM upload to FPGA failed");
-                                return 1;
-
-                            } else {
-                                DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
-                                pStatus->config_s = staticbits;
-                                //not used yet: pStatus->config_d = dynamicbits;
-                                // send bits to FPGA
-                                OSD_ConfigSendUserS(staticbits);
-                                //not used yet: OSD_ConfigSendUserD(dynamicbits);
-                                return 0;
-                            }
-
-                        } else {
-                            return 1;
-                        }
-
-                    } else {
-                        WARNING("ROM upload, but SPI disabled");
-                        return 1;
-                    }
-                }
-
-                // =====================
-                if (name == INI_DATA) {        // ===> UPLOAD A DATA SET
-                    //      (name is relative to INI path)
-                    /*if (pStatus->data_bak) {*/
-                    /*pStatus->data_bak_last->next=malloc(sizeof(data_list_t));*/
-                    /*pStatus->data_bak_last=pStatus->data_bak_last->next;*/
-                    /*} else {*/
-                    /*pStatus->data_bak=malloc(sizeof(data_list_t));*/
-                    /*pStatus->data_bak_last=pStatus->data_bak;*/
-                    /*}*/
-                    /*pStatus->data_bak_last->next=NULL;*/
-                    /*strcpy(pStatus->data_bak_last->data_bak,value);*/
-                    if (pStatus->spi_fpga_enabled) {
-                        ini_list_t valueList[32];
-                        uint16_t entries = ParseList(value, valueList, 32);
-
-                        // check for maximum of 16 entries
-                        // (plus address and dataset length), check both lengths
-                        if ((entries <= 18) && ((entries - 2) == valueList[entries - 1].intval)) {
-                            uint8_t buf[16];
-
-                            for (int i = 0; i < (entries - 2); buf[i] = valueList[i].intval, i++);
-
-                            DEBUG(2, "Data upload @ 0x%08lX (%ld byte)",
-                                  valueList[entries - 2].intval, entries - 2);
-
-                            if (FileIO_MCh_BufToMem(buf, valueList[entries - 2].intval,
-                                                    valueList[entries - 1].intval)) {
-                                WARNING("DATA upload to FPGA failed");
-                                return 1;
-                            }
-
-                            if (pStatus->verify_dl) {
-                                // required to readback data and check it again...
-                                uint8_t tmpbuf[16];
-                                FileIO_MCh_MemToBuf(tmpbuf, valueList[entries - 2].intval,
-                                                    valueList[entries - 1].intval);
-
-                                for (int i = 0; i < (entries - 2); i++) {
-                                    if (tmpbuf[i] != buf[i]) {
-                                        WARNING("DATA verification failed");
-                                        return 1;
-                                    }
-                                }
-
-                            } else {
-                                return FileIO_MCh_BufToMem(buf, valueList[entries - 2].intval,
-                                                           valueList[entries - 1].intval);
-                            }
-
-                        } else {
-                            return 1;
-                        }
-
-                    } else {
-                        WARNING("DATA upload, but SPI disabled");
-                        return 1;
-                    }
-                }
-
-                // =====================
-                if (name == INI_LAUNCH) {     // ===> Get data from FPGA and execute
-                    ini_list_t valueList[8];
-                    uint16_t entries = ParseList(value, valueList, 8);
-
-                    if (entries == 3) {
-                        uint32_t start   = valueList[0].intval;
-                        uint32_t length  = valueList[1].intval;
-                        uint32_t checksum = valueList[2].intval;
-                        DEBUG(2, "LAUNCH FROM MEMORY @ 0x%lx, l:%d (s:0x%x),", start, length, checksum);
-                        FPGA_ExecMem(start, (uint16_t)length, checksum);
-
-                    } else {
-                        return 1;
-                    }
-                }
-            }
-
-            // -------------------------------------------------------
-            if (section == INI_MENU) {
-                // =====================
-                if (name == INI_TITLE) {        // ===> set new menu title
-                    ini_list_t valueList[8];
-                    uint16_t entries = ParseList(value, valueList, 8);
-
-                    if (entries == 1) {
-                        DEBUG(2, "TITLE: %s ", value);
-                        DEBUG(3, "T1: %lx %lx %lx ", pStatus->menu_act,
-                              pStatus->menu_act->next, pStatus->menu_act->item_list);
-
-                        // we filled this menu branch already with items
-                        if (pStatus->menu_top) {   // add further entry
-                            // prepare next level and set pointers correctly
-                            pStatus->menu_act->next = malloc(sizeof(menu_t));
-                            // link back
-                            pStatus->menu_act->next->last = pStatus->menu_act;
-                            // step in linked list
-                            pStatus->menu_act = pStatus->menu_act->next;
-
-                        } else {                   // first top entry
-                            // prepare top level
-                            pStatus->menu_act = malloc(sizeof(menu_t));
-                            pStatus->menu_act->last = NULL;
-                            // set top level
-                            pStatus->menu_top = pStatus->menu_act;
-                        }
-
-                        pStatus->menu_act->next = NULL;
-                        pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
-                        pStatus->menu_item_act = pStatus->menu_act->item_list;
-                        pStatus->menu_item_act->item_name[0] = 0;
-                        pStatus->menu_item_act->next = NULL;
-                        pStatus->menu_item_act->last = NULL;
-                        pStatus->menu_item_act->option_list = NULL;
-                        pStatus->menu_item_act->selected_option = NULL;
-                        pStatus->menu_item_act->action_name[0] = 0;
-                        // store title to actual branch
-                        strncpy(pStatus->menu_act->menu_title,
-                                valueList[0].strval, MAX_MENU_STRING);
-
-                        DEBUG(3, "T2: %lx %lx %lx ", pStatus->menu_act,
-                              pStatus->menu_act->next, pStatus->menu_act->item_list);
-
-                    } else {
-                        return 1;
-                    }
-                }
-
-                // =====================
-                if (name == INI_ITEM) {         // ===> add a new menu item
-                    ini_list_t valueList[8];
-                    uint16_t entries = ParseList(value, valueList, 8);
-
-                    if ((entries == 2) || (entries == 3) || (entries == 4)) {
-                        DEBUG(2, "ITEM: %s ", value);
-                        DEBUG(3, "I1: %lx %lx %lx ", pStatus->menu_item_act,
-                              pStatus->menu_item_act->next,
-                              pStatus->menu_item_act->option_list);
-
-                        // item string is set, so this is a new item
-                        // (happens with all but the seed item entry of a menu)
-                        if (pStatus->menu_item_act->item_name[0]) {
-                            pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-                            // link back
-                            pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-                            // step in linked list
-                            pStatus->menu_item_act = pStatus->menu_item_act->next;
-                        }
-
-                        // basic settings
-                        pStatus->menu_item_act->next = NULL;
-                        pStatus->menu_item_act->option_list = NULL;
-                        pStatus->menu_item_act->selected_option = NULL;
-                        pStatus->menu_item_act->action_name[0] = 0;
-                        strncpy(pStatus->menu_item_act->item_name,
-                                valueList[0].strval, MAX_MENU_STRING);
-
-                        // special item with own handler, options handled there or ignored
-                        if (entries == 2) {
-                            strncpy(pStatus->menu_item_act->action_name, valueList[1].strval,
-                                    MAX_ITEM_STRING);
-                            pStatus->menu_item_act->action_value = 0;
-                        }
-
-                        // absolute mask item or action handler with value
-                        if (entries == 3) {
-                            pStatus->menu_item_act->conf_mask = valueList[1].intval;
-
-                            if (MATCH(valueList[2].strval, "DYNAMIC") ||
-                                    MATCH(valueList[2].strval, "DYN") ||
-                                    MATCH(valueList[2].strval, "D")) {
-                                pStatus->menu_item_act->conf_dynamic = 1;
-
-                            } else if (MATCH(valueList[2].strval, "STATIC") ||
-                                       MATCH(valueList[2].strval, "STAT") ||
-                                       MATCH(valueList[2].strval, "S")) {
-                                pStatus->menu_item_act->conf_dynamic = 0;
-
-                            } else {
-                                strncpy(pStatus->menu_item_act->action_name,
-                                        valueList[1].strval, MAX_ITEM_STRING);
-                                pStatus->menu_item_act->action_value = valueList[2].intval;
-                            }
-                        }
-
-                        // value/shift mask item
-                        if (entries == 4) {
-                            pStatus->menu_item_act->conf_mask = valueList[1].intval <<
-                                                                valueList[2].intval;
-
-                            if (MATCH(valueList[3].strval, "DYNAMIC") ||
-                                    MATCH(valueList[3].strval, "DYN") ||
-                                    MATCH(valueList[3].strval, "D")) {
-                                pStatus->menu_item_act->conf_dynamic = 1;
-
-                            } else if (MATCH(valueList[3].strval, "STATIC") ||
-                                       MATCH(valueList[3].strval, "STAT") ||
-                                       MATCH(valueList[3].strval, "S")) {
-                                pStatus->menu_item_act->conf_dynamic = 0;
-
-                            } else {
-                                pStatus->menu_item_act->conf_dynamic = 0;
-                                WARNING("Menu items must be static or dynamic");
-                                return 1;
-                            }
-                        }
-
-                        pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-                        pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-                        pStatus->item_opt_act->next = NULL;
-                        pStatus->item_opt_act->last = NULL;
-                        pStatus->item_opt_act->option_name[0] = 0;
-                        DEBUG(3, "I2: %lx %lx %lx ", pStatus->menu_item_act,
-                              pStatus->menu_item_act->next,
-                              pStatus->menu_item_act->option_list);
-
-                    } else {
-                        return 1;
-                    }
-                }
-
-                // =====================
-                if (name == INI_OPTION) {       // ===> add an option to an item
-                    ini_list_t valueList[8];
-                    uint8_t nocheck = 0;
-                    uint16_t entries = ParseList(value, valueList, 8);
-
-                    /*DEBUG(1,"entries: %d ",entries);*/
-                    /*for (int i=0;i<entries;++i){*/
-                    /*DEBUG(1,"value %d : \"%s\"",i, valueList[i].strval);*/
-                    /*}*/
-
-                    if ((entries == 2) || (entries == 3)) {
-                        DEBUG(2, "OPTION: %s ", value);
-                        DEBUG(3, "O1: %lx %lx", pStatus->item_opt_act,
-                              pStatus->item_opt_act->next);
-
-                        // option string is set, so we add a new one
-                        // (happens with all but the seed option entry of a menu item)
-                        if (pStatus->item_opt_act->option_name[0]) {
-                            pStatus->item_opt_act->next = malloc(sizeof(menuitem_t));
-                            // link back
-                            pStatus->item_opt_act->next->last = pStatus->item_opt_act;
-                            // step in linked list
-                            pStatus->item_opt_act = pStatus->item_opt_act->next;
-                            pStatus->item_opt_act->next = NULL;
-                        }
-
-                        pStatus->item_opt_act->conf_value = valueList[1].intval;
-
-                        if (entries == 3) {
-                            if (MATCH(valueList[2].strval, "FLAGS") ||
-                                    MATCH(valueList[2].strval, "F")) {
-                                nocheck = 1;
-
-                            } else {
-                                if (MATCH(valueList[2].strval, "DEFAULT") ||
-                                        MATCH(valueList[2].strval, "DEF") ||
-                                        MATCH(valueList[2].strval, "D")) {
-                                    pStatus->menu_item_act->selected_option = pStatus->item_opt_act;
-
-                                } else {
-                                    WARNING("bad option type - use 'default' or none");
-                                    return 1;
-                                }
-                            }
-                        }
-
-                        if ((pStatus->menu_item_act->conf_mask &
-                                pStatus->item_opt_act->conf_value) !=
-                                pStatus->item_opt_act->conf_value) {
-                            if (!nocheck) {
-                                WARNING("item mask does not fit to value");
-                                return 1;
-                            }
-                        }
-
-                        // protect from no default by setting selected to first item if not set
-                        if (!pStatus->menu_item_act->selected_option) {
-                            pStatus->menu_item_act->selected_option = pStatus->item_opt_act;
-                        }
-
-                        strncpy(pStatus->item_opt_act->option_name,
-                                valueList[0].strval, MAX_OPTION_STRING);
-                        DEBUG(3, "O2: %lx %lx", pStatus->item_opt_act,
-                              pStatus->item_opt_act->next);
-
-                    } else {
-                        return 1;
-                    }
-                }
-            }
-
-            // -------------------------------------------------------
-            if (section == INI_FILES) {
-
-                if (name == INI_CHA_MOUNT) {
-                    ini_list_t valueList[2];
-                    uint16_t entries = ParseList(value, valueList, 2);
-                    uint8_t  unit = 0;
-
-                    if ((entries == 1) || (entries == 2)) {
-                        if (entries == 2) {
-                            unit = valueList[1].intval;
-                        }
-
-                        if (unit < FCH_MAX_NUM) {
-                            if (strlen(valueList[0].strval)) {
-                                char fullname[FF_MAX_PATH];
-                                // prepare filename
-                                sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
-                                FileIO_FCh_Insert(0, unit, fullname);
-                            };
-
-                        } else {
-                            DEBUG(1, "Illegal FileIO ChA number");
-                        };
-
-                    }
-                }
-
-                if (name == INI_CHA_CFG) {
-                    ini_list_t valueList[5];
-                    uint16_t entries = ParseList(value, valueList, 5);
-
-                    if (entries > 0) {
-                        if        (MATCH(valueList[0].strval, "REMOVABLE")) {
-                            pStatus->fileio_cha_mode = (fileio_mode_t) REMOVABLE;
-                            DEBUG(1, "ChA Removable");
-
-                        } else if (MATCH(valueList[0].strval, "FIXED")) {
-                            pStatus->fileio_cha_mode = (fileio_mode_t) FIXED;
-                            DEBUG(1, "ChA Fixed");
-
-                        } else {
-                            WARNING("ChA bad drive type - use 'removable' or fixed");
-                            return 1;
-                        }
-                    }
-
-                    if (entries > 1) {
-                        DEBUG(1, "ChA %d extension filters: ", entries - 1);
-                        pStatus->fileio_cha_ext = malloc(sizeof(file_ext_t) * entries);
-
-                        for (uint16_t i = 0; i < entries - 1; ++i) {
-                            _strlcpy(pStatus->fileio_cha_ext[i].ext, valueList[i + 1].strval, sizeof(file_ext_t));
-                            DEBUG(1, "ChA extension %d : %s", i, pStatus->fileio_cha_ext[i].ext);
-                        }
-
-                        memset(pStatus->fileio_cha_ext[entries - 1].ext, 0x00, sizeof(file_ext_t));
-
-                    } else {
-                        pStatus->fileio_cha_ext = NULL; // == "*"
-                    }
-
-                }
-
-                if (name == INI_CHB_MOUNT) {
-                    ini_list_t valueList[2];
-                    uint16_t entries = ParseList(value, valueList, 2);
-                    uint8_t  unit = 0;
-
-                    if ((entries == 1) || (entries == 2)) {
-                        if (entries == 2) {
-                            unit = valueList[1].intval;
-                        }
-
-                        if (unit < FCH_MAX_NUM) {
-                            if (strlen(valueList[0].strval)) {
-                                char fullname[FF_MAX_PATH];
-                                // prepare filename
-                                sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
-                                FileIO_FCh_Insert(1, unit, fullname);
-                            };
-
-                        } else {
-                            DEBUG(1, "Illegal FileIO ChB number");
-                        };
-
-                    }
-                }
-
-
-                if (name == INI_CHB_CFG) {
-                    ini_list_t valueList[1];
-                    uint16_t entries = ParseList(value, valueList, 5);
-
-                    if (entries > 0) {
-                        if        (MATCH(valueList[0].strval, "REMOVABLE")) {
-                            pStatus->fileio_chb_mode = (fileio_mode_t) REMOVABLE;
-                            DEBUG(1, "ChB Removable");
-
-                        } else if (MATCH(valueList[0].strval, "FIXED")) {
-                            pStatus->fileio_chb_mode = (fileio_mode_t) FIXED;
-                            DEBUG(1, "ChB Fixed");
-
-                        } else {
-                            WARNING("ChB bad drive type - use 'removable' or fixed");
-                            return 1;
-                        }
-                    }
-
-                    if (entries > 1) {
-                        DEBUG(1, "ChB %d extension filters: ", entries - 1);
-                        pStatus->fileio_chb_ext = malloc(sizeof(file_ext_t) * entries);
-
-                        for (uint16_t i = 0; i < entries - 1; ++i) {
-                            _strlcpy(pStatus->fileio_chb_ext[i].ext, valueList[i + 1].strval, sizeof(file_ext_t));
-                            DEBUG(1, "ChB extension %d : %s", i, pStatus->fileio_chb_ext[i].ext);
-                        }
-
-                        memset(pStatus->fileio_chb_ext[entries - 1].ext, 0x00, sizeof(file_ext_t));
-
-                    } else {
-                        pStatus->fileio_chb_ext = NULL; // == "*"
-                    }
-                }
-
-            }
-
-            // -------------------------------------------------------
+            default:
+                break;
         }
     }
 

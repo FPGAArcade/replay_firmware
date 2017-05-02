@@ -69,11 +69,17 @@ typedef struct _tEscSequence {
 
 // VT100 TAB, length 1
 const static uint8_t TAB_KEYSEQ[1]   = {0x48};
+const static uint8_t SHIFTTAB_KEYSEQ[2]  = {0x5b, 0x5a};
 // - Cursor keys, length 2
 const static uint8_t UP_KEYSEQ[2]    = {0x5b, 0x41};
 const static uint8_t DOWN_KEYSEQ[2]  = {0x5b, 0x42};
 const static uint8_t RIGHT_KEYSEQ[2] = {0x5b, 0x43};
 const static uint8_t LEFT_KEYSEQ[2]  = {0x5b, 0x44};
+// - Shifted cursor keys, length 2
+const static uint8_t SHIFTUP_KEYSEQ[2]    = {0x4f, 0x41};
+const static uint8_t SHIFTDOWN_KEYSEQ[2]  = {0x4f, 0x42};
+const static uint8_t SHIFTRIGHT_KEYSEQ[2] = {0x4f, 0x43};
+const static uint8_t SHIFTLEFT_KEYSEQ[2]  = {0x4f, 0x44};
 // VT100 PF1-PF4
 const static uint8_t PF1_KEYSEQ[2]   = {0x4f, 0x50};
 const static uint8_t PF2_KEYSEQ[2]   = {0x4f, 0x51};
@@ -105,12 +111,19 @@ const static uint8_t F12_KEYSEQ[4]   = {0x5b, 0x32, 0x34, 0x7e};
 const static tEscSequence usart_esc_sequences[] = {
     // Length 1, VT100 tab
     {.code = KEY_TAB,   .slen = sizeof(TAB_KEYSEQ),  .seq = TAB_KEYSEQ},
+    {.code = KF_SHIFT | KEY_TAB,  .slen = sizeof(SHIFTTAB_KEYSEQ), .seq = SHIFTTAB_KEYSEQ},
 
     // Length 2, cursor keys
     {.code = KEY_UP,    .slen = sizeof(UP_KEYSEQ),   .seq = UP_KEYSEQ},
     {.code = KEY_DOWN,  .slen = sizeof(DOWN_KEYSEQ), .seq = DOWN_KEYSEQ},
     {.code = KEY_RIGHT, .slen = sizeof(RIGHT_KEYSEQ), .seq = RIGHT_KEYSEQ},
     {.code = KEY_LEFT,  .slen = sizeof(LEFT_KEYSEQ), .seq = LEFT_KEYSEQ},
+
+    // Length 2, shifted cursor keys
+    {.code = KF_SHIFT | KEY_UP,    .slen = sizeof(SHIFTUP_KEYSEQ),   .seq = SHIFTUP_KEYSEQ},
+    {.code = KF_SHIFT | KEY_DOWN,  .slen = sizeof(SHIFTDOWN_KEYSEQ), .seq = SHIFTDOWN_KEYSEQ},
+    {.code = KF_SHIFT | KEY_RIGHT, .slen = sizeof(SHIFTRIGHT_KEYSEQ), .seq = SHIFTRIGHT_KEYSEQ},
+    {.code = KF_SHIFT | KEY_LEFT,  .slen = sizeof(SHIFTLEFT_KEYSEQ), .seq = SHIFTLEFT_KEYSEQ},
 
     // Length 3, VT100 PF1-PF4, here mapped to F1-F4
     {.code = KEY_F1,  .slen = sizeof(PF1_KEYSEQ), .seq = PF1_KEYSEQ},

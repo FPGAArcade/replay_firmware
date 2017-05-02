@@ -646,6 +646,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
 
     // RS232 escape sequence char timeout
     static uint32_t esc_delay = 0;
+    static uint16_t meta_key = 0;
 
     // check front menu button
     // ---------------------------------------------------
@@ -843,6 +844,10 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
             key_code = KEY_BACK;
         }
 
+        // attach any previous META/ALT key
+        key_code |= meta_key;
+        meta_key = 0;
+
     } else {
         // esc sequence, partial or complete
 
@@ -917,14 +922,21 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
                        Timer_Check(esc_delay)) {
                 esc_delay = 0; // Cancel the timeout
 
-                if (keybuf_size > 1 && keybuf[1] != 0x1b) { // don't log double taps..
+                if (keybuf_size > 2 && keybuf[1] != 0x1b) { // don't log double taps..
                     DEBUG(0, "Unknown esc sequence! keybuf size %d => 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x",
                           keybuf_size, keybuf[0], keybuf[1], keybuf[2], keybuf[3], keybuf[4], keybuf[5]);
                 }
 
                 // If we get here, there is (most likely) only a single ESC in keybuf,
                 // and/or no seq matched. Consider this as if only the ESC key was hit.
-                key_code = KEY_ESC;
+                // But if we have an ESC+single char, then this should be treated as a META/ALT key-combo,
+                if (keybuf_size == 2) {
+                    meta_key = KF_ALT;
+
+                } else {
+                    key_code = KEY_ESC;
+                }
+
                 USART_Getc(); // skip ESC key
                 // If there are more chars in the keybuf (more ESC / unknown sequence),
                 // they're emitted later

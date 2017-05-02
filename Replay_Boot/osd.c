@@ -818,8 +818,25 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
         // Not in, or starting new, ESC sequence
         key_code = USART_Getc();
 
+        DEBUG(3, "usart: %04x", key_code);
+
         if ((key_code > 0x60) && (key_code < 0x7B)) {
             key_code &= 0x5F; // set uppercase
+
+        } else if ((key_code > 0x40) && (key_code < 0x5B)) {
+            key_code |= KF_SHIFT;
+
+        } else if ((key_code > 0) && (key_code < 0x20)) {
+            if ( key_code == 0x1F) {
+                key_code = KF_CTRL | 0x2F;
+
+            } else if (key_code != KEY_BACK &&
+                       key_code != KEY_TAB &&
+                       key_code != KEY_ENTER &&
+                       key_code != KEY_ESC) {
+                // Control-[A-Z], except special keys (back,tab,enter,esc)
+                key_code = KF_CTRL | (key_code + 0x40);
+            }
         }
 
         if (key_code == 0x7f) {  // If backspace sent as 'Control-? (127)' - settings in PuTTY

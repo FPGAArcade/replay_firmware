@@ -403,7 +403,7 @@ static __attribute__ ((noinline)) void main_update()
     }
 
     // get keys (from Replay button, RS232 or PS/2 via OSD/FPGA)
-    key = OSD_GetKeyCode(current_status.spi_osd_enabled, current_status.hotkey);
+    key = OSD_GetKeyCode(current_status.spi_osd_enabled, current_status.hotkey, current_status.menu_state != NO_MENU);
 
     if (key && (key & KF_RELEASED) == 0) {
         DEBUG(2, "Key: 0x%04X - '%s'", key, OSD_GetStringFromKeyCode(key));

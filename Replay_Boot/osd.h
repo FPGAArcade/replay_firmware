@@ -221,7 +221,7 @@ uint8_t OSD_ConvFx(uint8_t keycode);
 uint8_t OSD_ConvPosx(uint8_t keycode);
 uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2, uint8_t keycode3);
 
-uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey);
+uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey, uint8_t menu_enabled);
 
 uint16_t OSD_GetKeyCodeFromString(const char* string);
 const char* OSD_GetStringFromKeyCode(uint16_t keycode);

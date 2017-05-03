@@ -623,7 +623,7 @@ uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2, uint8_t keycode3)
     return 0;
 }
 
-uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
+uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey, uint8_t menu_enabled)
 {
     // front menu button stuff
     static uint32_t button_delay;
@@ -955,6 +955,12 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
 
     if (key_code != 0) {
         DEBUG(2, "USART Key: 0x%04X", key_code);
+
+        // if the OSD menu is not enabled, forward the USART key input to the core
+        if (!menu_enabled) {
+            OSD_SendPS2(key_code);
+            OSD_SendPS2(KF_RELEASED | key_code);
+        }
     }
 
     return key_code;

@@ -785,6 +785,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey)
         }
 
         if (key_code == hotkey) {
+            OSD_SendPS2(KF_RELEASED | key_code);		// send key-up / break to the core
             key_code = key_break | KEY_MENU;
             DEBUG(2, "Hotkey (%04X) detected ; Overriding with KEY_MENU (%04X)", hotkey, key_code);
         }

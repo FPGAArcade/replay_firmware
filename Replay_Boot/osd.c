@@ -535,23 +535,22 @@ uint32_t OSD_ConfigReadFileIO_Drv(void) // driver
     return config; // HD mask & FD mask
 }
 
+// conversion table of ps/2 scan codes to ASCII codes
+static const char keycode_table[128] =
+    // in: keycode as given by matrix (in HEX); out: ASCII code (as char)
+{
+    // x0  x1  x2  x3  x4  x5  x6  x7   x8  x9  xA  xB  xC  xD  xE  xF
+    0,  0,  0,  0,  0,  0,  0,  0,   0,  0,  0,  0,  0,  9,  '`',  0,   // 0x
+    0,  0,  0,  0,  0, 'Q', '1', 0,   0,  0, 'Z', 'S', 'A', 'W', '2', 0, // 1x
+    0, 'C', 'X', 'D', 'E', '4', '3', 0,   0, ' ', 'V', 'F', 'T', 'R', '5', 0, // 2x
+    0, 'N', 'B', 'H', 'G', 'Y', '6', 0,   0,  0, 'M', 'J', 'U', '7', '8', 0, // 3x
+    0, ',', 'K', 'I', 'O', '0', '9', 0,   0, '.',  '/', 'L', ';', 'P', '-',  0, // 4x
+    0,  0,  '\'',  0,  '[',  '=',  0,  0,   0,  0, 13,  ']',  0,  '\\',  0,  0,   // 5x
+    0,  '\\',  0,  0,  0,  0,  8,  0,   0, '1', 0, '4', '7', 0,  0,  0,  // 6x
+    '0', '.', '2', '5', '6', '8', 27,  0,   0,  '+', '3', '-',  '*', '9', 0,  0 // 7x
+};
 uint8_t OSD_ConvASCII(uint8_t keycode)
 {
-    // conversion table of ps/2 scan codes to ASCII codes
-    const char keycode_table[128] =
-        // in: keycode as given by matrix (in HEX); out: ASCII code (as char)
-    {
-        // x0  x1  x2  x3  x4  x5  x6  x7   x8  x9  xA  xB  xC  xD  xE  xF
-        0,  0,  0,  0,  0,  0,  0,  0,   0,  0,  0,  0,  0,  9,  '`',  0,   // 0x
-        0,  0,  0,  0,  0, 'Q', '1', 0,   0,  0, 'Z', 'S', 'A', 'W', '2', 0, // 1x
-        0, 'C', 'X', 'D', 'E', '4', '3', 0,   0, ' ', 'V', 'F', 'T', 'R', '5', 0, // 2x
-        0, 'N', 'B', 'H', 'G', 'Y', '6', 0,   0,  0, 'M', 'J', 'U', '7', '8', 0, // 3x
-        0, ',', 'K', 'I', 'O', '0', '9', 0,  0, '.',  '/', 'L', ';', 'P', '-',  0, // 4x
-        0,  0,  '\'',  0,  '[',  '=',  0,  0,   0,  0, 13,  ']',  0,  '\\',  0,  0,   // 5x
-        0,  '\\',  0,  0,  0,  0,  8,  0,   0, '1', 0, '4', '7', 0,  0,  0,  // 6x
-        '0', '.', '2', '5', '6', '8', 27,  0,   0,  '+', '3', '-',  '*', '9', 0,  0 // 7x
-    };
-
     if (keycode & 0x80) {
         return 0;
     }
@@ -560,11 +559,12 @@ uint8_t OSD_ConvASCII(uint8_t keycode)
     return keycode_table[keycode & 0x7F];
 }
 
+// function keys
+static const uint8_t Fx_KEY[] = {0x05, 0x06, 0x04, 0x0C, 0x03, 0x0B, 0x83, 0x0A, 0x01, 0x09, 0x78, 0x07};
+
 uint8_t OSD_ConvFx(uint8_t keycode)
 {
     uint8_t i;
-    // function keys
-    const uint8_t Fx_KEY[]     = {0x05, 0x06, 0x04, 0x0C, 0x03, 0x0B, 0x83, 0x0A, 0x01, 0x09, 0x78, 0x07};
 
     for (i = 0; i < 12; ++i) {
         if (Fx_KEY[i] == keycode) {
@@ -575,11 +575,11 @@ uint8_t OSD_ConvFx(uint8_t keycode)
     return 0;
 }
 
+// position keys
+static const uint8_t Pos_KEY[] = {0x6C, 0x7D, 0x7A, 0x69, 0x75, 0x72, 0x6B, 0x74, 0x71, 0x70};
 uint8_t OSD_ConvPosx(uint8_t keycode)
 {
     uint8_t i;
-    // position keys
-    const uint8_t Pos_KEY[] = {0x6C, 0x7D, 0x7A, 0x69, 0x75, 0x72, 0x6B, 0x74, 0x71, 0x70};
 
     for (i = 0; i < 10; ++i) {
         if (Pos_KEY[i] == keycode) {
@@ -1113,4 +1113,187 @@ const char* OSD_GetStringFromKeyCode(uint16_t keycode)
 
     DEBUG(3, "Converted keycode to string '%s'", buffer);
     return buffer;
+}
+
+// Conversion from uppercase symbols to  lowercase 'keys'.
+static const struct {
+    uint8_t shifted, regular;
+} unshift_table[] = {
+    { '!', '1' },
+    { '"', '\'' },
+    { '#', '3' },
+    { '$', '4' },
+    { '%', '5' },
+    { '&', '7' },
+    { '(', '9' },
+    { ')', '0' },
+    { '*', '8' },
+    { '+', '=' },
+    { ':', ';' },
+    { '<', ',' },
+    { '>', '.' },
+    { '?', '/' },
+    { '@', '2' },
+    { '^', '6' },
+    { '_', '-' },
+    { '{', '[' },
+    { '|', '\\' },
+    { '}', ']' },
+    { '~', '`' },
+};
+
+static __attribute__ ((noinline)) void _OSD_SendKey(uint8_t key)
+{
+    DEBUG(2, "SPI: sendkey %d / 0x%02x", key, key);
+    SPI_EnableOsd();
+    rSPI(OSDCMD_SENDPS2);
+    rSPI(key);
+    Timer_Wait(1);
+    SPI_DisableOsd();
+}
+
+void OSD_SendPS2(uint16_t keycode)
+{
+    const uint8_t gui   = (keycode & KF_GUI) ? 1 : 0;
+    const uint8_t ctrl  = (keycode & KF_CTRL) ? 1 : 0;
+    const uint8_t shift = (keycode & KF_SHIFT) ? 1 : 0;
+    const uint8_t alt   = (keycode & KF_ALT) ? 1 : 0;
+    const uint8_t make  = (keycode & KF_RELEASED) ? 0 : 1;
+    uint8_t shifted     = 0;    // for keys that have been 'unshifted'
+    uint8_t extended    = 0;    // E0 type scancode
+    uint8_t scancode    = 0;    // PS2 scancode
+
+    DEBUG(2, "OSD_SendPS2(0x%04x)", keycode);
+
+    keycode &= KEY_MASK;
+
+    if (keycode <= KEY_MASK_ASCII) {
+        // map lowercase [a-z] to uppercase
+        if ('a' <= keycode && keycode <= 'z') {
+            keycode &= 0x5F;
+
+        } else {
+            // map "uppercase" symbols to their lowercased counterparts (assuming US keyb)
+            for (int i = 0; i < sizeof(unshift_table) / sizeof(unshift_table[0]); ++i) {
+                if (keycode == unshift_table[i].shifted) {
+                    keycode = unshift_table[i].regular;
+                    shifted = 1;
+                    break;
+                }
+            }
+        }
+
+        DEBUG(2, "Trying to map ascii keycode '0x%02x' to a scancode", keycode);
+
+        for (int i = 0; i < sizeof(keycode_table) / sizeof(keycode_table[0]); ++i) {
+            if (keycode == keycode_table[i]) {
+                scancode = i;
+                break;
+            }
+        }
+
+    } else if (KEY_F1 <= keycode && keycode <= KEY_F12) {
+        keycode &= ~KEY_Fx;
+        Assert(0 < keycode && keycode <= sizeof(Fx_KEY) / sizeof(Fx_KEY[0]));
+        scancode = Fx_KEY[keycode - 1];
+
+    } else if (KEY_HOME <= keycode && keycode <= KEY_INS) {
+        keycode &= ~KEY_POSx;
+        Assert(0 < keycode && keycode <= sizeof(Pos_KEY) / sizeof(Pos_KEY[0]));
+        scancode = Pos_KEY[keycode - 1];
+        extended = 1;
+    }
+
+    if (scancode == 0) {
+        DEBUG(1, "Unable to map keycode '%04x' to a PS/2 scancode", keycode);
+        return;
+    }
+
+    const uint8_t KEY_EXTEND  = 0xe0;
+    const uint8_t KEY_BREAK   = 0xf0;
+
+    // as we can't distinguish between left and right modifiers, we will send both
+    const uint8_t KEY_SHIFTL  = 0x12;
+    const uint8_t KEY_SHIFTR  = 0x59;
+    const uint8_t KEY_ALT     = 0x11;
+    const uint8_t KEY_CTRL    = 0x14;
+    const uint8_t KEY_GUIL    = 0x1f;
+    const uint8_t KEY_GUIR    = 0x27;
+
+    if (make) {
+        // send make for all modifier first, and then the scancode
+
+        if (gui) {
+            _OSD_SendKey(KEY_EXTEND);
+            _OSD_SendKey(KEY_GUIL);
+            _OSD_SendKey(KEY_EXTEND);
+            _OSD_SendKey(KEY_GUIR);
+        }
+
+        if (ctrl) {
+            _OSD_SendKey(KEY_CTRL);
+            _OSD_SendKey(KEY_EXTEND);
+            _OSD_SendKey(KEY_CTRL);
+        }
+
+        if (shift || shifted) {
+            _OSD_SendKey(KEY_SHIFTL);
+            _OSD_SendKey(KEY_SHIFTR);
+        }
+
+        if (alt) {
+            _OSD_SendKey(KEY_ALT);
+            _OSD_SendKey(KEY_EXTEND);
+            _OSD_SendKey(KEY_ALT);
+        }
+
+        if (extended) {
+            _OSD_SendKey(KEY_EXTEND);
+        }
+
+        _OSD_SendKey(scancode);
+
+    } else {
+        // send break of the scancode, then break for all modifiers
+
+        _OSD_SendKey(KEY_BREAK);
+
+        if (extended) {
+            _OSD_SendKey(KEY_EXTEND);
+        }
+
+        _OSD_SendKey(scancode);
+
+        if (alt) {
+            _OSD_SendKey(KEY_BREAK);
+            _OSD_SendKey(KEY_ALT);
+            _OSD_SendKey(KEY_BREAK);
+            _OSD_SendKey(KEY_EXTEND);
+            _OSD_SendKey(KEY_ALT);
+        }
+
+        if (shift || shifted) {
+            _OSD_SendKey(KEY_BREAK);
+            _OSD_SendKey(KEY_SHIFTL);
+            _OSD_SendKey(KEY_BREAK);
+            _OSD_SendKey(KEY_SHIFTR);
+        }
+
+        if (ctrl) {
+            _OSD_SendKey(KEY_BREAK);
+            _OSD_SendKey(KEY_CTRL);
+            _OSD_SendKey(KEY_BREAK);
+            _OSD_SendKey(KEY_EXTEND);
+            _OSD_SendKey(KEY_CTRL);
+        }
+
+        if (gui) {
+            _OSD_SendKey(KEY_BREAK);
+            _OSD_SendKey(KEY_EXTEND);
+            _OSD_SendKey(KEY_GUIL);
+            _OSD_SendKey(KEY_BREAK);
+            _OSD_SendKey(KEY_EXTEND);
+            _OSD_SendKey(KEY_GUIR);
+        }
+    }
 }

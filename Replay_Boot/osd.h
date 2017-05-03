@@ -65,6 +65,7 @@
 #define OSDCMD_CTRL_RES_VID 0x04        // OSD reset command
 
 #define OSDCMD_CONFIG     0x20
+#define OSDCMD_SENDPS2    0x30
 #define OSDCMD_DISABLE    0x40
 #define OSDCMD_ENABLE     0x41
 #define OSDCMD_SETHOFF    0x50
@@ -225,5 +226,6 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey);
 uint16_t OSD_GetKeyCodeFromString(const char* string);
 const char* OSD_GetStringFromKeyCode(uint16_t keycode);
 
+void OSD_SendPS2(uint16_t keycode);
 
 #endif

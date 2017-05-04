@@ -66,6 +66,9 @@
 #include "messaging.h"
 #include <sys/unistd.h> // sbrk()
 
+#include "ptp_usb.h"
+//#define PTP_USB 1
+
 extern char _binary_buildnum_start;	// from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
 static status_t current_status;
@@ -91,6 +94,10 @@ int main(void)
     USART_Init(115200); // Initialize debug USART
     init_printf(NULL, USART_Putc); // Initialise printf
     Timer_Init();
+
+#if PTP_USB
+    PTP_USB_Stop();
+#endif
 
     // replay main status structure
     memset((void*)&current_status, 0, sizeof(status_t));
@@ -209,6 +216,10 @@ int main(void)
 
         if ((current_status.fpga_load_ok) || (IO_Input_H(PIN_FPGA_DONE))) {
             init_core();
+
+#if PTP_USB
+            PTP_USB_Start();
+#endif
 
             // we run in here as long as there is no need to reload the FPGA
             while (current_status.fpga_load_ok) {
@@ -401,6 +412,14 @@ static __attribute__ ((noinline)) void main_update()
             CFG_dump_mem_stats();
         }
     }
+
+#if PTP_USB
+
+    if (PTP_USB_Poll()) {
+        DEBUG(1, "usb packet received");
+    }
+
+#endif
 
     // get keys (from Replay button, RS232 or PS/2 via OSD/FPGA)
     key = OSD_GetKeyCode(current_status.spi_osd_enabled, current_status.hotkey, current_status.menu_state != NO_MENU);

@@ -55,6 +55,7 @@ void usb_send(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32
 void usb_send_async(uint8_t ep, usb_func _send, uint32_t length);
 
 void usb_send_ep0_stall(void);
+void usb_send_stall(uint8_t ep);
 
 void usb_setup_faddr(uint16_t wValue);
 void usb_setup_endpoints(uint32_t* ep_types, uint32_t num_eps);

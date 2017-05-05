@@ -230,6 +230,18 @@ void usb_send_ep0_stall(void)
         ;
 }
 
+void usb_send_stall(uint8_t ep)
+{
+    AT91PS_UDP udp = AT91C_BASE_UDP;
+
+    udp->UDP_CSR[ep] |= AT91C_UDP_FORCESTALL;
+    while(!(udp->UDP_CSR[ep] & AT91C_UDP_STALLSENT))
+        ;
+    udp->UDP_CSR[ep] &= ~(AT91C_UDP_FORCESTALL | AT91C_UDP_STALLSENT);
+    while(udp->UDP_CSR[ep] & (AT91C_UDP_FORCESTALL | AT91C_UDP_STALLSENT))
+        ;
+}
+
 void usb_setup_endpoints(uint32_t* ep_types, uint32_t num_eps)
 {
     int i;

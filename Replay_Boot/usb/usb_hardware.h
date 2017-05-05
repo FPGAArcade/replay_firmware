@@ -32,6 +32,7 @@ enum EndpointTypes
 #define USB_REQUEST_GET_INTERFACE       10
 #define USB_REQUEST_SET_INTERFACE       11
 #define USB_REQUEST_SYNC_FRAME          12
+#define USB_REQUEST_GET_MAX_LUN			0xfe
 
 #define USB_DESCRIPTOR_TYPE_DEVICE              1
 #define USB_DESCRIPTOR_TYPE_CONFIGURATION       2

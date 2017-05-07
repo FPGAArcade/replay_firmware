@@ -140,7 +140,9 @@ static char* FindChar(const char* s, char c)
     return (char*) s;
 }
 
-/** returns pointer to last char c, starting from s+len */
+/** returns pointer to last char c, starting from e, searching
+    backwards until min. if char is not found, returns NULL
+*/
 static char* FindCharr(const char* e, const char* min, char c)
 {
     const char* p = e - 1;
@@ -148,8 +150,7 @@ static char* FindCharr(const char* e, const char* min, char c)
     while ((p > min) && (*p && (*p != c)) ) {
         --p;
     }
-
-    return (char*) p;
+    return (char*) ( (p == min) && (*p != c)  ? NULL : p );
 }
 
 // ==========================================================================
@@ -306,16 +307,16 @@ uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxl
                     send = FindCharr(end, start, '"');
                 }
 
-                len = send - start;
-
-                if (len > 0) {
-                    valueList[idx].strval = malloc(len + 1);
-                    strncpy(valueList[idx].strval, start, len);
-                    valueList[idx].strval[len] = 0;
+                if(send != start) {
+                    len = send - start;
 
                 } else {
                     WARNING("missing end quote: %s", start);
                 }
+
+                valueList[idx].strval = malloc(len + 1);
+                strncpy(valueList[idx].strval, start, len);
+                valueList[idx].strval[len] = 0;
 
             } else if (*start == '*') {    // unsigned: "*<binary>" (not with strtoul and auto-base)
                 valueList[idx].intval = (int32_t) strtoul(start + 1, NULL, 2); // binary

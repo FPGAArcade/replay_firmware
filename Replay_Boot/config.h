@@ -240,6 +240,13 @@ typedef enum _tOSDMenuState {
     POPUP_MENU   = 4
 } tOSDMenuState;
 
+typedef struct _tIniTarget {
+    char* name;
+    char* dir;
+    char* file;
+    struct _tIniTarget* next;
+} tIniTarget;
+
 /** @brief Basic replay status structure
 
     This structure contains the configuration and HW state
@@ -377,6 +384,9 @@ typedef struct {
 
     /** link to last item entry shown on OSD - set by ini_post_read() */
     menuitem_t*   item_last;
+
+    /* ======== Targets config ================= */
+    tIniTarget*    ini_targets;
 
     /* ======== warning pop-up handling ======== */
 

@@ -1,4 +1,4 @@
-/** @file iniparser.c */
+
 
 // Derived from inih http://code.google.com/p/inih/
 //
@@ -80,6 +80,8 @@ const ini_symtab_t symtab[] = {
     {.keyword = "TITLE"    , .token = INI_TITLE    , .section = FALSE },
     {.keyword = "ITEM"     , .token = INI_ITEM     , .section = FALSE },
     {.keyword = "OPTION"   , .token = INI_OPTION   , .section = FALSE },
+    {.keyword = "TARGETS"  , .token = INI_TARGETS  , .section = TRUE },
+    {.keyword = "TARGET"   , .token = INI_TARGET   , .section = FALSE },
     {.keyword = ""         , .token = INI_UNKNOWN  , .section = FALSE,}, // no match found
     {.keyword = ""         , .token = INI_START    , .section = TRUE } // start value, can never match
 };
@@ -113,9 +115,9 @@ static char* FindFirstChar(const char* s)
 }
 
 /** returns pointer to last non-white char */
-static char* FindLastChar(const char* s)
+static char* FindLastChar(const char* s, uint16_t len)
 {
-    const char* p = s + strlen(s) - 1;
+    const char* p = s + len - 1;
 
     if (!s) {
         return NULL;
@@ -136,6 +138,18 @@ static char* FindChar(const char* s, char c)
     }
 
     return (char*) s;
+}
+
+/** returns pointer to last char c, starting from s+len */
+static char* FindCharr(const char* e, const char* min, char c)
+{
+    const char* p = e - 1;
+
+    while ((p > min) && (*p && (*p != c)) ) {
+        --p;
+    }
+
+    return (char*) p;
 }
 
 // ==========================================================================
@@ -214,8 +228,7 @@ uint8_t ParseIni(FF_FILE* pFile,
                 *end = '\0';
                 name = StripTrailingSpaces(start);
                 value = FindFirstChar(end + 1);
-                //end = FindChar(value+1, ' ');
-                end = FindLastChar(value) + 1;
+                end = FindLastChar(value, strlen(value)) + 1;
                 *end = '\0';
 
                 // get the token for further handling
@@ -253,6 +266,16 @@ uint8_t ParseIni(FF_FILE* pFile,
 }
 
 // ==========================================================================
+void FreeList(ini_list_t* valueList, const uint16_t len)
+{
+    uint16_t i = len;
+
+    while (i-- > 0) {
+        if (valueList[i].strval != NULL) {
+            free(valueList[i].strval);
+        }
+    }
+}
 
 uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxlen)
 {
@@ -265,35 +288,50 @@ uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxl
 
     // walk through the entries separated by comma
     do {
-
         // find start of value and end/separator (# or ; will usually not occur)
         start = FindFirstChar(end);
         end = FindChar(start, ',');
         len = end - start;
 
         // clear array entry first, then we copy the string and convert it to decimal
-        valueList[idx].strval[len] = 0;
+        valueList[idx].strval = NULL;
 
         if (len) {
-            if (*start == '"') {
+            if (*start == '"') { // string for sure
                 // remove "" but keep string as is
-                strncpy(valueList[idx].strval, start + 1, len);
-                *FindChar(valueList[idx].strval, '"') = 0;
+                start++;
+                const char* send = end - 1;
+
+                if (*send != '"') {
+                    send = FindCharr(end, start, '"');
+                }
+
+                len = send - start;
+
+                if (len > 0) {
+                    valueList[idx].strval = malloc(len + 1);
+                    strncpy(valueList[idx].strval, start, len);
+                    valueList[idx].strval[len] = 0;
+
+                } else {
+                    WARNING("missing end quote: %s", start);
+                }
+
+            } else if (*start == '*') {    // unsigned: "*<binary>" (not with strtoul and auto-base)
+                valueList[idx].intval = (int32_t) strtoul(start + 1, NULL, 2); // binary
+
+            } else if (*start == '-') { // signed: "-<decimal>" (saturates 0x80000000/0x7fffffff!)
+                valueList[idx].intval = (int32_t) strtol(start + 1, NULL, 10); // decimal
+
+            } else if (*start >= '0' && *start <= '9') { // unsigned:"0<octal>", "0x<hex>" or "<decimal>"
+                valueList[idx].intval = (uint32_t) strtoul(start, NULL, 0);    // auto-detect value
 
             } else {
-                // take as is, remove any spaces at the end
+                // grab as (unquoted) string
+                valueList[idx].strval = malloc(len + 1); // +1 for \0
                 strncpy(valueList[idx].strval, start, len);
+                valueList[idx].strval[len] = 0;
                 StripTrailingSpaces(valueList[idx].strval);
-            }
-
-            if (strnicmp(valueList[idx].strval, "*", 1) == 0) {    // unsigned: "*<binary>" (not with strtoul and auto-base)
-                valueList[idx].intval = (int32_t) strtoul(valueList[idx].strval + 1, NULL, 2); // binary
-
-            } else if (strnicmp(valueList[idx].strval, "-", 1) == 0) { // signed: "-<decimal>" (saturates 0x80000000/0x7fffffff!)
-                valueList[idx].intval = (int32_t) strtol(valueList[idx].strval, NULL, 10);  // decimal
-
-            } else {                                                // unsigned: "0<octal>" or "0x<hex>" or "<decimal>"
-                valueList[idx].intval = (uint32_t) strtoul(valueList[idx].strval, NULL, 0);    // auto-detect value
             }
 
         } else {
@@ -305,7 +343,6 @@ uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxl
         }
 
         DEBUG(3, "%d: %s %x", idx - 1, valueList[idx - 1].strval, valueList[idx - 1].intval); // details about values
-
     } while (*end++); // check for end otherwise "remove" comma and do again
 
     // return # entries

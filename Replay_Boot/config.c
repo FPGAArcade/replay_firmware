@@ -889,6 +889,7 @@ static uint8_t _CFG_handle_SETUP_CLOCK(status_t* pStatus, const ini_symbols_t na
             /*Configure_ClockGen(&clkcfg);*/
 
         } else {
+            WARNING("clock config invalid: %d entries", entries);
             return 1;
         }
     }
@@ -954,11 +955,12 @@ static uint8_t _CFG_handle_SETUP_VFILTER(status_t* pStatus, const ini_symbols_t 
         pStatus->filter_cfg.mode = valueList[2].intval;
 
         DEBUG(1, "VFILTER mode: %d", pStatus->filter_cfg.mode);
-        return 0;
+
+    } else {
+        WARNING("VFILTER config invalid");
     }
 
-    WARNING("VFILTER config invalid");
-    return 1;
+    return entries == 3 ? 0 : 1;
 }
 
 
@@ -972,6 +974,8 @@ static uint8_t _CFG_handle_SETUP_PHASE(status_t* pStatus, const ini_symbols_t na
         DEBUG(1, "DRAM phase: %d", pStatus->dram_phase);
         return 0;
     }
+
+    // NOTE: No `strval` used in valueList, so no FreeList required
 
     WARNING("Invalid DRAM phase config");
     return 1;
@@ -988,6 +992,7 @@ static uint8_t _CFG_handle_SETUP_EN_TWI(status_t* pStatus, const ini_symbols_t n
         return 0;
     }
 
+    // NOTE: No `strval` used in valueList, so no FreeList required
     return 1;
 }
 
@@ -1004,6 +1009,7 @@ static uint8_t _CFG_handle_SETUP_EN_SPI(status_t* pStatus, const ini_symbols_t n
         return 0;
     }
 
+    // NOTE: No `strval` used in valueList, so no FreeList required
     return 1;
 }
 
@@ -1106,6 +1112,7 @@ static uint8_t _CFG_handle_SETUP_OSD_INIT(status_t* pStatus, const ini_symbols_t
         pStatus->osd_init = OSD_INIT_ON;
 
     } else {
+        WARNING("CLOCKMON config invalid");
         return 1;
     }
 
@@ -1171,34 +1178,44 @@ static uint8_t _CFG_handle_SETUP_CONFIG(status_t* pStatus, const ini_symbols_t n
     return 1;
 }
 
+
 static uint8_t _CFG_handle_SETUP_INFO(status_t* pStatus, const ini_symbols_t name, const char* value)
 {
     ini_list_t valueList[8];
     uint16_t entries = ParseList(value, valueList, 8);
 
     if (entries == 1) {
-        // we do this to get rid of ""
-        /*if (pStatus->info_bak) {*/
-        /*pStatus->info_bak_last->next=malloc(sizeof(info_list_t));*/
-        /*pStatus->info_bak_last=pStatus->info_bak_last->next;*/
-        /*} else {*/
-        /*pStatus->info_bak=malloc(sizeof(info_list_t));*/
-        /*pStatus->info_bak_last=pStatus->info_bak;*/
-        /*}*/
-        /*pStatus->info_bak_last->next=NULL;*/
-        /*strcpy(pStatus->info_bak_last->info_bak,valueList[0].strval);*/
-
         MSG_info(valueList[0].strval);
     }
 
-    return 0;
+    FreeList(valueList, entries);
+    return 0; // always successful
 }
 
 
 
 
+static uint8_t _CFG_handle_TARGETS_TARGET(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[3];
+    uint16_t entries = ParseList(value, valueList, 3);
 
+    if (entries == 2 || entries == 3) { // name,file or name,dir,file
+        tIniTarget* t = malloc(sizeof(tIniTarget));
 
+        // NOTE: We do NOT free the valuelist, since we hijack the str ptrs to avoid a dup/copy
+        t->name = valueList[0].strval;
+        t->dir = entries == 3 ? valueList[1].strval : NULL;
+        t->file = entries == 2 ? valueList[1].strval : valueList[2].strval;
+        t->next = pStatus->ini_targets;
+        pStatus->ini_targets = t;
+        DEBUG(3, "Added target: %s: %s\\%s", t->name, t->dir, t->file);
+        return 0;
+    }
+
+    WARNING("Invalid target config");
+    return 1;
+}
 
 static uint8_t _CFG_handle_MENU_TITLE(status_t* pStatus, const ini_symbols_t name, const char* value)
 {
@@ -1242,10 +1259,11 @@ static uint8_t _CFG_handle_MENU_TITLE(status_t* pStatus, const ini_symbols_t nam
 
         DEBUG(3, "T2: %lx %lx %lx ", pStatus->menu_act,
               pStatus->menu_act->next, pStatus->menu_act->item_list);
-        return 0;
     }
 
-    return 1;
+    FreeList(valueList, entries);
+
+    return entries == 1 ? 0 : 1;
 }
 
 static uint8_t _CFG_handle_MENU_ITEM(status_t* pStatus, const ini_symbols_t name, const char* value)
@@ -1253,7 +1271,7 @@ static uint8_t _CFG_handle_MENU_ITEM(status_t* pStatus, const ini_symbols_t name
     ini_list_t valueList[8];
     uint16_t entries = ParseList(value, valueList, 8);
 
-    if ((entries == 2) || (entries == 3) || (entries == 4)) {
+    if ((entries >= 2) && (entries <= 4)) {
         DEBUG(2, "ITEM: %s ", value);
         DEBUG(3, "I1: %lx %lx %lx ", pStatus->menu_item_act,
               pStatus->menu_item_act->next,
@@ -1323,6 +1341,7 @@ static uint8_t _CFG_handle_MENU_ITEM(status_t* pStatus, const ini_symbols_t name
             } else {
                 pStatus->menu_item_act->conf_dynamic = 0;
                 WARNING("Menu items must be static or dynamic");
+                FreeList(valueList, entries);
                 return 1;
             }
         }
@@ -1336,9 +1355,11 @@ static uint8_t _CFG_handle_MENU_ITEM(status_t* pStatus, const ini_symbols_t name
               pStatus->menu_item_act->next,
               pStatus->menu_item_act->option_list);
 
+        FreeList(valueList, entries);
         return 0;
     }
 
+    FreeList(valueList, entries);
     return 1;
 }
 
@@ -1347,11 +1368,6 @@ static uint8_t _CFG_handle_MENU_OPTION(status_t* pStatus, const ini_symbols_t na
     ini_list_t valueList[8];
     uint8_t nocheck = 0;
     uint16_t entries = ParseList(value, valueList, 8);
-
-    /*DEBUG(1,"entries: %d ",entries);*/
-    /*for (int i=0;i<entries;++i){*/
-    /*DEBUG(1,"value %d : \"%s\"",i, valueList[i].strval);*/
-    /*}*/
 
     if ((entries == 2) || (entries == 3)) {
         DEBUG(2, "OPTION: %s ", value);
@@ -1384,6 +1400,7 @@ static uint8_t _CFG_handle_MENU_OPTION(status_t* pStatus, const ini_symbols_t na
 
                 } else {
                     WARNING("bad option type - use 'default' or none");
+                    FreeList(valueList, entries);
                     return 1;
                 }
             }
@@ -1394,6 +1411,7 @@ static uint8_t _CFG_handle_MENU_OPTION(status_t* pStatus, const ini_symbols_t na
                 pStatus->item_opt_act->conf_value) {
             if (!nocheck) {
                 WARNING("item mask does not fit to value");
+                FreeList(valueList, entries);
                 return 1;
             }
         }
@@ -1407,10 +1425,11 @@ static uint8_t _CFG_handle_MENU_OPTION(status_t* pStatus, const ini_symbols_t na
                 valueList[0].strval, MAX_OPTION_STRING);
         DEBUG(3, "O2: %lx %lx", pStatus->item_opt_act,
               pStatus->item_opt_act->next);
-
+        FreeList(valueList, entries);
         return 0;
     }
 
+    FreeList(valueList, entries);
     return 1;
 }
 
@@ -1513,17 +1532,9 @@ static uint8_t _CFG_handle_UPLOAD_LAUNCH(status_t* pStatus, const ini_symbols_t 
 static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t name, const char* value)
 {
     // (name is relative to INI path)
-    /*if (pStatus->rom_bak) {*/
-    /*pStatus->rom_bak_last->next=malloc(sizeof(rom_list_t));*/
-    /*pStatus->rom_bak_last=pStatus->rom_bak_last->next;*/
-    /*} else {*/
-    /*pStatus->rom_bak=malloc(sizeof(rom_list_t));*/
-    /*pStatus->rom_bak_last=pStatus->rom_bak;*/
-    /*}*/
-    /*pStatus->rom_bak_last->next=NULL;*/
-    /*strcpy(pStatus->rom_bak_last->rom_bak,value);*/
     if (!pStatus->spi_fpga_enabled) {
         WARNING("ROM upload, but SPI disabled");
+        return 1;
     }
 
     ini_list_t valueList[8];
@@ -1545,6 +1556,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
         if (CFG_upload_rom(fullname, valueList[2].intval, valueList[1].intval,
                            pStatus->verify_dl, valueList[3].intval, &staticbits, &dynamicbits)) {
             WARNING("ROM upload to FPGA failed");
+            FreeList(valueList, entries);
             return 1;
 
         } else {
@@ -1554,6 +1566,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
             // send bits to FPGA
             OSD_ConfigSendUserS(staticbits);
             //not used yet: OSD_ConfigSendUserD(dynamicbits);
+            FreeList(valueList, entries);
             return 0;
         }
 
@@ -1573,6 +1586,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
         if (CFG_upload_rom(fullname, valueList[2].intval, valueList[1].intval,
                            pStatus->verify_dl, 0, &staticbits, &dynamicbits)) {
             WARNING("ROM upload to FPGA failed");
+            FreeList(valueList, entries);
             return 1;
 
         } else {
@@ -1582,6 +1596,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
             // send bits to FPGA
             OSD_ConfigSendUserS(staticbits);
             //not used yet: OSD_ConfigSendUserD(dynamicbits);
+            FreeList(valueList, entries);
             return 0;
         }
 
@@ -1602,6 +1617,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
         if (CFG_upload_rom(fullname, adr, valueList[1].intval,
                            pStatus->verify_dl, 0, &staticbits, &dynamicbits)) {
             WARNING("ROM upload to FPGA failed");
+            FreeList(valueList, entries);
             return 1;
 
         } else {
@@ -1611,10 +1627,15 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
             // send bits to FPGA
             OSD_ConfigSendUserS(staticbits);
             //not used yet: OSD_ConfigSendUserD(dynamicbits);
+            FreeList(valueList, entries);
             return 0;
         }
+
+    } else {
+        WARNING("invalid ROM config: entries=%d str0: %s", entries, valueList[0].strval);
     }
 
+    FreeList(valueList, entries);
     return 1;
 }
 
@@ -1645,6 +1666,8 @@ static uint8_t _CFG_handle_FILES_CHA_MOUNT(status_t* pStatus, const ini_symbols_
 
     }
 
+    FreeList(valueList, entries);
+
     return 0;
 }
 
@@ -1654,7 +1677,7 @@ static uint8_t _CFG_handle_FILES_CHA_CFG(status_t* pStatus, const ini_symbols_t 
     uint16_t entries = ParseList(value, valueList, 5);
 
     if (entries > 0) {
-        if        (MATCH(valueList[0].strval, "REMOVABLE")) {
+        if (MATCH(valueList[0].strval, "REMOVABLE")) {
             pStatus->fileio_cha_mode = (fileio_mode_t) REMOVABLE;
             DEBUG(1, "ChA Removable");
 
@@ -1664,6 +1687,7 @@ static uint8_t _CFG_handle_FILES_CHA_CFG(status_t* pStatus, const ini_symbols_t 
 
         } else {
             WARNING("ChA bad drive type - use 'removable' or fixed");
+            FreeList(valueList, entries);
             return 1;
         }
     }
@@ -1683,6 +1707,7 @@ static uint8_t _CFG_handle_FILES_CHA_CFG(status_t* pStatus, const ini_symbols_t 
         pStatus->fileio_cha_ext = NULL; // == "*"
     }
 
+    FreeList(valueList, entries);
     return 0;
 }
 
@@ -1711,13 +1736,15 @@ static uint8_t _CFG_handle_FILES_CHB_MOUNT(status_t* pStatus, const ini_symbols_
 
     }
 
+    FreeList(valueList, entries);
+
     return 0;
 }
 
 
 static uint8_t _CFG_handle_FILES_CHB_CFG(status_t* pStatus, const ini_symbols_t name, const char* value)
 {
-    ini_list_t valueList[1];
+    ini_list_t valueList[5];
     uint16_t entries = ParseList(value, valueList, 5);
 
     if (entries > 0) {
@@ -1731,6 +1758,7 @@ static uint8_t _CFG_handle_FILES_CHB_CFG(status_t* pStatus, const ini_symbols_t 
 
         } else {
             WARNING("ChB bad drive type - use 'removable' or fixed");
+            FreeList(valueList, entries);
             return 1;
         }
     }
@@ -1750,6 +1778,7 @@ static uint8_t _CFG_handle_FILES_CHB_CFG(status_t* pStatus, const ini_symbols_t 
         pStatus->fileio_chb_ext = NULL; // == "*"
     }
 
+    FreeList(valueList, entries);
     return 0;
 }
 
@@ -1939,6 +1968,11 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
 
             default:
                 break;
+        }
+
+    } else if (section == INI_TARGETS) {
+        if (name == INI_TARGET) {
+            return _CFG_handle_TARGETS_TARGET(pStatus, name, value);
         }
 
     } else if (section == INI_MENU) {
@@ -2196,7 +2230,8 @@ void CFG_add_default(status_t* currentStatus)
 
     pStatus->menu_item_act = pStatus->menu_item_act->next;
     strcpy(pStatus->menu_item_act->item_name, "Reboot Board");
-    pStatus->menu_item_act->next = NULL;
+    pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+    pStatus->menu_item_act->next->last = pStatus->menu_item_act;
     pStatus->menu_item_act->option_list = NULL;
     pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = 0;
@@ -2207,6 +2242,46 @@ void CFG_add_default(status_t* currentStatus)
     pStatus->item_opt_act->next = NULL;
     pStatus->item_opt_act->last = NULL;
     pStatus->item_opt_act->option_name[0] = 0;
+
+
+    // Add ini_targets
+    tIniTarget* it = pStatus->ini_targets;
+
+    while (it != NULL) {
+        DEBUG(3, "_CFG_add_default: adding ini_target %s", it->name);
+        pStatus->menu_item_act = pStatus->menu_item_act->next;
+        strcpy(pStatus->menu_item_act->item_name, it->name);
+
+        if (it->next != NULL) {
+            pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+            pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+
+        } else {
+            pStatus->menu_item_act->next = NULL;
+        }
+
+        pStatus->menu_item_act->option_list = NULL;
+        pStatus->menu_item_act->selected_option = NULL;
+        pStatus->menu_item_act->conf_dynamic = 0;
+        pStatus->menu_item_act->conf_mask = 0;
+        strcpy(pStatus->menu_item_act->action_name, "iniload");
+
+        pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
+
+        pStatus->item_opt_act = pStatus->menu_item_act->option_list;
+        pStatus->item_opt_act->next = it->dir ? malloc(sizeof(itemoption_t)) : NULL;
+        pStatus->item_opt_act->last = NULL;
+        strcpy(pStatus->item_opt_act->option_name, it->file);
+
+        if (it->dir != NULL && pStatus->item_opt_act->next != NULL) {
+            pStatus->item_opt_act = pStatus->item_opt_act->next;
+            pStatus->item_opt_act->next = NULL;
+            pStatus->item_opt_act->last = NULL;
+            strcpy(pStatus->item_opt_act->option_name, it->dir);
+        }
+
+        it = it->next;
+    }
 }
 
 void CFG_free_menu(status_t* currentStatus)

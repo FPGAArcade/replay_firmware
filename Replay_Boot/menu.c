@@ -93,7 +93,7 @@ static uint8_t _MENU_action_display(menuitem_t* item, status_t* current_status)
     }
 
     // chb select,0...3 ----------------------------------
-    if MATCH(item->action_name, "chb_select") {
+    else if MATCH(item->action_name, "chb_select") {
         if ((current_status->fileio_chb_ena >> item->action_value) & 1) { // protects agains illegal values also
             if (!FileIO_FCh_GetInserted(1, item->action_value)) {
                 if (current_status->fileio_chb_mode == REMOVABLE) {
@@ -115,37 +115,37 @@ static uint8_t _MENU_action_display(menuitem_t* item, status_t* current_status)
     }
 
     // iniselect ----------------------------------
-    if MATCH(item->action_name, "iniselect") {
+    else if MATCH(item->action_name, "iniselect") {
         strcpy(item->selected_option->option_name, "<RETURN> to set");
         return 1;
     }
 
     // loadselect ----------------------------------
-    if MATCH(item->action_name, "loadselect") {
+    else if MATCH(item->action_name, "loadselect") {
         //nothing to do here
         return 1;
     }
 
     // storeselect ---------------------------------
-    if MATCH(item->action_name, "storeselect") {
+    else if MATCH(item->action_name, "storeselect") {
         //nothing to do here
         return 1;
     }
 
     // backup ini ----------------------------------
-    if MATCH(item->action_name, "backup") {
+    else if MATCH(item->action_name, "backup") {
         strcpy(item->selected_option->option_name, "<RETURN> saves");
         return 1;
     }
 
     // reset ----------------------------------
-    if MATCH(item->action_name, "reset") {
+    else if MATCH(item->action_name, "reset") {
         strcpy(item->selected_option->option_name, "<RETURN> resets");
         return 1;
     }
 
     // reboot ----------------------------------
-    if MATCH(item->action_name, "reboot") {
+    else if MATCH(item->action_name, "reboot") {
         strcpy(item->selected_option->option_name, "<RETURN> boots");
         return 1;
     }
@@ -189,7 +189,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
     }
 
     // fileio chb select
-    if MATCH(item->action_name, "chb_select") {
+    else if MATCH(item->action_name, "chb_select") {
         if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
             if (FileIO_FCh_GetInserted(1, item->action_value)) {
                 if (current_status->fileio_chb_mode == REMOVABLE) {
@@ -219,7 +219,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
     }
 
     // iniselect ----------------------------------
-    if MATCH(item->action_name, "iniselect") {
+    else if MATCH(item->action_name, "iniselect") {
         // allocate dir_scan structure
         MENU_set_state(current_status, FILE_BROWSER);
         // open file browser
@@ -232,8 +232,32 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
         return 1;
     }
 
+    // iniload -------------------------------------
+    else if MATCH(item->action_name, "iniload") {
+        // set new INI file and force reload of FPGA configuration
+        strcpy(current_status->ini_file, item->option_list->option_name);
+        strcpy(current_status->ini_dir,
+               (item->option_list->next ?
+                item->option_list->next->option_name : ""));
+        MENU_set_state(current_status, NO_MENU);
+        OSD_Disable();
+        // "kill" FPGA content and re-run setup
+        current_status->fpga_load_ok = 0;
+
+        // reset config
+        CFG_set_status_defaults(current_status, FALSE);
+
+        // set PROG low to reset FPGA (open drain)
+        IO_DriveLow_OD(PIN_FPGA_PROG_L);
+        Timer_Wait(1);
+        IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+        Timer_Wait(2);
+        // NO update here!
+        return 0;
+    }
+
     // loadselect ----------------------------------
-    if MATCH(item->action_name, "loadselect") {
+    else if MATCH(item->action_name, "loadselect") {
         if ((item->option_list) && (item->option_list->option_name[0] = '*')
                 && (item->option_list->option_name[1] = '.') && (item->option_list->option_name[2])) {
             DEBUG(1, "LOAD from: %s ext: %s", current_status->act_dir, (item->option_list->option_name) + 2);
@@ -252,7 +276,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
     }
 
     // storeselect ----------------------------------
-    if MATCH(item->action_name, "storeselect") {
+    else if MATCH(item->action_name, "storeselect") {
         if ((item->option_list) && (item->option_list->option_name)) {
             char full_filename[FF_MAX_PATH];
             DEBUG(1, "STORE to: %s file: %s", current_status->act_dir, (item->option_list->option_name));
@@ -285,14 +309,14 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
     }
 
     // backup ----------------------------------
-    if MATCH(item->action_name, "backup") {
+    else if MATCH(item->action_name, "backup") {
         CFG_save_all(current_status, current_status->act_dir, "backup.ini");
         current_status->update = 1;
         return 1;
     }
 
     // reset ----------------------------------
-    if MATCH(item->action_name, "reset") {
+    else if MATCH(item->action_name, "reset") {
         MENU_set_state(current_status, POPUP_MENU);
         strcpy(current_status->popup_msg, " Reset Target? ");
         current_status->selections = MENU_POPUP_YESNO;
@@ -303,7 +327,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
     }
 
     // reboot ----------------------------------
-    if MATCH(item->action_name, "reboot") {
+    else if MATCH(item->action_name, "reboot") {
         MENU_set_state(current_status, POPUP_MENU);
         strcpy(current_status->popup_msg, " Reboot Board? ");
         current_status->selections = MENU_POPUP_YESNO;
@@ -342,7 +366,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
     }
 
     // chb_select
-    if MATCH(item->action_name, "chb_select") {
+    else if MATCH(item->action_name, "chb_select") {
         if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
             item->selected_option = item->option_list;
 
@@ -359,7 +383,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
     }
 
     // iniselect ----------------------------------
-    if MATCH(item->action_name, "iniselect") {
+    else if MATCH(item->action_name, "iniselect") {
         // set new INI file and force reload of FPGA configuration
         strcpy(current_status->ini_dir, current_status->act_dir);
         strcpy(current_status->ini_file, mydir.FileName);
@@ -381,7 +405,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
     }
 
     // loadselect ----------------------------------
-    if MATCH(item->action_name, "loadselect") {
+    else if MATCH(item->action_name, "loadselect") {
         if ((current_status->act_dir[0]) && (mydir.FileName[0])) {
             char full_filename[FF_MAX_PATH];
 
@@ -773,10 +797,12 @@ void _MENU_update_ui(status_t* current_status)
     // clear OSD area and set the minimum header/footer lines we always need
     OSD_Clear();
     OSD_Write  (    0,  "***   F P G A  A R C A D E   ***", 0);
-    OSD_WriteRC(1,  0,  "= REPLAY RETRO GAMING PLATFORM =", 0, BLACK, DARK_BLUE);
-    OSD_WriteRC(14, 0,  "= NO EMULATION - NO COMPROMISE =", 0, DARK_MAGENTA, DARK_BLUE);
+    OSD_WriteBase(1, 0, "", 0, 0, BLACK, DARK_BLUE, 1); // clears row
+    OSD_WriteBase(1,14, "", 0, 0, BLACK, DARK_BLUE, 1); // clears row
 
     if (current_status->menu_state == SHOW_STATUS) {
+        OSD_WriteRC(1,  0,  "= REPLAY RETRO GAMING PLATFORM =", 0, BLACK, DARK_BLUE);
+        OSD_WriteRC(14, 0,  "= NO EMULATION - NO COMPROMISE =", 0, DARK_MAGENTA, DARK_BLUE);
         _MENU_show_status(current_status);
 
     } else if (current_status->menu_state == POPUP_MENU) {

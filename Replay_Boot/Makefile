@@ -117,6 +117,7 @@ SRC += menu.c
 SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unicode.c
 SRC += filesys/ff_memory.c filesys/ff_safety.c filesys/ff_blk.c filesys/ff_ioman.c filesys/ff_fat.c
 SRC += filesys/ff_crc.c filesys/ff_dir.c filesys/ff_error.c filesys/ff_file.c filesys/ff_hash.c
+SRC += hardware.c hardware/usart.c hardware/spi.c hardware/ssc.c hardware/twi.c hardware/timer.c hardware/io.c
 SRC += usb/cdc_enumerate.c usb/usb_flash.c usb/ptp_usb.c usb/usb_hardware.c usb/mtp_client.c usb/mtp_database.c
 SRC += xdms/crc_csum.c xdms/getbits.c xdms/maketbl.c xdms/pfile.c xdms/tables.c xdms/u_deep.c
 SRC += xdms/u_heavy.c xdms/u_init.c xdms/u_medium.c xdms/u_quick.c xdms/u_rle.c
@@ -125,7 +126,7 @@ SRC += common/Cstartup_SAM7.c
 
 # List C source files here which must be compiled in ARM-Mode.
 # use file-extension c for "c-only"-files
-SRCARM = hardware.c hardware/usart.c hardware/spi.c hardware/ssc.c hardware/twi.c hardware/irq.c hardware/timer.c hardware/io.c
+SRCARM = hardware/irq.c
 
 # List C++ source files here.
 # use file-extension cpp for C++-files (use extension .cpp)
@@ -167,7 +168,7 @@ EXTRAINCDIRS  = ./filesys ./common ./usb ./xdms ./sam4s ./sam4s/cmsis/thirdparty
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms
+EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms ./hardware
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common
@@ -365,7 +366,6 @@ usbdl: $(BUILDDIR)$(TARGET).s19
 # set up directory for output files, inluding subdirs for libs
 $(BUILDDIR)/isset:
 	mkdir -p $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
-	mkdir -p $(addprefix $(BUILDDIR), hardware)
 	echo ok > $(BUILDDIR)/isset
 #       mkdir -p $(OUTDIR)
 

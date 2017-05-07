@@ -2230,8 +2230,7 @@ void CFG_add_default(status_t* currentStatus)
 
     pStatus->menu_item_act = pStatus->menu_item_act->next;
     strcpy(pStatus->menu_item_act->item_name, "Reboot Board");
-    pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-    pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+    pStatus->menu_item_act->next = NULL;
     pStatus->menu_item_act->option_list = NULL;
     pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = 0;
@@ -2245,20 +2244,16 @@ void CFG_add_default(status_t* currentStatus)
 
 
     // Add ini_targets
-    tIniTarget* it = pStatus->ini_targets;
-
-    while (it != NULL) {
+    for (tIniTarget* it = pStatus->ini_targets; it != NULL; it = it->next) {
         DEBUG(3, "_CFG_add_default: adding ini_target %s", it->name);
+
+        pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+        pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+
         pStatus->menu_item_act = pStatus->menu_item_act->next;
         strcpy(pStatus->menu_item_act->item_name, it->name);
 
-        if (it->next != NULL) {
-            pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-            pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-
-        } else {
-            pStatus->menu_item_act->next = NULL;
-        }
+        pStatus->menu_item_act->next = NULL;
 
         pStatus->menu_item_act->option_list = NULL;
         pStatus->menu_item_act->selected_option = NULL;
@@ -2279,8 +2274,6 @@ void CFG_add_default(status_t* currentStatus)
             pStatus->item_opt_act->last = NULL;
             strcpy(pStatus->item_opt_act->option_name, it->dir);
         }
-
-        it = it->next;
     }
 }
 

@@ -69,7 +69,7 @@
 #include "ptp_usb.h"
 //#define PTP_USB 1
 
-extern char _binary_buildnum_start;	// from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
+extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
 static status_t current_status;
 static void load_core_from_sdcard();
@@ -278,7 +278,7 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
 static __attribute__ ((noinline)) void load_embedded_core()
 {
     // set up some default to have OSD enabled
-    if (!IO_Input_H(PIN_FPGA_DONE)) {
+    //if (!IO_Input_H(PIN_FPGA_DONE)) {
         // initially configure default clocks, video filter and diable video coder (may not be fitted)
         // Add support for interlaced/codec standards (selectable by menu button?)
         CFG_vid_timing_HD27(F60HZ);
@@ -300,7 +300,7 @@ static __attribute__ ((noinline)) void load_embedded_core()
             // didn't work
             MSG_fatal_error(1); // halt and reboot
         }
-    }
+    //}
 }
 
 static __attribute__ ((noinline)) void init_core()
@@ -356,12 +356,11 @@ static __attribute__ ((noinline)) void init_core()
         uint32_t config_ver    = OSD_ConfigReadVer();
         DEBUG(1, "FPGA ver: 0x%08x", config_ver);
 
-        // NO DRAM in the embedded core
+        OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
         OSD_Reset(OSDCMD_CTRL_RES | OSDCMD_CTRL_HALT);
-
-        CFG_vid_timing_HD27(F60HZ);
-        CFG_set_coder(CODER_DISABLE);
-        CFG_set_CH7301_HD();
+        Timer_Wait(100);
+        FPGA_DramTrain();
+        CFG_set_CH7301_SD();
 
         // dynamic/static setup bits
         OSD_ConfigSendUserS(0x00000000);

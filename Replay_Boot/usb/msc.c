@@ -17,6 +17,7 @@ static uint8_t CurrentConfiguration;
 static void HandleRxdSetupData(UsbSetupPacket* data);
 static void HandleRxdData(uint8_t ep, uint8_t* packet, uint32_t length);
 
+static void msc_reset();
 static void msc_packet_recv(uint8_t* packet, uint32_t length);
 
 
@@ -43,6 +44,7 @@ void msc_send(uint8_t* packet, uint32_t length)
 
 void MSC_Start(void)
 {
+    msc_reset();
 	usb_connect(msc_recv);
 }
 void MSC_Stop(void)
@@ -195,14 +197,13 @@ static void HandleRxdData(uint8_t ep, uint8_t* packet, uint32_t length)
     {
         DEBUG(1, "msc_packet_recv(UsbBuffer, UsbSoFarCount) = %d bytes", UsbSoFarCount);
         msc_packet_recv(UsbBuffer, UsbSoFarCount);
-        DumpBuffer(UsbBuffer, UsbSoFarCount);
 
         UsbSoFarCount = 0;
     }
 }
 
 typedef struct {
-    uint8_t     dCBWSignature;      // 'USBC' 43425355h (little endian)
+    uint32_t    dCBWSignature;      // 'USBC' 43425355h (little endian)
     uint32_t    dCBWTag;            // must match dCSWTag
     uint32_t    dCBWDataTransferLength;
     struct {
@@ -218,12 +219,18 @@ typedef struct {
 } __attribute__ ((packed)) CommandBlockWrapper;
 
 typedef struct {
-    uint8_t     dCSWSignature;      // 'USBS' 53425355h (little endian)
+    uint32_t    dCSWSignature;      // 'USBS' 53425355h (little endian)
     uint32_t    dCSWTag;            // must match dCBWTag
     uint32_t    dCSWDataResidue;
     uint8_t     bCSWStatus;
 } __attribute__ ((packed)) CommandStatusWrapper;
 
+typedef enum {
+    CommandPassed = 0x00,
+    CommandFailed = 0x01,
+    PhaseError = 0x02,
+    Unsupported = 0xff
+} CSWStatus;
 
 // See Universal Serial Bus Mass Storage Class (Bulk-Only Transport) - USB.org
 // http://www.usb.org/developers/docs/devclass_docs/usbmassbulk_10.pdf
@@ -239,6 +246,7 @@ typedef struct {
 // Do Device intends to receive data from the host
 //
 typedef enum {
+    Illegal,
     Hn_eq_Dn,   // (1)      expects no data transfers / intends to transfer no data -> result, residue = 0
     Hn_lt_Di,   // (2)      expects no data transfers / intends to send data        -> phase error, residue = 0
     Hn_lt_Do,   // (3)      expects no data transfers / intends to receive data     -> phase error, residue = 0
@@ -262,66 +270,69 @@ typedef enum {
     HostToDevice,
 } HostDeviceTransferDirection;
 
-HostDeviceDataTransferMode get_transfer_mode(CommandBlockWrapper* cbw, CommandStatusWrapper* csw);
+
+static struct {
+    CommandBlockWrapper         cbw;
+    CommandStatusWrapper        csw;
+    uint32_t                    hostLength;
+    uint32_t                    deviceLength;
+    HostDeviceDataTransferMode  transferMode;
+} s_ProcessState;
+
+static uint8_t process_transfer_mode();
+static CSWStatus process_command();
+static void process_status(CSWStatus status);
+
+static void msc_reset()
+{
+    memset(&s_ProcessState, 0x00, sizeof(s_ProcessState));
+}
 
 static void msc_packet_recv(uint8_t* packet, uint32_t length)
 {
-    CommandBlockWrapper cbw;
-    CommandStatusWrapper csw;
-    memcpy(&cbw, packet, sizeof(CommandBlockWrapper));
+    DEBUG(1, "------------------------ NEW PACKET -------------------------");
+
+    memcpy(&s_ProcessState.cbw, packet, sizeof(CommandBlockWrapper));
+    DumpBuffer((uint8_t*)&s_ProcessState.cbw, sizeof(CommandBlockWrapper));
 
     if (length != sizeof(CommandBlockWrapper) ||
-        cbw.dCBWSignature != 0x43425355) {
+        s_ProcessState.cbw.dCBWSignature != 0x43425355) {
     
         DEBUG(1, "Error reading CBW");
 
+        // error - stall both endpoints
         usb_send_stall(1);
         usb_send_stall(2);
         return;
     }
 
-    HostDeviceDataTransferMode transferMode = get_transfer_mode(&cbw, &csw);
+    uint8_t valid = process_transfer_mode();
 
-    switch(transferMode) {
-        case Hn_eq_Dn:
-        case Hi_eq_Di:
-        case Ho_eq_Do:
-            // -> result, residue = 0
-            break;
-
-        case Hn_lt_Di:
-        case Hn_lt_Do:
-            // -> phase error, residue = 0
-            break;
-
-        case Ho_lt_Do:
-        case Hi_lt_Di:
-            // -> phase error, residue = hlength
-            break;
-
-        case Hi_gt_Dn:
-        case Hi_gt_Di:
-            // -> stall_IN, residue = hlength - dlength (0)
-            break;
-
-        case Ho_gt_Dn:
-        case Ho_gt_Do:
-            // -> stall_OUT, residue = hlength - dlength (0)
-            break;
-
-        case Hi_ne_Do:
-            // -> stall_IN + phase error, residue = 0
-            break;
-        case Ho_ne_Di:
-            // -> stall_OUT + phase error, residue = 0
-            break;
+    if (!valid) {
+        DEBUG(1,"process_transfer_mode() failed");
+//        return; // stall endpoints?
     }
+
+    DEBUG(1, "hostLength   = %d", s_ProcessState.hostLength);
+    DEBUG(1, "deviceLength = %d", s_ProcessState.deviceLength);
+    DEBUG(1, "transferMode = %d", s_ProcessState.transferMode);
+
+
+    CSWStatus result = process_command();
+
+    DEBUG(1, "MSC Command result = %d", result);
+
+    process_status(result);
 }
 
 
 
 // SCSI Commands Reference Manual (Rev. A) - Seagate
 // http://www.seagate.com/staticfiles/support/disc/manuals/scsi/100293068a.pdf
+// https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
+
+#define OPERATIONCODE_TEST_UNIT_READY 0x00
+
 
 typedef struct {
     uint8_t     OPERATIONCODE;
@@ -334,15 +345,168 @@ typedef struct {
 } __attribute__ ((packed)) INQUIRY;
 #define OPERATIONCODE_INQUIRY 0x12
 
-typedef union {
+static const struct {
+    // byte 0
+    uint8_t     PERIPHERALDEVICETYPE:5;
+    uint8_t     PERIPHERALQUALIFIER:3;
+    // byte 1
+    uint8_t     reserved0:7;
+    uint8_t     RMB:1;
+    // byte 2
+    uint8_t     VERSION;
+    // byte 3
+    uint8_t     RESPONSEDATAFORMAT:4;
+    uint8_t     HISUP:1;
+    uint8_t     NORMACA:1;
+    uint8_t     obsolete0:2;
+    // byte 4
+    uint8_t     ADDITIONALLENGTH;
+    // byte 5
+    uint8_t     PROTECT:1;
+    uint8_t     reserved1:2;
+    uint8_t     TPC:1;
+    uint8_t     TPGS:2;
+    uint8_t     ACC:1;
+    uint8_t     SCCS:1;
+    // byte 6
+    uint8_t     obsolete1:4;
+    uint8_t     MULTIP:1;
+    uint8_t     VS1:1;
+    uint8_t     ENCSERV:1;
+    uint8_t     BQUE:1;
+    // byte 7
+    uint8_t     VS2:1;
+    uint8_t     CMDQUE:1;
+    uint8_t     obsolete2:6;
+
+    // byte 8-15
+    uint8_t     T10VENDORIDENTIFICATION[8];
+
+    // byte 16-31
+    uint8_t      PRODUCTIDENTIFICATION[16];
+
+    // byte 32-35
+    uint8_t     PRODUCTREVISIONLEVEL[4];
+
+    // byte 36-43
+    uint8_t     DRIVESERIALNUMBER[8];
+    // byte 44-55
+    uint8_t     VendorUnique[12];  // Seagate fills this field with 00h.
+    // byte 56
+    uint8_t     reserved2;
+    // byte 57
+    uint8_t     reserved3;
+    // byte 58-59
+    uint8_t      VERSIONDESCRIPTOR1[2];
+    // byte 60-61
+    uint8_t      VERSIONDESCRIPTOR2[2];
+    // byte 62-63
+    uint8_t      VERSIONDESCRIPTOR3[2];
+    // byte 64-65
+    uint8_t      VERSIONDESCRIPTOR4[2];
+    // byte 66-67
+    uint8_t      VERSIONDESCRIPTOR5[2];
+    // byte 68-69
+    uint8_t      VERSIONDESCRIPTOR6[2];
+    // byte 70-71
+    uint8_t      VERSIONDESCRIPTOR7[2];
+    // byte 72-73
+    uint8_t      VERSIONDESCRIPTOR8[2];
+    // byte 74-95
+    uint8_t     reserved4[22];
+} __attribute__ ((packed)) s_INQUIRYdata = {
+    // byte 0
+    0x00,           // Direct Access Device (0x00)
+    0x00,           // Device type is connected to logical unit
+    // byte 1
+    0,              // reserved
+    0x01,           // This is a REMOVABLE device
+    // byte 2
+    0x02,           // 0x02 = "Obsolete", 0x06 = The device complies to ANSI INCITS 513-2015 (SPC-4)
+    // byte 3
+    0x02,           // Response Data Format: SPC-2/SPC-3/SPC-4 (2)
+    0x00,           // Hierarchical addressing mode is NOT supported
+    0x00,           // Normaca is NOT supported
+    0,              // obsolete
+    // byte 4
+    sizeof(s_INQUIRYdata)-5, // The ADDITIONAL LENGTH field indicates the length in bytes of the remaining standard INQUIRY data
+    // byte 5
+    0x00,           // Protection information NOT supported
+    0,              // reserved
+    0x00,           // Third party copy is NOT supported
+    0x00,           // Asymmetric LU Access not supported
+    0x00,           // Access control coordinator NOT supported
+    0x00,           // Scc is NOT supported
+    // byte 6
+    0,              // obsolete
+    0x00,           // This is NOT a multiport device
+    0x00,           // vendor specific
+    0x00,           // Enclosed services is NOT supported
+    0x00,           // Bque is NOT supported
+    // byte 7
+    0x00,           // vendor specific
+    0x00,           // Command queuing is NOT supported
+    0,              // obsolete
+    // byte 8-15
+    {'A','r','c','a','d','e',' ',' '},  // Vendor ID
+    // byte 16-31
+    {'F','P','G','A','A','r','c','a','d','e','R','e','p','l','a','y'},  // Product ID
+    // byte 32-35
+    {'1','.','0','0'},                  // Revision level
+    // byte 36-43
+    {'0','1','2','3','4','5','6','7'},  // Drive Serial
+    // byte 43-55
+    {  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0},  // Vendor Unique
+    // byte 56
+    0,              // reserved
+    // byte 57
+    0,              // reserved
+    // byte 58-73
+    {0x04, 0xC0},   // SBC-3
+    {0x00, 0x00},
+    {0x00, 0x00},
+    {0x00, 0x00},
+    {0x00, 0x00},
+    {0x00, 0x00},
+    {0x00, 0x00},
+    {0x00, 0x00},
+    // byte 74-95
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}    // reserved
+};
+
+
+typedef struct {
     uint8_t     OPERATIONCODE;
-    INQUIRY     inquiry;
+    uint8_t     Obsolete:1;
+    uint8_t     Reserved:7;
+    uint8_t     LBA[4];
+    uint8_t     Reserved1[2];
+    uint8_t     PMI:1;
+    uint8_t     Reserved2:7;
+    uint8_t     CONTROL;
+} __attribute__ ((packed)) READ_CAPACITY;
+#define OPERATIONCODE_READ_CAPACITY 0x25
+
+typedef struct {
+    // byte 0-3
+    uint8_t     LBA[4];
+    // byte 4-7
+    uint8_t     NUMBYTES[4];
+} __attribute__ ((packed)) READ_CAPACITYdata;
+
+typedef union {
+    uint8_t         OPERATIONCODE;
+    INQUIRY         inquiry;
+    READ_CAPACITY   readCapacity;
 } CommandDescriptorBlock;
 
 #define READ_BE_16B(x)  ((uint16_t) ((x[0] << 8) | x[1]))
 
-HostDeviceDataTransferMode get_transfer_mode(CommandBlockWrapper* cbw, CommandStatusWrapper* csw)
+static uint8_t process_transfer_mode()
 {
+    CommandBlockWrapper* cbw = &s_ProcessState.cbw;
+//    CommandStatusWrapper* csw = &s_ProcessState.csw;
+
     const uint32_t hostLength = cbw->dCBWDataTransferLength;
     const HostDeviceTransferDirection hostTransferType = hostLength == 0 ? NoTransfer : cbw->bmCBWFlags.direction ? DeviceToHost : HostToDevice;
 
@@ -355,43 +519,184 @@ HostDeviceDataTransferMode get_transfer_mode(CommandBlockWrapper* cbw, CommandSt
             deviceLength = READ_BE_16B(cdb->inquiry.ALLOCATIONLENGTH);
             deviceTransferType = DeviceToHost;
             break;
+        case OPERATIONCODE_TEST_UNIT_READY:
+            deviceTransferType = DeviceToHost;
+        case OPERATIONCODE_READ_CAPACITY:
+            deviceLength = sizeof(READ_CAPACITYdata);
+            deviceTransferType = DeviceToHost;
+        default:
+            WARNING("Unknown operation code!");
+            s_ProcessState.hostLength = hostLength;
+            s_ProcessState.deviceLength = 0;
+            s_ProcessState.transferMode = Illegal;
+            return FALSE;
     }
+
+    HostDeviceDataTransferMode transferMode = Illegal;
 
     if (hostTransferType == NoTransfer) {
         if (deviceTransferType == NoTransfer) {
-            return Hn_eq_Dn;                                // (1)
+            transferMode = Hn_eq_Dn;                                // (1)
         } else if (deviceTransferType == DeviceToHost) {
-            return Hn_lt_Di;                                // (2)
+            transferMode = Hn_lt_Di;                                // (2)
         } else { // deviceTransferType == HostToDevice
-            return Hn_lt_Do;                                // (3)
+            transferMode = Hn_lt_Do;                                // (3)
         }
     } else if (hostTransferType == DeviceToHost) {
         if (deviceTransferType == NoTransfer) {
-            return Hi_gt_Dn;                                // (4)
+            transferMode = Hi_gt_Dn;                                // (4)
         } else if (deviceTransferType == DeviceToHost) {
             if (hostLength < deviceLength) {
-                return Hi_gt_Di;                            // (5)
+                transferMode = Hi_gt_Di;                            // (5)
             } else if (hostLength == deviceLength) {
-                return Hi_eq_Di;                            // (6)
+                transferMode = Hi_eq_Di;                            // (6)
             } else { // hostLength > deviceLength
-                return Hi_lt_Di;                            // (7)
+                transferMode = Hi_lt_Di;                            // (7)
             }
         } else { // deviceTransferType == HostToDevice
-            return Hi_ne_Do;                                // (8)
+            transferMode = Hi_ne_Do;                                // (8)
         }
     } else { // hostTransferType == HostToDevice
         if (deviceTransferType == NoTransfer) {
-            return Ho_gt_Dn;                                // (9)
+            transferMode = Ho_gt_Dn;                                // (9)
         } else if (deviceTransferType == DeviceToHost) {
-            return Ho_ne_Di;                                // (10)
+            transferMode = Ho_ne_Di;                                // (10)
         } else { // deviceTransferType == HostToDevice
             if (hostLength > deviceLength) {
-                return Ho_gt_Do;                            // (11)
+                transferMode = Ho_gt_Do;                            // (11)
             } else if (hostLength == deviceLength) {
-                return Ho_eq_Do;                            // (12)
+                transferMode = Ho_eq_Do;                            // (12)
             } else { // hostLength < deviceLength
-                return Ho_lt_Do;                            // (13)
+                transferMode = Ho_lt_Do;                            // (13)
             }
         }
     }
+
+    s_ProcessState.hostLength = hostLength;
+    s_ProcessState.deviceLength = deviceLength;
+    s_ProcessState.transferMode = transferMode;
+
+    return TRUE;
+}
+
+static CSWStatus process_command()
+{
+    CommandBlockWrapper* cbw = &s_ProcessState.cbw;
+//    CommandStatusWrapper* csw = &s_ProcessState.csw;
+
+    CommandDescriptorBlock* cdb = (CommandDescriptorBlock*)cbw->CBWCB;
+    switch (cdb->OPERATIONCODE) {
+        case OPERATIONCODE_INQUIRY:
+            DEBUG(1, "OPERATIONCODE_INQUIRY");
+            msc_send((uint8_t*)&s_INQUIRYdata, s_ProcessState.deviceLength);
+            return CommandPassed;
+        case OPERATIONCODE_TEST_UNIT_READY:
+            DEBUG(1, "OPERATIONCODE_TEST_UNIT_READY");
+            // assume all is good
+            return CommandPassed;
+        default:
+            WARNING("Unknown operation code! OPERATIONCODE = $%02x", cdb->OPERATIONCODE);
+            return Unsupported;
+    }
+}
+
+static void process_status(CSWStatus status)
+{
+    CommandBlockWrapper* cbw = &s_ProcessState.cbw;
+    CommandStatusWrapper* csw = &s_ProcessState.csw;
+
+    csw->dCSWSignature = 0x53425355;
+    csw->dCSWTag = cbw->dCBWTag;
+    csw->bCSWStatus = status;
+    csw->dCSWDataResidue = s_ProcessState.hostLength - s_ProcessState.deviceLength;
+
+    DEBUG(1, "CSW before processing transfer mode");
+    DumpBuffer((uint8_t*)csw,sizeof(CommandStatusWrapper));
+
+    uint8_t stall_in = FALSE;
+    uint8_t stall_out = FALSE;
+
+    DEBUG(1, "transferMode = %d", s_ProcessState.transferMode);
+    switch(s_ProcessState.transferMode) {
+        case Hn_eq_Dn:
+        case Hi_eq_Di:
+        case Ho_eq_Do:
+            // -> result, residue = 0
+            csw->bCSWStatus = status;
+            csw->dCSWDataResidue = 0;
+            break;
+
+        case Hn_lt_Di:
+        case Hn_lt_Do:
+            // -> phase error, residue = 0
+            csw->bCSWStatus = PhaseError;
+            csw->dCSWDataResidue = 0;
+            break;
+
+        case Ho_lt_Do:
+        case Hi_lt_Di:
+            // -> phase error, residue = hlength
+            csw->bCSWStatus = PhaseError;
+            csw->dCSWDataResidue = s_ProcessState.hostLength;
+            break;
+
+        case Hi_gt_Dn:
+        case Hi_gt_Di:
+            // -> stall_IN, residue = hlength - dlength (0)
+            stall_in = TRUE;
+            csw->dCSWDataResidue = s_ProcessState.hostLength - s_ProcessState.deviceLength;
+            break;
+
+        case Ho_gt_Dn:
+        case Ho_gt_Do:
+            // -> stall_OUT, residue = hlength - dlength (0)
+            stall_out = TRUE;
+            csw->dCSWDataResidue = s_ProcessState.hostLength - s_ProcessState.deviceLength;
+            break;
+
+        case Hi_ne_Do:
+            // -> stall_IN + phase error, residue = 0
+            stall_in = TRUE;
+            csw->bCSWStatus = PhaseError;
+            csw->dCSWDataResidue = 0;
+            break;
+        case Ho_ne_Di:
+            // -> stall_OUT + phase error, residue = 0
+            stall_out = TRUE;
+            csw->bCSWStatus = PhaseError;
+            csw->dCSWDataResidue = 0;
+            break;
+        default:
+            WARNING("Illegal transfer mode!");
+    }
+
+    DEBUG(1, "CSW after processing transfer mode");
+    DumpBuffer((uint8_t*)csw,sizeof(CommandStatusWrapper));
+
+    if (status == Unsupported) {
+        DEBUG(1, "Command not supported - sending stalls");
+        csw->bCSWStatus = CommandFailed;
+//        if (cbw->bmCBWFlags.direction)          // signal that there wont be any data
+//            stall_in = TRUE;
+//        else if (cbw->dCBWDataTransferLength)   // only signal if there would be data to receive
+//            stall_out = TRUE;
+        csw->dCSWDataResidue += s_ProcessState.deviceLength;
+
+        DumpBuffer((uint8_t*)csw,sizeof(CommandStatusWrapper));
+    }
+
+    if (stall_in) {
+        DEBUG(1, "stall_IN");
+        usb_send_stall(1);
+    }
+    if (stall_out) {
+        DEBUG(1, "stall_OUT");
+        usb_send_stall(2);
+    }
+
+
+    DEBUG(1, "bCSWStatus = %d", csw->bCSWStatus);
+    DEBUG(1, "dCSWDataResidue = %d", csw->dCSWDataResidue);
+
+    msc_send((uint8_t*)csw, sizeof(CommandStatusWrapper));
 }

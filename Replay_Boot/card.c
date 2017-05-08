@@ -196,6 +196,64 @@ uint8_t Card_Init(void)
 }
 
 
+// https://members.sdcard.org/downloads/pls/simplified_specs/part1_410.pdf
+
+uint64_t Card_GetCapacity(void)
+{
+    uint8_t csd[16];
+    uint64_t capacity = 0;
+
+    SPI_EnableCard();
+
+    MMC_Command(CMD9, 0x000000);
+
+    while (rSPI(0xFF) != 0xFE) {
+        if (Timer_Check(timeout)) {
+            WARNING("SPI:Card_CMD9 (SEND_CSD) timeout!");
+            SPI_DisableCard();
+            return 0;
+        }
+    }
+
+    for (int i = 0; i < sizeof(csd); ++i) {
+        csd[i] = rSPI(0xFF);
+    }
+
+    rSPI(0xFF); // CRC hi
+    rSPI(0xFF); // CRC lo
+
+    SPI_DisableCard();
+
+    uint8_t csdVersion = csd[0] >> 6;   // 0 = CSD Version 1.0, 1 = CSD Version 2.0
+
+    if (csdVersion == 0) {
+        DEBUG(2, "CARD:CSD Version 1.0 / Standard Capacity");
+        uint32_t READ_BL_LEN = csd[5] & 0x0F;           // [83:80]
+        uint32_t C_SIZE =  ((csd[6] & 0x03) << 10) |    // [73:62]
+                            (csd[7] << 2) |
+                            (csd[8] >> 6);
+        uint32_t C_SIZE_MULT = ((csd[9] & 0x03) << 1) | // [49:47]
+                                (csd[10] >> 7);
+        uint64_t sectorSize = (1 << READ_BL_LEN);
+        uint64_t sectorCount = (C_SIZE + 1) * (1<<(C_SIZE_MULT + 2));
+        capacity = sectorSize * sectorCount;
+    } else if (csdVersion == 1) {
+        DEBUG(2, "CARD:CSD Version 2.0 / High Capacity");
+        uint32_t READ_BL_LEN = csd[5] & 0x0F;           // [83:80]
+        uint32_t C_SIZE =  ((csd[7] & 0x3F) << 16) |    // [69:48]
+                            (csd[8] << 8) |
+                             csd[9];
+        uint64_t sectorSize = (1 << READ_BL_LEN);
+        uint64_t sectorCount = (C_SIZE + 1) * 1024;
+        capacity = sectorSize * sectorCount;
+    } else {
+        WARNING("CARD:Unknown CSD version!");
+    }
+    DEBUG(1, "CARD:Capacity is %u GB", (uint32_t)(capacity / (1000*1000*1000)));
+    return capacity;
+}
+
+
 FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam)
 {
     // if pReadBuffer is NULL then use direct to the FPGA transfer mode (FPGA2 asserted)

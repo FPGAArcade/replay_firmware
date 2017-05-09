@@ -345,6 +345,9 @@ typedef struct {
     /** defines the osd init mode */
     osd_init_t   osd_init;
 
+    /** idle timeout, seconds, or 0 for no timeout */
+    uint8_t      osd_timeout;
+
     /* used in the file browser to delay rescan while typing */
     uint8_t  delayed_filescan;
     uint32_t filescan_timer;

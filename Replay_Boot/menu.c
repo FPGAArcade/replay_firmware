@@ -65,8 +65,6 @@ typedef enum {
     ACTION_INIT = 255
 } tActionType;
 
-static const uint8_t osd_timeout_secs = 30; // TODO: Configurable
-
 // handle display action ===================================================
 static uint8_t _MENU_action_display(menuitem_t* item, status_t* current_status)
 {
@@ -1196,14 +1194,15 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
     current_status->update = 0;
 
     // timeout of OSD after noticing last key press (or external forced update)
-    if (current_status->menu_state != NO_MENU) {
+    if (current_status->menu_state != NO_MENU &&
+        current_status->osd_timeout != 0) {  // 0 = disabled
         if (key || update) {
             // we set our timeout with any update (1 sec)
             osd_timeout = Timer_Get(1000);
             osd_timeout_cnt = 0;
 
         } else if (Timer_Check(osd_timeout)) {
-            if (osd_timeout_cnt++ < osd_timeout_secs) {
+            if (osd_timeout_cnt++ < current_status->osd_timeout) {
                 // we set our timeout again with any update (1 sec)
                 osd_timeout = Timer_Get(1000);
                 return 0;

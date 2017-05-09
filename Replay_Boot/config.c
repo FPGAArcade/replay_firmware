@@ -824,6 +824,7 @@ void CFG_set_status_defaults(status_t* currentStatus, uint8_t init)
              sizeof(currentStatus->hotkey_string));
     currentStatus->clockmon = FALSE;
     currentStatus->osd_init = OSD_INIT_ON;
+    currentStatus->osd_timeout = 30;
 
     currentStatus->clock_cfg  = init_clock_config_ntsc;
     currentStatus->filter_cfg = init_vidbuf;
@@ -1117,6 +1118,24 @@ static uint8_t _CFG_handle_SETUP_OSD_INIT(status_t* pStatus, const ini_symbols_t
     }
 
     DEBUG(1, "OSD init: %s", value);
+    return 0;
+}
+
+static uint8_t _CFG_handle_SETUP_OSD_TIMEOUT(status_t* pStatus, const ini_symbols_t name, const char* value)
+{
+    ini_list_t valueList[1];
+    uint16_t entries = ParseList(value, valueList, 1);
+    if(entries == 1) {
+        if(valueList[0].intval > 255 || valueList[0].intval < 0) {
+            WARNING("osd_timeout value of of range");
+        } else {
+            pStatus->osd_timeout = valueList[ 0].intval;
+        }
+    } else {
+        WARNING("invalid osd_timeout config");
+    }
+
+    DEBUG(1, "OSD timeout: %d", pStatus->osd_timeout);
     return 0;
 }
 
@@ -1824,6 +1843,9 @@ uint8_t _CFG_pre_parse_handler(void* status, const ini_symbols_t section,
 
             case INI_OSD_INIT:
                 return _CFG_handle_SETUP_OSD_INIT((status_t*)status, name, value);
+
+            case INI_OSD_TIMEOUT:
+                return _CFG_handle_SETUP_OSD_TIMEOUT((status_t*)status, name, value);
 
             default:
                 break;

@@ -17,7 +17,8 @@ typedef enum {
     INI_UNKNOWN,         ///< virtual token, signals end-of-file or section change
     INI_SETUP,           ///< token for SETUP section
     INI_INFO,            ///< token for INFO line
-    INI_OSD_INIT,        ///< token for OSD INIT MODE line
+    INI_OSD_INIT,        ///< token for OSD_INIT MODE line
+    INI_OSD_TIMEOUT,     ///< token for OSD_TIMOEUT line
     INI_BIN,             ///< token for BIN keyword (FPGA config file definition)
     INI_CLOCK,           ///< token for CLOCK keyword (PLL chip configuration)
     INI_PHASE,           ///< token for PHASE keyword (DRAM timing configuration)

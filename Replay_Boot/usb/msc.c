@@ -3,6 +3,8 @@
 #include "usb_hardware.h"
 #include "messaging.h"
 
+#include "card.h"
+
 void UsbPacketReceived(uint8_t *data, int len);
 
 // The buffer used to store packets received over USB while we are in the
@@ -387,7 +389,7 @@ static const struct {
 
     // byte 32-35
     uint8_t     PRODUCTREVISIONLEVEL[4];
-
+/*
     // byte 36-43
     uint8_t     DRIVESERIALNUMBER[8];
     // byte 44-55
@@ -414,6 +416,7 @@ static const struct {
     uint8_t      VERSIONDESCRIPTOR8[2];
     // byte 74-95
     uint8_t     reserved4[22];
+*/    
 } __attribute__ ((packed)) s_INQUIRYdata = {
     // byte 0
     0x00,           // Direct Access Device (0x00)
@@ -453,6 +456,7 @@ static const struct {
     {'F','P','G','A','A','r','c','a','d','e','R','e','p','l','a','y'},  // Product ID
     // byte 32-35
     {'1','.','0','0'},                  // Revision level
+/*
     // byte 36-43
     {'0','1','2','3','4','5','6','7'},  // Drive Serial
     // byte 43-55
@@ -472,7 +476,46 @@ static const struct {
     {0x00, 0x00},
     // byte 74-95
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}    // reserved
+*/    
 };
+
+
+static const struct {
+    uint8_t PERIPHERALDEVICETYPE:5;
+    uint8_t PERIPHERALQUALIFIER:3;
+    uint8_t PAGECODE;
+    uint8_t Reserved;
+    uint8_t PAGELENGTH;
+    uint8_t ProductSerialNumber[8];
+} __attribute__ ((packed)) s_UNIT_SERIAL_NUMBERdata = {
+    0,0,
+    0x80,
+    0,
+    0x08,
+    {'0','1','2','3','4','5','6','7'}
+};
+
+typedef struct {
+    uint8_t     OPERATIONCODE;
+    uint8_t     Reserved:5;
+    uint8_t     LUN:3;
+    uint8_t     Reserved1[5];
+    uint8_t     ALLOCATIONLENGTH[2];
+    uint8_t     Reserved2[3];
+} __attribute__ ((packed)) READ_FORMAT_CAPACITY;
+#define OPERATIONCODE_READ_FORMAT_CAPACITY 0x23
+
+typedef struct {
+    uint8_t     reserved[3];        // drive 0
+    uint8_t     ADDITIONALLENGTH;
+    struct CapacityDescriptor
+    {
+        uint8_t NUM_BLOCKS[4];
+        uint8_t DESC_CODE:2;
+        uint8_t reserved:6;
+        uint8_t BLOCK_LENGTH[3];   
+    }           CAP_DESC;
+} __attribute__ ((packed)) READ_FORMAT_CAPACITYdata;
 
 
 typedef struct {
@@ -491,16 +534,54 @@ typedef struct {
     // byte 0-3
     uint8_t     LBA[4];
     // byte 4-7
-    uint8_t     NUMBYTES[4];
+    uint8_t     NUMBYTESPERBLOCK[4];
 } __attribute__ ((packed)) READ_CAPACITYdata;
+
+typedef struct {
+    uint8_t     OPERATIONCODE;
+    uint8_t     Reserved0:3;
+    uint8_t     DBD:1;
+    uint8_t     Reserved1:4;
+    uint8_t     PAGECODE:6;
+    uint8_t     PC:2;
+    uint8_t     SUBPAGECODE;
+    uint8_t     ALLOCATIONLENGTH;
+    uint8_t     CONTROL;
+} __attribute__ ((packed)) MODE_SENSE_6;
+#define OPERATIONCODE_MODE_SENSE_6 0x1a
+
+static const struct {
+    uint8_t     MODEDATALENGTH;
+    uint8_t     MEDIUMTYPE;
+    uint8_t     DEVICESPECIFIC;
+    uint8_t     BLOCKDESCRIPTORLENGTH;
+} __attribute__ ((packed)) s_MODE_PARAMETER_HEADERdata = {
+    sizeof(s_MODE_PARAMETER_HEADERdata) - 1,
+    0x00,               // Direct Access Device (0x00)
+    0x00,               // Device Specific.. ?
+    0x00                // No block descriptors
+};
+
 
 typedef union {
     uint8_t         OPERATIONCODE;
     INQUIRY         inquiry;
     READ_CAPACITY   readCapacity;
+    READ_FORMAT_CAPACITY    readFormatCapacity;
+    MODE_SENSE_6    modeSense6;
 } CommandDescriptorBlock;
 
+
+
+
 #define READ_BE_16B(x)  ((uint16_t) ((x[0] << 8) | x[1]))
+
+#define WRITE_BE_32B(x,val) \
+    x[0] = (uint8_t) (((val) >> 24) & 0xff); \
+    x[1] = (uint8_t) (((val) >> 16) & 0xff); \
+    x[2] = (uint8_t) (((val)  >> 8) & 0xff); \
+    x[3] = (uint8_t)  ((val)        & 0xff);
+
 
 static uint8_t process_transfer_mode()
 {
@@ -516,14 +597,38 @@ static uint8_t process_transfer_mode()
     CommandDescriptorBlock* cdb = (CommandDescriptorBlock*)cbw->CBWCB;
     switch (cdb->OPERATIONCODE) {
         case OPERATIONCODE_INQUIRY:
-            deviceLength = READ_BE_16B(cdb->inquiry.ALLOCATIONLENGTH);
+            if (cdb->inquiry.EVPD) {
+                if (cdb->inquiry.PAGECODE == 0x80) {
+                    deviceLength = sizeof(s_UNIT_SERIAL_NUMBERdata);
+                }
+                else {
+                    WARNING("Unknown EVPD %02x!", cdb->inquiry.PAGECODE);
+                }
+            } else {
+                deviceLength = READ_BE_16B(cdb->inquiry.ALLOCATIONLENGTH);
+            }
             deviceTransferType = DeviceToHost;
             break;
         case OPERATIONCODE_TEST_UNIT_READY:
             deviceTransferType = DeviceToHost;
+            break;
+        case OPERATIONCODE_READ_FORMAT_CAPACITY:
+            deviceLength = sizeof(READ_FORMAT_CAPACITYdata);
+            deviceTransferType = DeviceToHost;
+            break;
         case OPERATIONCODE_READ_CAPACITY:
             deviceLength = sizeof(READ_CAPACITYdata);
             deviceTransferType = DeviceToHost;
+            break;
+        case OPERATIONCODE_MODE_SENSE_6:
+            if (cdb->modeSense6.ALLOCATIONLENGTH >= sizeof(s_MODE_PARAMETER_HEADERdata))
+                deviceLength = sizeof(s_MODE_PARAMETER_HEADERdata);
+            else
+                deviceLength = cdb->modeSense6.ALLOCATIONLENGTH;
+            deviceTransferType = DeviceToHost;
+            if (cdb->modeSense6.PAGECODE != 0x3f)
+                WARNING("Unknown bad pagecode!");
+            break;
         default:
             WARNING("Unknown operation code!");
             s_ProcessState.hostLength = hostLength;
@@ -546,11 +651,11 @@ static uint8_t process_transfer_mode()
         if (deviceTransferType == NoTransfer) {
             transferMode = Hi_gt_Dn;                                // (4)
         } else if (deviceTransferType == DeviceToHost) {
-            if (hostLength < deviceLength) {
+            if (hostLength > deviceLength) {
                 transferMode = Hi_gt_Di;                            // (5)
             } else if (hostLength == deviceLength) {
                 transferMode = Hi_eq_Di;                            // (6)
-            } else { // hostLength > deviceLength
+            } else { // hostLength < deviceLength
                 transferMode = Hi_lt_Di;                            // (7)
             }
         } else { // deviceTransferType == HostToDevice
@@ -588,11 +693,42 @@ static CSWStatus process_command()
     switch (cdb->OPERATIONCODE) {
         case OPERATIONCODE_INQUIRY:
             DEBUG(1, "OPERATIONCODE_INQUIRY");
-            msc_send((uint8_t*)&s_INQUIRYdata, s_ProcessState.deviceLength);
+            if (cdb->inquiry.EVPD) {
+                if (cdb->inquiry.PAGECODE == 0x80)
+                    msc_send((uint8_t*)&s_UNIT_SERIAL_NUMBERdata, s_ProcessState.deviceLength);
+            } else {
+                msc_send((uint8_t*)&s_INQUIRYdata, s_ProcessState.deviceLength);
+            }
             return CommandPassed;
         case OPERATIONCODE_TEST_UNIT_READY:
             DEBUG(1, "OPERATIONCODE_TEST_UNIT_READY");
             // assume all is good
+            return CommandPassed;
+        case OPERATIONCODE_READ_FORMAT_CAPACITY: {
+            DEBUG(1, "OPERATIONCODE_READ_FORMAT_CAPACITY");
+            READ_FORMAT_CAPACITYdata data;
+            memset(&data,0x00,sizeof(data));
+            data.ADDITIONALLENGTH = sizeof(data)-4;
+            uint64_t capacity = Card_GetCapacity();
+            uint32_t sectorCount = (uint32_t)(capacity / 512);
+            WRITE_BE_32B(data.CAP_DESC.NUM_BLOCKS, sectorCount);
+            data.CAP_DESC.BLOCK_LENGTH[1] = 0x02;   // 512
+            msc_send((uint8_t*)&data, s_ProcessState.deviceLength);
+            return CommandPassed;
+        }
+        case OPERATIONCODE_READ_CAPACITY: {
+            DEBUG(1, "OPERATIONCODE_READ_CAPACITY");
+            READ_CAPACITYdata data;
+            memset(&data,0x00,sizeof(data));
+            uint64_t capacity = Card_GetCapacity();
+            uint32_t sectorCount = (uint32_t)(capacity / 512);
+            WRITE_BE_32B(data.LBA, sectorCount-1);
+            WRITE_BE_32B(data.NUMBYTESPERBLOCK, 512);
+            msc_send((uint8_t*)&data, s_ProcessState.deviceLength);
+            return CommandPassed;
+        }
+        case OPERATIONCODE_MODE_SENSE_6:
+            msc_send((uint8_t*)&s_MODE_PARAMETER_HEADERdata, s_ProcessState.deviceLength);
             return CommandPassed;
         default:
             WARNING("Unknown operation code! OPERATIONCODE = $%02x", cdb->OPERATIONCODE);
@@ -687,11 +823,11 @@ static void process_status(CSWStatus status)
 
     if (stall_in) {
         DEBUG(1, "stall_IN");
-        usb_send_stall(1);
+//        usb_send_stall(1);
     }
     if (stall_out) {
         DEBUG(1, "stall_OUT");
-        usb_send_stall(2);
+//        usb_send_stall(2);
     }
 
 

@@ -1,5 +1,4 @@
 #include "board.h"
-#include "hardware/timer.h"
 #include "usb_hardware.h"
 #include "messaging.h"
 
@@ -157,89 +156,59 @@ void usb_disconnect()
     AT91C_BASE_PIOA->PIO_OER = USB_DP_PUP;
 }
 
-#ifndef min
 #define min(a, b) (((a) > (b)) ? (b) : (a))
-#endif
 
 void usb_send(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32_t packet_length, uint32_t wLength)
 {
     AT91PS_UDP udp = AT91C_BASE_UDP;
 
-    DEBUG(1,"usb_send (ep = %d, wMaxPacketSize = %d, packet = %08x, packet_length = %d, wLength = %d)", 
-          ep, wMaxPacketSize, packet, packet_length, wLength);
+    DEBUG(1,"usb_send (ep = %d, wMaxPacketSize = %d, packet = %08x, packet_length = %d, wLength = %d)", ep, wMaxPacketSize, packet, packet_length, wLength);
 
-    int i, partSize;
+    int i, thisTime;
     int len = wLength ? min(packet_length, wLength) : packet_length;
     uint8_t sendzlp = (((len & (wMaxPacketSize-1)) == 0) && len != wLength) || packet == 0;
-    uint32_t tout = Timer_Get(500); // FIXME: What is resonable?
     while(len > 0) {
-        partSize = min(len, wMaxPacketSize);
+        thisTime = min(len, wMaxPacketSize);
 
-        for(i = 0; i < partSize; i++) {
+        for(i = 0; i < thisTime; i++) {
             udp->UDP_FDR[ep] = packet[i];
         }
 
         if(udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP) {
             udp->UDP_CSR[ep] &= ~AT91C_UDP_TXCOMP;
-            while((udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP) && !Timer_Check(tout))
+            while(udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP)
                 ;
-            if(Timer_Check(tout) && (udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP)) {
-              DEBUG(1, "usb_send: timeout TXCOMP(1)");
-              return;
-            }
         }
 
         udp->UDP_CSR[ep] |= AT91C_UDP_TXPKTRDY;
-        DEBUG(2, "usb_send: TXPKTRDY set");
 
-        while(!(udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP) && !Timer_Check(tout)) {
-          if(udp->UDP_CSR[ep] & AT91C_UDP_RX_DATA_BK0) {
-            // This means that the host is trying to write to us, so
-            // abandon our write to them.
-            udp->UDP_CSR[ep] &= ~AT91C_UDP_RX_DATA_BK0;
-            return;
-          }
-          if (!CheckConnectedEP0()) {
-            return;
-          }
-        }
-        if(Timer_Check(tout)) {
-          DEBUG(1, "usb_send: timeout TXCOMP(2)");
-          return;
-        }
-        
-        udp->UDP_CSR[ep] &= ~AT91C_UDP_TXCOMP;
-        DEBUG(2, "usb_send: TXCOMP unset");
-
-        while((udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP) && !Timer_Check(tout)) {
-          if (!CheckConnectedEP0()) {
+        while(!(udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP)) {
+            if(udp->UDP_CSR[ep] & AT91C_UDP_RX_DATA_BK0) {
+                // This means that the host is trying to write to us, so
+                // abandon our write to them.
+                udp->UDP_CSR[ep] &= ~AT91C_UDP_RX_DATA_BK0;
                 return;
-          }
+            }
+            if (!CheckConnectedEP0())
+                return;
         }
-        if(Timer_Check(tout) && (udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP)) {
-          DEBUG(1, "usb_send: timeout TXCOMP(3)");
-          return;
-        }
+        udp->UDP_CSR[ep] &= ~AT91C_UDP_TXCOMP;
 
-        len -= partSize;
-        packet += partSize;
+        while(udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP)
+            if (!CheckConnectedEP0())
+                return;
+
+        len -= thisTime;
+        packet += thisTime;
     }
 
     if (sendzlp) {
         udp->UDP_CSR[ep] |= AT91C_UDP_TXPKTRDY;
-        while(!(udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP) && !Timer_Check(tout))
+        while(!(udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP))
             ;
-        if(Timer_Check(tout) && (udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP)) {
-          DEBUG(1, "usb_send: timeout zlp TXCOMP(1)");
-          return;
-        }
         udp->UDP_CSR[ep] &= ~AT91C_UDP_TXCOMP;
-        while(udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP && !Timer_Check(tout))
+        while(udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP)
             ;
-        if(Timer_Check(tout) && (udp->UDP_CSR[ep] & AT91C_UDP_TXCOMP)) {
-          DEBUG(1, "usb_send: timeout zlp TXCOMP(2)");
-          return;
-        }
     }
 }
 

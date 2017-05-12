@@ -66,6 +66,9 @@
 #include "messaging.h"
 #include <sys/unistd.h> // sbrk()
 
+#include "msc.h"
+//#define MSC_USB 1
+
 #include "ptp_usb.h"
 //#define PTP_USB 1
 
@@ -97,6 +100,9 @@ int main(void)
 
 #if PTP_USB
     PTP_USB_Stop();
+#endif
+#if MSC_USB
+    MSC_Stop();
 #endif
 
     // replay main status structure
@@ -220,6 +226,9 @@ int main(void)
 #if PTP_USB
             PTP_USB_Start();
 #endif
+#if MSC_USB
+            MSC_Start();
+#endif
 
             // we run in here as long as there is no need to reload the FPGA
             while (current_status.fpga_load_ok) {
@@ -283,27 +292,27 @@ static __attribute__ ((noinline)) void load_embedded_core()
 
     // set up some default to have OSD enabled
     //if (!IO_Input_H(PIN_FPGA_DONE)) {
-        // initially configure default clocks, video filter and diable video coder (may not be fitted)
-        // Add support for interlaced/codec standards (selectable by menu button?)
-        CFG_vid_timing_HD27(F60HZ);
-        CFG_set_coder(CODER_DISABLE);
+    // initially configure default clocks, video filter and diable video coder (may not be fitted)
+    // Add support for interlaced/codec standards (selectable by menu button?)
+    CFG_vid_timing_HD27(F60HZ);
+    CFG_set_coder(CODER_DISABLE);
 
-        if (!FPGA_Default()) {
-            DEBUG(1, "FPGA default set.");
+    if (!FPGA_Default()) {
+        DEBUG(1, "FPGA default set.");
 
-            current_status.fpga_load_ok = 2;
-            current_status.twi_enabled = 1;
-            current_status.spi_fpga_enabled = 1;
-            current_status.spi_osd_enabled = 1;
+        current_status.fpga_load_ok = 2;
+        current_status.twi_enabled = 1;
+        current_status.spi_fpga_enabled = 1;
+        current_status.spi_osd_enabled = 1;
 
-            sprintf(current_status.status[0], "ARM |FW:%s (%ldkB free)", version,
-                    CFG_get_free_mem() >> 10);
-            sprintf(current_status.status[1], "FPGA|NO VALID SETUP ON SDCARD!");
+        sprintf(current_status.status[0], "ARM |FW:%s (%ldkB free)", version,
+                CFG_get_free_mem() >> 10);
+        sprintf(current_status.status[1], "FPGA|NO VALID SETUP ON SDCARD!");
 
-        } else {
-            // didn't work
-            MSG_fatal_error(1); // halt and reboot
-        }
+    } else {
+        // didn't work
+        MSG_fatal_error(1); // halt and reboot
+    }
     //}
 #endif
 }
@@ -409,7 +418,7 @@ static __attribute__ ((noinline)) void main_update()
     }
 
     // track memory usage, and detect heap/stack stomp
-    if (2 <= debuglevel) {
+    if (3 <= debuglevel) {
         static uint16_t loop = 0;
 
         if ((loop++) == 0) {
@@ -423,6 +432,10 @@ static __attribute__ ((noinline)) void main_update()
         DEBUG(1, "usb packet received");
     }
 
+#endif
+
+#if MSC_USB
+    MSC_Poll();
 #endif
 
     // get keys (from Replay button, RS232 or PS/2 via OSD/FPGA)

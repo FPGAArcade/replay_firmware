@@ -54,6 +54,10 @@
 
 /* ========================================================================== */
 
+// This excludes the embedded core from the binary, saving 70k+
+//#define FPGA_DISABLE_EMBEDDED_CORE
+
+
 /** maximum length of a menu string to be used in the INI file,
     including limiter character - OSD width should be chosen  */
 #define MAX_MENU_STRING (32+1)

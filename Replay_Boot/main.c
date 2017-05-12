@@ -67,7 +67,7 @@
 #include <sys/unistd.h> // sbrk()
 
 #include "ptp_usb.h"
-//#define PTP_USB 1
+#define PTP_USB 1
 
 extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
@@ -277,6 +277,10 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
 
 static __attribute__ ((noinline)) void load_embedded_core()
 {
+#ifdef FPGA_DISABLE_EMBEDDED_CORE
+    MSG_fatal_error(9);
+#else
+
     // set up some default to have OSD enabled
     //if (!IO_Input_H(PIN_FPGA_DONE)) {
         // initially configure default clocks, video filter and diable video coder (may not be fitted)
@@ -301,6 +305,7 @@ static __attribute__ ((noinline)) void load_embedded_core()
             MSG_fatal_error(1); // halt and reboot
         }
     //}
+#endif
 }
 
 static __attribute__ ((noinline)) void init_core()

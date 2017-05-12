@@ -47,6 +47,7 @@
 // Support routines for the FPGA including file transfer, system control and DRAM test
 //
 
+#include "config.h"
 #include "fpga.h"
 #include "fileio.h"
 #include "hardware/io.h"
@@ -55,11 +56,12 @@
 #include "osd.h"  // for keyboard input to DRAM debug only
 #include "messaging.h"
 
+#ifndef FPGA_DISABLE_EMBEDDED_CORE
 // Bah! But that's how it is proposed by this lib...
 #include "tinfl.c"
 // ok, so it is :-)
 #include "loader.c"
-
+#endif
 
 const uint8_t kMemtest[128] = {
     0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
@@ -79,6 +81,10 @@ const uint8_t kMemtest[128] = {
 
 uint8_t FPGA_Default(void) // embedded in FW, something to start with
 {
+#ifdef FPGA_DISABLE_EMBEDDED_CORE
+    WARNING("FPGA:Embedded core not available!");
+    return 1; 
+#else
     uint32_t secCount;
     unsigned long time;
 
@@ -173,6 +179,7 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
     }
 
     return 0;
+#endif // #ifdef FPGA_DISABLE_EMBEDDED_CORE
 }
 
 uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
@@ -912,6 +919,7 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     asm("bx  r3\n");
 }
 
+#ifdef TINFL_HEADER_INCLUDED
 
 //
 // ZLIB inflate (decompress) a stream through read/write callbacks
@@ -1045,3 +1053,5 @@ size_t gunzip(inflate_read_func_ptr read_func, void* const read_context, inflate
     // NB - at this point we need ~45KB stack space (!!)
     return zlib_inflate(read_func, read_context, 1024, write_func, write_context, 0);
 }
+
+#endif

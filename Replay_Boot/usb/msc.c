@@ -41,7 +41,7 @@ void msc_recv(uint8_t ep, uint8_t* packet, uint32_t length)
 
 void msc_send(uint8_t* packet, uint32_t length)
 {
-	usb_send(1, 64, packet, length, 0);
+	usb_send(1, 64, packet, length, length);
 }
 
 void MSC_Start(void)
@@ -562,6 +562,21 @@ static const struct {
     0x00                // No block descriptors
 };
 
+typedef struct {
+    uint8_t     OPERATIONCODE;
+    uint8_t     Obsolete:1;
+    uint8_t     FUA_NV:1;
+    uint8_t     Reserved:1;
+    uint8_t     FUA:1;
+    uint8_t     DPO:1;
+    uint8_t     RDPROTECT:3;
+    uint8_t     LBA[4];
+    uint8_t     GROUPNUMBER:5;
+    uint8_t     Reserved1:3;
+    uint8_t     TRANSFERLENGTH[2];
+    uint8_t     CONTROL;
+} __attribute__ ((packed)) READ_10;
+#define OPERATIONCODE_READ_10 0x28
 
 typedef union {
     uint8_t         OPERATIONCODE;
@@ -569,12 +584,14 @@ typedef union {
     READ_CAPACITY   readCapacity;
     READ_FORMAT_CAPACITY    readFormatCapacity;
     MODE_SENSE_6    modeSense6;
+    READ_10         read10;
 } CommandDescriptorBlock;
 
 
 
 
 #define READ_BE_16B(x)  ((uint16_t) ((x[0] << 8) | x[1]))
+#define READ_BE_32B(x)  ((uint32_t) ((x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3]))
 
 #define WRITE_BE_32B(x,val) \
     x[0] = (uint8_t) (((val) >> 24) & 0xff); \
@@ -610,7 +627,7 @@ static uint8_t process_transfer_mode()
             deviceTransferType = DeviceToHost;
             break;
         case OPERATIONCODE_TEST_UNIT_READY:
-            deviceTransferType = DeviceToHost;
+            deviceTransferType = NoTransfer;
             break;
         case OPERATIONCODE_READ_FORMAT_CAPACITY:
             deviceLength = sizeof(READ_FORMAT_CAPACITYdata);
@@ -628,6 +645,10 @@ static uint8_t process_transfer_mode()
             deviceTransferType = DeviceToHost;
             if (cdb->modeSense6.PAGECODE != 0x3f)
                 WARNING("Unknown bad pagecode!");
+            break;
+        case OPERATIONCODE_READ_10:
+            deviceLength = READ_BE_16B(cdb->read10.TRANSFERLENGTH) * 512;
+            deviceTransferType = DeviceToHost;
             break;
         default:
             WARNING("Unknown operation code!");
@@ -684,6 +705,8 @@ static uint8_t process_transfer_mode()
     return TRUE;
 }
 
+static uint8_t OneSector[512];
+
 static CSWStatus process_command()
 {
     CommandBlockWrapper* cbw = &s_ProcessState.cbw;
@@ -728,8 +751,19 @@ static CSWStatus process_command()
             return CommandPassed;
         }
         case OPERATIONCODE_MODE_SENSE_6:
+            DEBUG(1, "OPERATIONCODE_MODE_SENSE_6");
             msc_send((uint8_t*)&s_MODE_PARAMETER_HEADERdata, s_ProcessState.deviceLength);
             return CommandPassed;
+        case OPERATIONCODE_READ_10: {
+            DEBUG(1, "OPERATIONCODE_READ_10");
+            uint32_t sectorOffset = READ_BE_32B(cdb->read10.LBA);
+            uint32_t numSectors = s_ProcessState.deviceLength / 512;
+            for (int i = 0; i < numSectors; ++i) {
+                Card_ReadM(OneSector, sectorOffset+i, 1, NULL);
+                msc_send(OneSector, sizeof(OneSector));
+            }
+            return CommandPassed;
+        }
         default:
             WARNING("Unknown operation code! OPERATIONCODE = $%02x", cdb->OPERATIONCODE);
             return Unsupported;

@@ -151,6 +151,7 @@ static char* FindCharr(const char* e, const char* min, char c)
     while ((p > min) && (*p && (*p != c)) ) {
         --p;
     }
+
     return (char*) ( (p == min) && (*p != c)  ? NULL : p );
 }
 
@@ -308,7 +309,7 @@ uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxl
                     send = FindCharr(end, start, '"');
                 }
 
-                if(send != start) {
+                if (send != start) {
                     len = send - start;
 
                 } else {

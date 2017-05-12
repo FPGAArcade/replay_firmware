@@ -1125,12 +1125,15 @@ static uint8_t _CFG_handle_SETUP_OSD_TIMEOUT(status_t* pStatus, const ini_symbol
 {
     ini_list_t valueList[1];
     uint16_t entries = ParseList(value, valueList, 1);
-    if(entries == 1) {
-        if(valueList[0].intval > 255 || valueList[0].intval < 0) {
+
+    if (entries == 1) {
+        if (valueList[0].intval > 255 || valueList[0].intval < 0) {
             WARNING("osd_timeout value of of range");
+
         } else {
             pStatus->osd_timeout = valueList[ 0].intval;
         }
+
     } else {
         WARNING("invalid osd_timeout config");
     }

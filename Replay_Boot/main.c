@@ -313,6 +313,7 @@ static __attribute__ ((noinline)) void load_embedded_core()
         // didn't work
         MSG_fatal_error(1); // halt and reboot
     }
+
     //}
 #endif
 }

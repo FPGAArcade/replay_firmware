@@ -230,26 +230,29 @@ uint64_t Card_GetCapacity(void)
         DEBUG(2, "CARD:CSD Version 1.0 / Standard Capacity");
         uint32_t READ_BL_LEN = csd[5] & 0x0F;           // [83:80]
         uint32_t C_SIZE =  ((csd[6] & 0x03) << 10) |    // [73:62]
-                            (csd[7] << 2) |
-                            (csd[8] >> 6);
+                           (csd[7] << 2) |
+                           (csd[8] >> 6);
         uint32_t C_SIZE_MULT = ((csd[9] & 0x03) << 1) | // [49:47]
-                                (csd[10] >> 7);
+                               (csd[10] >> 7);
         uint64_t sectorSize = (1 << READ_BL_LEN);
-        uint64_t sectorCount = (C_SIZE + 1) * (1<<(C_SIZE_MULT + 2));
+        uint64_t sectorCount = (C_SIZE + 1) * (1 << (C_SIZE_MULT + 2));
         capacity = sectorSize * sectorCount;
+
     } else if (csdVersion == 1) {
         DEBUG(2, "CARD:CSD Version 2.0 / High Capacity");
         uint32_t READ_BL_LEN = csd[5] & 0x0F;           // [83:80]
         uint32_t C_SIZE =  ((csd[7] & 0x3F) << 16) |    // [69:48]
-                            (csd[8] << 8) |
-                             csd[9];
+                           (csd[8] << 8) |
+                           csd[9];
         uint64_t sectorSize = (1 << READ_BL_LEN);
         uint64_t sectorCount = (C_SIZE + 1) * 1024;
         capacity = sectorSize * sectorCount;
+
     } else {
         WARNING("CARD:Unknown CSD version!");
     }
-    DEBUG(1, "CARD:Capacity is %u GB", (uint32_t)(capacity / (1000*1000*1000)));
+
+    DEBUG(1, "CARD:Capacity is %u GB", (uint32_t)(capacity / (1000 * 1000 * 1000)));
     return capacity;
 }
 

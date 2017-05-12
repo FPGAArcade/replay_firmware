@@ -796,7 +796,7 @@ void _MENU_update_ui(status_t* current_status)
     OSD_Clear();
     OSD_Write  (    0,  "***   F P G A  A R C A D E   ***", 0);
     OSD_WriteBase(1, 0, "", 0, 0, BLACK, DARK_BLUE, 1); // clears row
-    OSD_WriteBase(1,14, "", 0, 0, BLACK, DARK_BLUE, 1); // clears row
+    OSD_WriteBase(1, 14, "", 0, 0, BLACK, DARK_BLUE, 1); // clears row
 
     if (current_status->menu_state == SHOW_STATUS) {
         OSD_WriteRC(1,  0,  "= REPLAY RETRO GAMING PLATFORM =", 0, BLACK, DARK_BLUE);
@@ -1195,7 +1195,7 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
 
     // timeout of OSD after noticing last key press (or external forced update)
     if (current_status->menu_state != NO_MENU &&
-        current_status->osd_timeout != 0) {  // 0 = disabled
+            current_status->osd_timeout != 0) {  // 0 = disabled
         if (key || update) {
             // we set our timeout with any update (1 sec)
             osd_timeout = Timer_Get(1000);

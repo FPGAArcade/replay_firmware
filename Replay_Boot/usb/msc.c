@@ -334,6 +334,8 @@ static void msc_packet_recv(uint8_t* packet, uint32_t length)
     DEBUG(1, "MSC Command result = %d", result);
 
     process_status(result);
+
+    DEBUG(1, "------------------------ ^^ DONE ^^ -------------------------");
 }
 
 
@@ -588,6 +590,156 @@ typedef struct {
 #define OPERATIONCODE_READ_10 0x28
 #define OPERATIONCODE_WRITE_10 0x2a
 
+
+typedef struct {
+    uint8_t     OPERATIONCODE;
+    uint8_t     Reserved[3];
+    uint8_t     PREVENT:2;
+    uint8_t     Reserved1:6;
+    uint8_t     CONTROL;
+} __attribute__ ((packed)) PREVENT_ALLOW_REMOVAL;
+#define OPERATIONCODE_PREVENT_ALLOW_REMOVAL 0x1e
+
+typedef struct {
+    uint8_t     OPERATIONCODE;
+    uint8_t     DESC:1;
+    uint8_t     Reserved:7;
+    uint8_t     Reserved1[2];
+    uint8_t     ALLOCATIONLENGTH;
+    uint8_t     CONTROL;
+} __attribute__ ((packed)) REQUEST_SENSE;
+#define OPERATIONCODE_REQUEST_SENSE 0x03
+
+
+typedef enum {
+    NOSENSE = 0x00,             // Indicates that there is no specific sense key information to be reported.
+    RECOVEREDERROR = 0x01,      // Indicates that the command completed successfully, with some recovery action performed by the device server. 
+    NOTREADY = 0x02,            // Indicates that the logical unit is not accessible. 
+    MEDIUMERROR = 0x03,         // Indicates that the command terminated with a non-recovered error condition that may have been caused by a flaw in the medium or an error in the recorded data.
+    HARDWAREERROR = 0x04,       // Indicates that the device server detected a non-recoverable hardware failure.
+    ILLEGALREQUEST = 0x05,      // Indicates that an incorrect logical unit number, an invalid task attribute, or an illegal parameter in the CDB
+    UNITATTENTION = 0x6,        // Indicates that a unit attention condition has been established (e.g., the removable medium may have been changed, a logical unit reset occurred).
+    DATAPROTECT = 0x07,         // Indicates that a command that reads or writes the medium was attempted on a block that is protected.
+    BLANKCHECK = 0x08,          // Indicates that a write-once device or a sequential-access device encountered blank medium or format-defined end-of-data indication.
+    VENDORSPECIFIC = 0x09,      // This sense key is available for reporting vendor specific conditions.
+    COPYABORTED = 0x0A,         // Indicates an EXTENDED COPY command was aborted due to an error condition on the source device, the destination device, or both.
+    ABORTEDCOMMAND = 0x0B,      // Indicates that the device server aborted the command.
+    VOLUMEOVERFLOW = 0x0D,      // Indicates that a buffered SCSI device has reached the end-of-partition.
+    MISCOMPARE = 0x0E           // Indicates that the source data did not match the data read from the medium.
+} SenseKey;
+
+typedef enum {
+    NO_ADDITIONAL_SENSE_INFORMATION = 0x00,
+    NO_INDEX_LOGICAL_BLOCK_SIGNAL = 0x01,
+    NO_SEEK_COMPLETE = 0x02,
+    PERIPHERAL_DEVICE_WRITE_FAULT = 0x03,
+    LOGICAL_UNIT_NOT_READY = 0x04,
+    ILLEGAL_REQUEST = 0x05,
+    UNIT_ATTENTION = 0x06,
+    DATA_PROTECT = 0x07,
+    LOGICAL_UNIT_COMMUNICATION_FAILURE = 0x08,
+    TRACK_FOLLOWING_ERROR = 0x09,
+    ERROR_LOG_OVERFLOW = 0x0A,
+    ABORTED_COMMAND = 0x0B,
+    WRITE_ERROR = 0x0C,
+    VOLUME_OVERFLOW_CONSTANTS = 0x0D,
+    DATA_MISCOMPARE = 0x0E,
+    ID_CRC_OR_ECC_ERROR = 0x10,
+    UNRECOVERED_READ_ERROR = 0x11,
+    ADDRESS_MARK_NOT_FOUND_FOR_ID_FIELD = 0x12,
+    LOGICAL_BLOCK_NOT_FOUND = 0x14,
+    RANDOM_POSITIONING_ERROR = 0x15,
+    DATA_SYNCHRONIZATION_MARK_ERROR = 0x16,
+    RECOVERED_DATA_WITH_NO_ERROR_CORRECTION_APPLIED = 0x17,
+    RECOVERED_DATA_WITH_ECC = 0x18,
+    DEFECT_LIST_ERROR = 0x19,
+    PARAMETER_LIST_LENGTH_ERROR = 0x1A,
+    SYNCHRONOUS_DATA_TRANSFER_ERROR = 0x1B,
+    DEFECT_LIST_NOT_FOUND = 0x1C,
+    MISCOMPARE_DURING_VERIFY_OPERATION = 0x1D,
+    NUMBER_OF_DEFECTS_OVERFLOWS_THE_ALLOCATED_SPACE_THAT_THE_READ_DEFECT_COMMAND_CAN_HANDLE = 0x1F,
+    INVALID_COMMAND_OPERATION_CODE = 0x20,
+    LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE = 0x21,
+    INVALID_FIELD_IN_CDB = 0x24,
+    LOGICAL_UNIT_NOT_SUPPORTED = 0x25,
+    INVALID_FIELD_IN_PARAMETER_LIST = 0x26,
+    WRITE_PROTECTED = 0x27,
+    FLASHING_LED_OCCURRED = 0x29,
+    POWER_ON_RESET_OR_BUS_DEVICE_RESET_OCCURRED = 0x29,
+    COMMAND_SEQUENCE_ERROR = 0x2C,
+    TAGGED_COMMANDS_CLEARED_BY_ANOTHER_INITIATOR = 0x2F,
+    MEDIUM_FORMAT_CORRUPTED = 0x31,
+    NO_DEFECT_SPARE_LOCATION_AVAILABLE = 0x32,
+    FLASH_NOT_READY_FOR_ACCESS = 0x33,
+    UNSPECIFIED_ENCLOSURE_SERVICES_FAILURE = 0x35,
+    PARAMETER_ROUNDED = 0x37,
+    INVALID_BITS_IN_IDENTIFY_MESSAGE = 0x3D,
+    LOGICAL_UNIT_HAS_NOT_SELF_CONFIGURED_YET = 0x3E,
+    TARGET_OPERATING_CONDITIONS_HAVE_CHANGED = 0x3F,
+    POWER_ON_OR_SELF_TEST_FAILURE = 0x42,
+    MESSAGE_REJECT_ERROR = 0x43,
+    INTERNAL_TARGET_FAILURE = 0x44,
+    SELECT_RESELECTION_FAILURE = 0x45,
+    SCSI_PARITY_ERROR = 0x47,
+    FIBRE_CHANNEL_SEQUENCE_ERROR = 0x47,
+    INITIATOR_DETECTED_ERROR_MESSAGE_RECEIVED = 0x48,
+    INVALID_MESSAGE_RECEIVED = 0x49,
+    DATA_PHASE_ERROR = 0x4B,
+    LOGICAL_UNIT_FAILED_SELF_CONFIGURATION = 0x4C,
+    OVERLAPPED_COMMANDS_ATTEMPTED = 0x4E,
+    LOG_EXCEPTION = 0x5B,
+    RPL_STATUS_CHANGE = 0x5C,
+    FAILURE_PREDICTION_THRESHOLD_EXCEEDED = 0x5D,
+    VOLTAGE_FAULT = 0x65,
+    GENERAL_FIRMWARE_ERROR_QUALIFIER = 0x80,
+    REASSIGN_POWER_FAIL_RECOVERY_FAILED = 0x81,
+} AdditionalSenseKey;
+
+static struct {
+    uint8_t     RESPONSECODE:7;
+    uint8_t     VALID:1;
+    uint8_t     Obsolete;
+    uint8_t     SENSEKEY:4;
+    uint8_t     Reserved:1;
+    uint8_t     ILI:1;
+    uint8_t     EOM:1;
+    uint8_t     FILEMARK:1;
+    uint8_t     INFORMATION[4];
+    uint8_t     ADDITIONALSENSELENGTH;
+    uint8_t     COMMANDSPECIFICINFORMATION[4];
+    uint8_t     ADDITIONALSENSECODE;
+    uint8_t     ADDITIONALSENSECODEQUALIFIER;
+    uint8_t     FIELDREPLACEABLEUNITCODE;
+    union {
+        uint8_t     SENSEKEYSPECIFIC[3];
+        struct {
+            uint8_t     SENSEKEYSPECIFIC1:7;
+            uint8_t     SKSV:1;
+            uint8_t     SENSEKEYSPECIFIC2;
+            uint8_t     SENSEKEYSPECIFIC3;
+        };
+    };
+} __attribute__ ((packed)) s_REQUEST_SENSEdata = {
+    0x70,       // "current errors"
+    1,          // A VALID bit set to one indicates the INFORMATION field contains valid information as defined in this standard or a command standard.
+    0,
+    NOSENSE,    // there is no specific sense key information to be reported.  
+    0,
+    0,0,0,      // ILI, EOM, FILEMARK
+    {0,0,0,0},
+    sizeof(s_REQUEST_SENSEdata) - 8,
+    {0,0,0,0},
+    0,0,        // Additional Sense Code/Qualifier
+    0,          // FIELD REPLACEABLE UNIT CODE field are used to identify a component that has failed
+    {{0x00,0x00,0x00}}      // Vendor specific
+};
+
+static inline void set_sense_data(SenseKey senseKey, AdditionalSenseKey additionalSenseKey)
+{
+    s_REQUEST_SENSEdata.SENSEKEY = senseKey;
+    s_REQUEST_SENSEdata.ADDITIONALSENSECODE = additionalSenseKey;
+}
+
 typedef union {
     uint8_t         OPERATIONCODE;
     INQUIRY         inquiry;
@@ -595,6 +747,8 @@ typedef union {
     READ_FORMAT_CAPACITY    readFormatCapacity;
     MODE_SENSE_6    modeSense6;
     READ_WRITE_10   readWrite10;
+    PREVENT_ALLOW_REMOVAL   preventAllowRemoval;
+    REQUEST_SENSE   requestSense;
 } CommandDescriptorBlock;
 
 
@@ -664,11 +818,18 @@ static uint8_t process_transfer_mode()
             deviceLength = READ_BE_16B(cdb->readWrite10.TRANSFERLENGTH) * 512;
             deviceTransferType = HostToDevice;
             break;
+        case OPERATIONCODE_PREVENT_ALLOW_REMOVAL:
+            deviceTransferType = NoTransfer;
+            break;
+        case OPERATIONCODE_REQUEST_SENSE:
+            deviceLength = cdb->requestSense.ALLOCATIONLENGTH;
+            deviceTransferType = DeviceToHost;
+            break;
         default:
-            WARNING("Unknown operation code!");
+            WARNING("MSC:Unknown opcode = %02x", cdb->OPERATIONCODE);
             s_ProcessState.hostLength = hostLength;
             s_ProcessState.deviceLength = 0;
-            s_ProcessState.transferMode = Illegal;
+            s_ProcessState.transferMode = NoTransfer;
             return FALSE;
     }
 
@@ -789,8 +950,15 @@ static CSWStatus process_command()
             }
             return CommandPassed;
         }
+        case OPERATIONCODE_PREVENT_ALLOW_REMOVAL:
+            DEBUG(1, "OPERATIONCODE_PREVENT_ALLOW_REMOVAL");
+            set_sense_data(ILLEGALREQUEST, INVALID_FIELD_IN_CDB);
+            return CommandFailed;
+        case OPERATIONCODE_REQUEST_SENSE:
+            DEBUG(1, "OPERATIONCODE_REQUEST_SENSE");
+            msc_send((uint8_t*)&s_REQUEST_SENSEdata, s_ProcessState.deviceLength);
+            return CommandPassed;
         default:
-            WARNING("Unknown operation code! OPERATIONCODE = $%02x", cdb->OPERATIONCODE);
             return Unsupported;
     }
 }
@@ -870,6 +1038,7 @@ static void process_status(CSWStatus status)
 
     if (status == Unsupported) {
         DEBUG(1, "Command not supported - sending stalls");
+        set_sense_data(ILLEGALREQUEST, INVALID_FIELD_IN_CDB);
         csw->bCSWStatus = CommandFailed;
 //        if (cbw->bmCBWFlags.direction)          // signal that there wont be any data
 //            stall_in = TRUE;
@@ -893,5 +1062,16 @@ static void process_status(CSWStatus status)
     DEBUG(1, "bCSWStatus = %d", csw->bCSWStatus);
     DEBUG(1, "dCSWDataResidue = %d", csw->dCSWDataResidue);
 
+    if (csw->bCSWStatus == CommandPassed || csw->bCSWStatus == PhaseError) {
+        set_sense_data(NOSENSE, NO_ADDITIONAL_SENSE_INFORMATION);
+    } else {
+        if (s_REQUEST_SENSEdata.SENSEKEY == NOSENSE) {
+            WARNING("MSC:Command failed, but no sense data");
+            set_sense_data(RECOVEREDERROR, NO_ADDITIONAL_SENSE_INFORMATION);
+        }
+    }
+
     msc_send((uint8_t*)csw, sizeof(CommandStatusWrapper));
+
+    DEBUG(1,"senseKey = %02x, additionalSenseKey = %02x",s_REQUEST_SENSEdata.SENSEKEY, s_REQUEST_SENSEdata.ADDITIONALSENSECODE);
 }

@@ -48,8 +48,6 @@ void msc_read(uint8_t* packet, uint32_t length)
     uint32_t read = usb_recv(2, packet, length);
     if (read != length) {
         WARNING("MSC:Short read");
-    } else {
-        DEBUG(1, "MSC:Read %d bytes", read);
     }
 }
 
@@ -206,7 +204,6 @@ static void HandleRxdData(uint8_t ep, uint8_t* packet, uint32_t length)
     }
     if ((UsbSoFarCount & 0x3f) != 0 || UsbSoFarCount == 0 || UsbSoFarCount == sizeof(UsbBuffer))
     {
-        DEBUG(1, "msc_packet_recv(UsbBuffer, UsbSoFarCount) = %d bytes", UsbSoFarCount);
         msc_packet_recv(UsbBuffer, UsbSoFarCount);
 
         UsbSoFarCount = 0;
@@ -301,10 +298,12 @@ static void msc_reset()
 
 static void msc_packet_recv(uint8_t* packet, uint32_t length)
 {
-    DEBUG(1, "------------------------ NEW PACKET -------------------------");
+    DEBUG(3, "------------------------ NEW PACKET -------------------------");
 
     memcpy(&s_ProcessState.cbw, packet, sizeof(CommandBlockWrapper));
-    DumpBuffer((uint8_t*)&s_ProcessState.cbw, sizeof(CommandBlockWrapper));
+    if (3<=debuglevel) {
+        DumpBuffer((uint8_t*)&s_ProcessState.cbw, sizeof(CommandBlockWrapper));
+    }
 
     if (length != sizeof(CommandBlockWrapper) ||
         s_ProcessState.cbw.dCBWSignature != 0x43425355) {
@@ -324,18 +323,15 @@ static void msc_packet_recv(uint8_t* packet, uint32_t length)
 //        return; // stall endpoints?
     }
 
-    DEBUG(1, "hostLength   = %d", s_ProcessState.hostLength);
-    DEBUG(1, "deviceLength = %d", s_ProcessState.deviceLength);
-    DEBUG(1, "transferMode = %d", s_ProcessState.transferMode);
-
+    DEBUG(3, "hostLength   = %d ; deviceLength = %d ; transferMode = %d", s_ProcessState.hostLength, s_ProcessState.deviceLength, s_ProcessState.transferMode);
 
     CSWStatus result = process_command();
 
-    DEBUG(1, "MSC Command result = %d", result);
+    DEBUG(2, "MSC Command result = %d", result);
 
     process_status(result);
 
-    DEBUG(1, "------------------------ ^^ DONE ^^ -------------------------");
+    DEBUG(3, "------------------------ ^^ DONE ^^ -------------------------");
 }
 
 
@@ -946,7 +942,6 @@ static CSWStatus process_command()
             for (int i = 0; i < numSectors; ++i) {
                 msc_read(OneSector, sizeof(OneSector));
                 DEBUG(1, "Card_WriteM(OneSector, %08x+%d, 1, NULL)", sectorOffset, i);
-                DumpBuffer(OneSector, sizeof(OneSector));
             }
             return CommandPassed;
         }
@@ -973,13 +968,9 @@ static void process_status(CSWStatus status)
     csw->bCSWStatus = status;
     csw->dCSWDataResidue = s_ProcessState.hostLength - s_ProcessState.deviceLength;
 
-    DEBUG(1, "CSW before processing transfer mode");
-    DumpBuffer((uint8_t*)csw,sizeof(CommandStatusWrapper));
-
     uint8_t stall_in = FALSE;
     uint8_t stall_out = FALSE;
 
-    DEBUG(1, "transferMode = %d", s_ProcessState.transferMode);
     switch(s_ProcessState.transferMode) {
         case Hn_eq_Dn:
         case Hi_eq_Di:
@@ -1033,8 +1024,9 @@ static void process_status(CSWStatus status)
             WARNING("Illegal transfer mode!");
     }
 
-    DEBUG(1, "CSW after processing transfer mode");
-    DumpBuffer((uint8_t*)csw,sizeof(CommandStatusWrapper));
+    if (3<=debuglevel) {
+        DumpBuffer((uint8_t*)csw,sizeof(CommandStatusWrapper));
+    }
 
     if (status == Unsupported) {
         DEBUG(1, "Command not supported - sending stalls");
@@ -1058,9 +1050,7 @@ static void process_status(CSWStatus status)
 //        usb_send_stall(2);
     }
 
-
-    DEBUG(1, "bCSWStatus = %d", csw->bCSWStatus);
-    DEBUG(1, "dCSWDataResidue = %d", csw->dCSWDataResidue);
+    DEBUG(3, "bCSWStatus = %d ; dCSWDataResidue = %d", csw->bCSWStatus, csw->dCSWDataResidue);
 
     if (csw->bCSWStatus == CommandPassed || csw->bCSWStatus == PhaseError) {
         set_sense_data(NOSENSE, NO_ADDITIONAL_SENSE_INFORMATION);
@@ -1073,5 +1063,5 @@ static void process_status(CSWStatus status)
 
     msc_send((uint8_t*)csw, sizeof(CommandStatusWrapper));
 
-    DEBUG(1,"senseKey = %02x, additionalSenseKey = %02x",s_REQUEST_SENSEdata.SENSEKEY, s_REQUEST_SENSEdata.ADDITIONALSENSECODE);
+    DEBUG(3,"senseKey = %02x, additionalSenseKey = %02x",s_REQUEST_SENSEdata.SENSEKEY, s_REQUEST_SENSEdata.ADDITIONALSENSECODE);
 }

@@ -164,7 +164,8 @@ void usb_send(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32
 {
     AT91PS_UDP udp = AT91C_BASE_UDP;
 
-    DEBUG(1,"usb_send (ep = %d, wMaxPacketSize = %d, packet = %08x, packet_length = %d, wLength = %d)", ep, wMaxPacketSize, packet, packet_length, wLength);
+    if (packet_length != 512 || 3<=debuglevel)
+    DEBUG(2,"usb_send (ep = %d, wMaxPacketSize = %d, packet = %08x, packet_length = %d, wLength = %d)", ep, wMaxPacketSize, packet, packet_length, wLength);
 
     int i, thisTime;
     int len = wLength ? min(packet_length, wLength) : packet_length;
@@ -250,7 +251,7 @@ static uint8_t* read_offset = NULL;
 static uint32_t read_remaining = 0;
 static void usb_recv_cb(uint8_t ep, uint8_t* packet, uint32_t length)
 {
-    DEBUG(1,"usb_recv_cb (ep = %d, packet = %08x, packet_length = %d) while %d bytes remaining", ep, packet, length, read_remaining);
+    DEBUG(3,"usb_recv_cb (ep = %d, packet = %08x, packet_length = %d) while %d bytes remaining", ep, packet, length, read_remaining);
     if (ep != read_ep) {                      // we're reading but we found something else
         if (read_old_recv) {
             read_old_recv(ep, packet, length);
@@ -268,7 +269,7 @@ static void usb_recv_cb(uint8_t ep, uint8_t* packet, uint32_t length)
 }
 uint32_t usb_recv(uint8_t ep, uint8_t* packet, uint32_t length)
 {
-    DEBUG(1,"usb_recv (ep = %d, packet = %08x, packet_length = %d)", ep, packet, length);
+    DEBUG(2,"usb_recv (ep = %d, packet = %08x, packet_length = %d)", ep, packet, length);
     if (read_ep != 0xff) {
         ERROR("USB:Cannot issue read operations on two differen EPs!");
         return 0;

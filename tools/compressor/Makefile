@@ -1,15 +1,13 @@
-# libs must be AFTER the source arguments in gcc, otherwise link wil fail!!!
 #
-# should work with recent MinGW setups
+# Makefile for Linux / OSX with gcc
 #
+all: compress_loader
 
-LIBS   = -lkernel32 -luser32 -ladvapi32 -luuid -lsetupapi
+compressor: compressor.c
+	gcc -o compressor compressor.c
 
-all: compressor.exe
-
-compressor.exe: compressor.c
-	gcc -o compressor.exe compressor.c $(LIBS)
-	./compressor.exe ../../../hw/replay/cores/loader_embedded/sdcard/loader.bin > ../../arm_sw/Replay_boot/loader.c
+compress_loader: compressor
+	./compressor ../../../hw/replay/cores/loader_embedded/sdcard/loader.bin > ../../arm_sw/Replay_boot/loader.c
 
 clean:
-	rm compressor.exe
+	rm compressor

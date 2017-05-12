@@ -1,4 +1,8 @@
+
+#ifdef WINDOWS
 #include<Windows.h>
+#endif
+
 #include<stdio.h>
 
 #include"miniz.c"

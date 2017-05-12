@@ -132,15 +132,17 @@ uint8_t usb_poll()
                 }
             }
 
+//            DEBUG(1,"EP[%d] clear flags %08x .. ", ep, recvbank_eps[ep]);
             udp->UDP_CSR[ep] &= ~recvbank_eps[ep];
             while ( (udp->UDP_CSR[ep] & recvbank_eps[ep]) );
-
-            recv_func(ep, buffer, bytecnt);
 
             if (pingpong_eps[ep]) {
                 recvbank_eps[ep] = (recvbank_eps[ep] == AT91C_UDP_RX_DATA_BK0) ? AT91C_UDP_RX_DATA_BK1 : AT91C_UDP_RX_DATA_BK0;
 //                DEBUG(1,"EP[%d] set match mask to %08x", ep, recvbank_eps[ep]);
             }
+
+//            DEBUG(1,"EP[%d] calling 'recv_func' = %08x with %d bytes", ep, recv_func, bytecnt);
+            recv_func(ep, buffer, bytecnt);
         }
     }
 
@@ -241,6 +243,50 @@ void usb_send_stall(uint8_t ep)
     while(udp->UDP_CSR[ep] & (AT91C_UDP_FORCESTALL | AT91C_UDP_STALLSENT))
         ;
 }
+
+static usb_func read_old_recv = NULL;
+static uint8_t read_ep = 0xff;
+static uint8_t* read_offset = NULL;
+static uint32_t read_remaining = 0;
+static void usb_recv_cb(uint8_t ep, uint8_t* packet, uint32_t length)
+{
+    DEBUG(1,"usb_recv_cb (ep = %d, packet = %08x, packet_length = %d) while %d bytes remaining", ep, packet, length, read_remaining);
+    if (ep != read_ep) {                      // we're reading but we found something else
+        if (read_old_recv) {
+            read_old_recv(ep, packet, length);
+        }
+        return;
+    }
+    uint32_t valid_bytes = min(length, read_remaining);
+    memcpy(read_offset, packet, length);
+    read_offset += valid_bytes;
+    read_remaining -= valid_bytes;
+    if (length == 0) {
+        WARNING("USB:Short read");
+        read_offset = NULL;
+    }
+}
+uint32_t usb_recv(uint8_t ep, uint8_t* packet, uint32_t length)
+{
+    DEBUG(1,"usb_recv (ep = %d, packet = %08x, packet_length = %d)", ep, packet, length);
+    if (read_ep != 0xff) {
+        ERROR("USB:Cannot issue read operations on two differen EPs!");
+        return 0;
+    }
+    read_ep = ep;
+    read_old_recv = recv_func;
+    recv_func = usb_recv_cb;
+    read_offset = packet;
+    read_remaining = length;
+    while(read_offset && read_remaining) {
+        usb_poll();
+    }
+    read_ep = 0xff;
+    recv_func = read_old_recv;
+    read_old_recv = NULL;
+    return length - read_remaining;
+}
+
 
 void usb_setup_endpoints(uint32_t* ep_types, uint32_t num_eps)
 {

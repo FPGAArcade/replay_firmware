@@ -67,7 +67,7 @@
 #include <sys/unistd.h> // sbrk()
 
 #include "ptp_usb.h"
-#define PTP_USB 1
+//#define PTP_USB 1
 
 extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 

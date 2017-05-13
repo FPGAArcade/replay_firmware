@@ -243,7 +243,7 @@ void CFG_print_status(status_t* current_status)
 void CFG_card_start(status_t* current_status)
 {
     if (current_status->card_detected) {
-        if ( current_status->card_init_ok && current_status->fs_mounted_ok)
+        if ( (current_status->card_init_ok && current_status->fs_mounted_ok) || current_status->usb_mounted)
             // assume all good
         {
             return;

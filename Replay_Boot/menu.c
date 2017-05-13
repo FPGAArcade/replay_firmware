@@ -53,6 +53,7 @@
 #include "filesel.h"
 #include "fileio.h"
 #include "messaging.h"
+#include "usb.h"
 
 
 /** structure handling directory browsing */
@@ -145,6 +146,12 @@ static uint8_t _MENU_action_display(menuitem_t* item, status_t* current_status)
     // reboot ----------------------------------
     else if MATCH(item->action_name, "reboot") {
         strcpy(item->selected_option->option_name, "<RETURN> boots");
+        return 1;
+    }
+
+    // reboot ----------------------------------
+    else if MATCH(item->action_name, "mountmsc") {
+        strcpy(item->selected_option->option_name, "<RETURN> mounts");
         return 1;
     }
 
@@ -332,6 +339,19 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
         current_status->selected = 0;
         current_status->update = 1;
         current_status->do_reboot = 1;
+        return 1;
+    }
+
+    // reboot ----------------------------------
+    else if MATCH(item->action_name, "mountmsc") {
+        MENU_set_state(current_status, POPUP_MENU);
+        strcpy(current_status->popup_msg, "This will unmount all images!");
+        current_status->popup_msg2 = "Continue?";
+        current_status->selections = MENU_POPUP_YESNO;
+        current_status->selected = 0;
+        current_status->update = 1;
+        current_status->toggle_usb = 1;
+        current_status->do_reboot = 0;
         return 1;
     }
 
@@ -603,6 +623,53 @@ static void _MENU_show_status(status_t* current_status)
 }
 
 //
+// USB STATUS SCREEN
+//
+static void _MENU_show_usb_status(status_t* current_status)
+{
+    const uint32_t num_infos = sizeof(current_status->info) / sizeof(current_status->info[0]);
+    const uint32_t start_index = current_status->info_start_idx;
+    tOSDColor col; // used for selecting text fg color
+
+    // print fixed status lines and a separator line
+    for (int i = 0; i < 3; i++) {
+        OSD_WriteRC(2 + i, 0, current_status->status[i], 0, GRAY, BLACK);
+    }
+
+    OSD_WriteRC(5, 0,   "                                ", 0, BLACK, DARK_BLUE);
+
+    for (int i = 8, j = 0; i > 0 && j < num_infos; j++) {
+        uint32_t k = (start_index - j) & 7;
+
+        // do colouring of different messages
+        switch (current_status->info[k][0]) {
+            case 'W': // WARNING
+                col = DARK_YELLOW;
+                break;
+
+            case 'E': // ERROR
+                col = RED;
+                break;
+
+            case 'I': // INFO
+                col = GRAY;
+                break;
+
+            default: // DEBUG
+                col = DARK_CYAN;
+                break;
+        }
+
+        OSD_WriteRC(6 + --i, 0, current_status->info[k], 0, col, BLACK);
+    }
+
+    OSD_WriteRC(14, 0,   "                                ", 0, BLACK, DARK_BLUE);
+
+    // print status line
+    print_centered_status("ESC to unmount%s", "");
+}
+
+//
 // POP UP MESSAGE HANDLER
 //
 
@@ -822,6 +889,9 @@ void _MENU_update_ui(status_t* current_status)
 
     } else if (current_status->menu_state == FILE_BROWSER) {
         _MENU_show_file_browser(current_status);
+
+    } else if (current_status->menu_state == USB_STATUS) {
+        _MENU_show_usb_status(current_status);
 
     } else {
         _MENU_show_config_menu(current_status);
@@ -1148,7 +1218,19 @@ static uint8_t key_action_popup_esc(status_t* current_status, const uint16_t key
     return 1;
 }
 
+static uint8_t key_action_usb_esc(status_t* current_status, const uint16_t key)
+{
+    // exit from menu, but ask what to do
+    MENU_set_state(current_status, POPUP_MENU);
+    strcpy(current_status->popup_msg, "Make sure USB is ejected!");
+    current_status->popup_msg2 = "Continue?";
+    current_status->selections = MENU_POPUP_YESNO;
+    current_status->selected = 0;
+    current_status->toggle_usb = 1;
+    current_status->update = 1;
 
+    return 1;
+}
 
 const tKeyMapping keymappings_menu[] = {
     {.mask = KEY_MASK_ASCII, .key = 'P',       .action = key_action_menu_protect},
@@ -1186,6 +1268,9 @@ const tKeyMapping keymappings_popup[] = {
     {.mask = KEY_MASK, .key = KEY_ESC,   .action = key_action_popup_esc}
 };
 
+const tKeyMapping keymappings_showusb[] = {
+    {.mask = KEY_MASK, .key = KEY_ESC,   .action = key_action_usb_esc}
+};
 
 uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
 {
@@ -1280,6 +1365,10 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
     } else if (current_status->menu_state == SHOW_MENU) {
         key_mappings = keymappings_menu;
         key_mappings_length = sizeof(keymappings_menu) / sizeof(tKeyMapping);
+
+    } else if (current_status->menu_state == USB_STATUS) {
+        key_mappings = keymappings_showusb;
+        key_mappings_length = sizeof(keymappings_showusb) / sizeof(tKeyMapping);
     }
 
 
@@ -1420,7 +1509,19 @@ uint8_t _MENU_update(status_t* current_status)
         CFG_call_bootloader();
         // --> we never return back here !!!!
 
+    } else if (current_status->toggle_usb) {
+        if (current_status->usb_mounted) {
+            USB_UnmountMassStorage(current_status);
+
         } else {
+            USB_MountMassStorage(current_status);
+        }
+
+        MENU_set_state(current_status, SHOW_STATUS);
+        current_status->toggle_usb = 0;
+        current_status->update = 1;
+
+    } else {
         // perform soft-reset
         OSD_Reset(OSDCMD_CTRL_RES);
         Timer_Wait(1);
@@ -1437,6 +1538,13 @@ uint8_t _MENU_update(status_t* current_status)
 
 void MENU_set_state(status_t* current_status, tOSDMenuState state)
 {
+    if (current_status->usb_mounted) {
+        if (state != NO_MENU && state != POPUP_MENU) {
+            state = USB_STATUS;
+            DEBUG(1, "USB mounted - overriding state to %d", state);
+        }
+    }
+
     if (current_status->menu_state == state) {
         return;
     }

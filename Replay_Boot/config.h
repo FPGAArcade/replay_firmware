@@ -241,7 +241,8 @@ typedef enum _tOSDMenuState {
     SHOW_MENU    = 1,
     FILE_BROWSER = 2,
     SHOW_STATUS  = 3,
-    POPUP_MENU   = 4
+    POPUP_MENU   = 4,
+    USB_STATUS   = 5,
 } tOSDMenuState;
 
 typedef struct _tIniTarget {
@@ -369,6 +370,9 @@ typedef struct {
 
     /** set to 1 if pop-up is requested for reboot (otherwise only FPGA reset) */
     uint8_t      do_reboot;
+
+    /** set to 1 if pop-up is requested to toggle USB mount */
+    uint8_t      toggle_usb;
 
     /** set to 1 when the sdcard is mounted over usb (no local file access) */
     uint8_t      usb_mounted;

@@ -370,6 +370,9 @@ typedef struct {
     /** set to 1 if pop-up is requested for reboot (otherwise only FPGA reset) */
     uint8_t      do_reboot;
 
+    /** set to 1 when the sdcard is mounted over usb (no local file access) */
+    uint8_t      usb_mounted;
+
     /* ======== INI menu entry stuff ======== */
 
     /** link to top of menu tree (fixed, does not vary) */

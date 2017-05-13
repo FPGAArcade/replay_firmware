@@ -66,11 +66,10 @@
 #include "messaging.h"
 #include <sys/unistd.h> // sbrk()
 
-#include "msc.h"
-//#define MSC_USB 1
-
 #include "ptp_usb.h"
 //#define PTP_USB 1
+
+#include "usb.h"
 
 extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
@@ -100,9 +99,6 @@ int main(void)
 
 #if PTP_USB
     PTP_USB_Stop();
-#endif
-#if MSC_USB
-    MSC_Stop();
 #endif
 
     // replay main status structure
@@ -225,9 +221,6 @@ int main(void)
 
 #if PTP_USB
             PTP_USB_Start();
-#endif
-#if MSC_USB
-            MSC_Start();
 #endif
 
             // we run in here as long as there is no need to reload the FPGA
@@ -435,9 +428,7 @@ static __attribute__ ((noinline)) void main_update()
 
 #endif
 
-#if MSC_USB
-    MSC_Poll();
-#endif
+    USB_Update(&current_status);
 
     // get keys (from Replay button, RS232 or PS/2 via OSD/FPGA)
     key = OSD_GetKeyCode(current_status.spi_osd_enabled, current_status.hotkey, current_status.menu_state != NO_MENU);

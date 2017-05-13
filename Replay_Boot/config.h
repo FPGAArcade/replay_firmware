@@ -403,6 +403,9 @@ typedef struct {
     /** pop-up OSD "warning" message */
     char         popup_msg[MAX_MENU_STRING];
 
+    /** pop-up OSD "warning" message (2nd optional line)*/
+    const char*  popup_msg2;
+
     /** pop-up OSD selection type: "yes/no", ... */
     uint8_t      selections;
 

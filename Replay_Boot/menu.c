@@ -605,10 +605,18 @@ static void _MENU_show_status(status_t* current_status)
 //
 // POP UP MESSAGE HANDLER
 //
+
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+        __typeof__ (b) _b = (b); \
+        _a < _b ? _a : _b; })
+
 static void _MENU_show_popup(status_t* current_status)
 {
+    const uint8_t popup_msg_len = strlen(current_status->popup_msg);
+    const uint8_t popup_width = MENU_POPUP_WIDTH < popup_msg_len + 1 ? min(popup_msg_len + 1, MENU_WIDTH) : MENU_POPUP_WIDTH;
     const uint8_t startrow = (16 - MENU_POPUP_HEIGHT) >> 1;
-    const uint8_t startcol = (32 - MENU_POPUP_WIDTH) >> 1;
+    const uint8_t startcol = (MENU_WIDTH - popup_width) >> 1;
     // Currently there are 2 popups. If we add more, things could be more generic
     const static char* popup_choices[2][2] = {{"yes", "no"}, {"save", "ignore"}};
     const char** choices = popup_choices[current_status->selections == MENU_POPUP_YESNO ? 0 : 1];
@@ -620,16 +628,22 @@ static void _MENU_show_popup(status_t* current_status)
 
     // draw red popup 'box'
     do {
-        const char line[MENU_POPUP_WIDTH] = "                    ";
-        OSD_WriteRCt(row, startcol, line, MENU_POPUP_WIDTH, 0, BLACK, DARK_RED);
+        const char line[MENU_WIDTH] = "                                ";
+        OSD_WriteRCt(row, startcol, line + (MENU_WIDTH - popup_width), popup_width, 0, BLACK, DARK_RED);
     } while (++row < startrow + MENU_POPUP_HEIGHT);
 
     // write pop-up message, centered
-    OSD_WriteRC(startrow + 1, startcol + (MENU_POPUP_WIDTH >> 1) - (strlen(current_status->popup_msg) >> 1),
+    OSD_WriteRC(startrow + 1, startcol + (popup_width >> 1) - (popup_msg_len >> 1),
                 current_status->popup_msg, 0, WHITE, DARK_RED);
+
+    if (current_status->popup_msg2 != NULL) {
+        OSD_WriteRC(startrow + 2, startcol + (popup_width >> 1) - (strlen(current_status->popup_msg2) >> 1),
+                    current_status->popup_msg2, 0, WHITE, DARK_RED);
+    }
+
     // write choices
     OSD_WriteRC(row - 2, startcol + 2, choices[0], 0, chcols[0], chcols[1]);
-    OSD_WriteRC(row - 2, startcol + MENU_POPUP_WIDTH - 2 - chwidths[1], choices[1], 0, chcols[1], chcols[0]);
+    OSD_WriteRC(row - 2, startcol + popup_width - 2 - chwidths[1], choices[1], 0, chcols[1], chcols[0]);
 }
 
 //
@@ -1406,7 +1420,7 @@ uint8_t _MENU_update(status_t* current_status)
         CFG_call_bootloader();
         // --> we never return back here !!!!
 
-    } else {
+        } else {
         // perform soft-reset
         OSD_Reset(OSDCMD_CTRL_RES);
         Timer_Wait(1);
@@ -1442,6 +1456,8 @@ void MENU_set_state(status_t* current_status, tOSDMenuState state)
         free(dir_scan);
         dir_scan = 0;
     }
+
+    current_status->popup_msg2 = NULL;
 
     // const_cast and write the new value
     *(tOSDMenuState*)(&current_status->menu_state) = state;

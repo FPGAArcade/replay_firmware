@@ -35,7 +35,7 @@ void msc_recv(uint8_t ep, uint8_t* packet, uint32_t length)
 	} else if (ep == 2) {
 		HandleRxdData(ep, packet, length);
     } else {
-        ERROR("unknown endpoint!");
+        ERROR("USB: Unknown endpoint!");
     }
 }
 
@@ -47,7 +47,7 @@ void msc_read(uint8_t* packet, uint32_t length)
 {
     uint32_t read = usb_recv(2, packet, length);
     if (read != length) {
-        WARNING("MSC:Short read");
+        WARNING("USB: Short read");
     }
 }
 
@@ -189,7 +189,7 @@ static void HandleRxdSetupData(UsbSetupPacket* data)
             usb_send_ep0((uint8_t *)&w, sizeof(w), usd.wLength);
             break;
         default:
-            WARNING("\tUSB_REQUEST_UNKNOWN!!");
+            WARNING("USB: USB_REQUEST_UNKNOWN!!");
             usb_send_ep0_stall();
             break;
     }
@@ -779,7 +779,7 @@ static uint8_t process_transfer_mode()
                     deviceLength = sizeof(s_UNIT_SERIAL_NUMBERdata);
                 }
                 else {
-                    WARNING("Unknown EVPD %02x!", cdb->inquiry.PAGECODE);
+                    WARNING("USB: Unknown EVPD %02x!", cdb->inquiry.PAGECODE);
                 }
             } else {
                 deviceLength = READ_BE_16B(cdb->inquiry.ALLOCATIONLENGTH);
@@ -804,7 +804,7 @@ static uint8_t process_transfer_mode()
                 deviceLength = cdb->modeSense6.ALLOCATIONLENGTH;
             deviceTransferType = DeviceToHost;
             if (cdb->modeSense6.PAGECODE != 0x3f)
-                WARNING("Unknown bad pagecode!");
+                WARNING("USB: Unknown pagecode = %02x", cdb->modeSense6.PAGECODE);
             break;
         case OPERATIONCODE_READ_10:
             deviceLength = READ_BE_16B(cdb->readWrite10.TRANSFERLENGTH) * 512;
@@ -822,7 +822,7 @@ static uint8_t process_transfer_mode()
             deviceTransferType = DeviceToHost;
             break;
         default:
-            WARNING("MSC:Unknown opcode = %02x", cdb->OPERATIONCODE);
+            WARNING("USB: Unknown opcode = %02x", cdb->OPERATIONCODE);
             s_ProcessState.hostLength = hostLength;
             s_ProcessState.deviceLength = 0;
             s_ProcessState.transferMode = NoTransfer;
@@ -886,7 +886,7 @@ static CSWStatus process_command()
     CommandDescriptorBlock* cdb = (CommandDescriptorBlock*)cbw->CBWCB;
     switch (cdb->OPERATIONCODE) {
         case OPERATIONCODE_INQUIRY:
-            DEBUG(1, "OPERATIONCODE_INQUIRY");
+            INFO("USB: Inquiry (%1x, %02x)", cdb->inquiry.EVPD, cdb->inquiry.PAGECODE);
             if (cdb->inquiry.EVPD) {
                 if (cdb->inquiry.PAGECODE == 0x80)
                     msc_send((uint8_t*)&s_UNIT_SERIAL_NUMBERdata, s_ProcessState.deviceLength);
@@ -895,11 +895,11 @@ static CSWStatus process_command()
             }
             return CommandPassed;
         case OPERATIONCODE_TEST_UNIT_READY:
-            DEBUG(1, "OPERATIONCODE_TEST_UNIT_READY");
+            INFO("USB: Test Unit Ready");
             // assume all is good
             return CommandPassed;
         case OPERATIONCODE_READ_FORMAT_CAPACITY: {
-            DEBUG(1, "OPERATIONCODE_READ_FORMAT_CAPACITY");
+            INFO("USB: Read Format Capacity");
             READ_FORMAT_CAPACITYdata data;
             memset(&data,0x00,sizeof(data));
             data.ADDITIONALLENGTH = sizeof(data)-4;
@@ -911,7 +911,7 @@ static CSWStatus process_command()
             return CommandPassed;
         }
         case OPERATIONCODE_READ_CAPACITY: {
-            DEBUG(1, "OPERATIONCODE_READ_CAPACITY");
+            INFO("USB: Read Capacity(10)");
             READ_CAPACITYdata data;
             memset(&data,0x00,sizeof(data));
             uint64_t capacity = Card_GetCapacity();
@@ -922,13 +922,13 @@ static CSWStatus process_command()
             return CommandPassed;
         }
         case OPERATIONCODE_MODE_SENSE_6:
-            DEBUG(1, "OPERATIONCODE_MODE_SENSE_6");
+            INFO("USB: Mode Sense(6)");
             msc_send((uint8_t*)&s_MODE_PARAMETER_HEADERdata, s_ProcessState.deviceLength);
             return CommandPassed;
         case OPERATIONCODE_READ_10: {
-            DEBUG(1, "OPERATIONCODE_READ_10");
             uint32_t sectorOffset = READ_BE_32B(cdb->readWrite10.LBA);
             uint32_t numSectors = s_ProcessState.deviceLength / 512;
+            INFO("USB: Read(10) (%08x, %d)", sectorOffset, numSectors);
             for (int i = 0; i < numSectors; ++i) {
                 Card_ReadM(OneSector, sectorOffset+i, 1, NULL);
                 msc_send(OneSector, sizeof(OneSector));
@@ -936,9 +936,9 @@ static CSWStatus process_command()
             return CommandPassed;
         }
         case OPERATIONCODE_WRITE_10: {
-            DEBUG(1, "OPERATIONCODE_WRITE_10");
             uint32_t sectorOffset = READ_BE_32B(cdb->readWrite10.LBA);
             uint32_t numSectors = s_ProcessState.deviceLength / 512;
+            INFO("USB: Write(10) (%08x, %d)", sectorOffset, numSectors);
             for (int i = 0; i < numSectors; ++i) {
                 msc_read(OneSector, sizeof(OneSector));
                 DEBUG(1, "Card_WriteM(OneSector, %08x+%d, 1, NULL)", sectorOffset, i);
@@ -946,11 +946,11 @@ static CSWStatus process_command()
             return CommandPassed;
         }
         case OPERATIONCODE_PREVENT_ALLOW_REMOVAL:
-            DEBUG(1, "OPERATIONCODE_PREVENT_ALLOW_REMOVAL");
+            INFO("USB: %s Media Removal", cdb->preventAllowRemoval.PREVENT ? "Prevent" : "Allow");
             set_sense_data(ILLEGALREQUEST, INVALID_FIELD_IN_CDB);
             return CommandFailed;
         case OPERATIONCODE_REQUEST_SENSE:
-            DEBUG(1, "OPERATIONCODE_REQUEST_SENSE");
+            INFO("USB: Request Sense");
             msc_send((uint8_t*)&s_REQUEST_SENSEdata, s_ProcessState.deviceLength);
             return CommandPassed;
         default:
@@ -1021,7 +1021,7 @@ static void process_status(CSWStatus status)
             csw->dCSWDataResidue = 0;
             break;
         default:
-            WARNING("Illegal transfer mode!");
+            WARNING("USB: Illegal transfer mode!");
     }
 
     if (3<=debuglevel) {

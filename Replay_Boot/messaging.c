@@ -79,8 +79,14 @@ static void _MSG_putcp(void* p, char c)
 
 static void _MSG_to_osd(char* s, char t)
 {
+    const uint8_t last_idx = msg_status->info_start_idx;
     // cut string to visible range
     s[MAX_MENU_STRING - 2] = 0;
+
+    // prevent duplicated/repeated messages
+    if (!strcmp(msg_status->info[last_idx] + 2, s)) {
+        return;
+    }
 
     // increment index and generate info line
     msg_status->info_start_idx = (msg_status->info_start_idx >= 7) ?

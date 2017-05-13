@@ -2206,12 +2206,13 @@ void CFG_add_default(status_t* currentStatus)
 
     pStatus->menu_act->next = NULL;
     strcpy(pStatus->menu_act->menu_title, "Replay Menu");
+
     pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
     pStatus->menu_item_act = pStatus->menu_act->item_list;
-    strcpy(pStatus->menu_item_act->item_name, "Load Target");
-    pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-    pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+    pStatus->menu_item_act->next = NULL;
     pStatus->menu_item_act->last = NULL;
+
+    strcpy(pStatus->menu_item_act->item_name, "Load Target");
     pStatus->menu_item_act->option_list = NULL;
     pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = 0;
@@ -2223,10 +2224,12 @@ void CFG_add_default(status_t* currentStatus)
     pStatus->item_opt_act->last = NULL;
     pStatus->item_opt_act->option_name[0] = 0;
 
-    pStatus->menu_item_act = pStatus->menu_item_act->next;
-    strcpy(pStatus->menu_item_act->item_name, "Reset Target");
     pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
     pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+    pStatus->menu_item_act = pStatus->menu_item_act->next;
+    pStatus->menu_item_act->next = NULL;
+
+    strcpy(pStatus->menu_item_act->item_name, "Reset Target");
     pStatus->menu_item_act->option_list = NULL;
     pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = 0;
@@ -2253,9 +2256,12 @@ void CFG_add_default(status_t* currentStatus)
     /*pStatus->item_opt_act->last=NULL;*/
     /*pStatus->item_opt_act->option_name[0]=0;*/
 
+    pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+    pStatus->menu_item_act->next->last = pStatus->menu_item_act;
     pStatus->menu_item_act = pStatus->menu_item_act->next;
-    strcpy(pStatus->menu_item_act->item_name, "Reboot Board");
     pStatus->menu_item_act->next = NULL;
+
+    strcpy(pStatus->menu_item_act->item_name, "Reboot Board");
     pStatus->menu_item_act->option_list = NULL;
     pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = 0;
@@ -2268,17 +2274,16 @@ void CFG_add_default(status_t* currentStatus)
     pStatus->item_opt_act->option_name[0] = 0;
 
 
-    // Add ini_targets
+    // Add ini_targets - TODO : this should probably go on a separate menu screen..
     for (tIniTarget* it = pStatus->ini_targets; it != NULL; it = it->next) {
         DEBUG(3, "_CFG_add_default: adding ini_target %s", it->name);
 
         pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
         pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-
         pStatus->menu_item_act = pStatus->menu_item_act->next;
-        strcpy(pStatus->menu_item_act->item_name, it->name);
-
         pStatus->menu_item_act->next = NULL;
+
+        strcpy(pStatus->menu_item_act->item_name, it->name);
 
         pStatus->menu_item_act->option_list = NULL;
         pStatus->menu_item_act->selected_option = NULL;

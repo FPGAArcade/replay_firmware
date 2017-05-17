@@ -61,17 +61,19 @@ uint8_t MMC_Command(uint8_t cmd, uint32_t arg);
 uint8_t MMC_Command12(void);
 void    MMC_CRC(uint8_t c);
 
-uint8_t Card_Init(void)
+uint8_t Card_TryInit(void)
 {
     uint8_t n;
     uint8_t ocr[4];
-
-    AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | (120 << 8) | (2 << 24); //init clock 100-400 kHz
+    uint32_t spi_csr0  = AT91C_SPI_CPOL | (120 << 8) | (2 << 24); //init clock 100-400 kHz
+    
+    AT91C_BASE_SPI->SPI_CSR[0] = spi_csr0;
     SPI_DisableCard();
 
     for (n = 0; n < 10; n++) {               /*Set SDcard in SPI-Mode, Reset*/
         rSPI(0xFF);    /*10 * 8bits = 80 clockpulses*/
     }
+                            spi_csr0 = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SDHC card)
 
     Timer_Wait(20);           // 20ms delay
     SPI_EnableCard();
@@ -105,31 +107,28 @@ uint8_t Card_Init(void)
 
                                 // if CCS set then the card is SDHC compatible
                                 cardType = (ocr[0] & 0x40) ? CARDTYPE_SDHC : CARDTYPE_SD;
+                                spi_csr0 = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SDHC card)
 
                             } else {
                                 WARNING("SPI:Card_Init CMD58 (READ_OCR) failed!");
                             }
-
-                            SPI_DisableCard();
-                            AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SDHC card)
-                            return (cardType);
                         }
 
                     } else {
-                        ERROR("SPI:Card_Init CMD55 (APP_CMD) failed!");
-                        SPI_DisableCard();
-                        return (CARDTYPE_NONE);
+                      // This occurs during startup, _many_ times, so refrain from logging. Timeout should be
+                      // a sufficient indicator things are not right.
+                      //WARNING("SPI:Card_Init CMD55 (APP_CMD) failed!");
                     }
                 } // end of timer loop
 
-                ERROR("SPI:Card_Init SDHC card initialization timed out!");
-                SPI_DisableCard();
-                return (CARDTYPE_NONE);
+                if(cardType == (CARDTYPE_NONE)) {
+                  WARNING("SPI:Card_Init SDHC card initialization timed out!");
+                }
             }
         } // end of CMD8
 
-        // it's not an SDHC card
-        if (MMC_Command(CMD55, 0) == 0x01) {
+        if (cardType == (CARDTYPE_NONE)) {  // if it's not an SDHC card
+          if(MMC_Command(CMD55, 0) == 0x01) { // perhaps it is an SD card?
             // CMD55 accepted so it's an SD card (or Kingston 128 MB MMC)
             if (MMC_Command(CMD41, 0) <= 0x01) {
                 // SD card detected - wait for the end of initialization
@@ -146,55 +145,67 @@ uint8_t Card_Init(void)
                                 WARNING("SPI:Card_Init CMD16 (SET_BLOCKLEN) failed!");
                             }
 
-                            SPI_DisableCard();
-
-                            AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SD card)
+                            spi_csr0 = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SD card)
                             cardType = CARDTYPE_SD;
-                            return (cardType);
                         }
 
                     } else {
-                        ERROR("SPI:Card_Init CMD55 (APP_CMD) failed!");
-                        SPI_DisableCard();
-                        return (CARDTYPE_NONE);
+                        WARNING("SPI:Card_Init CMD55 (APP_CMD) failed!");
                     }
                 } // end of timer loop
 
-                ERROR("SPI:Card_Init SD card initialization timed out!");
-                SPI_DisableCard();
-                return (CARDTYPE_NONE);
+                WARNING("SPI:Card_Init SD card initialization timed out!");
             }
-        }
+          }
 
-        // it's not an SD card
-        DEBUG(1, "SPI:Card_Init MMC card detected");
+          else {
+            // it's not an SD card
+            DEBUG(1, "SPI:Card_Init MMC card detected");
 
-        while (!Timer_Check(timeout)) {
-            // now we must wait until CMD1 returns 0 (or timeout elapses)
-            if (MMC_Command(CMD1, 0) == 0x00) {
+            while (!Timer_Check(timeout)) {
+              // now we must wait until CMD1 returns 0 (or timeout elapses)
+              if (MMC_Command(CMD1, 0) == 0x00) {
                 // initialization completed
-
+                
                 if (MMC_Command(CMD16, 512) != 0x00) { // set block length
-                    WARNING("SPI:Card_Init CMD16 (SET_BLOCKLEN) failed!");
+                  WARNING("SPI:Card_Init CMD16 (SET_BLOCKLEN) failed!");
                 }
-
-                SPI_DisableCard();
-                AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | (3 << 8); // 16 MHz SPI clock (max 20 MHz for MMC card)
+                
+                spi_csr0 = AT91C_SPI_CPOL | (3 << 8); // 16 MHz SPI clock (max 20 MHz for MMC card);
                 cardType = CARDTYPE_MMC;
-                return (cardType);
+              }
             }
+            if(cardType == CARDTYPE_NONE) {
+              WARNING("SPI:Card_Init MMC card initialization timed out!");
+            }
+          }
         }
-
-        ERROR("SPI:Card_Init MMC card initialization timed out!");
-        SPI_DisableCard();
-        return (CARDTYPE_NONE);
     }
 
     SPI_DisableCard();
-    ERROR("SPI:Card_Init No memory card detected!");
-    return (CARDTYPE_NONE);
+
+    if(cardType == (CARDTYPE_NONE)) {
+      WARNING("SPI:Card_Init No memory card detected!");
+    } else {
+      AT91C_BASE_SPI->SPI_CSR[0] = spi_csr0;
+    }
+    return cardType;
 }
 
+uint8_t Card_Init(void)
+{
+  uint8_t card_type = (CARDTYPE_NONE);
+  for(uint8_t i=0; i < 3; i++) {
+    DEBUG(1, "SPI:Card_Init:Attempt %d", i);
+    card_type = Card_TryInit();
+    if(card_type != (CARDTYPE_NONE)) {
+      return card_type;
+    }
+    WARNING("SPI:Card_Init:Attempt %d failed!", i);
+    Timer_Wait(100); // FIXME: Dunno what's reasonable..
+  }
+  return (CARDTYPE_NONE);
+}
 
 // https://members.sdcard.org/downloads/pls/simplified_specs/part1_410.pdf
 

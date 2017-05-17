@@ -128,7 +128,7 @@ void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char* fmt, .
 {
     char s[256]; // take "enough" size here, not to get any overflow problems...
     char* sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
-
+    uint32_t timestamp = Timer_Get(0);
     // process initial printf (nearly) w/o size limit...
     va_list argptr;
     va_start(argptr, fmt);
@@ -138,7 +138,7 @@ void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char* fmt, .
 
     // print on USART including CR/LF if enabled
     if (msg_serial) {
-        printf("DBG: [%s:%d] %s\r\n", file, line, s);
+        printf("%04x: [%s:%d] %s\r\n", timestamp, file, line, s);
     }
 
     // optional OSD print (check also for set up of required status structure)
@@ -215,30 +215,6 @@ void MSG_error(char* fmt, ...)
         printf("ERR:  %s\r\n", s);
     }
 
-    // FIXME. If any of the functions in here call ERROR, we are stuck in a loop..
-    if (1) { // set up default FPGA always for now
-        IO_DriveLow_OD(PIN_FPGA_RST_L);
-
-        CFG_vid_timing_HD27(F60HZ);
-        CFG_set_coder(CODER_DISABLE);
-
-        FPGA_Default();
-
-        IO_DriveHigh_OD(PIN_FPGA_RST_L);
-        Timer_Wait(200);
-
-        OSD_Reset(OSDCMD_CTRL_RES | OSDCMD_CTRL_HALT);
-        CFG_set_CH7301_HD();
-
-        // dynamic/static setup bits
-        OSD_ConfigSendUserS(0x00000000);
-        OSD_ConfigSendUserD(0x00000060); // 60HZ progressive
-
-        OSD_Reset(OSDCMD_CTRL_RES);
-        WARNING("Using hardcoded fallback!");
-    }
-
-
     if (msg_status) {
         // if the status structure pointer is set (OSD available), print it there
 
@@ -258,32 +234,6 @@ void MSG_error(char* fmt, ...)
 
         OSD_Enable(DISABLE_KEYBOARD);
     }
-
-    while (1) {
-        ACTLED_OFF;
-        Timer_Wait(150);
-        ACTLED_ON;
-        Timer_Wait(150);
-        ACTLED_OFF;
-        Timer_Wait(150);
-        ACTLED_ON;
-        Timer_Wait(150);
-        ACTLED_OFF;
-        Timer_Wait(300);
-    }
-
-    /*
-    // make sure FPGA is held in reset
-    IO_DriveLow_OD(PIN_FPGA_RST_L);
-    // set PROG low to reset FPGA (open drain)
-    IO_DriveLow_OD(PIN_FPGA_PROG_L);
-    Timer_Wait(1);
-    IO_DriveHigh_OD(PIN_FPGA_PROG_L);
-    Timer_Wait(2);
-    // perform a ARM reset
-    asm("ldr r3, = 0x00000000\n");
-    asm("bx  r3\n");
-    */
 }
 
 #ifdef ASSERT

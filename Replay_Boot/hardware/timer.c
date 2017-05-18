@@ -75,6 +75,9 @@ void Timer_Init(void)
     AT91C_BASE_AIC->AIC_SMR[AT91C_ID_SYS] = 0;
     AT91C_BASE_AIC->AIC_SVR[AT91C_ID_SYS] = (int32_t)vector;
 
+    s_milliseconds = AT91C_BASE_PITC->PITC_PIVR >> 20;  // dummy read / clear values
+    s_milliseconds = 0;
+
     AT91C_BASE_AIC->AIC_ICCR = (1 << AT91C_ID_SYS);
     AT91C_BASE_AIC->AIC_IECR = (1 << AT91C_ID_SYS);
     enableIRQ();

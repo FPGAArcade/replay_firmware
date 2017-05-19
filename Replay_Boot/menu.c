@@ -1287,6 +1287,7 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
 
     // Ignore released keys
     if ((key & KF_RELEASED) != 0) {
+         DEBUG(3, "ignored released key");
         return 0;
     }
 
@@ -1299,17 +1300,19 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
             // we set our timeout with any update (1 sec)
             osd_timeout = Timer_Get(1000);
             osd_timeout_cnt = 0;
-
+            DEBUG(1, "OSD Timeout initiated and reset.");
         } else if (Timer_Check(osd_timeout)) {
             if (osd_timeout_cnt++ < current_status->osd_timeout) {
                 // we set our timeout again with any update (1 sec)
                 osd_timeout = Timer_Get(1000);
+                DEBUG(3, "OSD Timeout initiated.");
                 return 0;
 
             } else {
                 // hide menu after ~30 sec
                 MENU_set_state(current_status, NO_MENU);
                 OSD_Disable();
+                DEBUG(1, "OSD Timeout, hiding menu.");
                 return 0;
             }
         }
@@ -1327,11 +1330,13 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
 
     if (key == KEY_MENU) {
         // OSD menu handling, switch it on/off
+        DEBUG(1, "KEY_MENU detected.");
 
         if (current_status->menu_state) {
             // hide menu
             MENU_set_state(current_status, NO_MENU);
             OSD_Disable();
+            DEBUG(1, "OSD disabled as no menu_state.");
             return 0;
 
         } else {
@@ -1342,6 +1347,9 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
                 // set timeout
                 osd_timeout = Timer_Get(1000);
                 osd_timeout_cnt = 0;
+                DEBUG(1, "OSD enabled for SHOW_STATUS");
+            } else {
+              DEBUG(1, "OOPS? No menu to show?");
             }
         }
     }
@@ -1386,7 +1394,6 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
             }
         }
     }
-
 
     // Add/DelFilterChar waits 250ms before re-scanning the directory and updating the UI
     if (current_status->delayed_filescan && Timer_Check(current_status->filescan_timer)) {

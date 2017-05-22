@@ -261,19 +261,24 @@ void CFG_card_start(status_t* current_status)
         }
 
         current_status->fs_mounted_ok = FALSE;
+
         for (uint8_t mtr = 0; mtr < 3 && !current_status->fs_mounted_ok; mtr++) {
             if (!FF_MountPartition(pIoman, 0)) {
                 current_status->fs_mounted_ok = TRUE;
+
             } else {
                 Timer_Wait(20);
             }
         }
+
         if (current_status->fs_mounted_ok) {
             DEBUG(1, "Partition mounted ok.");
+
         } else {
             ERROR("SDCARD:Could not mount partition.");
             return;
         }
+
         switch (pIoman->pPartition->Type) {
             case FF_T_FAT32:
                 MSG_info("SDCARD: FAT32 formatted");

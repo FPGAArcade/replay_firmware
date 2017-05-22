@@ -1287,7 +1287,7 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
 
     // Ignore released keys
     if ((key & KF_RELEASED) != 0) {
-         DEBUG(3, "ignored released key");
+        DEBUG(3, "ignored released key");
         return 0;
     }
 
@@ -1301,6 +1301,7 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
             osd_timeout = Timer_Get(1000);
             osd_timeout_cnt = 0;
             DEBUG(1, "OSD Timeout initiated and reset.");
+
         } else if (Timer_Check(osd_timeout)) {
             if (osd_timeout_cnt++ < current_status->osd_timeout) {
                 // we set our timeout again with any update (1 sec)
@@ -1348,8 +1349,9 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
                 osd_timeout = Timer_Get(1000);
                 osd_timeout_cnt = 0;
                 DEBUG(1, "OSD enabled for SHOW_STATUS");
+
             } else {
-              DEBUG(1, "OOPS? No menu to show?");
+                DEBUG(1, "OOPS? No menu to show?");
             }
         }
     }

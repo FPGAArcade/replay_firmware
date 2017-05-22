@@ -83,7 +83,7 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
 {
 #ifdef FPGA_DISABLE_EMBEDDED_CORE
     WARNING("FPGA:Embedded core not available!");
-    return 1; 
+    return 1;
 #else
     uint32_t secCount;
     unsigned long time;

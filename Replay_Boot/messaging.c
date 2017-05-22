@@ -129,8 +129,7 @@ void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char* fmt, .
     char s[256]; // take "enough" size here, not to get any overflow problems...
     char* sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
     uint32_t timestamp = Timer_Get(0);
-    uint32_t timestamp_s = timestamp / 1000;
-    uint32_t timestamp_fraction = timestamp - timestamp_s * 1000;
+    uint32_t timestamp_ms = timestamp >> 20;	// assume PICNT hardware counter
     // process initial printf (nearly) w/o size limit...
     va_list argptr;
     va_start(argptr, fmt);
@@ -140,7 +139,7 @@ void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char* fmt, .
 
     // print on USART including CR/LF if enabled
     if (msg_serial) {
-        printf("%d.%03d: [%s:%d] %s\r\n", timestamp_s, timestamp_fraction, file, line, s);
+        printf("%03x: [%s:%d] %s\r\n", timestamp_ms, file, line, s);
     }
 
     // optional OSD print (check also for set up of required status structure)

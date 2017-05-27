@@ -100,6 +100,10 @@ TARGET = main
 # use file-extension c for "c-only"-files
 SRC = $(TARGET).c
 SRC += common/syscalls.c
+SRC += base/stringfunc.c
+SRC += base/malloc.c
+SRC += base/memmove.c
+SRC += base/sprintf.c
 SRC += swi_handler_user.c
 SRC += printf.c
 SRC += stringlight.c
@@ -164,11 +168,11 @@ DEBUG = stabs
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS  = ./filesys ./common ./usb ./xdms ./sam4s ./sam4s/cmsis/thirdparty
+EXTRAINCDIRS  = ./filesys ./common ./usb ./xdms ./sam4s ./sam4s/cmsis/thirdparty ./base
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms ./hardware
+EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms ./hardware ./base
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common
@@ -265,7 +269,7 @@ ASFLAGS = $(ADEFS) -Wa,-adhlns=$(addprefix $(BUILDDIR),$(<:.S=.lst)),--g$(DEBUG)
 #    To add libxyz.a, libabc.a and libefsl.a:
 #    EXTRA_LIBS = xyz abc efsl
 #EXTRA_LIBS = efsl
-EXTRA_LIBS =
+EXTRA_LIBS = 
 
 #Support for newlibc-lpc (file: libnewlibc-lpc.a)
 #NEWLIBLPC = -lnewlib-lpc
@@ -280,10 +284,7 @@ MATH_LIB = -lm
 #    -Map:      create map file
 #    --cref:    add cross reference to  map file
 LDFLAGS = -nostartfiles -nostdlib -Wl,-Map=$(BUILDDIR)$(TARGET).map,--cref,--gc-sections
-#LDFLAGS += -lc
-#LDFLAGS += $(NEWLIBLPC) $(MATH_LIB)
-LDFLAGS += -lc -lgcc
-#LDFLAGS += $(CPLUSPLUS_LIB)
+LDFLAGS += -lgcc
 LDFLAGS += $(patsubst %,-L%,$(EXTRA_LIBDIRS))
 LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))
 
@@ -360,7 +361,11 @@ all: begin $(BUILDDIR)/isset gccversion build finished end
 
 install: all usbdl
 
-usbdl: $(BUILDDIR)$(TARGET).s19
+loader.c:
+	echo "Generating: loader.c"
+	(cd ../../tools/compressor && make all)
+
+usbdl:
 	../../bootloader/replay_loader_v1.2/$(USBDL) load $(BUILDDIR)$(TARGET).s19
 
 # set up directory for output files, inluding subdirs for libs

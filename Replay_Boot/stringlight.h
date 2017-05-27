@@ -48,8 +48,7 @@
 
 #include "board.h"
 // the aim is to get rid of these
-#include <ctype.h>
-#include <string.h>
+#include "stringfunc.h"
 //
 
 // FIX FOR COMMON NAMEING SCHEME
@@ -61,10 +60,6 @@
     (byte & 0x01 ? 1 : 0)
 
 void _strncpySpace(char* pStr1, const char* pStr2, unsigned long nCount);
-void _strlcpy(char* dst, const char* src, unsigned long bufsize);
-int _stricmp_logical(const char* pS1, const char* pS2);
-int  _strnicmp(const char* pS1, const char* pS2, unsigned long n);
-int  _strncmp(const char* pS1, const char* pS2, unsigned long n);
 unsigned int _htoi (const char* ptr);
 
 //
@@ -74,12 +69,6 @@ void FileDisplayName(char* name, uint16_t name_len, char* path);
 char* GetExtension(char* filename);
 
 void FF_ExpandPath(char* acPath);
-
-#if __GNUC__ >= 5
-char* strcasestr(const char*, const char*);
-#define stricmp(a,b) strcasecmp(a,b) 				// int stricmp(const char *, const char *);
-#define strnicmp(a,b,c) strncasecmp(a,b,c)			// int strnicmp(const char *, const char *, size_t);
-#endif
 
 #endif
 

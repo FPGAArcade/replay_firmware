@@ -57,7 +57,7 @@
 #include "ff_hash.h"
 #include "ff_crc.h"
 #include "ff_file.h"
-#include <string.h>
+#include "stringfunc.h"
 
 typedef struct {
 	FF_T_UINT32	ulChainLength;

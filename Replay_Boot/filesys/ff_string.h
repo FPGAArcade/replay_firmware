@@ -53,14 +53,14 @@
 
 #include "ff_types.h"
 #include "ff_config.h"
-#include <string.h>
+#include "stringfunc.h"
 
 #ifdef WIN32
 #define stricmp _stricmp
 #define FF_stricmp	stricmp
 #else
 //#define strcasecmp strcasecmp
-#define FF_stricmp strcasecmp
+#define FF_stricmp stricmp
 #endif
 
 #ifdef FF_UNICODE_SUPPORT

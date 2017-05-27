@@ -1,5 +1,6 @@
 #include "mtp_database.h"
 #include "messaging.h"
+#include "base/memmove.h"
 #include "hardware/io.h"
 
 /*static*/ uint16_t num_clusters = 0;

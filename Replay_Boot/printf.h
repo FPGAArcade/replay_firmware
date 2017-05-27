@@ -105,6 +105,8 @@ void tfp_format(void* putp, void (*putf) (void*, char), char* fmt, va_list va);
 #define printf tfp_printf
 #define sprintf tfp_sprintf
 
+void putcp(void* p, char c);
+
 #endif
 
 

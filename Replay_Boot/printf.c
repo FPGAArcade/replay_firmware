@@ -315,7 +315,7 @@ void tfp_printf(char* fmt, ...)
     va_end(va);
 }
 
-static void putcp(void* p, char c)
+void putcp(void* p, char c)
 {
     *(*((char**)p))++ = c;
 }

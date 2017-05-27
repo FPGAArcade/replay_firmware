@@ -77,7 +77,7 @@
 
     Macro to simplify checking for a specific string in an other one.
 */
-#define MATCH(v1,v2)  (stricmp(v1, v2) == 0)
+#define MATCH(v1,v2)  (strnicmp(v1, v2, strlen(v2)) == 0)
 
 /** @brief VALUE LENGTH MATCHER
 

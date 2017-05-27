@@ -9,7 +9,8 @@
  *
  */
 
-#include <string.h>
+#include "stringfunc.h"
+#include "memmove.h"
 
 #include "cdata.h"
 #include "tables.h"

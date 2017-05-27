@@ -38,8 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "iniparser.h"
 #include "messaging.h"
 
-#include <ctype.h>
-#include <string.h>
+#include "stringfunc.h"
 
 // ==========================================================================
 
@@ -208,8 +207,8 @@ uint8_t ParseIni(FF_FILE* pFile,
 
                 // check correctness, then call parser to indicate new section
                 if (symtab[idx].token == INI_UNKNOWN) {
-                    ERROR("Unknown keyword. Line %d", lineNumber);
-                    lineError = lineNumber;
+                    WARNING("Unknown keyword. Line %d", lineNumber);
+                    //lineError = lineNumber;
 
                 } else if (symtab[idx].section == FALSE) {
                     ERROR("Keyword not valid here. Line %d", lineNumber);

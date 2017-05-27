@@ -648,7 +648,7 @@ void FileIO_Drv01_SCP_Read(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
                 FF_Read(pDrive->fSource, sizeof(drv01_scp_track_header_t), 1, (uint8_t*)&pDesc->scp_cur_track_header);
                 /*DumpBuffer((uint8_t*)&pDesc->scp_cur_track_header, sizeof(drv01_scp_track_header_t));*/
 
-                if (_strncmp((char*)&pDesc->scp_cur_track_header.id, "TRK", 3)) {
+                if (strncmp((char*)&pDesc->scp_cur_track_header.id, "TRK", 3)) {
                     WARNING("Bad TRK header");
                     pDesc->scp_cur_track_header_addr = 0;
                 }
@@ -849,7 +849,7 @@ uint8_t FileIO_Drv01_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
         FF_Seek(pDrive->fSource, 0, FF_SEEK_SET);
         FF_Read(pDrive->fSource, sizeof(scp_header), 1, (uint8_t*)&scp_header);
 
-        if (_strncmp((char*)&scp_header.id, "SCP", 3)) {
+        if (strncmp((char*)&scp_header.id, "SCP", 3)) {
             WARNING("Bad SCP header");
             return (1);
         }

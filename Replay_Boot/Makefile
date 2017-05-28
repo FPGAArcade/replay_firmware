@@ -79,6 +79,9 @@ FLASH_TOOL = OPENOCD
 USE_THUMB_MODE = YES
 #USE_THUMB_MODE = NO
 
+USE_NEWLIB = YES
+#USE_NEWLIB = NO
+
 ## Create ROM-Image (final)
 RUN_MODE=ROM_RUN
 ## Create RAM-Image (debugging)
@@ -100,7 +103,6 @@ TARGET = main
 # use file-extension c for "c-only"-files
 SRC = $(TARGET).c
 SRC += common/syscalls.c
-SRC += base/stringfunc.c base/malloc.c base/memmove.c
 SRC += swi_handler_user.c
 SRC += printf.c
 SRC += stringlight.c
@@ -124,6 +126,10 @@ SRC += xdms/crc_csum.c xdms/getbits.c xdms/maketbl.c xdms/pfile.c xdms/tables.c 
 SRC += xdms/u_heavy.c xdms/u_init.c xdms/u_medium.c xdms/u_quick.c xdms/u_rle.c
 SRC += iniparser.c messaging.c
 SRC += common/Cstartup_SAM7.c
+
+ifeq ($(USE_NEWLIB),NO)
+SRC += base/stringfunc.c base/malloc.c base/memmove.c
+endif
 
 # List C source files here which must be compiled in ARM-Mode.
 # use file-extension c for "c-only"-files
@@ -281,6 +287,9 @@ MATH_LIB = -lm
 #    -Map:      create map file
 #    --cref:    add cross reference to  map file
 LDFLAGS = -nostartfiles -nostdlib -Wl,-Map=$(BUILDDIR)$(TARGET).map,--cref,--gc-sections
+ifeq ($(USE_NEWLIB),YES)
+LDFLAGS += -lc
+endif
 LDFLAGS += -lgcc
 LDFLAGS += $(patsubst %,-L%,$(EXTRA_LIBDIRS))
 LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))

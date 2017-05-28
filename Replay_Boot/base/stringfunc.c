@@ -346,6 +346,7 @@ char* strcat(char* dst, const char* src)
       p++;
     while (*src)
       *p++ = *src++;
+	*p++ = 0;
     return dst;
 }
 

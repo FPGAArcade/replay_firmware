@@ -66,6 +66,7 @@ Added a few string copy functions, MikeJ
 */
 
 #include "printf.h"
+#include "stringlight.h"
 
 typedef void (*putcf) (void*, char);
 static putcf stdout_putf;
@@ -315,7 +316,7 @@ void tfp_printf(char* fmt, ...)
     va_end(va);
 }
 
-void putcp(void* p, char c)
+static void putcp(void* p, char c)
 {
     *(*((char**)p))++ = c;
 }
@@ -329,6 +330,18 @@ void tfp_sprintf(char* s, char* fmt, ...)
     tfp_format(&s, putcp, fmt, va);
     putcp(&s, 0);
     va_end(va);
+}
+
+#undef sprintf  // sprintf is already defined to tfp_sprintf in printf.h, but may not have been included
+int sprintf(char* s, const char* fmt, ...)
+{
+    *s = 0;
+    va_list va;
+    va_start(va, fmt);
+    tfp_format(&s, putcp, (char*)fmt, va);
+    putcp(&s, 0);
+    va_end(va);
+    return strlen(s);
 }
 
 //  TO DO , add snprintf

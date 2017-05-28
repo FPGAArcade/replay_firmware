@@ -100,10 +100,7 @@ TARGET = main
 # use file-extension c for "c-only"-files
 SRC = $(TARGET).c
 SRC += common/syscalls.c
-SRC += base/stringfunc.c
-SRC += base/malloc.c
-SRC += base/memmove.c
-SRC += base/sprintf.c
+SRC += base/stringfunc.c base/malloc.c base/memmove.c
 SRC += swi_handler_user.c
 SRC += printf.c
 SRC += stringlight.c

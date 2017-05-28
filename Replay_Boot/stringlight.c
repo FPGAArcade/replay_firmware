@@ -64,6 +64,47 @@ void _strncpySpace(char* pStr1, const char* pStr2, unsigned long nCount)
 
 }
 
+int _stricmp_logical(const char* pS1, const char* pS2)
+{
+    char c1, c2;
+    int v;
+
+    do {
+        c1 = *pS1;
+        c2 = *pS2;
+
+        if (!c1 || !c2) {
+            v = c1 - c2;
+            break;
+        }
+
+        int d1 = isdigit((uint8_t)c1);
+        int d2 = isdigit((uint8_t)c2);
+
+        if (d1 || d2) {
+            if (d1 && !d2) {
+                return -1;
+
+            } else if (!d1 && d2) {
+                return 1;
+            }
+
+            char* s1, *s2;
+            d1 = strtoul(pS1, &s1, 10) & 0x7fffffff;
+            d2 = strtoul(pS2, &s2, 10) & 0x7fffffff;
+            v = d1 - d2;
+            pS1 = s1;
+            pS2 = s2;
+
+        } else {
+            v = (unsigned int)tolower((uint8_t)c1) - (unsigned int)tolower((uint8_t)c2);
+            pS1++;
+            pS2++;
+        }
+    } while ((v == 0) && (c1 != '\0') && (c2 != '\0'));
+
+    return v;
+}
 
 unsigned int _htoi (const char* pStr)
 {

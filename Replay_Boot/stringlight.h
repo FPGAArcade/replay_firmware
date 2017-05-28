@@ -60,6 +60,7 @@
     (byte & 0x01 ? 1 : 0)
 
 void _strncpySpace(char* pStr1, const char* pStr2, unsigned long nCount);
+int _stricmp_logical(const char* pS1, const char* pS2);
 unsigned int _htoi (const char* ptr);
 
 //

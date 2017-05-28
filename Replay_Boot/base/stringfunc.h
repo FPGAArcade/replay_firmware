@@ -5,7 +5,6 @@
 
 size_t strlen(const char* str);
 size_t strlcpy(char* dst, const char* src, size_t bufsize);
-int    stricmp_logical(const char* pS1, const char* pS2);
 int    strnicmp(const char* pS1, const char* pS2, size_t n);
 int    stricmp(const char* pS1, const char* pS2);
 int    strncmp(const char* pS1, const char* pS2, size_t n);

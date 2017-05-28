@@ -88,7 +88,7 @@ int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
         return  1;
     }
 
-    rc = stricmp_logical(pDir1->FileName, pDir2->FileName);
+    rc = _stricmp_logical(pDir1->FileName, pDir2->FileName);
 
     if (rc == 0) {
         // if strings are equal, compare case-sensitive

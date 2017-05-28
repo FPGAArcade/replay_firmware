@@ -207,8 +207,8 @@ uint8_t ParseIni(FF_FILE* pFile,
 
                 // check correctness, then call parser to indicate new section
                 if (symtab[idx].token == INI_UNKNOWN) {
-                    WARNING("Unknown keyword. Line %d", lineNumber);
-                    //lineError = lineNumber;
+                    ERROR("Unknown keyword. Line %d", lineNumber);
+                    lineError = lineNumber;
 
                 } else if (symtab[idx].section == FALSE) {
                     ERROR("Keyword not valid here. Line %d", lineNumber);

@@ -53,7 +53,7 @@
 #include "iniparser.h"
 
 /// DEBUGLEVEL: 0...off, 1...basic, 2...most, 3...gory details
-#define debuglevel 2
+#define debuglevel 0
 
 /// OSDLEVEL:   see also DEBUGLEVEL (but specific for additional OSD messaging)
 #define osdlevel   0

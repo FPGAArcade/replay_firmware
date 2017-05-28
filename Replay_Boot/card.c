@@ -353,7 +353,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         }
 
         // wait for tranfer end
-        timeout = Timer_Get(200);      // 100 ms timeout
+        timeout = Timer_Get(100);      // 100 ms timeout
 
         /*while ( (AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {*/
         while ( (AT91C_BASE_SPI->SPI_SR & dma_end) != dma_end) {

@@ -47,7 +47,6 @@
 #include "messaging.h"
 #include "hardware/spi.h"
 #include "hardware/timer.h"
-#include "hardware/irq.h"
 
 //
 // SPI
@@ -83,7 +82,6 @@ void SPI_Init(void)
 
 unsigned char rSPI(unsigned char outByte)  // inline?
 {
-  //    disableIRQ();
     volatile uint32_t t = AT91C_BASE_SPI->SPI_RDR;
     // for t not to generate a warning, add a dummy asm that 'reference' t
     asm volatile(""
@@ -95,9 +93,7 @@ unsigned char rSPI(unsigned char outByte)  // inline?
 
     while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));
 
-    unsigned char ret = ((unsigned char)AT91C_BASE_SPI->SPI_RDR);
-    //    enableIRQ();
-    return ret;
+    return ((unsigned char)AT91C_BASE_SPI->SPI_RDR);
 }
 
 void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)

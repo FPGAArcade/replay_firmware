@@ -17,9 +17,7 @@
 
 static void UsbSendPacket(uint8_t *packet, int len)
 {
-    if(debuglevel > 2) {
-      DumpBuffer(packet, len);
-    }
+    DumpBuffer(packet, len);
     ptp_send(packet, len);
 }
 
@@ -42,7 +40,7 @@ static void DumpParams(PTPUSBBulkContainer* ptp)
     size_t num_params = (ptp->length - PTP_USB_BULK_HDR_LEN) / sizeof(uint32_t);
     uint32_t* params = &ptp->payload.params.param1;
     for (size_t i = 0; i < min(num_params,5); ++i)
-        DEBUG(3,"params%02x : %08x", i, params[i]);
+        DEBUG(1,"params%02x : %08x", i, params[i]);
 }
 
 
@@ -625,7 +623,7 @@ static uint16_t GetObjectInfo(PTPUSBBulkContainer* ptp_in)
     uint16_t cluster_index = (handle >> 16) - 1;
     uint16_t item_index = handle & 0xffff;
 
-    DEBUG(2,"\t\t\t\tcheck cluster index");
+    DEBUG(1,"\t\t\t\tcheck cluster index");
     if (cluster_index >= num_clusters)
         return PTP_RC_InvalidObjectHandle;
     DEBUG(1,"\t\t\t\tcheck dir_cluster");
@@ -637,7 +635,7 @@ static uint16_t GetObjectInfo(PTPUSBBulkContainer* ptp_in)
     memset(&dirent, 0, sizeof(dirent));
 
 
-    DEBUG(2,"\t\t\t\tcluster %08x index %04x", dir_cluster, item_index);
+    DEBUG(1,"\t\t\t\tcluster %08x index %04x", dir_cluster, item_index);
 
     dirent.DirCluster = dir_cluster;
     dirent.CurrentItem = item_index;
@@ -648,21 +646,21 @@ static uint16_t GetObjectInfo(PTPUSBBulkContainer* ptp_in)
 
     FF_DIRENT* pDirent = &dirent;
 
-    DEBUG(2,"\t\t\t\tinit entry fetch");
+    DEBUG(1,"\t\t\t\tinit entry fetch");
     if(FF_isERR(FF_InitEntryFetch(pIoman, pDirent->DirCluster, &pDirent->FetchContext)))
         return PTP_RC_GeneralError;
 
-    DEBUG(3,"\t\t\t\tfetch dirent");
+    DEBUG(1,"\t\t\t\tfetch dirent");
 
     FF_DIRENT dirent_out;
     err = FetchDirents(pDirent, GetObjectInfo_Callback, &dirent_out);
 
-    DEBUG(3,"\t\t\t\tcheck return value");
+    DEBUG(1,"\t\t\t\tcheck return value");
 
     if (FF_isERR(err) && FF_GETERROR (err) != FF_ERR_DIR_END_OF_DIR)
         return PTP_RC_GeneralError;
 
-    DEBUG(2,"\t\t\t\tvalidate cluster/index");
+    DEBUG(1,"\t\t\t\tvalidate cluster/index");
 
     if (dirent_out.DirCluster != dir_cluster || dirent_out.CurrentItem != item_index)
         return PTP_RC_InvalidObjectHandle;
@@ -684,16 +682,16 @@ static uint16_t GetObjectInfo(PTPUSBBulkContainer* ptp_in)
     const char* created = "19700101T010101.5";
     const char* modified = "19700101T010101.5";
 
-    DEBUG(2,"\t storage       = %08x", storage);
-    DEBUG(2,"\t object_format = %04x", object_format);
-    DEBUG(2,"\t protection    = %04x", protection);
-    DEBUG(2,"\t filesize      = %08x", filesize);
-    DEBUG(2,"\t parent        = %08x", parent);
-    DEBUG(2,"\t assoc_code    = %04x", assoc_code);
-    DEBUG(2,"\t assoc_desc    = %08x", assoc_desc);
-    DEBUG(2,"\t filename      = %s", filename);
-    DEBUG(2,"\t created       = %s", created);
-    DEBUG(2,"\t modified      = %s", modified);
+    DEBUG(1,"\t storage       = %08x", storage);
+    DEBUG(1,"\t object_format = %04x", object_format);
+    DEBUG(1,"\t protection    = %04x", protection);
+    DEBUG(1,"\t filesize      = %08x", filesize);
+    DEBUG(1,"\t parent        = %08x", parent);
+    DEBUG(1,"\t assoc_code    = %04x", assoc_code);
+    DEBUG(1,"\t assoc_desc    = %08x", assoc_desc);
+    DEBUG(1,"\t filename      = %s", filename);
+    DEBUG(1,"\t created       = %s", created);
+    DEBUG(1,"\t modified      = %s", modified);
 
     size_t offset = 0;
     offset = Write32bits(ptp_out, offset, storage);

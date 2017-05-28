@@ -361,11 +361,7 @@ all: begin $(BUILDDIR)/isset gccversion build finished end
 
 install: all usbdl
 
-loader.c:
-	echo "Generating: loader.c"
-	(cd ../../tools/compressor && make all)
-
-usbdl:
+usbdl: $(BUILDDIR)$(TARGET).s19
 	../../bootloader/replay_loader_v1.2/$(USBDL) load $(BUILDDIR)$(TARGET).s19
 
 # set up directory for output files, inluding subdirs for libs

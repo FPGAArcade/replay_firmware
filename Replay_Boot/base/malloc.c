@@ -1,7 +1,10 @@
 
 #include "config.h"
 #include "messaging.h"
+#include <unistd.h>
+#include <malloc.h>
 
+static struct mallinfo s_mallinfo = {0};
 
 /* titel: malloc()/free()-Paar nach K&R 2, p.185ff */
 
@@ -38,6 +41,8 @@ static Header *morecore(unsigned nu)
     cp = (void*) _sbrk_r(NULL, nu * sizeof(Header));	
     if (cp == (char *) -1)		/* sbrk liefert -1 im Fehlerfall */
 	return NULL;
+	s_mallinfo.arena += nu * sizeof(Header);
+    s_mallinfo.uordblks += nu * sizeof(Header);
     up = (Header*) cp;
     up->s.size = nu;			/* Groesse wird eingetragen	*/
     free((void*)(up+1));		/* Einbau in Free-Liste		*/
@@ -71,7 +76,8 @@ void* malloc(unsigned nbytes) {
 		p->s.size = nunits;	/* ... des Blocks...		*/
 	    }
 	    freep = prevp;
-            DEBUG(2, "malloc %d bytes @ 0x%08lx", nbytes, (void*)(p+1));
+		s_mallinfo.uordblks += p->s.size * sizeof(Header);
+		s_mallinfo.fordblks -= p->s.size * sizeof(Header);
 	    return (void*) (p+1);	/* ... zurueckgegeben, allerdings 
 					   unter der Adresse von p+1,
 					   da p auf den Header zeigt.  	*/
@@ -99,6 +105,8 @@ void free(void *ap) {			/* Rueckgabe an Free-Liste	*/
     Header *bp, *p;
     
     bp = (Header*) ap - 1;		/* Hier ist der Header des Blocks */
+	s_mallinfo.uordblks -= bp->s.size * sizeof(Header);
+	s_mallinfo.fordblks += bp->s.size * sizeof(Header);
 
 	/* Die Liste wird durchmustert, der Block soll der
 	   Adressgroesse nach richtig eingefuegt werden,
@@ -123,4 +131,14 @@ void free(void *ap) {			/* Rueckgabe an Free-Liste	*/
     } else
 	p->s.ptr = bp;
     freep = p;
+}
+
+void* sbrk(intptr_t increment)
+{
+	return _sbrk_r(NULL, increment);
+}
+
+struct mallinfo mallinfo(void)
+{
+	return s_mallinfo;
 }

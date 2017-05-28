@@ -608,11 +608,9 @@ uint32_t CFG_get_free_mem(void)
     uint8_t  stack;
     uint32_t total;
     void*    heap;
-    /* Allocating less than 1kB memory (e.g. only 4 byte)
-       could lead to wrong results !!!  */
-    heap = malloc(1024);
+    const struct mallinfo mi = mallinfo();
+    heap = mi.uordblks + end;
     total =  (uint32_t)&stack - (uint32_t)heap;
-    free(heap);
 
     DEBUG(3, "===========================");
     DEBUG(3, " Free memory %ld bytes", total);

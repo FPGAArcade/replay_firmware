@@ -60,7 +60,7 @@
 #define FF_stricmp	stricmp
 #else
 //#define strcasecmp strcasecmp
-#define FF_stricmp stricmp
+#define FF_stricmp strcasecmp
 #endif
 
 #ifdef FF_UNICODE_SUPPORT

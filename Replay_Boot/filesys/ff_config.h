@@ -62,6 +62,7 @@
 //---------- SHORTNAMES CAN USE THE CASE BITS
 #define FF_SHORTNAME_CASE                               // Works for XP+ e.g. short.TXT or SHORT.txt.
 
+#define FF_NOSTRCASECMP
 
 //---------- UNICODE SUPPORT
 //#define FF_UNICODE_SUPPORT                    // If this is defined, then all of FullFAT's API's will expect to receive UTF-16 formatted strings.

@@ -17,6 +17,9 @@ char*  strstr(const char *s, const char *find);
 char*  strchr(const char *p, int ch);
 char*  strrchr(const char *p, int ch);
 
+int strcasecmp(const char *s1, const char *s2);
+int strncasecmp(const char *s1, const char *s2, size_t n);
+
 void*  memcpy (void* dst, const void* src, size_t num);
 void*  memset (void * ptr, int value, size_t num );
 void   bzero (void * ptr, size_t num );

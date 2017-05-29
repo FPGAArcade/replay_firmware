@@ -117,9 +117,11 @@ int strnicmp(const char* pS1, const char* pS2, size_t n)
     return v;
 }
 
-int stricmp(const char* pS1, const char* pS2)
+int stricmp (const char *s1, const char *s2)
 {
-  return strnicmp(pS1, pS2, strlen(pS1));
+  while (*s2 != 0 && tolower(*s1) == tolower(*s2))
+    s1++, s2++;
+  return (int) (tolower(*s1) - tolower(*s2));
 }
 
 int strncmp(const char* pS1, const char* pS2, size_t n)

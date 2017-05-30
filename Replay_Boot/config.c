@@ -59,7 +59,7 @@
 
 #include "messaging.h"
 
-#include <sys/unistd.h> // sbrk()
+#include <unistd.h> // sbrk()
 #include <malloc.h> // mallinfo()
 
 extern char __FIRST_IN_RAM[];

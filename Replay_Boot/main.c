@@ -64,7 +64,7 @@
 #include "menu.h"
 #include "osd.h"
 #include "messaging.h"
-#include <sys/unistd.h> // sbrk()
+#include <unistd.h> // sbrk()
 
 #include "ptp_usb.h"
 //#define PTP_USB 1

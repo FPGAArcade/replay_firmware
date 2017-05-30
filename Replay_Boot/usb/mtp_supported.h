@@ -1,5 +1,6 @@
 #pragma once
 #include "ptp.h"
+#include <stdint.h>
 
 typedef uint16_t (*MtpOperationHandler)(PTPUSBBulkContainer*);
 

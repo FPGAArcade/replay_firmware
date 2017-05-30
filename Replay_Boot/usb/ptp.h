@@ -28,6 +28,7 @@
 #ifdef HAVE_ICONV
 #include <iconv.h>
 #endif
+#include <stdint.h>
 //#include "gphoto2-endian.h"
 //#include "device-flags.h"
 

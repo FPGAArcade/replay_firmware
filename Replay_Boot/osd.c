@@ -50,7 +50,6 @@
 #include "hardware/spi.h"
 #include "hardware/usart.h"
 #include "hardware/timer.h"
-#include "base/stringfunc.h"
 #include "messaging.h"
 #include "config.h"
 

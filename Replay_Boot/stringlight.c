@@ -64,6 +64,24 @@ void _strncpySpace(char* pStr1, const char* pStr2, unsigned long nCount)
 
 }
 
+// safe, copies bufsize-1 max and adds terminator
+void _strlcpy(char* dst, const char* src, unsigned long bufsize)
+{
+    unsigned long srclen = strlen(src);
+
+    if (bufsize > 0) {
+        if (srclen >= bufsize) {
+            srclen = bufsize - 1;
+        }
+
+        if (srclen > 0) {
+            memcpy(dst, src, srclen);
+        }
+
+        dst[srclen] = '\0';
+    }
+}
+
 int _stricmp_logical(const char* pS1, const char* pS2)
 {
     char c1, c2;
@@ -102,6 +120,34 @@ int _stricmp_logical(const char* pS1, const char* pS2)
             pS2++;
         }
     } while ((v == 0) && (c1 != '\0') && (c2 != '\0'));
+
+    return v;
+}
+
+int _strnicmp(const char* pS1, const char* pS2, unsigned long n)
+{
+    char c1, c2;
+    int v;
+
+    do {
+        c1 = *pS1++;
+        c2 = *pS2++;
+        v = (unsigned int)tolower(c1) - (unsigned int)tolower(c2);
+    } while ((v == 0) && (c1 != '\0') && (c2 != '\0') && (--n > 0));
+
+    return v;
+}
+
+int _strncmp(const char* pS1, const char* pS2, unsigned long n)
+{
+    char c1, c2;
+    int v;
+
+    do {
+        c1 = *pS1++;
+        c2 = *pS2++;
+        v = (unsigned int)(c1) - (unsigned int)(c2);
+    } while ((v == 0) && (c1 != '\0') && (c2 != '\0') && (--n > 0));
 
     return v;
 }

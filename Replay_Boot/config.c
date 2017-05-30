@@ -829,9 +829,9 @@ void CFG_set_status_defaults(status_t* currentStatus, uint8_t init)
 
     currentStatus->button   = BUTTON_MENU;
     currentStatus->hotkey   = KEY_MENU;
-    strlcpy(currentStatus->hotkey_string,
-            OSD_GetStringFromKeyCode(currentStatus->hotkey),
-            sizeof(currentStatus->hotkey_string));
+    _strlcpy(currentStatus->hotkey_string,
+             OSD_GetStringFromKeyCode(currentStatus->hotkey),
+             sizeof(currentStatus->hotkey_string));
     currentStatus->clockmon = FALSE;
     currentStatus->osd_init = OSD_INIT_ON;
     currentStatus->osd_timeout = 30;
@@ -851,7 +851,7 @@ void CFG_set_status_defaults(status_t* currentStatus, uint8_t init)
 static uint8_t _CFG_handle_SETUP_BIN(status_t* pStatus, const ini_symbols_t name, const char* value)
 {
     strncpy(pStatus->bin_file, value, sizeof(pStatus->bin_file));
-    DEBUG(2, "Will use '%s' for the FPGA.", pStatus->bin_file);
+    DEBUG(2, "Will use %s for the FPGA.", pStatus->bin_file);
     return 0;
 }
 
@@ -931,7 +931,7 @@ static uint8_t _CFG_handle_SETUP_CODER(status_t* pStatus, const ini_symbols_t na
         codcfg = CODER_NTSC_NOTRAP;
 
     } else {
-        WARNING("coder config invalid: %s", value);
+        WARNING("coder config invalid!");
         return 1;
     }
 
@@ -1075,7 +1075,7 @@ static uint8_t _CFG_handle_SETUP_HOTKEY(status_t* pStatus, const ini_symbols_t n
 
     if (keycode) {
         pStatus->hotkey = keycode;
-        strlcpy(pStatus->hotkey_string, OSD_GetStringFromKeyCode(keycode), sizeof(pStatus->hotkey_string));
+        _strlcpy(pStatus->hotkey_string, OSD_GetStringFromKeyCode(keycode), sizeof(pStatus->hotkey_string));
         DEBUG(1, "Hotkey control: %s -> %04X / %s", value, pStatus->hotkey, pStatus->hotkey_string);
         return 0;
     }
@@ -1729,7 +1729,7 @@ static uint8_t _CFG_handle_FILES_CHA_CFG(status_t* pStatus, const ini_symbols_t 
         pStatus->fileio_cha_ext = malloc(sizeof(file_ext_t) * entries);
 
         for (uint16_t i = 0; i < entries - 1; ++i) {
-            strlcpy(pStatus->fileio_cha_ext[i].ext, valueList[i + 1].strval, sizeof(file_ext_t));
+            _strlcpy(pStatus->fileio_cha_ext[i].ext, valueList[i + 1].strval, sizeof(file_ext_t));
             DEBUG(1, "ChA extension %d : %s", i, pStatus->fileio_cha_ext[i].ext);
         }
 
@@ -1800,7 +1800,7 @@ static uint8_t _CFG_handle_FILES_CHB_CFG(status_t* pStatus, const ini_symbols_t 
         pStatus->fileio_chb_ext = malloc(sizeof(file_ext_t) * entries);
 
         for (uint16_t i = 0; i < entries - 1; ++i) {
-            strlcpy(pStatus->fileio_chb_ext[i].ext, valueList[i + 1].strval, sizeof(file_ext_t));
+            _strlcpy(pStatus->fileio_chb_ext[i].ext, valueList[i + 1].strval, sizeof(file_ext_t));
             DEBUG(1, "ChB extension %d : %s", i, pStatus->fileio_chb_ext[i].ext);
         }
 

@@ -65,8 +65,6 @@ char* GetExtension(char* filename)
 }
 */
 
-// FIXME
-
 int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
 {
     int rc = 0;
@@ -92,7 +90,7 @@ int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
 
     if (rc == 0) {
         // if strings are equal, compare case-sensitive
-        rc = strncmp(pDir1->FileName, pDir2->FileName, FF_MAX_FILENAME);
+        rc = _strncmp(pDir1->FileName, pDir2->FileName, FF_MAX_FILENAME);
     }
 
     return (rc);

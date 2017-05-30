@@ -272,7 +272,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
             strcpy(current_status->act_dir, current_status->ini_dir);
             // search for files with given extension
             static file_ext_t load_ext[2] = { {"\0"}, {"\0"} };
-            strlcpy(load_ext[0].ext, (item->option_list->option_name) + 2, sizeof(file_ext_t));
+            _strlcpy(load_ext[0].ext, (item->option_list->option_name) + 2, sizeof(file_ext_t));
             Filesel_Init(dir_scan, current_status->act_dir, load_ext);
             // initialize browser
             Filesel_ScanFirst(dir_scan);
@@ -550,7 +550,7 @@ void _MENU_back_dir(char* pPath)
     uint32_t i = 0;
 
     if (len < 2) {
-        strlcpy(pPath, "\\", FF_MAX_FILENAME);
+        _strlcpy(pPath, "\\", FF_MAX_FILENAME);
         return;
     }
 
@@ -1106,8 +1106,8 @@ static uint8_t key_action_filebrowser_enter(status_t* current_status, const uint
 
     if (mydir.Attrib & FF_FAT_ATTR_DIR) {
         //dir_sel
-        if (strnicmp(mydir.FileName, ".", FF_MAX_FILENAME) != 0) {
-            if (strnicmp(mydir.FileName, "..", FF_MAX_FILENAME) == 0) {
+        if (_strnicmp(mydir.FileName, ".", FF_MAX_FILENAME) != 0) {
+            if (_strnicmp(mydir.FileName, "..", FF_MAX_FILENAME) == 0) {
                 _MENU_back_dir(current_status->act_dir);
 
             } else {

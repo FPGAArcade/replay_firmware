@@ -12,7 +12,7 @@ char*  strcpy(char * dst, const char * src);
 char*  strncpy(char* dst, const char* src, size_t num);
 int    strcmp(const char * str1, const char * str2);
 char*  strcat(char* dst, const char* src);
-char*  strcasestr(const char *s, const char *find);
+//char*  strcasestr(const char *s, const char *find);			// __BSD_VISIBLE
 char*  strstr(const char *s, const char *find);
 char*  strchr(const char *p, int ch);
 char*  strrchr(const char *p, int ch);

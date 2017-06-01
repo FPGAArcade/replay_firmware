@@ -1300,20 +1300,19 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
             // we set our timeout with any update (1 sec)
             osd_timeout = Timer_Get(1000);
             osd_timeout_cnt = 0;
-            DEBUG(1, "OSD Timeout initiated and reset.");
+            DEBUG(1, "OSD timeout set to 0");
 
         } else if (Timer_Check(osd_timeout)) {
             if (osd_timeout_cnt++ < current_status->osd_timeout) {
                 // we set our timeout again with any update (1 sec)
                 osd_timeout = Timer_Get(1000);
-                DEBUG(3, "OSD Timeout initiated.");
-                return 0;
+                DEBUG(3, "OSD timeout tick");
 
             } else {
                 // hide menu after ~30 sec
                 MENU_set_state(current_status, NO_MENU);
                 OSD_Disable();
-                DEBUG(1, "OSD Timeout, hiding menu.");
+                DEBUG(1, "OSD timed out, hiding");
                 return 0;
             }
         }
@@ -1324,6 +1323,7 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
             osd_timeout = Timer_Get(1000);
             // show half the time
             osd_timeout_cnt = 15;
+            DEBUG(1, "OSD timeout set to 15");
         }
     }
 
@@ -1341,18 +1341,13 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
             return 0;
 
         } else {
-            // show menu (if there is something to show)
-            if (current_status->menu_top) {
-                MENU_set_state(current_status, SHOW_STATUS);
-                update = 1;
-                // set timeout
-                osd_timeout = Timer_Get(1000);
-                osd_timeout_cnt = 0;
-                DEBUG(1, "OSD enabled for SHOW_STATUS");
-
-            } else {
-                DEBUG(1, "OOPS? No menu to show?");
-            }
+            // show status
+          MENU_set_state(current_status, SHOW_STATUS);
+          update = 1;
+          // set timeout
+          osd_timeout = Timer_Get(1000);
+          osd_timeout_cnt = 0;
+          DEBUG(1, "OSD enabled for SHOW_STATUS");
         }
     }
 
@@ -1419,36 +1414,37 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
         }
 
     } else {
-        // scroll if needed
-        if ((current_status->menu_state == FILE_BROWSER) && current_status->scroll_pos) {
-            uint16_t len    = current_status->scroll_len;
 
-            if (!scroll_started) {
-                if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
-                    scroll_started = 1;
-                    scroll_text_offset = 0;
-                    /*scroll_pix_offset  = 0;*/
+      // scroll if needed
+      if ((current_status->menu_state == FILE_BROWSER) && current_status->scroll_pos) {
+        const uint16_t len    = current_status->scroll_len;
 
-                    OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, 0, len, 1, CYAN, 0);
-                    scroll_timer = Timer_Get(20); // restart scroll timer
-                }
+        if (!scroll_started) {
+          if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
+            scroll_started = 1;
+            scroll_text_offset = 0;
+            /*scroll_pix_offset  = 0;*/
 
-            } else if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
+            OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, 0, len, 1, CYAN, 0);
+            scroll_timer = Timer_Get(20); // restart scroll timer
+          }
 
-                scroll_timer = Timer_Get(20); // restart scroll timer
-                scroll_text_offset = scroll_text_offset + 2;
+        } else if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
 
-                if (scroll_text_offset >= (len + OSD_SCROLL_BLANKSPACE) << 4) {
-                    scroll_text_offset = 0;
-                }
+          scroll_timer = Timer_Get(20); // restart scroll timer
+          scroll_text_offset = scroll_text_offset + 2;
 
-                if ((scroll_text_offset & 0xF) == 0)
-                    OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, scroll_text_offset >> 4,
-                                    len, 1, CYAN, 0);
+          if (scroll_text_offset >= (len + OSD_SCROLL_BLANKSPACE) << 4) {
+            scroll_text_offset = 0;
+          }
 
-                OSD_SetHOffset(current_status->scroll_pos, 0, (uint8_t) (scroll_text_offset & 0xF));
-            }
+          if ((scroll_text_offset & 0xF) == 0)
+            OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, scroll_text_offset >> 4,
+                            len, 1, CYAN, 0);
+
+          OSD_SetHOffset(current_status->scroll_pos, 0, (uint8_t) (scroll_text_offset & 0xF));
         }
+      }
     }
 
     return update;

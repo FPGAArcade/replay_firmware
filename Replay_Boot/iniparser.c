@@ -38,7 +38,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "iniparser.h"
 #include "messaging.h"
 
-#include "stringfunc.h"
+#include <ctype.h>
+#include <string.h>
 
 // ==========================================================================
 

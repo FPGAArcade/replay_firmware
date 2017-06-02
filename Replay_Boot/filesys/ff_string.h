@@ -53,7 +53,7 @@
 
 #include "ff_types.h"
 #include "ff_config.h"
-#include "stringfunc.h"
+#include <string.h>
 
 #ifdef WIN32
 #define stricmp _stricmp

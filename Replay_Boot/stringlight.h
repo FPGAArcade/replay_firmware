@@ -48,7 +48,8 @@
 
 #include "board.h"
 // the aim is to get rid of these
-#include "stringfunc.h"
+#include <ctype.h>
+#include <string.h>
 //
 
 // FIX FOR COMMON NAMEING SCHEME

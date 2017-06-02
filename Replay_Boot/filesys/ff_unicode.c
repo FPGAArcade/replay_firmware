@@ -48,7 +48,7 @@
  **/
 
 #include "ff_unicode.h"
-#include "stringfunc.h"
+#include "string.h"
 
 // UTF-8 Routines
 

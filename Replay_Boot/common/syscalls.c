@@ -12,6 +12,7 @@
 /* adapted for the SAM7 at91_lib DBGU - mthomas 4/2006 */
 
 #include <stdlib.h>
+#include <stddef.h>
 #include <sys/stat.h>
 #include "board.h"
 

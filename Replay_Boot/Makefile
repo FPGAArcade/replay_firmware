@@ -79,8 +79,8 @@ FLASH_TOOL = OPENOCD
 USE_THUMB_MODE = YES
 #USE_THUMB_MODE = NO
 
-USE_NEWLIB = YES
-#USE_NEWLIB = NO
+#USE_NEWLIB = YES
+USE_NEWLIB = NO
 
 ## Create ROM-Image (final)
 RUN_MODE=ROM_RUN
@@ -115,6 +115,7 @@ SRC += fileio_drv00_generic.c
 SRC += fileio_drv01_floppy.c
 SRC += fileio_drv08_ata.c
 SRC += fileio.c
+SRC += freelist.c
 SRC += osd.c
 SRC += menu.c
 SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unicode.c
@@ -128,7 +129,7 @@ SRC += iniparser.c messaging.c
 SRC += common/Cstartup_SAM7.c
 
 ifeq ($(USE_NEWLIB),NO)
-SRC += base/stringfunc.c base/malloc.c base/memmove.c
+SRC += $(wildcard libc/*.c) $(wildcard libc/stdlib/*.c) $(wildcard libc/string/*.c)
 endif
 
 # List C source files here which must be compiled in ARM-Mode.
@@ -175,7 +176,7 @@ EXTRAINCDIRS  = ./filesys ./common ./usb ./xdms ./sam4s ./sam4s/cmsis/thirdparty
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms ./hardware ./base
+EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms ./hardware ./libc/stdlib ./libc/string
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common
@@ -238,6 +239,9 @@ CFLAGS += -Wall -Wcast-align -Wimplicit
 CFLAGS += -Wpointer-arith -Wswitch
 CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused -Werror
 CFLAGS += -Wa,-adhlns=$(addprefix $(BUILDDIR), $(subst $(suffix $<),.lst,$<))
+ifeq ($(USE_NEWLIB),NO)
+CFLAGS += -nostdinc -I./libc/include -Wno-attributes -Wno-redundant-decls -D_ANSI_LIBRARY
+endif
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 CFLAGS += -ffunction-sections -fdata-sections
 CFLAGS += -D$(SUBMDL)

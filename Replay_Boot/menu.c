@@ -1342,12 +1342,12 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
 
         } else {
             // show status
-          MENU_set_state(current_status, SHOW_STATUS);
-          update = 1;
-          // set timeout
-          osd_timeout = Timer_Get(1000);
-          osd_timeout_cnt = 0;
-          DEBUG(1, "OSD enabled for SHOW_STATUS");
+            MENU_set_state(current_status, SHOW_STATUS);
+            update = 1;
+            // set timeout
+            osd_timeout = Timer_Get(1000);
+            osd_timeout_cnt = 0;
+            DEBUG(1, "OSD enabled for SHOW_STATUS");
         }
     }
 
@@ -1415,36 +1415,36 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
 
     } else {
 
-      // scroll if needed
-      if ((current_status->menu_state == FILE_BROWSER) && current_status->scroll_pos) {
-        const uint16_t len    = current_status->scroll_len;
+        // scroll if needed
+        if ((current_status->menu_state == FILE_BROWSER) && current_status->scroll_pos) {
+            const uint16_t len    = current_status->scroll_len;
 
-        if (!scroll_started) {
-          if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
-            scroll_started = 1;
-            scroll_text_offset = 0;
-            /*scroll_pix_offset  = 0;*/
+            if (!scroll_started) {
+                if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
+                    scroll_started = 1;
+                    scroll_text_offset = 0;
+                    /*scroll_pix_offset  = 0;*/
 
-            OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, 0, len, 1, CYAN, 0);
-            scroll_timer = Timer_Get(20); // restart scroll timer
-          }
+                    OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, 0, len, 1, CYAN, 0);
+                    scroll_timer = Timer_Get(20); // restart scroll timer
+                }
 
-        } else if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
+            } else if (Timer_Check(scroll_timer)) { // scroll if timer elapsed
 
-          scroll_timer = Timer_Get(20); // restart scroll timer
-          scroll_text_offset = scroll_text_offset + 2;
+                scroll_timer = Timer_Get(20); // restart scroll timer
+                scroll_text_offset = scroll_text_offset + 2;
 
-          if (scroll_text_offset >= (len + OSD_SCROLL_BLANKSPACE) << 4) {
-            scroll_text_offset = 0;
-          }
+                if (scroll_text_offset >= (len + OSD_SCROLL_BLANKSPACE) << 4) {
+                    scroll_text_offset = 0;
+                }
 
-          if ((scroll_text_offset & 0xF) == 0)
-            OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, scroll_text_offset >> 4,
-                            len, 1, CYAN, 0);
+                if ((scroll_text_offset & 0xF) == 0)
+                    OSD_WriteScroll(current_status->scroll_pos, current_status->scroll_txt, scroll_text_offset >> 4,
+                                    len, 1, CYAN, 0);
 
-          OSD_SetHOffset(current_status->scroll_pos, 0, (uint8_t) (scroll_text_offset & 0xF));
+                OSD_SetHOffset(current_status->scroll_pos, 0, (uint8_t) (scroll_text_offset & 0xF));
+            }
         }
-      }
     }
 
     return update;

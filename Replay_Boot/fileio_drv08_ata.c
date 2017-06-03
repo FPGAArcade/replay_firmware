@@ -48,6 +48,7 @@
 #include "hardware/spi.h"
 #include "hardware/timer.h"
 #include "messaging.h"
+#include "hardblocks.h"
 
 const uint8_t DRV08_DEBUG = 0;
 /*#define DRV08_PARAM_DEBUG 1;*/
@@ -729,6 +730,153 @@ uint8_t Drv08_GetHardfileType(fch_t* pDrive, drv08_desc_t* pDesc)
     return (1);
 }
 
+#define READ_BE_32B(x)  ((uint32_t) (( ((uint8_t*)&x)[0] << 24) | (((uint8_t*)&x)[1] << 16) | (((uint8_t*)&x)[2] << 8) | ((uint8_t*)&x)[3]))
+#define WRITE_BE_32B(x,val) \
+    ((uint8_t*)&x)[0] = (uint8_t) (((val) >> 24) & 0xff); \
+    ((uint8_t*)&x)[1] = (uint8_t) (((val) >> 16) & 0xff); \
+    ((uint8_t*)&x)[2] = (uint8_t) (((val)  >> 8) & 0xff); \
+    ((uint8_t*)&x)[3] = (uint8_t)  ((val)        & 0xff);
+
+
+static uint32_t CalcBEsum(void* block, uint32_t numlongs)
+{
+    uint32_t* p = (uint32_t*)block;
+    int32_t chksum = 0;
+
+    for (int i = 0; i < numlongs; i++ ) {
+        uint32_t v = READ_BE_32B(*p);
+        chksum += (int32_t)v;
+        p++;
+    }
+
+    return chksum;
+}
+
+static void Drv08_PrintRDB(fch_t* pDrive, drv08_desc_t* pDesc)
+{
+    tRigidDiskBlock rdsk;
+
+    FF_Seek(pDrive->fSource, 0, FF_SEEK_SET);
+    FF_Read(pDrive->fSource, sizeof(rdsk), 1, (uint8_t*)&rdsk);
+
+    if (CalcBEsum(&rdsk, READ_BE_32B(rdsk.rdb_SummedLongs)) != 0) {
+        DEBUG(2, ">   INVALID RDSK CHECKSUM");
+        return;
+    }
+
+    rdsk.rdb_DiskVendor[sizeof(rdsk.rdb_DiskVendor) - 1] = 0;
+    rdsk.rdb_DiskProduct[sizeof(rdsk.rdb_DiskProduct) - 1] = 0;
+    rdsk.rdb_DiskRevision[sizeof(rdsk.rdb_DiskRevision) - 1] = 0;
+    rdsk.rdb_ControllerVendor[sizeof(rdsk.rdb_ControllerVendor) - 1] = 0;
+    rdsk.rdb_ControllerProduct[sizeof(rdsk.rdb_ControllerProduct) - 1] = 0;
+    rdsk.rdb_ControllerRevision[sizeof(rdsk.rdb_ControllerRevision) - 1] = 0;
+    rdsk.rdb_DriveInitName[sizeof(rdsk.rdb_DriveInitName) - 1] = 0;
+
+    DEBUG(2, "rdb_ID                = 0x%08x", READ_BE_32B(rdsk.rdb_ID));
+    DEBUG(2, "rdb_SummedLongs       = 0x%08x", READ_BE_32B(rdsk.rdb_SummedLongs));
+    DEBUG(2, "rdb_ChkSum            = 0x%08x", READ_BE_32B(rdsk.rdb_ChkSum));
+    DEBUG(2, "rdb_HostID            = 0x%08x", READ_BE_32B(rdsk.rdb_HostID));
+    DEBUG(2, "rdb_BlockBytes        = 0x%08x", READ_BE_32B(rdsk.rdb_BlockBytes));
+    DEBUG(2, "rdb_Flags             = 0x%08x", READ_BE_32B(rdsk.rdb_Flags));
+    DEBUG(2, "rdb_BadBlockList      = 0x%08x", READ_BE_32B(rdsk.rdb_BadBlockList));
+    DEBUG(2, "rdb_PartitionList     = 0x%08x", READ_BE_32B(rdsk.rdb_PartitionList));
+    DEBUG(2, "rdb_FileSysHeaderList = 0x%08x", READ_BE_32B(rdsk.rdb_FileSysHeaderList));
+    DEBUG(2, "rdb_DriveInit         = 0x%08x", READ_BE_32B(rdsk.rdb_DriveInit));
+    DEBUG(2, "rdb_Cylinders         = 0x%08x", READ_BE_32B(rdsk.rdb_Cylinders));
+    DEBUG(2, "rdb_Sectors           = 0x%08x", READ_BE_32B(rdsk.rdb_Sectors));
+    DEBUG(2, "rdb_Heads             = 0x%08x", READ_BE_32B(rdsk.rdb_Heads));
+    DEBUG(2, "rdb_Interleave        = 0x%08x", READ_BE_32B(rdsk.rdb_Interleave));
+    DEBUG(2, "rdb_Park              = 0x%08x", READ_BE_32B(rdsk.rdb_Park));
+    DEBUG(2, "rdb_WritePreComp      = 0x%08x", READ_BE_32B(rdsk.rdb_WritePreComp));
+    DEBUG(2, "rdb_ReducedWrite      = 0x%08x", READ_BE_32B(rdsk.rdb_ReducedWrite));
+    DEBUG(2, "rdb_StepRate          = 0x%08x", READ_BE_32B(rdsk.rdb_StepRate));
+    DEBUG(2, "rdb_RDBBlocksLo       = 0x%08x", READ_BE_32B(rdsk.rdb_RDBBlocksLo));
+    DEBUG(2, "rdb_RDBBlocksHi       = 0x%08x", READ_BE_32B(rdsk.rdb_RDBBlocksHi));
+    DEBUG(2, "rdb_LoCylinder        = 0x%08x", READ_BE_32B(rdsk.rdb_LoCylinder));
+    DEBUG(2, "rdb_HiCylinder        = 0x%08x", READ_BE_32B(rdsk.rdb_HiCylinder));
+    DEBUG(2, "rdb_CylBlocks         = 0x%08x", READ_BE_32B(rdsk.rdb_CylBlocks));
+    DEBUG(2, "rdb_AutoParkSeconds   = 0x%08x", READ_BE_32B(rdsk.rdb_AutoParkSeconds));
+    DEBUG(2, "rdb_HighRDSKBlock     = 0x%08x", READ_BE_32B(rdsk.rdb_HighRDSKBlock));
+    DEBUG(2, "rdb_Reserved4         = 0x%08x", READ_BE_32B(rdsk.rdb_Reserved4));
+
+    DEBUG(2, "rdb_DiskVendor        = '%s'", rdsk.rdb_DiskVendor);
+    DEBUG(2, "rdb_DiskProduct       = '%s'", rdsk.rdb_DiskProduct);
+    DEBUG(2, "rdb_DiskRevision      = '%s'", rdsk.rdb_DiskRevision);
+    DEBUG(2, "rdb_ControllerVendor  = '%s'", rdsk.rdb_ControllerVendor);
+    DEBUG(2, "rdb_ControllerProduct = '%s'", rdsk.rdb_ControllerProduct);
+    DEBUG(2, "rdb_ControllerRevision= '%s'", rdsk.rdb_ControllerRevision);
+    DEBUG(2, "rdb_DriveInitName     = '%s'", rdsk.rdb_DriveInitName);
+
+    uint32_t blockBytes = READ_BE_32B(rdsk.rdb_BlockBytes);
+
+    tPartitionBlock part;
+
+    for (uint32_t partList = READ_BE_32B(rdsk.rdb_PartitionList); partList != 0xffffffff; partList = READ_BE_32B(part.pb_Next)) {
+        DEBUG(2, ">PART @ %08x", partList);
+
+        FF_Seek(pDrive->fSource, partList * blockBytes, FF_SEEK_SET);
+        FF_Read(pDrive->fSource, sizeof(part), 1, (uint8_t*)&part);
+
+        if (CalcBEsum(&part, READ_BE_32B(part.pb_SummedLongs)) != 0) {
+            DEBUG(2, ">   INVALID PART CHECKSUM");
+            break;
+        }
+
+        part.pb_DriveName[sizeof(part.pb_DriveName) - 1] = 0;
+
+        DEBUG(2, ">   pb_ID             = 0x%08x", READ_BE_32B(part.pb_ID));
+        DEBUG(2, ">   pb_SummedLongs    = 0x%08x", READ_BE_32B(part.pb_SummedLongs));
+        DEBUG(2, ">   pb_ChkSum         = 0x%08x", READ_BE_32B(part.pb_ChkSum));
+        DEBUG(2, ">   pb_HostID         = 0x%08x", READ_BE_32B(part.pb_HostID));
+        DEBUG(2, ">   pb_Next           = 0x%08x", READ_BE_32B(part.pb_Next));
+        DEBUG(2, ">   pb_Flags          = 0x%08x", READ_BE_32B(part.pb_Flags));
+        DEBUG(2, ">   pb_DevFlags       = 0x%08x", READ_BE_32B(part.pb_DevFlags));
+        DEBUG(2, ">   pb_DriveName      = '%s'", part.pb_DriveName);
+
+        for (int i = 0; i < (sizeof(part.pb_Environment) / sizeof(part.pb_Environment[0])); ++i) {
+            DEBUG(2, ">   pb_Environment[%2d]= 0x%08x", i, READ_BE_32B(part.pb_Environment[i]));
+        }
+    }
+
+
+    tFileSysHeaderBlock fshd;
+
+    for (uint32_t fshdList = READ_BE_32B(rdsk.rdb_FileSysHeaderList); fshdList != 0xffffffff; fshdList = READ_BE_32B(fshd.fhb_Next)) {
+        DEBUG(2, ">FSHD @ %08x", fshdList);
+
+        FF_Seek(pDrive->fSource, fshdList * blockBytes, FF_SEEK_SET);
+        FF_Read(pDrive->fSource, sizeof(fshd), 1, (uint8_t*)&fshd);
+
+        if (CalcBEsum(&fshd, READ_BE_32B(fshd.fhb_SummedLongs)) != 0) {
+            DEBUG(2, ">   INVALID FSHD CHECKSUM");
+            break;
+        }
+
+        fshd.fhb_FileSysName[sizeof(fshd.fhb_FileSysName) - 1] = 0;
+
+        DEBUG(2, ">   fhb_ID            = %08x", READ_BE_32B(fshd.fhb_ID));
+        DEBUG(2, ">   fhb_SummedLongs   = %08x", READ_BE_32B(fshd.fhb_SummedLongs));
+        DEBUG(2, ">   fhb_ChkSum        = %08x", READ_BE_32B(fshd.fhb_ChkSum));
+        DEBUG(2, ">   fhb_HostID        = %08x", READ_BE_32B(fshd.fhb_HostID));
+        DEBUG(2, ">   fhb_Next          = %08x", READ_BE_32B(fshd.fhb_Next));
+        DEBUG(2, ">   fhb_Flags         = %08x", READ_BE_32B(fshd.fhb_Flags));
+        DEBUG(2, ">   fhb_DosType       = %08x", READ_BE_32B(fshd.fhb_DosType));
+        DEBUG(2, ">   fhb_Version       = %08x", READ_BE_32B(fshd.fhb_Version));
+        DEBUG(2, ">   fhb_PatchFlags    = %08x", READ_BE_32B(fshd.fhb_PatchFlags));
+        DEBUG(2, ">   fhb_Type          = %08x", READ_BE_32B(fshd.fhb_Type));
+        DEBUG(2, ">   fhb_Task          = %08x", READ_BE_32B(fshd.fhb_Task));
+        DEBUG(2, ">   fhb_Lock          = %08x", READ_BE_32B(fshd.fhb_Lock));
+        DEBUG(2, ">   fhb_Handler       = %08x", READ_BE_32B(fshd.fhb_Handler));
+        DEBUG(2, ">   fhb_StackSize     = %08x", READ_BE_32B(fshd.fhb_StackSize));
+        DEBUG(2, ">   fhb_Priority      = %08x", READ_BE_32B(fshd.fhb_Priority));
+        DEBUG(2, ">   fhb_Startup       = %08x", READ_BE_32B(fshd.fhb_Startup));
+        DEBUG(2, ">   fhb_SegListBlocks = %08x", READ_BE_32B(fshd.fhb_SegListBlocks));
+        DEBUG(2, ">   fhb_GlobalVec     = %08x", READ_BE_32B(fshd.fhb_GlobalVec));
+        DEBUG(2, ">   fhb_FileSysName   = '%s'", fshd.fhb_FileSysName);
+    }
+}
+
+
 void Drv08_GetHardfileGeometry(fch_t* pDrive, drv08_desc_t* pDesc)
 {
     // this function comes from WinUAE, should return the same CHS as WinUAE
@@ -864,9 +1012,13 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
     time = Timer_Get(0) - time;
 
     INFO("SIZE: %lu (%lu MB)", pDesc->file_size, pDesc->file_size >> 20);
-    INFO("CHS : %u.%u.%u", pDesc->cylinders, pDesc->heads, pDesc->sectors);
-    INFO("      --> %lu MB", ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
+    INFO("CHS : %u.%u.%u --> %lu MB", pDesc->cylinders, pDesc->heads, pDesc->sectors,
+         ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
     INFO("Opened in %lu ms", time >> 20);
+
+    if (2 <= debuglevel) {
+        Drv08_PrintRDB(pDrive, pDesc);
+    }
 
     return (0);
 }

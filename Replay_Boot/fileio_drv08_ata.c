@@ -49,6 +49,7 @@
 #include "hardware/timer.h"
 #include "messaging.h"
 #include "hardblocks.h"
+#include <stddef.h>
 
 const uint8_t DRV08_DEBUG = 0;
 /*#define DRV08_PARAM_DEBUG 1;*/
@@ -87,8 +88,33 @@ const uint8_t DRV08_DEBUG = 0;
 
 typedef enum {
     XXX, // unsupported
-    HDF
+    HDF,
+    HDF_NAKED
 } drv08_format_t;
+
+typedef struct {
+    uint8_t b[DRV08_BUF_SIZE];
+} drv08_block_t;
+
+typedef struct {
+    union {
+        struct {
+            union {
+                tRigidDiskBlock     rdsk;
+                uint8_t             block0[DRV08_BUF_SIZE];
+            };
+            union {
+                tPartitionBlock     part;
+                uint8_t             block1[DRV08_BUF_SIZE];
+            };
+            union {
+                tFileSysHeaderBlock fshd;
+                uint8_t             block2[DRV08_BUF_SIZE];
+            };
+        };
+        drv08_block_t               blocks[3];
+    };
+} __attribute__ ((packed)) drv08_rdb_t;
 
 typedef struct {
     drv08_format_t format;
@@ -100,6 +126,10 @@ typedef struct {
     uint16_t sectors_per_block;
     uint32_t index[1024];
     uint32_t index_size;
+
+    drv08_rdb_t hdf_rdb;
+    uint32_t hdf_dostype;
+    uint32_t lba_offset;
 } drv08_desc_t;
 
 void Drv08_SwapBytes(uint8_t* ptr, uint32_t len)
@@ -184,6 +214,19 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
     FF_IOMAN*  pIoman = pDrive->fSource->pIoman;
     uint32_t lba_byte = lba << 9;
 
+    if (pDesc->format == HDF_NAKED) {
+        if (DRV08_DEBUG) {
+            DEBUG(1, "Drv08:Seek to LBA %d (naked) -> %d (real) (offset = %d)", lba, lba - pDesc->lba_offset, pDesc->lba_offset);
+        }
+
+        if (lba < pDesc->lba_offset) {
+            return (FF_ERR_IOMAN_OUT_OF_BOUNDS_READ | FF_SEEK);
+        }
+
+        lba -= pDesc->lba_offset;
+        lba_byte = lba << 9;
+    }
+
     // first check if we are moving to the same cluster
     FF_T_UINT32 nNewCluster = FF_getClusterChainNumber(pIoman, lba_byte, 1);
 
@@ -213,6 +256,15 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
     }
 
     return err;
+}
+
+void Drv08_BufferSend(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
+{
+    /*DumpBuffer(pBuffer, DRV08_BLK_SIZE);*/
+    SPI_EnableFileIO();
+    rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_W));
+    SPI_WriteBufferSingle(pBuffer, DRV08_BLK_SIZE);
+    SPI_DisableFileIO();
 }
 
 void Drv08_FileReadSend(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
@@ -475,7 +527,15 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
         //
         Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-        Drv08_HardFileSeek(pDrive, pDesc, lba);
+
+        uint32_t lba_naked = lba < pDesc->lba_offset ? pDesc->lba_offset : lba;
+
+        if (Drv08_HardFileSeek(pDrive, pDesc, lba_naked) != FF_ERR_NONE) {
+            WARNING("Drv08:Read from invalid LBA");
+            Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+            return;
+        }
 
         while (sector_count) {
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
@@ -489,8 +549,13 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
             first = 0;
 
-            /*Drv08_FileReadSend(ch, pDrive, fbuf);*/
-            Drv08_FileReadSendDirect(ch, pDrive, 1); // read and send block
+            if (lba < pDesc->lba_offset) {
+                Drv08_BufferSend(ch, pDrive, pDesc->hdf_rdb.blocks[lba % 3].b);
+
+            } else {
+                /*Drv08_FileReadSend(ch, pDrive, fbuf);*/
+                Drv08_FileReadSendDirect(ch, pDrive, 1); // read and send block
+            }
 
 
             sector_count--; // decrease sector count
@@ -515,7 +580,15 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
 
         Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-        Drv08_HardFileSeek(pDrive, pDesc, lba);
+
+        uint32_t lba_naked = lba < pDesc->lba_offset ? pDesc->lba_offset : lba;
+
+        if (Drv08_HardFileSeek(pDrive, pDesc, lba_naked) != FF_ERR_NONE) {
+            WARNING("Drv08:Read Multiple bad LBA");
+            Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+            return;
+        }
 
         while (sector_count) {
             block_count = sector_count;
@@ -549,7 +622,13 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
                 }
 
                 FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM);
-                Drv08_FileReadSendDirect(ch, pDrive, i); // read and send block(s)
+
+                if (lba < pDesc->lba_offset) {
+                    Drv08_BufferSend(ch, pDrive, pDesc->hdf_rdb.blocks[lba % 3].b);
+
+                } else {
+                    Drv08_FileReadSendDirect(ch, pDrive, i); // read and send block(s)
+                }
 
                 sector_count -= i;
                 block_count -= i;
@@ -587,7 +666,13 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         //
         FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
         Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-        Drv08_HardFileSeek(pDrive, pDesc, lba);
+
+        if (Drv08_HardFileSeek(pDrive, pDesc, lba) != FF_ERR_NONE) {
+            WARNING("Drv08:Write to invalid LBA");
+            Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+            return;
+        }
 
         while (sector_count) {
             FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_TO_ARM, FILEIO_REQ_OK_TO_ARM); // wait for data
@@ -646,7 +731,13 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
 
         Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
-        Drv08_HardFileSeek(pDrive, pDesc, lba);
+
+        if (Drv08_HardFileSeek(pDrive, pDesc, lba) != FF_ERR_NONE) {
+            WARNING("Drv08:Write Multiple bad LBA");
+            Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+            return;
+        }
 
         while (sector_count) {
             block_count = sector_count;
@@ -721,8 +812,10 @@ uint8_t Drv08_GetHardfileType(fch_t* pDrive, drv08_desc_t* pDesc)
         }
 
         if ( (!memcmp(fbuf, "DOS", 3)) || (!memcmp(fbuf, "PFS", 3)) || (!memcmp(fbuf, "SFS", 3)) ) {
-            WARNING("Drv08:RDB MISSING");
-            return (1);
+            pDesc->format = HDF_NAKED;
+            pDesc->hdf_dostype = (fbuf[0] << 24) | (fbuf[1] << 16) | (fbuf[2] << 8) | fbuf[3];
+            WARNING("Drv08:RDB MISSING - %08x", pDesc->hdf_dostype);
+            return (0);
         }
     }
 
@@ -822,7 +915,7 @@ static void Drv08_PrintRDB(fch_t* pDrive, drv08_desc_t* pDesc)
             break;
         }
 
-        part.pb_DriveName[sizeof(part.pb_DriveName) - 1] = 0;
+        part.pb_DriveName[part.pb_DriveName[0] + 1] = 0;
 
         DEBUG(2, ">   pb_ID             = 0x%08x", READ_BE_32B(part.pb_ID));
         DEBUG(2, ">   pb_SummedLongs    = 0x%08x", READ_BE_32B(part.pb_SummedLongs));
@@ -831,7 +924,7 @@ static void Drv08_PrintRDB(fch_t* pDrive, drv08_desc_t* pDesc)
         DEBUG(2, ">   pb_Next           = 0x%08x", READ_BE_32B(part.pb_Next));
         DEBUG(2, ">   pb_Flags          = 0x%08x", READ_BE_32B(part.pb_Flags));
         DEBUG(2, ">   pb_DevFlags       = 0x%08x", READ_BE_32B(part.pb_DevFlags));
-        DEBUG(2, ">   pb_DriveName      = '%s'", part.pb_DriveName);
+        DEBUG(2, ">   pb_DriveName      = '%s'", &part.pb_DriveName[1]);
 
         for (int i = 0; i < (sizeof(part.pb_Environment) / sizeof(part.pb_Environment[0])); ++i) {
             DEBUG(2, ">   pb_Environment[%2d]= 0x%08x", i, READ_BE_32B(part.pb_Environment[i]));
@@ -961,6 +1054,127 @@ void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
     };
 }
 
+void Drv08_CreateRDB(drv08_desc_t* pDesc, uint8_t drive_number)
+{
+    Assert(sizeof(drv08_rdb_t) == 3 * DRV08_BLK_SIZE);
+    Assert(offsetof(drv08_rdb_t, rdsk) == 0 * DRV08_BLK_SIZE);
+    Assert(offsetof(drv08_rdb_t, part) == 1 * DRV08_BLK_SIZE);
+    Assert(offsetof(drv08_rdb_t, fshd) == 2 * DRV08_BLK_SIZE);
+
+    uint32_t lba = pDesc->file_size / 512;
+
+    for (int sec = 1; sec < 255; sec += 2)
+        if ((lba % sec) == 0) {
+            pDesc->sectors = sec;
+        }
+
+    lba /= pDesc->sectors;
+
+    for (int head = 4; head < 16; ++head)
+        if ((lba % head) == 0) {
+            pDesc->heads = head;
+        }
+
+    lba /= pDesc->heads;
+    pDesc->cylinders = lba;
+
+    DEBUG(1, "CHS : %u.%u.%u", pDesc->cylinders, pDesc->heads, pDesc->sectors);
+
+    const uint32_t partition_offset = 2; // cylinders
+    pDesc->lba_offset = pDesc->sectors * pDesc->heads * partition_offset;
+    pDesc->cylinders += partition_offset;
+
+    memset(&pDesc->hdf_rdb, 0x00, sizeof(pDesc->hdf_rdb));
+
+    tRigidDiskBlock* rdsk = &pDesc->hdf_rdb.rdsk;
+    tPartitionBlock* part = &pDesc->hdf_rdb.part;
+    tFileSysHeaderBlock* fshd = &pDesc->hdf_rdb.fshd;
+
+    // RigidDiskBlock
+    {
+        WRITE_BE_32B(rdsk->rdb_ID, IDNAME_RIGIDDISK);
+        WRITE_BE_32B(rdsk->rdb_SummedLongs, 0x40);
+        WRITE_BE_32B(rdsk->rdb_HostID, 0x7);
+        WRITE_BE_32B(rdsk->rdb_BlockBytes, DRV08_BLK_SIZE);
+        WRITE_BE_32B(rdsk->rdb_Flags, RDBFF_DISKID | RDBFF_LASTLUN);
+        WRITE_BE_32B(rdsk->rdb_BadBlockList, 0xffffffff);
+        WRITE_BE_32B(rdsk->rdb_PartitionList, 0x01);
+        WRITE_BE_32B(rdsk->rdb_FileSysHeaderList, 0x02);
+        WRITE_BE_32B(rdsk->rdb_DriveInit, 0xffffffff);
+
+        WRITE_BE_32B(rdsk->rdb_Cylinders, pDesc->cylinders);
+        WRITE_BE_32B(rdsk->rdb_Sectors, pDesc->sectors);
+        WRITE_BE_32B(rdsk->rdb_Heads, pDesc->heads);
+        WRITE_BE_32B(rdsk->rdb_Interleave, 0x01);
+        WRITE_BE_32B(rdsk->rdb_Park, pDesc->cylinders);
+        WRITE_BE_32B(rdsk->rdb_WritePreComp, pDesc->cylinders);
+        WRITE_BE_32B(rdsk->rdb_ReducedWrite, pDesc->cylinders);
+        WRITE_BE_32B(rdsk->rdb_StepRate, 0x03);
+        WRITE_BE_32B(rdsk->rdb_RDBBlocksLo, 0);
+        WRITE_BE_32B(rdsk->rdb_RDBBlocksHi, pDesc->lba_offset - 1);
+        WRITE_BE_32B(rdsk->rdb_LoCylinder, partition_offset);
+        WRITE_BE_32B(rdsk->rdb_HiCylinder, pDesc->cylinders - 1);
+        WRITE_BE_32B(rdsk->rdb_CylBlocks, pDesc->sectors * pDesc->heads);
+        WRITE_BE_32B(rdsk->rdb_HighRDSKBlock, 0x03);
+
+        strcpy(rdsk->rdb_DiskVendor, "Replay");
+        strcpy(rdsk->rdb_DiskProduct, "Naked");
+        strcpy(rdsk->rdb_DiskRevision, "1.0");
+
+        uint32_t chksum = CalcBEsum(rdsk, READ_BE_32B(rdsk->rdb_SummedLongs));
+        WRITE_BE_32B(rdsk->rdb_ChkSum, (~chksum) + 1);
+    }
+    // PartitionBlock
+    {
+        WRITE_BE_32B(part->pb_ID, IDNAME_PARTITION);
+        WRITE_BE_32B(part->pb_SummedLongs, 0x40);
+        WRITE_BE_32B(part->pb_HostID, 0x07);
+        WRITE_BE_32B(part->pb_Next, 0xffffffff);
+        WRITE_BE_32B(part->pb_Flags, PBFF_BOOTABLE);
+
+        // drive name as BSTR
+        const char driveName[] = "FPGA0";
+
+        part->pb_DriveName[0] = strlen(driveName);
+        memcpy(&part->pb_DriveName[1], driveName, sizeof(driveName));
+        part->pb_DriveName[part->pb_DriveName[0]] += drive_number;
+
+        tAmigaPartitionEnvironment* ape = (tAmigaPartitionEnvironment*)&part->pb_Environment[0];
+
+        WRITE_BE_32B(ape->ape_Entries, 0x10);
+        WRITE_BE_32B(ape->ape_BlockSize, DRV08_BLK_SIZE / 4);
+        WRITE_BE_32B(ape->ape_Heads, pDesc->heads);
+        WRITE_BE_32B(ape->ape_SectorsPerBlock, 0x01);
+        WRITE_BE_32B(ape->ape_BlocksPerTrack, pDesc->sectors);
+        WRITE_BE_32B(ape->ape_Reserved, 0x02);
+        WRITE_BE_32B(ape->ape_LoCylinder, 2);
+        WRITE_BE_32B(ape->ape_HiCylinder, pDesc->cylinders - 1);
+        WRITE_BE_32B(ape->ape_NumBuffers, 0x1e);
+        WRITE_BE_32B(ape->ape_MaxTransferRate, 0x1fe00);
+        WRITE_BE_32B(ape->ape_MaxTransferMask, 0x7ffffffe);
+        WRITE_BE_32B(ape->ape_BootPriority, 0);
+        WRITE_BE_32B(ape->ape_DosType, pDesc->hdf_dostype);
+
+        uint32_t chksum = CalcBEsum(part, READ_BE_32B(part->pb_SummedLongs));
+        WRITE_BE_32B(part->pb_ChkSum, (~chksum) + 1);
+    }
+    // FileSysHeaderBlock
+    {
+        WRITE_BE_32B(fshd->fhb_ID, IDNAME_FILESYSHEADER);
+        WRITE_BE_32B(fshd->fhb_SummedLongs, 0x40);
+        WRITE_BE_32B(fshd->fhb_HostID, 0x07);
+        WRITE_BE_32B(fshd->fhb_Next, 0xffffffff);
+        WRITE_BE_32B(fshd->fhb_DosType, pDesc->hdf_dostype);
+        WRITE_BE_32B(fshd->fhb_Version, 0x00280001);
+        WRITE_BE_32B(fshd->fhb_PatchFlags, 0x00000180);
+        WRITE_BE_32B(fshd->fhb_SegListBlocks, 0xffffffff);
+        WRITE_BE_32B(fshd->fhb_GlobalVec, 0xffffffff);
+
+        uint32_t chksum = CalcBEsum(fshd, READ_BE_32B(fshd->fhb_SummedLongs));
+        WRITE_BE_32B(fshd->fhb_ChkSum, (~chksum) + 1);
+    }
+}
+
 //
 // interface
 //
@@ -1011,12 +1225,16 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
     Drv08_BuildHardfileIndex(pDrive, pDesc);
     time = Timer_Get(0) - time;
 
+    if (pDesc->format == HDF_NAKED) {
+        Drv08_CreateRDB(pDesc, drive_number);
+    }
+
     INFO("SIZE: %lu (%lu MB)", pDesc->file_size, pDesc->file_size >> 20);
     INFO("CHS : %u.%u.%u --> %lu MB", pDesc->cylinders, pDesc->heads, pDesc->sectors,
          ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
     INFO("Opened in %lu ms", time >> 20);
 
-    if (2 <= debuglevel) {
+    if (pDesc->format == HDF && 2 <= debuglevel) {
         Drv08_PrintRDB(pDrive, pDesc);
     }
 

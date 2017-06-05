@@ -197,3 +197,29 @@ typedef struct LoadSegBlock {
 } tLoadSegBlock;
 
 #define IDNAME_LOADSEG      0x4C534547  /* 'LSEG' */
+
+
+/*------------------------------------------------------------------*/
+typedef struct {
+    uint32_t    ape_Entries;            /* number of valid entries (normally 0x10) */
+    uint32_t    ape_BlockSize;          /* block size in longs (= 0x80 for 512 bytes) */
+    int32_t     ape_Unknown;            /* unknown - set to 0x00 */
+    uint32_t    ape_Heads;              /* number of drive heads */
+    uint32_t    ape_SectorsPerBlock;    /* number of sectors in a block (normally 1) */
+    uint32_t    ape_BlocksPerTrack;     /* normally 'sectors per track' (with 1 sector per block) */
+    uint32_t    ape_Reserved;           /* reserved blocks (start of partition, normally 2) */
+    uint32_t    ape_PreAlloc;           /* reserved blocks (end of partition, normally 0) */
+    uint32_t    ape_Unknown_;            /* unknown - set to 0x00 */
+    uint32_t    ape_LoCylinder;         /* low cylinder of this partition */
+    uint32_t    ape_HiCylinder;         /* high cylinder of this partition */
+    uint32_t    ape_NumBuffers;         /* number of Amiga DOS cache buffers (normally 30) */
+    uint32_t    ape_Unknown___;         /* unknown - set to 0x00 */
+    uint32_t    ape_MaxTransferRate;    /* */
+    uint32_t    ape_MaxTransferMask;    /* */
+    int32_t     ape_BootPriority;       /* partition boot priority */
+    uint32_t    ape_DosType;            /* file system description: match this with */
+    uint32_t    ape_Unknown____;        /* unknown - set to 0x00 */
+    uint32_t    ape_Unknown_____;       /* unknown - set to 0x00 */
+    uint32_t    ape_Unknown______;      /* unknown - set to 0x00 */
+} tAmigaPartitionEnvironment;
+

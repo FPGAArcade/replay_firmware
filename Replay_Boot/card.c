@@ -365,6 +365,9 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
                 }
 
                 SPI_DisableCard();
+
+                AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function
+
                 return (FF_ERR_DEVICE_DRIVER_FAILED);
             }
         };

@@ -361,18 +361,14 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 
             if (Timer_Check(timeout)) {
                 WARNING("SPI:Card_ReadM DMA Timeout! (lba=%lu)", sector);
-               
+
                 AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
                 AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
 
                 if (!pBuffer) {
                     SPI_DisableFileIO();
                 }
-
                 SPI_DisableCard();
-
-                AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function
-
                 return (FF_ERR_DEVICE_DRIVER_FAILED);
             }
         };
@@ -382,7 +378,6 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 
         if (!pBuffer) {
             SPI_DisableFileIO();
-
         } else {
             pBuffer += 512;    // point to next sector
         }

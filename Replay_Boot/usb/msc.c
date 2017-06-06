@@ -941,7 +941,7 @@ static CSWStatus process_command()
             INFO("USB: Write(10) (%08x, %d)", sectorOffset, numSectors);
             for (int i = 0; i < numSectors; ++i) {
                 msc_read(OneSector, sizeof(OneSector));
-                DEBUG(1, "Card_WriteM(OneSector, %08x+%d, 1, NULL)", sectorOffset, i);
+                Card_WriteM(OneSector, sectorOffset+i, 1, NULL);
             }
             return CommandPassed;
         }

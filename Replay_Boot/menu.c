@@ -1300,7 +1300,7 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
             // we set our timeout with any update (1 sec)
             osd_timeout = Timer_Get(1000);
             osd_timeout_cnt = 0;
-            DEBUG(3, "OSD timeout set to 0");
+            //DEBUG(3, "OSD timeout set to 0");
 
         } else if (Timer_Check(osd_timeout)) {
             if (osd_timeout_cnt++ < current_status->osd_timeout) {

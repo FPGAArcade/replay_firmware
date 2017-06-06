@@ -602,22 +602,28 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char* path)
     pDrive->status = 0; // initial assumption, no protect, not inserted
     pDrive->name[0] = '\0';
 
-    // try to open file.
-    // **ADD CHECK IF SD CARD IS WRITE PROTECTED
-    pDrive->fSource = FF_Open(pIoman, path, FF_MODE_READ | FF_MODE_WRITE, NULL); // will not open if file is read only
+    pDrive->fSource = NULL;
+    
+    char* pSpecial = strchr(path,'?');
+    if (pSpecial == NULL) {
 
-    if (!pDrive->fSource) {
-        pDrive->status  = FILEIO_STAT_READONLY; // set readonly
-        pDrive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);
+        // try to open file.
+        // **ADD CHECK IF SD CARD IS WRITE PROTECTED
+        pDrive->fSource = FF_Open(pIoman, path, FF_MODE_READ | FF_MODE_WRITE, NULL); // will not open if file is read only
 
         if (!pDrive->fSource) {
-            MSG_warning("FCh:Could not open file."); // give up
-            return;
+            pDrive->status  = FILEIO_STAT_READONLY; // set readonly
+            pDrive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);
+
+            if (!pDrive->fSource) {
+                MSG_warning("FCh:Could not open file."); // give up
+                return;
+            }
         }
     }
 
     FileIO_FCh_WriteStat(ch, 0x00); // clear status
-    char* pFile_ext = GetExtension(path);
+    char* pFile_ext = pSpecial == NULL ? GetExtension(path) : pSpecial;
 
     uint8_t fail = 0;
     // call driver insert

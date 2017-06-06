@@ -49,6 +49,7 @@
 #include "hardware/timer.h"
 #include "messaging.h"
 #include "hardblocks.h"
+#include "card.h"
 #include <stddef.h>
 
 const uint8_t DRV08_DEBUG = 0;
@@ -89,7 +90,8 @@ const uint8_t DRV08_DEBUG = 0;
 typedef enum {
     XXX, // unsupported
     HDF,
-    HDF_NAKED
+    HDF_NAKED,
+    MMC
 } drv08_format_t;
 
 typedef struct {
@@ -208,6 +210,8 @@ inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count,
 
 FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
 {
+    if (pDesc->format == MMC)
+        return FF_ERR_NONE;
 
     uint32_t time = Timer_Get(0);
 
@@ -312,6 +316,43 @@ void Drv08_FileWrite(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
 
     if (bytes_w != DRV08_BLK_SIZE) {
         DEBUG(1, "Drv08:!! Write Fail!!");
+    }
+}
+
+void Drv08_CardReadSend(uint8_t ch, uint32_t lba, uint32_t numblocks, uint8_t* pBuffer)
+{
+    while(numblocks--) {
+
+        FF_ERROR err = Card_ReadM(pBuffer, lba++, 1, NULL);
+
+        /*DumpBuffer(pBuffer, DRV08_BLK_SIZE);*/
+
+        // add error handling
+        if (err != FF_ERR_NONE) {
+            DEBUG(1, "Drv08:!! CardRead Fail!!");
+        }
+
+        SPI_EnableFileIO();
+        rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_W));
+        SPI_WriteBufferSingle(pBuffer, DRV08_BLK_SIZE);
+        SPI_DisableFileIO();
+
+    }
+}
+
+void Drv08_CardReadSendDirect(uint8_t ch, uint32_t lba, uint32_t numblocks, uint8_t* pBuffer)
+{
+    SPI_EnableFileIO();
+    rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_W));
+    SPI_EnableDirect();
+    SPI_DisableFileIO();
+
+    FF_ERROR err = Card_ReadM(NULL, lba, numblocks, NULL);
+
+    SPI_DisableDirect();
+
+    if (err != FF_ERR_NONE) {
+        DEBUG(1, "Drv08:!! CardRead Fail!!");
     }
 }
 
@@ -549,7 +590,9 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
             first = 0;
 
-            if (lba < pDesc->lba_offset) {
+            if (pDesc->format == MMC) {
+                Drv08_CardReadSendDirect(ch, lba, 1, fbuf);
+            } else if (lba < pDesc->lba_offset) {
                 Drv08_BufferSend(ch, pDrive, pDesc->hdf_rdb.blocks[lba % 3].b);
 
             } else {
@@ -623,7 +666,10 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
                 FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM);
 
-                if (lba < pDesc->lba_offset) {
+                if (pDesc->format == MMC) {
+                    Drv08_CardReadSendDirect(ch, lba_naked, i, fbuf);
+                    lba_naked += i;
+                } else if (lba < pDesc->lba_offset) {
                     Drv08_BufferSend(ch, pDrive, pDesc->hdf_rdb.blocks[lba % 3].b);
 
                 } else {
@@ -656,7 +702,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         }
 
         //
-        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
+        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED || pDesc->format == MMC) {
             WARNING("Drv08:W Read only disk!");
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
@@ -713,7 +759,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         }
 
         //
-        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
+        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED || pDesc->format == MMC) {
             WARNING("Drv08:W Read only disk!");
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
@@ -1204,11 +1250,43 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
     drv08_desc_t* pDesc = pDrive->pDesc;
 
     pDesc->format    = (drv08_format_t)XXX;
-    pDesc->file_size =  pDrive->fSource->Filesize;
 
     if (strnicmp(ext, "HDF", 3) == 0) {
         //
         pDesc->format    = (drv08_format_t)HDF;
+        pDesc->file_size =  pDrive->fSource->Filesize;
+
+    } else if (strnicmp(ext, "?MMC", 4) == 0) {
+
+        pDesc->format    = (drv08_format_t)MMC;
+
+        uint64_t lba = Card_GetCapacity() / 512;
+
+        DEBUG(1, "MMC LBA = %08x%08x", (uint32_t)(lba>>32), (uint32_t)(lba&0xffffffff));
+
+        pDesc->file_size = (uint32_t)(lba);
+
+        for (int sec = 1; sec < 255; sec += 1)
+            if ((lba % sec) == 0) {
+                pDesc->sectors = sec;
+            }
+
+        lba /= pDesc->sectors;
+
+        for (int head = 4; head < 16; ++head)
+            if ((lba % head) == 0) {
+                pDesc->heads = head;
+            }
+
+        lba /= pDesc->heads;
+        pDesc->cylinders = lba;
+
+        INFO("SIZE: %lu sectors (%lu MB)", pDesc->file_size, pDesc->file_size >> 11);
+        INFO("CHS : %u.%u.%u --> %lu MB", pDesc->cylinders, pDesc->heads, pDesc->sectors,
+             ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
+
+        // skip the rest of the setup - we're all done
+        return (0);
 
     } else {
         WARNING("Drv08:Unsupported format.");

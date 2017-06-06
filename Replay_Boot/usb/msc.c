@@ -22,6 +22,7 @@ static void HandleRxdData(uint8_t ep, uint8_t* packet, uint32_t length);
 static void msc_reset();
 static void msc_packet_recv(uint8_t* packet, uint32_t length);
 
+static uint8_t s_PreventMediaRemoval = 0;
 
 void msc_recv(uint8_t ep, uint8_t* packet, uint32_t length)
 {
@@ -53,12 +54,14 @@ void msc_read(uint8_t* packet, uint32_t length)
 
 void MSC_Start(void)
 {
+    s_PreventMediaRemoval = 0;
     msc_reset();
 	usb_connect(msc_recv);
 }
 void MSC_Stop(void)
 {
 	usb_disconnect();
+    s_PreventMediaRemoval = 0;
 }
 uint8_t MSC_Poll(void)
 {
@@ -930,6 +933,7 @@ static CSWStatus process_command()
             uint32_t numSectors = s_ProcessState.deviceLength / 512;
             INFO("USB: Read(10) (%08x, %d)", sectorOffset, numSectors);
             for (int i = 0; i < numSectors; ++i) {
+                // usb_send_async(2, sizeof(OneSector), usb_func ReadCallback);
                 Card_ReadM(OneSector, sectorOffset+i, 1, NULL);
                 msc_send(OneSector, sizeof(OneSector));
             }
@@ -940,6 +944,7 @@ static CSWStatus process_command()
             uint32_t numSectors = s_ProcessState.deviceLength / 512;
             INFO("USB: Write(10) (%08x, %d)", sectorOffset, numSectors);
             for (int i = 0; i < numSectors; ++i) {
+                // usb_recv_async(2, sizeof(OneSector), usb_func WriteCallback);
                 msc_read(OneSector, sizeof(OneSector));
                 Card_WriteM(OneSector, sectorOffset+i, 1, NULL);
             }
@@ -947,6 +952,7 @@ static CSWStatus process_command()
         }
         case OPERATIONCODE_PREVENT_ALLOW_REMOVAL:
             INFO("USB: %s Media Removal", cdb->preventAllowRemoval.PREVENT ? "Prevent" : "Allow");
+            s_PreventMediaRemoval = cdb->preventAllowRemoval.PREVENT ? 1 : 0;
             set_sense_data(ILLEGALREQUEST, INVALID_FIELD_IN_CDB);
             return CommandFailed;
         case OPERATIONCODE_REQUEST_SENSE:
@@ -1064,4 +1070,9 @@ static void process_status(CSWStatus status)
     msc_send((uint8_t*)csw, sizeof(CommandStatusWrapper));
 
     DEBUG(3,"senseKey = %02x, additionalSenseKey = %02x",s_REQUEST_SENSEdata.SENSEKEY, s_REQUEST_SENSEdata.ADDITIONALSENSECODE);
+}
+
+uint8_t MSC_PreventMediaRemoval()
+{
+    return s_PreventMediaRemoval;
 }

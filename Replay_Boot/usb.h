@@ -3,6 +3,7 @@
 #define USB_H_INCLUDED
 
 #include "config.h"
+#include "usb/msc.h"
 
 void USB_MountMassStorage(status_t* current_status);
 void USB_UnmountMassStorage(status_t* current_status);

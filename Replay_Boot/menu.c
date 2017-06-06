@@ -631,12 +631,14 @@ static void _MENU_show_usb_status(status_t* current_status)
     const uint32_t start_index = current_status->info_start_idx;
     tOSDColor col; // used for selecting text fg color
 
+    const tOSDColor line_color = MSC_PreventMediaRemoval() ? RED : DARK_BLUE;
+
     // print fixed status lines and a separator line
     for (int i = 0; i < 3; i++) {
         OSD_WriteRC(2 + i, 0, current_status->status[i], 0, GRAY, BLACK);
     }
 
-    OSD_WriteRC(5, 0,   "                                ", 0, BLACK, DARK_BLUE);
+    OSD_WriteRC(5, 0,   "                                ", 0, BLACK, line_color);
 
     for (int i = 8, j = 0; i > 0 && j < num_infos; j++) {
         uint32_t k = (start_index - j) & 7;
@@ -663,7 +665,7 @@ static void _MENU_show_usb_status(status_t* current_status)
         OSD_WriteRC(6 + --i, 0, current_status->info[k], 0, col, BLACK);
     }
 
-    OSD_WriteRC(14, 0,   "                                ", 0, BLACK, DARK_BLUE);
+    OSD_WriteRC(14, 0,   "                                ", 0, BLACK, line_color);
 
     // print status line
     print_centered_status("ESC to unmount%s", "");

@@ -81,6 +81,7 @@ const uint8_t kMemtest[128] = {
 
 uint8_t FPGA_Default(void) // embedded in FW, something to start with
 {
+
 #ifdef FPGA_DISABLE_EMBEDDED_CORE
     WARNING("FPGA:Embedded core not available!");
     return 1;
@@ -808,6 +809,9 @@ inline void _SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
     AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN;
 
     while ((AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {};
+
+    AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
+
 }
 
 void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)

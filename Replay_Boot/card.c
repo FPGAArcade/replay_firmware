@@ -108,6 +108,7 @@ uint8_t Card_TryInit(void)
 
                                 // if CCS set then the card is SDHC compatible
                                 cardType = (ocr[0] & 0x40) ? CARDTYPE_SDHC : CARDTYPE_SD;
+
                                 spi_csr0 = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SDHC card)
 
                             } else {
@@ -145,6 +146,7 @@ uint8_t Card_TryInit(void)
                                 if (MMC_Command(CMD16, 512) != 0x00) { //set block length
                                     WARNING("SPI:Card_Init CMD16 (SET_BLOCKLEN) failed!");
                                 }
+
 
                                 spi_csr0 = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SD card)
                                 cardType = CARDTYPE_SD;
@@ -332,7 +334,6 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         AT91C_BASE_PIOA->PIO_PER  = PIN_CARD_MOSI;  // enable GPIO function
 
         // use SPI PDC (DMA transfer)
-        /*AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;*/
         // 0x00200000 is the start of SRAM. Yup, we are going to DMA random data, just to get the rx side to work.
         // the override above ensures the card sees all '1's
         AT91C_BASE_SPI->SPI_TPR  = (uint32_t) 0x00200000;
@@ -357,8 +358,12 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 
         /*while ( (AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {*/
         while ( (AT91C_BASE_SPI->SPI_SR & dma_end) != dma_end) {
+
             if (Timer_Check(timeout)) {
                 WARNING("SPI:Card_ReadM DMA Timeout! (lba=%lu)", sector);
+               
+                AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
+                AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
 
                 if (!pBuffer) {
                     SPI_DisableFileIO();
@@ -373,7 +378,6 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         };
 
         AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
-
         AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
 
         if (!pBuffer) {

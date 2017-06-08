@@ -49,7 +49,7 @@ struct mallinfo mallinfo(void)
 
 	s_mallinfo.fordblks = 0;
 	for (FreeList_Header* p = s_MallocContext.root.nextPtr; p != &s_MallocContext.root; p = p->nextPtr) {
-		DEBUG(3, "p = %08x ; numBlocks = %d", p, p->numBlocks);
+//		DEBUG(3, "p = %08x ; numBlocks = %d", p, p->numBlocks);
 		s_mallinfo.fordblks += p->numBlocks * sizeof(FreeList_Header);
 	}
 	DEBUG(2, "freeSize = %d (list)", s_mallinfo.fordblks);
@@ -57,7 +57,7 @@ struct mallinfo mallinfo(void)
 #if FREELIST_DEBUG
 	s_mallinfo.uordblks = 0;
 	for (FreeList_Header* p = s_MallocContext.allocList; p != NULL; p = p->nextPtr) {
-		DEBUG(3, "p = %08x ; numBlocks = %d", p, p->numBlocks);
+//		DEBUG(3, "p = %08x ; numBlocks = %d", p, p->numBlocks);
 		s_mallinfo.uordblks += p->numBlocks * sizeof(FreeList_Header);
 //		DumpBuffer((uint8_t*)p, p->numBlocks * sizeof(FreeList_Header));
 	}

@@ -133,6 +133,7 @@
 #define KEY_F12   0x20C
 #define KEY_MENU  0x20C
 
+#define KEY_SYSRQ 0x3FC
 #define KEY_PAUSE 0x3FD
 #define KEY_FLASH 0x3FE
 #define KEY_RESET 0x3FF

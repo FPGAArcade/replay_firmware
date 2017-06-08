@@ -593,6 +593,7 @@ uint8_t OSD_ConvPosx(uint8_t keycode)
 uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2, uint8_t keycode3)
 {
     // special keys
+    const uint8_t KEY_EXTEND  = 0xe0;
     const uint8_t KEY_SHIFTL  = 0x12;
     const uint8_t KEY_SHIFTR  = 0x59;
     const uint8_t KEY_ALT     = 0x11;
@@ -604,20 +605,22 @@ uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2, uint8_t keycode3)
         return KF_SHIFT;
     }
 
-    if ((keycode1 == KEY_ALT)    || (keycode2 == KEY_ALT)) {
+    if ((keycode1 == KEY_ALT)    || (keycode1 == KEY_EXTEND && keycode2 == KEY_ALT)) {
         return KF_ALT;
     }
 
-    if ((keycode1 == KEY_CTRL)   || (keycode2 == KEY_CTRL)) {
+    if ((keycode1 == KEY_CTRL)   || (keycode1 == KEY_EXTEND && keycode2 == KEY_CTRL)) {
         return KF_CTRL;
     }
 
-    if ((keycode2 == KEY_GUIL)   || (keycode3 == KEY_GUIL)) {
-        return KF_GUI;
-    }
+    if (keycode1 == KEY_EXTEND) {
+        if ((keycode2 == KEY_GUIL)   || (keycode3 == KEY_GUIL)) {
+            return KF_GUI;
+        }
 
-    if ((keycode2 == KEY_GUIR)   || (keycode3 == KEY_GUIR)) {
-        return KF_GUI;
+        if ((keycode2 == KEY_GUIR)   || (keycode3 == KEY_GUIR)) {
+            return KF_GUI;
+        }
     }
 
     return 0;
@@ -701,8 +704,9 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey, uint8_t menu_enabl
                 DEBUG(3, "ps2: %d: %02x %02x %02x %02x", keypos, keybuf[0], keybuf[1], keybuf[2], keybuf[3]);
             }
 
-        } else if (Timer_Check(ps2_delay)) {
+        } else if (keypos && Timer_Check(ps2_delay)) {
             // we clean up the buffer on a timeout
+            DEBUG(3, "ps2: timeout %d: %02x, %02x, %02x, %02x, %02x, %02x, %02x, %02x", keypos, keybuf[0], keybuf[1], keybuf[2], keybuf[3], keybuf[4], keybuf[5], keybuf[6], keybuf[7]);
             keypos = 0;
         }
 
@@ -769,13 +773,31 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey, uint8_t menu_enabl
                         key_code = key_break | key_flags | KEY_POSx | x;
                         keypos = 0;
 
+                    } else if (((keybuf[0] == 0xE0) && (keybuf[1] == 0x12 || keybuf[1] == 0x7c) && (keypos == 2)) || ((keybuf[0] == 0x84) && (keypos == 1))) {
+                        // E0 12 or E0 7C can only mean PRTSCR/SYSRQ
+                        // 84 is a special case for ALT-PRTSCR
+                        // Since E0 12 is always sent as a pair (E0 12 E0 7C or E0 F0 7C E0 F0 12) we can simply ignore the E0 12 key up/down
+                        if (!((keybuf[0] == 0xE0) && (keybuf[1] == 0x12))) {
+                            key_code = key_break | key_flags | KEY_SYSRQ;
+                        }
+
+                        keypos = 0;
+
                     } else {
-                        if ((keybuf[0] == 0xE1) && (keypos == 8)) {
+                        // If nothing else fits - try mapping E0 XX to ASCII(XX)
+                        x = (keybuf[0] == 0xE0) && (keypos == 2) ? OSD_ConvASCII(keybuf[1]) : 0;
+
+                        if (x) {
+                            key_code = key_break | key_flags | x;
+                            keypos = 0;
+
+                        } else if ((keybuf[0] == 0xE1) && (keypos == 8)) {
                             key_code = key_flags | KEY_PAUSE;
                             keypos = 0;
 
                         } else {
-                            if (((keybuf[0] == 0xE0) && (keybuf[1] != 0xF0) && (keypos == 2)) || ((keybuf[0] != 0xE0) && (keybuf[0] != 0xF0))) {
+                            if (((keybuf[0] == 0xE0) && (keybuf[1] != 0xF0) && (keypos == 2)) ||
+                                    ((keybuf[0] != 0xE0) && (keybuf[0] != 0xE1) && (keybuf[0] != 0xF0))) {
                                 keypos = 0; // ignore rest of any possible keys
                             }
                         }
@@ -791,7 +813,8 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey, uint8_t menu_enabl
         }
 
         if (key_code & KEY_MASK) {
-            if (key_code == old_key_code) {
+            if (key_code == old_key_code && ((key_code & KEY_MASK) != KEY_PAUSE)) {
+                // PAUSE|BREAK does not repeat..
                 key_code |= KF_REPEATED;
 
             } else {
@@ -1003,6 +1026,8 @@ static struct {
     { "BACK"  , KEY_BACK  },
     { "TAB"   , KEY_TAB   },
     { "SPACE" , KEY_SPACE },
+    { "PAUSE" , KEY_PAUSE },
+    { "SYSRQ" , KEY_SYSRQ },
     { 0       , 0         } // end-of-table
 };
 

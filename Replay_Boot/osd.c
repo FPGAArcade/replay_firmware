@@ -154,6 +154,7 @@ const static tEscSequence usart_esc_sequences[] = {
     {.code = KEY_F12, .slen = sizeof(F12_KEYSEQ), .seq = F12_KEYSEQ}
 };
 
+static void _OSD_SendKey(uint8_t key);
 
 // nasty globals ...
 uint8_t osd_vscroll = 0;
@@ -721,6 +722,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey, uint8_t menu_enabl
     // process key buffer
     // ---------------------------------------------------
     if (keypos && (!key_code)) { // menu push button takes priority
+        uint16_t ignored_keys = 0;
 
         // break sequence (key release)
         if ((keybuf[1] == 0xF0) && (keypos == 3)) {
@@ -798,6 +800,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey, uint8_t menu_enabl
                         } else {
                             if (((keybuf[0] == 0xE0) && (keybuf[1] != 0xF0) && (keypos == 2)) ||
                                     ((keybuf[0] != 0xE0) && (keybuf[0] != 0xE1) && (keybuf[0] != 0xF0))) {
+                                ignored_keys = keypos;
                                 keypos = 0; // ignore rest of any possible keys
                             }
                         }
@@ -820,6 +823,30 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey, uint8_t menu_enabl
             } else {
                 old_key_code = key_code;
             }
+        }
+
+        if (ignored_keys && menu_enabled) {
+            // this is a key that we currently don't support in the OSD
+            // could be caps/scroll/num lock, or any extended media keys, etc.
+            // just forward the ps2 scancode back to the core..
+            uint16_t i = 0;
+
+            OSD_Enable(0);  // make sure the core picks up the key input
+
+            if (keybuf[0] == 0xE0) {
+                _OSD_SendKey(0xE0);
+                ++i;
+            }
+
+            if (key_break) {
+                _OSD_SendKey(0xF0);
+            }
+
+            for (; i < ignored_keys; ++i) {
+                _OSD_SendKey(keybuf[i]);
+            }
+
+            OSD_Enable(DISABLE_KEYBOARD);
         }
     }
 

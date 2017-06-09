@@ -210,8 +210,9 @@ inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count,
 
 FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
 {
-    if (pDesc->format == MMC)
+    if (pDesc->format == MMC) {
         return FF_ERR_NONE;
+    }
 
     uint32_t time = Timer_Get(0);
 
@@ -321,7 +322,7 @@ void Drv08_FileWrite(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
 
 void Drv08_CardReadSend(uint8_t ch, uint32_t lba, uint32_t numblocks, uint8_t* pBuffer)
 {
-    while(numblocks--) {
+    while (numblocks--) {
 
         FF_ERROR err = Card_ReadM(pBuffer, lba++, 1, NULL);
 
@@ -592,6 +593,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
             if (pDesc->format == MMC) {
                 Drv08_CardReadSendDirect(ch, lba, 1, fbuf);
+
             } else if (lba < pDesc->lba_offset) {
                 Drv08_BufferSend(ch, pDrive, pDesc->hdf_rdb.blocks[lba % 3].b);
 
@@ -669,6 +671,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
                 if (pDesc->format == MMC) {
                     Drv08_CardReadSendDirect(ch, lba_naked, i, fbuf);
                     lba_naked += i;
+
                 } else if (lba < pDesc->lba_offset) {
                     Drv08_BufferSend(ch, pDrive, pDesc->hdf_rdb.blocks[lba % 3].b);
 
@@ -1262,7 +1265,7 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
 
         uint64_t lba = Card_GetCapacity() / 512;
 
-        DEBUG(1, "MMC LBA = %08x%08x", (uint32_t)(lba>>32), (uint32_t)(lba&0xffffffff));
+        DEBUG(1, "MMC LBA = %08x%08x", (uint32_t)(lba >> 32), (uint32_t)(lba & 0xffffffff));
 
         pDesc->file_size = (uint32_t)(lba);
 

@@ -603,8 +603,9 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char* path)
     pDrive->name[0] = '\0';
 
     pDrive->fSource = NULL;
-    
-    char* pSpecial = strchr(path,'?');
+
+    char* pSpecial = strchr(path, '?');
+
     if (pSpecial == NULL) {
 
         // try to open file.

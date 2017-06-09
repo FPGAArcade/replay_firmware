@@ -176,7 +176,7 @@ EXTRAINCDIRS  = ./filesys ./common ./usb ./xdms ./sam4s ./sam4s/cmsis/thirdparty
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms ./hardware ./libc/stdlib ./libc/string
+EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms ./hardware ./libc/stdlib ./libc/string ./libc
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common

@@ -108,10 +108,11 @@ void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
     while ((AT91C_BASE_SPI->SPI_SR & AT91C_SPI_ENDTX ) != AT91C_SPI_ENDTX) {
         if (Timer_Check(timeout)) {
             DEBUG(1, "SPI:WriteBufferSingle DMA Timeout!");
-            AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTDIS | AT91C_PDC_RXTDIS;
+
             break;
         }
     }
+    AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
 }
 
 void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
@@ -130,10 +131,10 @@ void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
     while ((AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {
         if (Timer_Check(timeout)) {
             WARNING("SPI:ReadBufferSingle DMA Timeout!");
-            AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTDIS | AT91C_PDC_RXTDIS;
             break;
         }
     }
+    AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
 }
 
 inline void SPI_Wait4XferEnd(void)

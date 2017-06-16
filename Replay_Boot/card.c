@@ -226,6 +226,8 @@ uint64_t Card_GetCapacity(void)
 
     SPI_EnableCard();
 
+    timeout = Timer_Get(100);      // 100 ms timeout
+
     MMC_Command(CMD9, 0x000000);
 
     while (rSPI(0xFF) != 0xFE) {

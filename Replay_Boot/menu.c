@@ -54,6 +54,7 @@
 #include "fileio.h"
 #include "messaging.h"
 #include "usb.h"
+#include "rdb.h"
 
 
 /** structure handling directory browsing */
@@ -149,12 +150,17 @@ static uint8_t _MENU_action_display(menuitem_t* item, status_t* current_status)
         return 1;
     }
 
-    // reboot ----------------------------------
+    // mount sdcard over usb -------------------
     else if MATCH(item->action_name, "mountmsc") {
         strcpy(item->selected_option->option_name, "<RETURN> mounts");
         return 1;
     }
 
+    // synchronize mbr with rdb ----------------
+    else if MATCH(item->action_name, "syncrdb") {
+        strcpy(item->selected_option->option_name, "<RETURN> syncs");
+        return 1;
+    }
     return 0;
 }
 
@@ -342,7 +348,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
         return 1;
     }
 
-    // reboot ----------------------------------
+    // mount sdcard over usb -------------------
     else if MATCH(item->action_name, "mountmsc") {
         MENU_set_state(current_status, POPUP_MENU);
         strcpy(current_status->popup_msg, "This will unmount all images!");
@@ -351,6 +357,19 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
         current_status->selected = 0;
         current_status->update = 1;
         current_status->toggle_usb = 1;
+        current_status->do_reboot = 0;
+        return 1;
+    }
+
+    // synchronize mbr with rdb ----------------
+    else if MATCH(item->action_name, "syncrdb") {
+        MENU_set_state(current_status, POPUP_MENU);
+        strcpy(current_status->popup_msg, "Existing RDB will be lost!");
+        current_status->popup_msg2 = "Continue?";
+        current_status->selections = MENU_POPUP_YESNO;
+        current_status->selected = 0;
+        current_status->update = 1;
+        current_status->sync_rdb = 1;
         current_status->do_reboot = 0;
         return 1;
     }
@@ -1526,6 +1545,14 @@ uint8_t _MENU_update(status_t* current_status)
 
         MENU_set_state(current_status, SHOW_STATUS);
         current_status->toggle_usb = 0;
+        current_status->update = 1;
+
+    } else if (current_status->sync_rdb) {
+
+        SynchronizeRdbWithMbr();
+
+        MENU_set_state(current_status, SHOW_STATUS);
+        current_status->sync_rdb = 0;
         current_status->update = 1;
 
     } else {

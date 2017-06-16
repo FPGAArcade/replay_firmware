@@ -377,6 +377,9 @@ typedef struct {
     /** set to 1 when the sdcard is mounted over usb (no local file access) */
     uint8_t      usb_mounted;
 
+    /** set to 1 if pop-up is requested to synchronize RDB and MBR */
+    uint8_t      sync_rdb;
+
     /* ======== INI menu entry stuff ======== */
 
     /** link to top of menu tree (fixed, does not vary) */

@@ -98,6 +98,8 @@ unsigned char rSPI(unsigned char outByte)  // inline?
 
 void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
 {
+    Assert((AT91C_BASE_SPI->SPI_PTSR & (AT91C_PDC_TXTEN | AT91C_PDC_RXTEN)) == 0);
+
     // single bank only, assume idle on entry
     AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
     AT91C_BASE_SPI->SPI_TCR  = length;
@@ -118,6 +120,8 @@ void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
 void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 {
     // assume spi rx buffer is flushed on entry (previous SPI command)
+
+    Assert((AT91C_BASE_SPI->SPI_PTSR & (AT91C_PDC_TXTEN | AT91C_PDC_RXTEN)) == 0);
 
     // we do not care what we send out (current buffer contents), the FPGA will ignore
     AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;

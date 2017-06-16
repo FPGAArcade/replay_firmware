@@ -338,6 +338,8 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         // use SPI PDC (DMA transfer)
         // 0x00200000 is the start of SRAM. Yup, we are going to DMA random data, just to get the rx side to work.
         // the override above ensures the card sees all '1's
+        Assert((AT91C_BASE_SPI->SPI_PTSR & (AT91C_PDC_TXTEN | AT91C_PDC_RXTEN)) == 0);
+
         AT91C_BASE_SPI->SPI_TPR  = (uint32_t) 0x00200000;
         AT91C_BASE_SPI->SPI_TCR  = 512;
         AT91C_BASE_SPI->SPI_TNCR = 0;

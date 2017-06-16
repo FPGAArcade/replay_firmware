@@ -802,6 +802,8 @@ inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
 
 inline void _SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 {
+    Assert((AT91C_BASE_SPI->SPI_PTSR & (AT91C_PDC_TXTEN | AT91C_PDC_RXTEN)) == 0);
+
     AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
     AT91C_BASE_SPI->SPI_TCR  = length;
     AT91C_BASE_SPI->SPI_RPR  = (uint32_t) pBuffer;

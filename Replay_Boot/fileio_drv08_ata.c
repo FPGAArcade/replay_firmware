@@ -225,6 +225,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
         }
 
         if (lba < pDesc->lba_offset) {
+            DEBUG(1, "Drv08:Seek to LBA %d < %d offset => failed", lba, pDesc->lba_offset);
             return (FF_ERR_IOMAN_OUT_OF_BOUNDS_READ | FF_SEEK);
         }
 
@@ -320,8 +321,11 @@ void Drv08_FileWrite(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
     }
 }
 
+extern FF_IOMAN* pIoman;        // fixme!
+
 void Drv08_CardReadSend(uint8_t ch, uint32_t lba, uint32_t numblocks, uint8_t* pBuffer)
 {
+    FF_FlushCache(pIoman);
     while (numblocks--) {
 
         FF_ERROR err = Card_ReadM(pBuffer, lba++, 1, NULL);
@@ -348,12 +352,23 @@ void Drv08_CardReadSendDirect(uint8_t ch, uint32_t lba, uint32_t numblocks, uint
     SPI_EnableDirect();
     SPI_DisableFileIO();
 
+    FF_FlushCache(pIoman);
     FF_ERROR err = Card_ReadM(NULL, lba, numblocks, NULL);
 
     SPI_DisableDirect();
 
     if (err != FF_ERR_NONE) {
         DEBUG(1, "Drv08:!! CardRead Fail!!");
+    }
+}
+
+void Drv08_CardWrite(uint8_t ch, uint32_t lba, uint8_t* pBuffer)
+{
+    FF_ERROR err = Card_WriteM(pBuffer, lba, 1, NULL);
+    FF_FlushCache(pIoman);
+
+    if (err != FF_ERR_NONE) {
+        DEBUG(1, "Drv08:!! CardWrite Fail!!");
     }
 }
 
@@ -381,7 +396,7 @@ inline void Drv08_GetParams(uint8_t tfr[8], drv08_desc_t* pDesc,  // inputs
     }
 
     if (DRV08_DEBUG) {
-#ifdef DRV08_PARAM_DEBUG
+#if 1 //def DRV08_PARAM_DEBUG
         DEBUG(1, "sector   : %d", *sector);
         DEBUG(1, "cylinder : %d", *cylinder);
         DEBUG(1, "head     : %d", *head);
@@ -705,7 +720,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         }
 
         //
-        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED || pDesc->format == MMC) {
+        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
             WARNING("Drv08:W Read only disk!");
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
@@ -716,8 +731,17 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
         Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
 
+        uint32_t lba_naked = lba < pDesc->lba_offset ? pDesc->lba_offset : lba;
+
         if (Drv08_HardFileSeek(pDrive, pDesc, lba) != FF_ERR_NONE) {
             WARNING("Drv08:Write to invalid LBA");
+            Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+            return;
+        }
+
+        if (lba == 0 && pDesc->format == MMC) {
+            WARNING("Drv08:Write to MBR disabled");
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
             return;
@@ -752,7 +776,11 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
             // optimal to put this after the status update, but then we cannot indicate write failure
             // write to file
-            Drv08_FileWrite(ch, pDrive, fbuf);
+            if (pDesc->format == MMC) {
+                Drv08_CardWrite(ch, lba_naked++, fbuf);
+            } else {
+                Drv08_FileWrite(ch, pDrive, fbuf);
+            }
         }
 
     } else if (tfr[7] == DRV08_CMD_WRITE_MULTIPLE) { // write sectors
@@ -762,7 +790,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         }
 
         //
-        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED || pDesc->format == MMC) {
+        if (pDrive->status & FILEIO_STAT_READONLY_OR_PROTECTED) {
             WARNING("Drv08:W Read only disk!");
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
@@ -781,8 +809,17 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
         Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
 
+        uint32_t lba_naked = lba < pDesc->lba_offset ? pDesc->lba_offset : lba;
+
         if (Drv08_HardFileSeek(pDrive, pDesc, lba) != FF_ERR_NONE) {
             WARNING("Drv08:Write Multiple bad LBA");
+            Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
+            FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
+            return;
+        }
+
+        if (lba == 0 && pDesc->format == MMC) {
+            WARNING("Drv08:Write to MBR disabled");
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
             return;
@@ -806,7 +843,11 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
                 SPI_DisableFileIO();
 
                 // write to file
-                Drv08_FileWrite(ch, pDrive, fbuf);
+                if (pDesc->format == MMC) {
+                    Drv08_CardWrite(ch, lba_naked++, fbuf);
+                } else {
+                    Drv08_FileWrite(ch, pDrive, fbuf);
+                }
 
                 if (!first) {
                     Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);

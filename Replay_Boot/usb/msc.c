@@ -378,7 +378,7 @@ static const struct {
     uint8_t     reserved1:2;
     uint8_t     TPC:1;
     uint8_t     TPGS:2;
-    uint8_t     ACC:1;
+    uint8_t     _ACC:1;
     uint8_t     SCCS:1;
     // byte 6
     uint8_t     obsolete1:4;

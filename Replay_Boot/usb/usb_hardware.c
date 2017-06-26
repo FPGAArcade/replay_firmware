@@ -49,8 +49,8 @@ uint8_t usb_poll()
     const uint32_t num_eps = sizeof(AT91C_BASE_UDP->UDP_CSR) / sizeof(AT91C_BASE_UDP->UDP_CSR[0]);
 
     const uint8_t ctrl_ep = 0;
-    const  uint8_t pingpong_eps[4] = { 0, 1, 1, 0 }; // which end-points support ping-pong
-    static uint8_t recvbank_eps[4] = { AT91C_UDP_RXSETUP, AT91C_UDP_RX_DATA_BK0, AT91C_UDP_RX_DATA_BK0, AT91C_UDP_RX_DATA_BK0 };
+    const  uint8_t pingpong_eps[8] = { 0, 1, 1, 0, 0,0,0,0 }; // which end-points support ping-pong
+    static uint8_t recvbank_eps[8] = { AT91C_UDP_RXSETUP, AT91C_UDP_RX_DATA_BK0, AT91C_UDP_RX_DATA_BK0, AT91C_UDP_RX_DATA_BK0, 0,0,0,0 };
     static uint16_t current_config = 0;
     (void)current_config;
 

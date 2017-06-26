@@ -65,8 +65,7 @@ BUILD_NUM = ./buildnum_$(HOST).$(APP_SUFFIX)
 
 # MCU name and submodel
 ifeq (1,${SAM4S})
-# switch to cortex-m4 ..
-MCU      = arm7tdmi
+MCU      = cortex-m4
 SUBMDL   = SAM4SD32
 else
 MCU      = arm7tdmi
@@ -158,6 +157,14 @@ ASRC =
 # List Assembler source files here which must be assembled in ARM-Mode..
 ASRCARM  = common/Cstartup.S
 ASRCARM += common/swi_handler.S
+
+# sam4s / cortex-m4 / armv7-m doesn't support the ARM instruction set
+ifeq (1,${SAM4S})
+SRC += common/startup_sam4s.c
+SRC += hardware/irq.c
+SRCARM =
+ASRCARM =
+endif
 
 # Optimization level, can be [0, 1, 2, 3, s].
 # 0 = turn off optimization. s = optimize for size.

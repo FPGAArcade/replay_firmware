@@ -925,7 +925,9 @@ static uint32_t CalcBEsum(void* block, uint32_t numlongs)
 {
     uint32_t* p = (uint32_t*)block;
     int32_t chksum = 0;
-
+    if (numlongs > 512/sizeof(uint32_t)) {
+        numlongs = 512/sizeof(uint32_t);
+    }
     for (int i = 0; i < numlongs; i++ ) {
         uint32_t v = READ_BE_32B(*p);
         chksum += (int32_t)v;
@@ -990,6 +992,11 @@ static void Drv08_PrintRDB(fch_t* pDrive, drv08_desc_t* pDesc)
     DEBUG(2, "rdb_ControllerRevision= '%s'", rdsk.rdb_ControllerRevision);
     DEBUG(2, "rdb_DriveInitName     = '%s'", rdsk.rdb_DriveInitName);
 
+    if (READ_BE_32B(rdsk.rdb_ID) != IDNAME_RIGIDDISK) {
+        DEBUG(2, ">   INVALID RDSK BLOCK");
+        return;        
+    }
+
     uint32_t blockBytes = READ_BE_32B(rdsk.rdb_BlockBytes);
 
     tPartitionBlock part;
@@ -1018,6 +1025,11 @@ static void Drv08_PrintRDB(fch_t* pDrive, drv08_desc_t* pDesc)
 
         for (int i = 0; i < (sizeof(part.pb_Environment) / sizeof(part.pb_Environment[0])); ++i) {
             DEBUG(2, ">   pb_Environment[%2d]= 0x%08x", i, READ_BE_32B(part.pb_Environment[i]));
+        }
+
+        if (READ_BE_32B(part.pb_ID) != IDNAME_PARTITION) {
+            DEBUG(2, ">   INVALID PART BLOCK");
+            break;        
         }
     }
 
@@ -1056,6 +1068,11 @@ static void Drv08_PrintRDB(fch_t* pDrive, drv08_desc_t* pDesc)
         DEBUG(2, ">   fhb_SegListBlocks = %08x", READ_BE_32B(fshd.fhb_SegListBlocks));
         DEBUG(2, ">   fhb_GlobalVec     = %08x", READ_BE_32B(fshd.fhb_GlobalVec));
         DEBUG(2, ">   fhb_FileSysName   = '%s'", fshd.fhb_FileSysName);
+
+        if (READ_BE_32B(fshd.fhb_ID) != IDNAME_FILESYSHEADER) {
+            DEBUG(2, ">   INVALID FSHD BLOCK");
+            break;        
+        }
     }
 }
 

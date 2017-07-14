@@ -201,6 +201,10 @@ int main(void)
             }
         }
 
+        // at this point we must've free _all_ dynamically allocated memory!
+        CFG_free_menu(&current_status);
+        Assert(!mallinfo().uordblks);
+
         // read inputs
         CFG_update_status(&current_status);
         CFG_print_status(&current_status);

@@ -40,6 +40,10 @@
 #ifndef _FF_CONFIG_H_
 #define _FF_CONFIG_H_
 
+#include <malloc.h>
+void* ff_malloc(size_t size);
+void ff_free(void *ptr);
+
 #ifdef WIN32
 #define snprintf _snprintf
 #endif
@@ -149,8 +153,8 @@
 
 //---------- MALLOC
 										// These should map on to platform specific memory allocators.
-#define FF_MALLOC(aSize)                                malloc(aSize)
-#define FF_FREE(apPtr)                                  free(apPtr)
+#define FF_MALLOC(aSize)                                ff_malloc(aSize)
+#define FF_FREE(apPtr)                                  ff_free(apPtr)
 
 
 //---------- IN-LINE FUNCTIONS

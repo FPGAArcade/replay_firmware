@@ -45,14 +45,19 @@ void* FreeList_Alloc(FreeList_Context* context, size_t size)
                 addBlocks = 1024;
             }
 
-            size_t addBytes = addBlocks * sizeof(FreeList_Header);
+            size_t addBytes = 0;
 
             if (context->sbrkFunc == NULL) {
                 ERROR("FreeList_Alloc ERROR : no sbrk() function!");
                 return 0;
             }
 
-            p = (FreeList_Header*) context->sbrkFunc(addBytes);
+            size_t divider = 1;
+            do {
+                addBytes = (addBlocks / divider) * sizeof(FreeList_Header);
+                p = (FreeList_Header*) context->sbrkFunc(addBytes);
+                divider++;
+            } while(p == (FreeList_Header*) -1 && addBytes >= numBlocks * sizeof(FreeList_Header));
 
             if (p == (FreeList_Header*) - 1) {
                 ERROR("FreeList_Alloc ERROR : Out-Of-Memory!");
@@ -60,7 +65,7 @@ void* FreeList_Alloc(FreeList_Context* context, size_t size)
             }
 
             p->nextPtr = NULL;
-            p->numBlocks = addBlocks;
+            p->numBlocks = addBytes / sizeof(FreeList_Header);
             FreeList_Free(context, p + 1);
             context->heapSize += addBytes;
             p = context->freeList;

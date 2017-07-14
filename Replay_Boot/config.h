@@ -439,8 +439,8 @@ typedef struct {
 
     /* ======== file browser stuff menu ======== */
 
-    /** store previous file filter (manual search string) */
-    char         previous_file_filter[sizeof(((tDirScan*)0)->file_filter)];
+    /** structure handling directory browsing */
+    tDirScan     *dir_scan;
 
     /** the actual browser directory path */
     char         act_dir[FF_MAX_PATH];

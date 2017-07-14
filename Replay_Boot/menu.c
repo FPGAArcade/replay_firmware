@@ -57,9 +57,6 @@
 #include "rdb.h"
 
 
-/** structure handling directory browsing */
-static tDirScan* dir_scan = 0;
-
 typedef enum {
     ACTION_DISPLAY = 0,
     ACTION_MENU_EXECUTE = 1,
@@ -187,11 +184,9 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
                 // save the file_filter, so that we can restore it (in case we already had a filter)
                 MENU_set_state(current_status, FILE_BROWSER);
                 // search for CHA extension files
-                Filesel_Init(dir_scan, current_status->act_dir, current_status->fileio_cha_ext);
-                // restore the filer
-                memcpy(dir_scan->file_filter, current_status->previous_file_filter, sizeof(dir_scan->file_filter));
+                Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->fileio_cha_ext);
                 // initialize browser
-                Filesel_ScanFirst(dir_scan);
+                Filesel_ScanFirst(current_status->dir_scan);
                 return 1;
             }
         }
@@ -219,9 +214,9 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
                 // open file browser
                 strcpy(current_status->act_dir, current_status->ini_dir);
                 // search for INI files
-                Filesel_Init(dir_scan, current_status->act_dir, current_status->fileio_chb_ext);
+                Filesel_Init(current_status->dir_scan, current_status->act_dir, current_status->fileio_chb_ext);
                 // initialize browser
-                Filesel_ScanFirst(dir_scan);
+                Filesel_ScanFirst(current_status->dir_scan);
                 return 1;
             }
         }
@@ -237,9 +232,9 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
         strcpy(current_status->act_dir, current_status->ini_dir);
         // search for INI files
         static const file_ext_t ini_ext[2] = { {"INI"}, {"\0"} };
-        Filesel_Init(dir_scan, current_status->act_dir, ini_ext);
+        Filesel_Init(current_status->dir_scan, current_status->act_dir, ini_ext);
         // initialize browser
-        Filesel_ScanFirst(dir_scan);
+        Filesel_ScanFirst(current_status->dir_scan);
         return 1;
     }
 
@@ -279,9 +274,9 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
             // search for files with given extension
             static file_ext_t load_ext[2] = { {"\0"}, {"\0"} };
             _strlcpy(load_ext[0].ext, (item->option_list->option_name) + 2, sizeof(file_ext_t));
-            Filesel_Init(dir_scan, current_status->act_dir, load_ext);
+            Filesel_Init(current_status->dir_scan, current_status->act_dir, load_ext);
             // initialize browser
-            Filesel_ScanFirst(dir_scan);
+            Filesel_ScanFirst(current_status->dir_scan);
             return 1;
         }
     }
@@ -381,8 +376,8 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
 static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_status)
 {
     // *****
-    FF_DIRENT mydir = Filesel_GetEntry(dir_scan,
-                                       dir_scan->sel);
+    FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan,
+                                       current_status->dir_scan->sel);
 
     // insert is ok for fixed or removable
     // cha_select
@@ -748,20 +743,20 @@ void _MENU_show_file_browser(status_t* current_status)
     FF_DIRENT entry;
 
     // show filter in header
-    uint8_t sel = Filesel_GetSel(dir_scan);
+    uint8_t sel = Filesel_GetSel(current_status->dir_scan);
 
-    if (dir_scan->file_filter[0]) {
+    if (current_status->dir_scan->file_filter[0]) {
         char s[OSDMAXLEN + 1];
-        size_t len = strlen(dir_scan->file_filter);
+        size_t len = strlen(current_status->dir_scan->file_filter);
         s[0] = '*';
-        memcpy(s + 1, dir_scan->file_filter, len);
+        memcpy(s + 1, current_status->dir_scan->file_filter, len);
         s[len + 1] = '*';
         s[len + 2] = 0;
         OSD_WriteRC(1, 0, s , 0, WHITE, DARK_BLUE);
     }
 
     // show file/directory list
-    if (dir_scan->total_entries == 0) {
+    if (current_status->dir_scan->total_entries == 0) {
         // nothing there
         char s[OSDMAXLEN + 1];
         strcpy(s, "            No files                   ");
@@ -773,7 +768,7 @@ void _MENU_show_file_browser(status_t* current_status)
             memset(s, ' ', OSDMAXLEN); // clear line buffer
             s[OSDMAXLEN] = 0; // set temporary string length to OSD line length
 
-            entry = Filesel_GetLine(dir_scan, i);
+            entry = Filesel_GetLine(current_status->dir_scan, i);
             filename = entry.FileName;
 
             uint16_t len = strlen(filename);
@@ -1099,31 +1094,31 @@ static uint8_t key_action_menu_protect(status_t* current_status, const uint16_t 
 
 static uint8_t key_action_filebrowser_left(status_t* current_status, const uint16_t key)
 {
-    Filesel_Update(dir_scan, SCAN_PREV_PAGE);
+    Filesel_Update(current_status->dir_scan, SCAN_PREV_PAGE);
     return 1; // update
 }
 
 static uint8_t key_action_filebrowser_right(status_t* current_status, const uint16_t key)
 {
-    Filesel_Update(dir_scan, SCAN_NEXT_PAGE);
+    Filesel_Update(current_status->dir_scan, SCAN_NEXT_PAGE);
     return 1; // update
 }
 
 static uint8_t key_action_filebrowser_up(status_t* current_status, const uint16_t key)
 {
-    Filesel_Update(dir_scan, SCAN_PREV);
+    Filesel_Update(current_status->dir_scan, SCAN_PREV);
     return 1;
 }
 
 static uint8_t key_action_filebrowser_down(status_t* current_status, const uint16_t key)
 {
-    Filesel_Update(dir_scan, SCAN_NEXT);
+    Filesel_Update(current_status->dir_scan, SCAN_NEXT);
     return 1;
 }
 
 static uint8_t key_action_filebrowser_enter(status_t* current_status, const uint16_t key)
 {
-    FF_DIRENT mydir = Filesel_GetEntry(dir_scan, dir_scan->sel);
+    FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan, current_status->dir_scan->sel);
 
     if (mydir.Attrib & FF_FAT_ATTR_DIR) {
         //dir_sel
@@ -1138,8 +1133,8 @@ static uint8_t key_action_filebrowser_enter(status_t* current_status, const uint
             }
 
             // sets path
-            Filesel_ChangeDir(dir_scan, current_status->act_dir);
-            Filesel_ScanFirst(dir_scan); // scan first
+            Filesel_ChangeDir(current_status->dir_scan, current_status->act_dir);
+            Filesel_ScanFirst(current_status->dir_scan); // scan first
             return 1;
         }
 
@@ -1161,7 +1156,7 @@ static uint8_t key_action_filebrowser_esc(status_t* current_status, const uint16
 
 static uint8_t key_action_filebrowser_back(status_t* current_status, const uint16_t key)
 {
-    Filesel_DelFilterChar(dir_scan);
+    Filesel_DelFilterChar(current_status->dir_scan);
     // keep grace period here before re-scanning - user might be typing..
     current_status->filescan_timer = Timer_Get(250);
     current_status->delayed_filescan = 1;
@@ -1170,8 +1165,8 @@ static uint8_t key_action_filebrowser_back(status_t* current_status, const uint1
 
 static uint8_t key_action_filebrowser_home(status_t* current_status, const uint16_t key)
 {
-    Filesel_ChangeDir(dir_scan, current_status->act_dir);
-    Filesel_ScanFirst(dir_scan); // scan first
+    Filesel_ChangeDir(current_status->dir_scan, current_status->act_dir);
+    Filesel_ScanFirst(current_status->dir_scan); // scan first
     return 1;
 }
 
@@ -1179,7 +1174,7 @@ static uint8_t key_action_filebrowser_home(status_t* current_status, const uint1
 static uint8_t key_action_filebrowser_default(status_t* current_status, const uint16_t key)
 {
     if ( ((key >= '0') && (key <= '9')) || ((key >= 'A') && (key <= 'Z')) ) {
-        Filesel_AddFilterChar(dir_scan, key & 0x7F);
+        Filesel_AddFilterChar(current_status->dir_scan, key & 0x7F);
         // keep grace period here before re-scanning - user might be typing..
         current_status->filescan_timer = Timer_Get(250);
         current_status->delayed_filescan = 1;
@@ -1415,7 +1410,7 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
 
     // Add/DelFilterChar waits 250ms before re-scanning the directory and updating the UI
     if (current_status->delayed_filescan && Timer_Check(current_status->filescan_timer)) {
-        Filesel_ScanFirst(dir_scan);
+        Filesel_ScanFirst(current_status->dir_scan);
         current_status->delayed_filescan = 0;
         update = 1;
     }
@@ -1584,20 +1579,6 @@ void MENU_set_state(status_t* current_status, tOSDMenuState state)
     }
 
     DEBUG(1, "_MENU_set_state(%d)", state);
-
-    if (state == FILE_BROWSER) {
-        if (CFG_get_free_mem() < sizeof(tDirScan)) {
-            ERROR("MENU: Out of memory!");
-        }
-
-        dir_scan = malloc(sizeof(tDirScan));
-        memset(dir_scan, 0x00, sizeof(tDirScan));
-
-    } else if (dir_scan) {
-        memcpy(current_status->previous_file_filter, dir_scan->file_filter, sizeof(dir_scan->file_filter));
-        free(dir_scan);
-        dir_scan = 0;
-    }
 
     current_status->popup_msg2 = NULL;
 

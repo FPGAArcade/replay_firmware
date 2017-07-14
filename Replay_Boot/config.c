@@ -2086,6 +2086,11 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     uint32_t init_mem = CFG_get_free_mem();
     DEBUG(1, "Initial free MEM: %ld bytes", init_mem);
 
+    Assert(currentStatus->dir_scan == NULL);
+    currentStatus->dir_scan = malloc(sizeof(tDirScan));
+    memset(currentStatus->dir_scan, 0x00, sizeof(tDirScan));
+    DEBUG(1, "tDirScan allocated: %ld bytes", sizeof(tDirScan));
+
     // Set memory phase first
     if (!currentStatus->dram_phase) {
         OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
@@ -2406,6 +2411,14 @@ void CFG_free_menu(status_t* currentStatus)
     currentStatus->menu_act = NULL;
     currentStatus->menu_item_act = NULL;
     currentStatus->item_opt_act = NULL;
+
+    if (currentStatus->dir_scan != NULL) {
+        free(currentStatus->dir_scan);
+        currentStatus->dir_scan = NULL;
+    }
+
+    uint32_t free_mem = CFG_get_free_mem();
+    DEBUG(1, "Post free_menu MEM: %ld bytes", free_mem);
 }
 
 /*

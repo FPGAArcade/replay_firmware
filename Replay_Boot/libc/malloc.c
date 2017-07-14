@@ -4,6 +4,13 @@
 #include "messaging.h"
 #include "freelist.h"
 
+static inline uint32_t __get_lr(void)
+{
+    uint32_t retval;
+    asm volatile (" mov  %0, lr" : "=r" (retval) : /* no inputs */  );
+    return retval;
+}
+
 void* _sbrk_r(void *_s_r, ptrdiff_t nbytes);
 void* sbrk(ptrdiff_t increment)
 {
@@ -21,7 +28,7 @@ static FreeList_Context s_MallocContext = {
 
 void* malloc(size_t size)
 {
-	return FreeList_Alloc(&s_MallocContext, size);
+	return FreeList_Alloc(&s_MallocContext, size, __get_lr());
 }
 
 void* calloc(size_t num, size_t size)
@@ -48,7 +55,7 @@ struct mallinfo mallinfo(void)
 	s_mallinfo.arena = s_MallocContext.heapSize;
 
 	s_mallinfo.fordblks = 0;
-	for (FreeList_Header* p = s_MallocContext.root.nextPtr; p != &s_MallocContext.root; p = p->nextPtr) {
+	for (FreeList_Header* p = s_MallocContext.root.nextPtr; p != NULL && p != &s_MallocContext.root; p = p->nextPtr) {
 //		DEBUG(3, "p = %08x ; numBlocks = %d", p, p->numBlocks);
 		s_mallinfo.fordblks += p->numBlocks * sizeof(FreeList_Header);
 	}
@@ -57,7 +64,7 @@ struct mallinfo mallinfo(void)
 #if FREELIST_DEBUG
 	s_mallinfo.uordblks = 0;
 	for (FreeList_Header* p = s_MallocContext.allocList; p != NULL; p = p->nextPtr) {
-//		DEBUG(3, "p = %08x ; numBlocks = %d", p, p->numBlocks);
+		DEBUG(2, "p = %08x ; numBlocks = %d ; tag = %08x", p, p->numBlocks, p->tag);
 		s_mallinfo.uordblks += p->numBlocks * sizeof(FreeList_Header);
 //		DumpBuffer((uint8_t*)p, p->numBlocks * sizeof(FreeList_Header));
 	}

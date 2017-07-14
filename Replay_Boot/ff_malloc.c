@@ -30,7 +30,7 @@ static FreeList_Context s_MallocContext = {
 void* ff_malloc(size_t size)
 {
 	DEBUG(3, ">> ff_malloc(%d)", size);
-	void*p = FreeList_Alloc(&s_MallocContext, size);
+	void*p = FreeList_Alloc(&s_MallocContext, size, 0x0ff4110c);
 	DEBUG(3, ">> ff_malloc(%d) => %08x", size, p);
 	return p;
 }

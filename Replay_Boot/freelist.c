@@ -2,7 +2,7 @@
 #include "messaging.h"
 #include <string.h>
 
-void* FreeList_Alloc(FreeList_Context* context, size_t size)
+void* FreeList_Alloc(FreeList_Context* context, size_t size, uint32_t tag)
 {
     size_t numBlocks = (size + sizeof(FreeList_Header) - 1) / sizeof(FreeList_Header) + 1;
     FreeList_Header* prevPtr = context->freeList;
@@ -31,6 +31,7 @@ void* FreeList_Alloc(FreeList_Context* context, size_t size)
 
             context->freeList = prevPtr;
 #if FREELIST_DEBUG
+            p->tag = tag;
             p->nextPtr = context->allocList;
             context->allocList = p;
             memset(p + 1, 0xcd, (numBlocks - 1) * sizeof(FreeList_Header));

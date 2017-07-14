@@ -9,6 +9,9 @@
 typedef struct FreeList_Header_ {
     struct FreeList_Header_* nextPtr;
     uint32_t                numBlocks;
+#if FREELIST_DEBUG
+    uint32_t                tag;
+#endif
 } FreeList_Header;
 
 typedef void* (*SbrkFunc)(intptr_t increment);
@@ -23,5 +26,5 @@ typedef struct {
 #endif
 } FreeList_Context;
 
-void* FreeList_Alloc(FreeList_Context* context, size_t size);
+void* FreeList_Alloc(FreeList_Context* context, size_t size, uint32_t tag);
 void  FreeList_Free(FreeList_Context* context, void* ptr);

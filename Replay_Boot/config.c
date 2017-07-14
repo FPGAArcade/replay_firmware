@@ -1499,6 +1499,7 @@ static uint8_t _CFG_handle_UPLOAD_DATA(status_t* pStatus, const ini_symbols_t na
 
     ini_list_t valueList[32];
     uint16_t entries = ParseList(value, valueList, 32);
+    FreeList(valueList, entries);       // make sure any faulty strings are freed
 
     // check for maximum of 16 entries
     // (plus address and dataset length), check both lengths

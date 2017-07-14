@@ -144,6 +144,7 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
     // send FPGA data with SSC DMA in parallel to reading the file
     uint32_t read_offset = 0;
     size_t size = gunzip(read_embedded_core, &read_offset, write_embedded_core, NULL);
+    (void)size; // unused-variable warning/error
     Assert(size == 746212);
 
     SSC_WaitDMA();

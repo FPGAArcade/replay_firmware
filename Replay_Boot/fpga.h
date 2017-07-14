@@ -65,8 +65,8 @@ void    FPGA_ClockMon(status_t* current_status);
 
 void    FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum);
 
-typedef size_t (* const inflate_read_func_ptr)(void* buffer, size_t len, void* context);
-typedef size_t (* const inflate_write_func_ptr)(const void* buffer, size_t len, void* context);
+typedef size_t (*inflate_read_func_ptr)(void* buffer, size_t len, void* context);
+typedef size_t (*inflate_write_func_ptr)(const void* buffer, size_t len, void* context);
 size_t zlib_inflate(inflate_read_func_ptr read_func, void* const read_context, const size_t read_buffer_size, inflate_write_func_ptr write_func, void* const write_context, int flags);
 size_t gunzip(inflate_read_func_ptr read_func, void* const read_context, inflate_write_func_ptr write_func, void* const write_context);
 

@@ -60,7 +60,40 @@
 // Bah! But that's how it is proposed by this lib...
 #include "tinfl.c"
 // ok, so it is :-)
-#include "loader.c"
+
+extern char _binary_build_loader_start;
+extern char _binary_build_loader_end;
+
+static size_t read_embedded_core(void* buffer, size_t len, void* context)
+{
+    static uint32_t secCount = 0;
+    uint32_t offset = *(uint32_t*)context;
+    uint32_t size = &_binary_build_loader_end - &_binary_build_loader_start;
+
+    if (offset+len > size) {
+        len = size - offset;
+    }
+
+    memcpy(buffer, &_binary_build_loader_start + offset, len);
+    *(uint32_t*)context += len;
+
+    // showing some progress...
+    if (!((secCount++ >> 4) & 3)) {
+        ACTLED_ON;
+
+    } else {
+        ACTLED_OFF;
+    }
+
+    return len;
+}
+static size_t write_embedded_core(const void* buffer, size_t len, void* context)
+{
+   SSC_WaitDMA();
+   SSC_WriteBufferSingle((void*)buffer, len, 0); 
+   return len;
+}
+
 #endif
 
 const uint8_t kMemtest[128] = {
@@ -86,14 +119,7 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
     WARNING("FPGA:Embedded core not available!");
     return 1;
 #else
-    uint32_t secCount;
-    unsigned long time;
-
-    uint8_t dBuf1[8192];
-    uint8_t dBuf2[8192];
-    uint32_t loaderIdx = 0;
-
-    time = Timer_Get(0);
+    unsigned long time = Timer_Get(0);
 
     // set PROG low to reset FPGA (open drain)
     IO_DriveLow_OD(PIN_FPGA_PROG_L); //AT91C_BASE_PIOA->PIO_OER = PIN_FPGA_PROG_L;
@@ -116,48 +142,9 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
     }
 
     // send FPGA data with SSC DMA in parallel to reading the file
-    secCount = 0;
-
-    do {
-        uint8_t* pWBuf, *pRBuf;
-        uint16_t cmp_status;
-        uint32_t uncomp_len = sizeof(dBuf1); // does not matter which we use here, have to be the same!
-        uint32_t cmp_len = (loader[loaderIdx] << 8) | (loader[loaderIdx + 1]);
-        loaderIdx += 2;
-
-        // showing some progress...
-        if (!((secCount++ >> 4) & 3)) {
-            ACTLED_ON;
-
-        } else {
-            ACTLED_OFF;
-        }
-
-        if (secCount & 1) {
-            pWBuf = &(dBuf1[0]);
-
-        } else {
-            pWBuf = &(dBuf2[0]);
-        }
-
-        cmp_status = tinfl_decompress_mem_to_mem(pWBuf, uncomp_len, &(loader[loaderIdx]), cmp_len, TINFL_FLAG_PARSE_ZLIB_HEADER);
-
-        if (cmp_status == -1) {
-            WARNING("Bad FPGA configuration setup in FW");
-            break;
-
-        } else {
-            uncomp_len = cmp_status;
-        }
-
-        loaderIdx += cmp_len;
-        DEBUG(3, "%d --> %d  (%08x,%08x,%d)", cmp_len, uncomp_len, pWBuf, &(loader[loaderIdx]), cmp_status);
-
-        // take the just read buffer for writing
-        pRBuf = pWBuf;
-        SSC_WaitDMA();
-        SSC_WriteBufferSingle(pRBuf, uncomp_len, 0);
-    } while (loaderIdx < sizeof(loader));
+    uint32_t read_offset = 0;
+    size_t size = gunzip(read_embedded_core, &read_offset, write_embedded_core, NULL);
+    Assert(size == 746212);
 
     SSC_WaitDMA();
 

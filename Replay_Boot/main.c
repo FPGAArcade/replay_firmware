@@ -216,7 +216,7 @@ int main(void)
             load_embedded_core();
         }
 
-        if ((current_status.fpga_load_ok) || (IO_Input_H(PIN_FPGA_DONE))) {
+        if ((current_status.fpga_load_ok != NO_CORE) || (IO_Input_H(PIN_FPGA_DONE))) {
             init_core();
 
 #if PTP_USB
@@ -224,7 +224,7 @@ int main(void)
 #endif
 
             // we run in here as long as there is no need to reload the FPGA
-            while (current_status.fpga_load_ok) {
+            while (current_status.fpga_load_ok != NO_CORE) {
                 main_update();
             }
         }
@@ -262,13 +262,13 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
         // make it "absolute"
         sprintf(full_filename, "%s%s", current_status.ini_dir, current_status.bin_file);
 
-        current_status.fpga_load_ok = 0;
+        current_status.fpga_load_ok = NO_CORE;
         status = CFG_configure_fpga(full_filename);
 
         if (status) {
             // will not get here if config fails, but just in case...
             MSG_fatal_error(status);  // flash we fail to configure FPGA
-            current_status.fpga_load_ok = 0;
+            current_status.fpga_load_ok = NO_CORE;
 
         } else {
             DEBUG(1, "FPGA CONFIG \"%s\" done.", full_filename);
@@ -293,7 +293,7 @@ static __attribute__ ((noinline)) void load_embedded_core()
     if (!FPGA_Default()) {
         DEBUG(1, "FPGA default set.");
 
-        current_status.fpga_load_ok = 2;
+        current_status.fpga_load_ok = EMBEDDED_CORE;
         current_status.twi_enabled = 1;
         current_status.spi_fpga_enabled = 1;
         current_status.spi_osd_enabled = 1;
@@ -316,9 +316,9 @@ static __attribute__ ((noinline)) void init_core()
     char full_filename[FF_MAX_PATH];
     sprintf(full_filename, "%s%s", current_status.ini_dir, current_status.ini_file);
 
-    if (!current_status.fpga_load_ok) {
+    if (current_status.fpga_load_ok == NO_CORE) {
         DEBUG(1, "FPGA has been configured by debugger.");
-        current_status.fpga_load_ok = 1;
+        current_status.fpga_load_ok = CORE_LOADED;
     }
 
     // post load set up, release reset and wait for FPGA to settle first
@@ -330,7 +330,7 @@ static __attribute__ ((noinline)) void init_core()
                        1000000;
     DEBUG(0, "SPI clock: %d MHz", spiFreq);
 
-    if (current_status.fpga_load_ok != 2) {
+    if (current_status.fpga_load_ok != EMBEDDED_CORE) {
         // we free the memory of a previous setup
         DEBUG(1, "--------------------------");
         DEBUG(1, "CLEANUP (%ld bytes free)", CFG_get_free_mem());
@@ -480,7 +480,7 @@ static __attribute__ ((noinline)) void main_update()
         IO_DriveHigh_OD(PIN_FPGA_PROG_L);
         Timer_Wait(2);
         // invalidate FPGA configuration here as well
-        current_status.fpga_load_ok = 0;
+        current_status.fpga_load_ok = NO_CORE;
     }
 
     if (key == KEY_F12) {
@@ -496,7 +496,7 @@ static __attribute__ ((noinline)) void main_update()
             IO_DriveHigh_OD(PIN_FPGA_PROG_L);
             Timer_Wait(2);
             // invalidate FPGA configuration here as well
-            current_status.fpga_load_ok = 0;
+            current_status.fpga_load_ok = NO_CORE;
         }
     }
 
@@ -504,7 +504,7 @@ static __attribute__ ((noinline)) void main_update()
     CFG_card_start(&current_status); // restart file system if card re-inserted
 
     // we deconfigured externally!
-    if ((!IO_Input_H(PIN_FPGA_DONE)) && (current_status.fpga_load_ok)) {
+    if ((!IO_Input_H(PIN_FPGA_DONE)) && (current_status.fpga_load_ok != NO_CORE)) {
         MSG_warning("FPGA has been deconfigured.");
 
         // assume this is the programmer and wait for it to be reconfigured
@@ -515,12 +515,12 @@ static __attribute__ ((noinline)) void main_update()
 
         OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
         FPGA_DramTrain();
-        current_status.fpga_load_ok = 0;  // break the main loop
+        current_status.fpga_load_ok = NO_CORE;  // break the main loop
         return;
     }
 
     // we check if we are in fallback mode and a proper sdcard is available now
-    if ((current_status.fpga_load_ok == 2) && (current_status.fs_mounted_ok)) {
+    if ((current_status.fpga_load_ok == EMBEDDED_CORE) && (current_status.fs_mounted_ok)) {
         IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
         ACTLED_ON;
         // set PROG low to reset FPGA (open drain)
@@ -529,7 +529,7 @@ static __attribute__ ((noinline)) void main_update()
         IO_DriveHigh_OD(PIN_FPGA_PROG_L);
         Timer_Wait(2);
         // invalidate FPGA configuration here as well
-        current_status.fpga_load_ok = 0;
+        current_status.fpga_load_ok = NO_CORE;
     }
 
     // Handle virtual drives

@@ -253,7 +253,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
         MENU_set_state(current_status, NO_MENU);
         OSD_Disable();
         // "kill" FPGA content and re-run setup
-        current_status->fpga_load_ok = 0;
+        current_status->fpga_load_ok = NO_CORE;
 
         // reset config
         CFG_set_status_defaults(current_status, FALSE);
@@ -427,7 +427,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
         MENU_set_state(current_status, NO_MENU);
         OSD_Disable();
         // "kill" FPGA content and re-run setup
-        current_status->fpga_load_ok = 0;
+        current_status->fpga_load_ok = NO_CORE;
 
         // reset config
         CFG_set_status_defaults(current_status, FALSE);
@@ -1384,7 +1384,7 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
         key_mappings_length = sizeof(keymappings_filebrowser) / sizeof(tKeyMapping);
 
     } else if ((current_status->menu_state == SHOW_STATUS) &&
-               (current_status->fpga_load_ok != 2)) {
+               (current_status->fpga_load_ok != EMBEDDED_CORE)) {
         key_mappings = keymappings_showstatus;
         key_mappings_length = sizeof(keymappings_showstatus) / sizeof(tKeyMapping);
 

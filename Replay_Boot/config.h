@@ -245,6 +245,12 @@ typedef enum _tOSDMenuState {
     USB_STATUS   = 5,
 } tOSDMenuState;
 
+typedef enum _tFPGAState {
+    NO_CORE      = 0,
+    CORE_LOADED  = 1,
+    EMBEDDED_CORE= 2,
+} tFPGAState;
+
 typedef struct _tIniTarget {
     char* name;
     char* dir;

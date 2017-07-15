@@ -130,6 +130,8 @@ SRC += iniparser.c messaging.c
 SRC += common/Cstartup_SAM7.c
 
 SRCBIN += ../../../hw/replay/cores/loader_embedded/sdcard/loader.bin
+SRCRAW += ../../../hw/replay/cores/loader_embedded/sdcard/replayhand.raw
+SRCTXT += embedded.ini
 
 ifeq ($(USE_NEWLIB),NO)
 SRC += $(wildcard libc/*.c) $(wildcard libc/stdlib/*.c) $(wildcard libc/string/*.c)
@@ -360,7 +362,11 @@ AOBJ      = $(addprefix $(BUILDDIR),$(ASRC:.S=.o))
 AOBJARM   = $(addprefix $(BUILDDIR),$(ASRCARM:.S=.o))
 CPPOBJ    = $(addprefix $(BUILDDIR),$(CPPSRC:.cpp=.o))
 CPPOBJARM = $(addprefix $(BUILDDIR),$(CPPSRCARM:.cpp=.o))
-BINOBJ    = $(addprefix $(BUILDDIR),$(addsuffix .o, $(basename $(notdir $(SRCBIN)))))
+BINOBJ    = $(addprefix $(BUILDDIR),$(notdir $(SRCBIN:.bin=.o)))
+RAWOBJ    = $(addprefix $(BUILDDIR),$(notdir $(SRCRAW:.raw=.o)))
+TXTOBJ    = $(addprefix $(BUILDDIR),$(addsuffix .o, $(basename $(notdir $(SRCTXT)))))
+EXTOBJ    = $(BINOBJ) $(RAWOBJ) $(TXTOBJ)
+VPATH += $(sort $(dir $(SRCRAW)) $(dir $(SRCBIN)))
 
 # Define all listing files.
 LST  = $(addprefix $(BUILDDIR), $(ASRC:.S=.lst) $(ASRCARM:.S=.lst) $(SRC:.c=.lst) $(SRCARM:.c=.lst))
@@ -458,13 +464,13 @@ $(BUILDDIR)%.sym: $(BUILDDIR)%.elf
 
 # Link: create ELF output file from object files.
 .SECONDARY : $(BUILDDIR)$(TARGET).elf
-.PRECIOUS : $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(BINOBJ)
-$(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(BINOBJ)
+.PRECIOUS : $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
+$(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
 	@echo
 	$(BUILD_NUM) > buildnum
 	$(OBJCOPY) -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 	@echo $(MSG_LINKING) $@
-	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(BINOBJ) buildnum.o --output $@ $(LDFLAGS)
+	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ) buildnum.o --output $@ $(LDFLAGS)
 	$(REMOVE) buildnum buildnum.o
 #       $(CPP) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
 
@@ -492,11 +498,18 @@ $(CPPOBJARM) : $(BUILDDIR)%.o : %.cpp
 	@echo $(MSG_COMPILINGCPP_ARM) $<
 	$(CPP) -c $(ALL_CFLAGS) $(CPPFLAGS) $< -o $@
 
-$(BINOBJ) : $(SRCBIN)
+$(BINOBJ) : $(BUILDDIR)%.o : %.bin
+$(RAWOBJ) : $(BUILDDIR)%.o : %.raw
+$(BINOBJ) $(RAWOBJ): 
 	@echo
-	@echo Obj-copying $<
+	@echo Obj-copying compressed binary $<
 	gzip < $< > $(basename $@)
 	$(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(basename $@) $@	
+
+$(TXTOBJ) : $(BUILDDIR)%.o : %.ini
+	@echo
+	@echo Obj-copying raw $<
+	$(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $< $@	
 
 # Compile: create assembler files from C source files. ARM/Thumb
 ## does not work - TODO - hints welcome
@@ -517,7 +530,7 @@ $(AOBJARM) : $(BUILDDIR)%.o : %.S
 	@echo $(MSG_ASSEMBLING_ARM) $<
 	$(CC) -c $(ALL_ASFLAGS) $< -o $@
 
-$(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(BINOBJ): $(DEPMAKEFILE)
+$(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM): $(DEPMAKEFILE)
 
 $(DEPMAKEFILE): Makefile
 	@touch $@
@@ -555,8 +568,8 @@ clean_list :
 	$(REMOVE) $(CPPSRC:.cpp=.d)
 	$(REMOVE) $(CPPSRCARM:.cpp=.s)
 	$(REMOVE) $(CPPSRCARM:.cpp=.d)
-	$(REMOVE) $(BINOBJ)
-	$(REMOVE) $(BINOBJ:.o=)
+	$(REMOVE) $(EXTOBJ)
+	$(REMOVE) $(EXTOBJ:.o=)
 	$(REMOVE) -r $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
 
 astyle :

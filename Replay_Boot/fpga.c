@@ -1049,3 +1049,55 @@ size_t gunzip(inflate_read_func_ptr read_func, void* const read_context, inflate
 }
 
 #endif
+
+typedef struct _DecompressBufferContext
+{
+    char*       buffer;
+    uint32_t    remaining;
+} tDecompressBufferContext;
+
+static size_t read_embedded_buffer(void* buffer, size_t len, void* context)
+{
+    tDecompressBufferContext* read_context = (tDecompressBufferContext*)context;
+
+    if (len > read_context->remaining) {
+        len = read_context->remaining;
+    }
+
+    memcpy(buffer, read_context->buffer, len);
+    read_context->buffer += len;
+    read_context->remaining -= len;
+
+    return len;
+}
+static size_t write_to_dram(const void* buffer, size_t len, void* context)
+{
+    uint32_t* write_offset = (uint32_t*)context;
+    size_t written = 0;
+    while (len != 0) {
+        uint32_t size = len > 512 ? 512 : len;
+
+        if (FileIO_MCh_BufToMem((void*)buffer, *write_offset, size) != 0) {
+            WARNING("DRAM write failed!");
+            return written;
+        }
+
+        written += size;
+        *write_offset += size;
+        len -= size;
+        buffer = &((uint8_t*)buffer)[size];
+    }
+
+    return written;
+}
+
+
+void FPGA_DecompressToDRAM(char* buffer, uint32_t size, uint32_t base)
+{
+    tDecompressBufferContext read_context;
+    read_context.buffer = buffer;
+    read_context.remaining = size;
+    uint32_t write_offset = base;
+    size_t bytes = gunzip(read_embedded_buffer, &read_context, write_to_dram, &write_offset);
+    DEBUG(1, "Decompressed %d bytes to %08x", bytes, base);
+}

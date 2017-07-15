@@ -157,23 +157,102 @@ static char* FindCharr(const char* e, const char* min, char c)
 
 // ==========================================================================
 
-uint8_t ParseIni(FF_FILE* pFile,
-                 uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
-                 void* config)
+static uint32_t ParseLine(uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
+                        void* config,
+                        ini_symbols_t* section,
+                        uint32_t lineNumber,
+                        char* lineBuffer)
 {
-
-    char lineBuffer[MAX_LINE_LEN];
-    ini_symbols_t section = INI_UNKNOWN;
-
-    uint32_t i;
-    uint32_t lineNumber = 1;
     uint32_t lineError = 0;
-    int32_t ch = 0; // note signed
 
     char* start;
     char* end;
     char* name;
     char* value;
+
+    start = FindFirstChar(StripTrailingSpaces(lineBuffer));
+
+    if (*start == '[') {
+        end = FindChar(start + 1, ']'); // find end or comment
+
+        if (*end == ']') {
+            int32_t idx = -1;
+            *end = '\0';
+
+            // get the token for further handling
+            do {
+                if (stricmp(symtab[++idx].keyword, start + 1) == 0) {
+                    break;
+                }
+            } while (symtab[idx].token != INI_UNKNOWN);
+
+            *section = symtab[idx].token;
+
+            // check correctness, then call parser to indicate new section
+            if (symtab[idx].token == INI_UNKNOWN) {
+                ERROR("Unknown keyword. Line %d", lineNumber);
+                lineError = lineNumber;
+
+            } else if (symtab[idx].section == FALSE) {
+                ERROR("Keyword not valid here. Line %d", lineNumber);
+                lineError = lineNumber;
+
+            } else if (parseHandle(config, *section, INI_UNKNOWN, NULL)) {
+                lineError = lineNumber;
+            }
+
+        } else {
+            lineError = lineNumber;
+        }
+
+    } else if (*start && (*start != ';') && (*start != '#')) {
+        end = FindChar(start + 1, '=');
+
+        if (*end == '=') {
+            int32_t idx = -1;
+            *end = '\0';
+            name = StripTrailingSpaces(start);
+            value = FindFirstChar(end + 1);
+            end = FindLastChar(value, strlen(value)) + 1;
+            *end = '\0';
+
+            // get the token for further handling
+            do {
+                if (stricmp(symtab[++idx].keyword, name) == 0) {
+                    break;
+                }
+            } while (symtab[idx].token != INI_UNKNOWN);
+
+            // call parser if token is fine
+            if (symtab[idx].token == INI_UNKNOWN) {
+                ERROR("Unknown keyword. Line %d", lineNumber);
+                lineError = lineNumber;
+
+            } else if (symtab[idx].section == TRUE) {
+                ERROR("Keyword not valid here. Line %d", lineNumber);
+                lineError = lineNumber;
+            }
+
+            if (parseHandle(config, *section, symtab[idx].token, value)) {
+                lineError = lineNumber;
+            }
+        }
+    }
+    return lineError;
+}
+
+uint8_t ParseIni(FF_FILE* pFile,
+                 uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
+                 void* config)
+{
+    ini_symbols_t section = INI_UNKNOWN;
+
+    char lineBuffer[MAX_LINE_LEN];
+
+    uint32_t i;
+    uint32_t lineNumber = 1;
+    uint32_t lineError = 0;
+    int32_t ch = 0; // note signed
 
     do {
         // read line from file
@@ -188,76 +267,48 @@ uint8_t ParseIni(FF_FILE* pFile,
             ch = FF_GetC(pFile);
         }
 
-        start = FindFirstChar(StripTrailingSpaces(lineBuffer));
+        lineError = ParseLine(parseHandle, config, &section, lineNumber, lineBuffer);
+        lineNumber ++;
 
-        if (*start == '[') {
-            end = FindChar(start + 1, ']'); // find end or comment
+    } while ((ch != -1) && !lineError); // -1 is EOF
 
-            if (*end == ']') {
-                int32_t idx = -1;
-                *end = '\0';
+    if (!lineError) {
+        // call again to notify end of ini file
+        parseHandle(config, INI_UNKNOWN, INI_UNKNOWN, NULL);
+    }
 
-                // get the token for further handling
-                do {
-                    if (stricmp(symtab[++idx].keyword, start + 1) == 0) {
-                        break;
-                    }
-                } while (symtab[idx].token != INI_UNKNOWN);
+    return lineError;
+}
 
-                section = symtab[idx].token;
+uint8_t ParseIniFromString(const char* str, size_t strlen,
+                 uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
+                 void* config)
+{
+    const char* strend = str + strlen;
+    ini_symbols_t section = INI_UNKNOWN;
+    char lineBuffer[MAX_LINE_LEN];
 
-                // check correctness, then call parser to indicate new section
-                if (symtab[idx].token == INI_UNKNOWN) {
-                    ERROR("Unknown keyword. Line %d", lineNumber);
-                    lineError = lineNumber;
+    uint32_t i;
+    uint32_t lineNumber = 1;
+    uint32_t lineError = 0;
+    int32_t ch = 0; // note signed
 
-                } else if (symtab[idx].section == FALSE) {
-                    ERROR("Keyword not valid here. Line %d", lineNumber);
-                    lineError = lineNumber;
-
-                } else if (parseHandle(config, section, INI_UNKNOWN, NULL)) {
-                    lineError = lineNumber;
-                }
-
-            } else {
-                lineError = lineNumber;
-            }
-
-        } else if (*start && (*start != ';') && (*start != '#')) {
-            end = FindChar(start + 1, '=');
-
-            if (*end == '=') {
-                int32_t idx = -1;
-                *end = '\0';
-                name = StripTrailingSpaces(start);
-                value = FindFirstChar(end + 1);
-                end = FindLastChar(value, strlen(value)) + 1;
-                *end = '\0';
-
-                // get the token for further handling
-                do {
-                    if (stricmp(symtab[++idx].keyword, name) == 0) {
-                        break;
-                    }
-                } while (symtab[idx].token != INI_UNKNOWN);
-
-                // call parser if token is fine
-                if (symtab[idx].token == INI_UNKNOWN) {
-                    ERROR("Unknown keyword. Line %d", lineNumber);
-                    lineError = lineNumber;
-
-                } else if (symtab[idx].section == TRUE) {
-                    ERROR("Keyword not valid here. Line %d", lineNumber);
-                    lineError = lineNumber;
-                }
-
-                if (parseHandle(config, section, symtab[idx].token, value)) {
-                    lineError = lineNumber;
-                }
-            }
+    do {
+        // read line from file
+        for (i = 0; (i < (sizeof(lineBuffer) - 1) && ((ch = (str<strend ? *str++ : -1)) >= 0) && (ch != '\n')); i++) {
+            lineBuffer[i] = (char) ch;
         }
 
+        lineBuffer[i] = '\0';
+
+        // read rest of line if it was too big for buffer
+        while (( ch != -1) && (ch != '\n')) {
+            ch = (str < strend ? *str++ : -1);
+        }
+
+        lineError = ParseLine(parseHandle, config, &section, lineNumber, lineBuffer);
         lineNumber ++;
+
     } while ((ch != -1) && !lineError); // -1 is EOF
 
     if (!lineError) {

@@ -64,6 +64,7 @@ uint8_t FPGA_ProdTest(void);
 void    FPGA_ClockMon(status_t* current_status);
 
 void    FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum);
+void	FPGA_DecompressToDRAM(char* buffer, uint32_t size, uint32_t base);
 
 typedef size_t (*inflate_read_func_ptr)(void* buffer, size_t len, void* context);
 typedef size_t (*inflate_write_func_ptr)(const void* buffer, size_t len, void* context);

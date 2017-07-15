@@ -1378,8 +1378,8 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
         key_mappings = keymappings_filebrowser;
         key_mappings_length = sizeof(keymappings_filebrowser) / sizeof(tKeyMapping);
 
-    } else if ((current_status->menu_state == SHOW_STATUS) &&
-               (current_status->fpga_load_ok != EMBEDDED_CORE)) {
+    } else if ((current_status->menu_state == SHOW_STATUS) /*&&
+               (current_status->fpga_load_ok != EMBEDDED_CORE)*/) {
         key_mappings = keymappings_showstatus;
         key_mappings_length = sizeof(keymappings_showstatus) / sizeof(tKeyMapping);
 

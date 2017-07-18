@@ -47,11 +47,12 @@ const MtpStorage* mtp_get_storage_info(MtpStorageId id)
 
     strncpy(storage.description, pIoman->pPartition->VolLabel, sizeof(storage.description));
     storage.description[sizeof(storage.description)-1] = '\0';
-    for (int i = sizeof(storage.description)-1; i; --i)
+    for (int i = sizeof(storage.description)-1; i; --i) {
     	if (isspace(storage.description[i]) || storage.description[i] == '\0')
     		storage.description[i] = 0;
     	else
     		break;
+	}
 
 	storage.storage_type = PTP_ST_RemovableRAM;
 	storage.filesystem_type = PTP_FST_GenericHierarchical;

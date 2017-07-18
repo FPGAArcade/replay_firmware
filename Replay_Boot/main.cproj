@@ -1,0 +1,747 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="14.0">
+  <PropertyGroup>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectVersion>7.0</ProjectVersion>
+    <ToolchainName>com.Atmel.ARMGCC.C</ToolchainName>
+    <ProjectGuid>{2382a796-7a3a-408e-9125-02de729090c9}</ProjectGuid>
+    <avrdevice>ATSAM4SD32C</avrdevice>
+    <avrdeviceseries>none</avrdeviceseries>
+    <OutputType>Executable</OutputType>
+    <Language>C</Language>
+    <OutputFileName>$(MSBuildProjectName)</OutputFileName>
+    <OutputFileExtension>.elf</OutputFileExtension>
+    <OutputDirectory>$(MSBuildProjectDirectory)\$(Configuration)</OutputDirectory>
+    <AssemblyName>main</AssemblyName>
+    <Name>main</Name>
+    <RootNamespace>main</RootNamespace>
+    <ToolchainFlavour>Native</ToolchainFlavour>
+    <KeepTimersRunning>true</KeepTimersRunning>
+    <OverrideVtor>false</OverrideVtor>
+    <CacheFlash>true</CacheFlash>
+    <ProgFlashFromRam>true</ProgFlashFromRam>
+    <RamSnippetAddress />
+    <UncachedRange />
+    <preserveEEPROM>true</preserveEEPROM>
+    <OverrideVtorValue />
+    <BootSegment>2</BootSegment>
+    <eraseonlaunchrule>0</eraseonlaunchrule>
+    <AsfFrameworkConfig>
+      <framework-data xmlns="">
+        <options />
+        <configurations />
+        <files />
+        <documentation help="" />
+        <offline-documentation help="" />
+        <dependencies>
+          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.34.1" />
+        </dependencies>
+      </framework-data>
+    </AsfFrameworkConfig>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <ToolchainSettings>
+      <ArmGcc>
+  <armgcc.common.outputfiles.hex>True</armgcc.common.outputfiles.hex>
+  <armgcc.common.outputfiles.lss>True</armgcc.common.outputfiles.lss>
+  <armgcc.common.outputfiles.eep>True</armgcc.common.outputfiles.eep>
+  <armgcc.common.outputfiles.bin>True</armgcc.common.outputfiles.bin>
+  <armgcc.common.outputfiles.srec>True</armgcc.common.outputfiles.srec>
+  <armgcc.compiler.preprocessor.DoNotSearchSystemDirectories>True</armgcc.compiler.preprocessor.DoNotSearchSystemDirectories>
+  <armgcc.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>_ANSI_LIBRARY</Value>
+      <Value>FPGA_DISABLE_EMBEDDED_CORE</Value>
+      <Value>NDEBUG</Value>
+    </ListValues>
+  </armgcc.compiler.symbols.DefSymbols>
+  <armgcc.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>..</Value>
+      <Value>../common</Value>
+      <Value>../hardware</Value>
+      <Value>../filesys</Value>
+      <Value>../sam4s</Value>
+      <Value>../sam4s/cmsis/thirdparty</Value>
+      <Value>../libc/include</Value>
+      <Value>../usb</Value>
+    </ListValues>
+  </armgcc.compiler.directories.IncludePaths>
+  <armgcc.compiler.optimization.level>Optimize for size (-Os)</armgcc.compiler.optimization.level>
+  <armgcc.compiler.optimization.OtherFlags>-Wno-attributes -Wno-maybe-uninitialized</armgcc.compiler.optimization.OtherFlags>
+  <armgcc.compiler.optimization.PrepareFunctionsForGarbageCollection>True</armgcc.compiler.optimization.PrepareFunctionsForGarbageCollection>
+  <armgcc.compiler.optimization.PrepareDataForGarbageCollection>True</armgcc.compiler.optimization.PrepareDataForGarbageCollection>
+  <armgcc.compiler.warnings.AllWarnings>True</armgcc.compiler.warnings.AllWarnings>
+  <armgcc.compiler.warnings.WarningsAsErrors>True</armgcc.compiler.warnings.WarningsAsErrors>
+  <armgcc.linker.general.DoNotUseStandardStartFiles>True</armgcc.linker.general.DoNotUseStandardStartFiles>
+  <armgcc.linker.general.NoStartupOrDefaultLibs>True</armgcc.linker.general.NoStartupOrDefaultLibs>
+  <armgcc.linker.libraries.Libraries>
+    <ListValues>
+      <Value>gcc</Value>
+    </ListValues>
+  </armgcc.linker.libraries.Libraries>
+  <armgcc.linker.libraries.LibrarySearchPaths>
+    <ListValues>
+      <Value>%24(ProjectDir)\Device_Startup</Value>
+    </ListValues>
+  </armgcc.linker.libraries.LibrarySearchPaths>
+  <armgcc.linker.optimization.GarbageCollectUnusedSections>True</armgcc.linker.optimization.GarbageCollectUnusedSections>
+  <armgcc.linker.memorysettings.ExternalRAM>False</armgcc.linker.memorysettings.ExternalRAM>
+  <armgcc.linker.miscellaneous.LinkerFlags>-T../common/SAM4SD32-ROM.ld</armgcc.linker.miscellaneous.LinkerFlags>
+  <armgcc.assembler.general.IncludePaths>
+    <ListValues>
+      <Value>%24(PackRepoDir)\atmel\SAM4S_DFP\1.0.56\sam4s\include</Value>
+      <Value>%24(PackRepoDir)\arm\CMSIS\4.2.0\CMSIS\Include\</Value>
+    </ListValues>
+  </armgcc.assembler.general.IncludePaths>
+  <armgcc.preprocessingassembler.general.IncludePaths>
+    <ListValues>
+      <Value>%24(PackRepoDir)\atmel\SAM4S_DFP\1.0.56\sam4s\include</Value>
+      <Value>%24(PackRepoDir)\arm\CMSIS\4.2.0\CMSIS\Include\</Value>
+    </ListValues>
+  </armgcc.preprocessingassembler.general.IncludePaths>
+</ArmGcc>
+    </ToolchainSettings>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <ToolchainSettings>
+      <ArmGcc>
+  <armgcc.common.outputfiles.hex>True</armgcc.common.outputfiles.hex>
+  <armgcc.common.outputfiles.lss>True</armgcc.common.outputfiles.lss>
+  <armgcc.common.outputfiles.eep>True</armgcc.common.outputfiles.eep>
+  <armgcc.common.outputfiles.bin>True</armgcc.common.outputfiles.bin>
+  <armgcc.common.outputfiles.srec>True</armgcc.common.outputfiles.srec>
+  <armgcc.compiler.preprocessor.DoNotSearchSystemDirectories>True</armgcc.compiler.preprocessor.DoNotSearchSystemDirectories>
+  <armgcc.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>_ANSI_LIBRARY</Value>
+      <Value>FPGA_DISABLE_EMBEDDED_CORE</Value>
+    </ListValues>
+  </armgcc.compiler.symbols.DefSymbols>
+  <armgcc.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>..</Value>
+      <Value>../common</Value>
+      <Value>../hardware</Value>
+      <Value>../filesys</Value>
+      <Value>../sam4s</Value>
+      <Value>../sam4s/cmsis/thirdparty</Value>
+      <Value>../libc/include</Value>
+      <Value>../usb</Value>
+    </ListValues>
+  </armgcc.compiler.directories.IncludePaths>
+  <armgcc.compiler.optimization.level>Optimize (-O1)</armgcc.compiler.optimization.level>
+  <armgcc.compiler.optimization.OtherFlags>-Wno-attributes -Wno-maybe-uninitialized</armgcc.compiler.optimization.OtherFlags>
+  <armgcc.compiler.optimization.PrepareFunctionsForGarbageCollection>True</armgcc.compiler.optimization.PrepareFunctionsForGarbageCollection>
+  <armgcc.compiler.optimization.PrepareDataForGarbageCollection>True</armgcc.compiler.optimization.PrepareDataForGarbageCollection>
+  <armgcc.compiler.optimization.DebugLevel>Maximum (-g3)</armgcc.compiler.optimization.DebugLevel>
+  <armgcc.compiler.warnings.AllWarnings>True</armgcc.compiler.warnings.AllWarnings>
+  <armgcc.compiler.warnings.WarningsAsErrors>True</armgcc.compiler.warnings.WarningsAsErrors>
+  <armgcc.linker.general.DoNotUseStandardStartFiles>True</armgcc.linker.general.DoNotUseStandardStartFiles>
+  <armgcc.linker.general.NoStartupOrDefaultLibs>True</armgcc.linker.general.NoStartupOrDefaultLibs>
+  <armgcc.linker.libraries.Libraries>
+    <ListValues>
+      <Value>gcc</Value>
+    </ListValues>
+  </armgcc.linker.libraries.Libraries>
+  <armgcc.linker.libraries.LibrarySearchPaths>
+    <ListValues>
+      <Value>%24(ProjectDir)\Device_Startup</Value>
+    </ListValues>
+  </armgcc.linker.libraries.LibrarySearchPaths>
+  <armgcc.linker.optimization.GarbageCollectUnusedSections>True</armgcc.linker.optimization.GarbageCollectUnusedSections>
+  <armgcc.linker.memorysettings.ExternalRAM />
+  <armgcc.linker.miscellaneous.LinkerFlags>-T../common/SAM4SD32-ROM.ld</armgcc.linker.miscellaneous.LinkerFlags>
+  <armgcc.assembler.general.IncludePaths>
+    <ListValues>
+      <Value>%24(PackRepoDir)\atmel\SAM4S_DFP\1.0.56\sam4s\include</Value>
+      <Value>%24(PackRepoDir)\arm\CMSIS\4.2.0\CMSIS\Include\</Value>
+    </ListValues>
+  </armgcc.assembler.general.IncludePaths>
+  <armgcc.assembler.debugging.DebugLevel>Default (-g)</armgcc.assembler.debugging.DebugLevel>
+  <armgcc.preprocessingassembler.general.IncludePaths>
+    <ListValues>
+      <Value>%24(PackRepoDir)\atmel\SAM4S_DFP\1.0.56\sam4s\include</Value>
+      <Value>%24(PackRepoDir)\arm\CMSIS\4.2.0\CMSIS\Include\</Value>
+    </ListValues>
+  </armgcc.preprocessingassembler.general.IncludePaths>
+  <armgcc.preprocessingassembler.debugging.DebugLevel>Default (-Wa,-g)</armgcc.preprocessingassembler.debugging.DebugLevel>
+</ArmGcc>
+    </ToolchainSettings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="board.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="card.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="card.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="common\AT91SAM7S256.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <None Include="common\Cstartup.S">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="common\Cstartup_SAM7.c">
+      <SubType>compile</SubType>
+    </None>
+    <Compile Include="common\startup_sam4s.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="common\swi.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <None Include="common\swi_handler.S">
+      <SubType>compile</SubType>
+    </None>
+    <Compile Include="common\swi_numbers.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="common\syscalls.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="config.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="config.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="ff_malloc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="fileio.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="fileio.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="fileio_drv.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="fileio_drv00_generic.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="fileio_drv01_floppy.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="fileio_drv08_ata.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesel.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesel.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_blk.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_blk.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_config.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_crc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_crc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_dir.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_dir.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_error.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_error.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_fat.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_fat.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_fatdef.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_file.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_file.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_format.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_format.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_hash.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_hash.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_ioman.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_ioman.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_memory.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_memory.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_safety.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_safety.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_string.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_string.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_time.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_time.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_types.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <None Include="filesys\ff_unaligned.c">
+      <SubType>compile</SubType>
+    </None>
+    <Compile Include="filesys\ff_unicode.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\ff_unicode.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="filesys\fullfat.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="fpga.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="fpga.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="freelist.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="freelist.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardblocks.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\io.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\io.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\irq.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\irq.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\spi.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\spi.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\ssc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\ssc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\timer.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\timer.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\twi.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\twi.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\usart.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\usart.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="iniparser.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="iniparser.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\ctype.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\ctype.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\errno.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\limits.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\malloc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\stdarg.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\stddef.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\stdint.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\stdio.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\stdlib.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\string.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\strings.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\time.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\include\unistd.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\malloc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\stdlib\abort.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\stdlib\strtol.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\stdlib\strtoul.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\memcmp.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\memcpy.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\memset.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\strcasecmp.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\strcasestr.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\strcat.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\strchr.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\strcmp.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\strcpy.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\strlen.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\strncmp.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\string\strncpy.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libc\__errno.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="main.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="menu.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="menu.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="messaging.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="messaging.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="osd.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="osd.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="printf.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="printf.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rdb.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rdb.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="sam4s\AT91SAM4SD32.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="sam4s\compiler.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="sam4s\status_codes.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="stringlight.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="stringlight.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="swi_handler_user.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <None Include="tinfl.c">
+      <SubType>compile</SubType>
+    </None>
+    <Compile Include="twi.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="twi.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\cdc_enumerate.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\cdc_enumerate.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\msc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\msc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\msc_descriptor.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\mtp_client.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\mtp_client.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\mtp_database.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\mtp_database.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\mtp_supported.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\ptp.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\ptp_readwrite.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\ptp_usb.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\ptp_usb.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\ptp_usb_descriptor.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\usb_flash.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\usb_hardware.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb\usb_hardware.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\cdata.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\crc_csum.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\crc_csum.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\getbits.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\getbits.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\maketbl.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\maketbl.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\pfile.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\pfile.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\tables.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\tables.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_deep.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_deep.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_heavy.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_heavy.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_init.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_init.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_medium.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_medium.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_quick.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_quick.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_rle.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="xdms\u_rle.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <None Include="xdms\xdms.c">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="common\" />
+    <Folder Include="filesys\" />
+    <Folder Include="hardware\" />
+    <Folder Include="libc\" />
+    <Folder Include="libc\include" />
+    <Folder Include="libc\stdlib" />
+    <Folder Include="libc\string" />
+    <Folder Include="sam4s\" />
+    <Folder Include="usb\" />
+    <Folder Include="xdms\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="common\AT91SAM7S256-RAM.ld">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="common\AT91SAM7S256-ROM.ld">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="common\AT91SAM7S256_memory.ldh">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="common\AT91SAM7S_sections_RAM.ldh">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="common\AT91SAM7S_sections_ROM.ldh">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="common\SAM4SD32-ROM.ld">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="filesys\Makefile">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="libc\readme.txt">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="usb\mtp_supported.inl">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="xdms\ChangeLog.txt">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="xdms\COPYING">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="xdms\Makefile">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="xdms\xdms.txt">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />
+</Project>

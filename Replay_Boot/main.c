@@ -386,13 +386,13 @@ static __attribute__ ((noinline)) void init_core()
         // dynamic/static setup bits
         OSD_ConfigSendUserS(0x00000000);
         OSD_ConfigSendUserD(0x00000000); // 60HZ progressive
-
+#ifndef FPGA_DISABLE_EMBEDDED_CORE
         int32_t status = ParseIniFromString(&_binary_embedded_ini_start, &_binary_embedded_ini_end - &_binary_embedded_ini_start, _CFG_parse_handler, &current_status);
         if (status != 0 ) {
             ERROR("Execution stopped at INI line %d", status);
         }
         _MENU_update_bits(&current_status);
-
+#endif
         OSD_Reset(OSDCMD_CTRL_RES);
         WARNING("Using hardcoded fallback!");
     }

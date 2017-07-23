@@ -896,8 +896,11 @@ void _MENU_update_ui(status_t* current_status)
     OSD_WriteBase(1, 14, "", 0, 0, BLACK, DARK_BLUE, 1); // clears row
 
     if (current_status->menu_state == SHOW_STATUS) {
-        OSD_WriteRC(1,  0,  "= REPLAY RETRO GAMING PLATFORM =", 0, BLACK, DARK_BLUE);
-        OSD_WriteRC(14, 0,  "= NO EMULATION - NO COMPROMISE =", 0, DARK_MAGENTA, DARK_BLUE);
+      /*OSD_WriteRC(1,  0,  "= REPLAY RETRO GAMING PLATFORM =", 0, BLACK, DARK_BLUE);*/
+      /*OSD_WriteRC(14, 0,  "= NO EMULATION - NO COMPROMISE =", 0, DARK_MAGENTA, DARK_BLUE);*/
+      // temp revert while waiting for new look and feel ...
+        OSD_WriteRC(1,  0,  "                                ", 0, BLACK, DARK_BLUE);
+        OSD_WriteRC(14, 0,  "                                ", 0, DARK_MAGENTA, DARK_BLUE);
         _MENU_show_status(current_status);
 
     } else if (current_status->menu_state == POPUP_MENU) {

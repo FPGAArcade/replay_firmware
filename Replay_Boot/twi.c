@@ -381,22 +381,22 @@ void Configure_ClockGen(const clockconfig_t* config)
     mem[17 - 1] = (EBITS(config->p_div[4], 0, 7));
     mem[18 - 1] = (EBITS(config->p_div[5], 0, 7));
 
-    mem[19 - 1] = (0x01 << 4) |
+    mem[19 - 1] = (0x03 << 4) |
                   (EBITS(config->y_sel[0], 0, 1) << 3) |
                   (EBITS(y_sel[0], 0, 3));
-    mem[20 - 1] = (0x01 << 4) |
+    mem[20 - 1] = (0x03 << 4) |
                   (EBITS(config->y_sel[1], 0, 1) << 3) |
                   (EBITS(y_sel[1], 0, 3));
-    mem[21 - 1] = (0x01 << 4) |
+    mem[21 - 1] = (0x03 << 4) |
                   (EBITS(config->y_sel[2], 0, 1) << 3) |
                   (EBITS(y_sel[2], 0, 3));
-    mem[22 - 1] = (0x01 << 4) |
+    mem[22 - 1] = (0x03 << 4) |
                   (EBITS(config->y_sel[3], 0, 1) << 3) |
                   (EBITS(y_sel[3], 0, 3));
-    mem[23 - 1] = (0x01 << 4) |
+    mem[23 - 1] = (0x03 << 4) |
                   (EBITS(config->y_sel[4], 0, 1) << 3) |
                   (EBITS(y_sel[4], 0, 3));
-    mem[24 - 1] = (0x01 << 4) |
+    mem[24 - 1] = (0x03 << 4) |
                   (EBITS(config->y_sel[5], 0, 1) << 3) |
                   (EBITS(y_sel[5], 0, 3));
 

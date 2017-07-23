@@ -1547,6 +1547,9 @@ static uint8_t _CFG_handle_UPLOAD_LAUNCH(status_t* pStatus, const ini_symbols_t 
 {
     ini_list_t valueList[8];
     uint16_t entries = ParseList(value, valueList, 8);
+    // quick hack, update config bits
+    OSD_ConfigSendUserD(pStatus->config_d);
+    OSD_ConfigSendUserS(pStatus->config_s);
 
     if (entries == 3) {
         uint32_t start   = valueList[0].intval;

@@ -546,6 +546,8 @@ static __attribute__ ((noinline)) void main_update()
     if ((current_status.fpga_load_ok == EMBEDDED_CORE) && (current_status.fs_mounted_ok)) {
         IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
         ACTLED_ON;
+        // reset config
+        CFG_set_status_defaults(&current_status, FALSE);
         // set PROG low to reset FPGA (open drain)
         IO_DriveLow_OD(PIN_FPGA_PROG_L);
         Timer_Wait(1);

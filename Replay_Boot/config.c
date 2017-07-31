@@ -824,6 +824,8 @@ void CFG_set_status_defaults(status_t* currentStatus, uint8_t init)
     currentStatus->last_rom_adr     = 0;
     currentStatus->dram_phase       = 0;
     currentStatus->clockmon         = 0;
+    currentStatus->config_s         = 0;
+    currentStatus->config_d         = 0;
     currentStatus->fileio_cha_ena   = 0;
     currentStatus->fileio_chb_ena   = 0;
 

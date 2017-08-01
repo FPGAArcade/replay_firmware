@@ -2299,7 +2299,7 @@ void CFG_add_default(status_t* currentStatus)
     pStatus->menu_item_act = pStatus->menu_item_act->next;
     pStatus->menu_item_act->next = NULL;
 
-    strcpy(pStatus->menu_item_act->item_name, "Mount SDCard");
+    strcpy(pStatus->menu_item_act->item_name, "SDCard over USB");
     pStatus->menu_item_act->option_list = NULL;
     pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = 0;

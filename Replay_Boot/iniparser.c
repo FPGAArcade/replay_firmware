@@ -170,6 +170,8 @@ static uint32_t ParseLine(uint8_t(*parseHandle)(void*, const ini_symbols_t, cons
     char* name;
     char* value;
 
+    FreeList(NULL, 0);
+
     start = FindFirstChar(StripTrailingSpaces(lineBuffer));
 
     if (*start == '[') {
@@ -320,15 +322,13 @@ uint8_t ParseIniFromString(const char* str, size_t strlen,
 }
 
 // ==========================================================================
+// Holds the temporary string tokens when parsing a value list
+static char s_ValueBuffer[MAX_LINE_LEN];
+static uint16_t s_CurrentValueOffset = 0;
+
 void FreeList(ini_list_t* valueList, const uint16_t len)
 {
-    uint16_t i = len;
-
-    while (i-- > 0) {
-        if (valueList[i].strval != NULL) {
-            free(valueList[i].strval);
-        }
-    }
+    s_CurrentValueOffset = 0;
 }
 
 uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxlen)
@@ -367,11 +367,22 @@ uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxl
                     WARNING("missing end quote: %s", start);
                 }
 
-                valueList[idx].strval = malloc(len + 1);
+                Assert(sizeof(s_ValueBuffer)-s_CurrentValueOffset > len);
+                valueList[idx].strval = &s_ValueBuffer[s_CurrentValueOffset]; s_CurrentValueOffset += len+1;
                 strncpy(valueList[idx].strval, start, len);
                 valueList[idx].strval[len] = 0;
+            } else {
+                // grab as (unquoted) string
+                Assert(sizeof(s_ValueBuffer)-s_CurrentValueOffset > len);
+                valueList[idx].strval = &s_ValueBuffer[s_CurrentValueOffset]; s_CurrentValueOffset += len+1; // +1 for \0
+                strncpy(valueList[idx].strval, start, len);
+                valueList[idx].strval[len] = 0;
+                StripTrailingSpaces(valueList[idx].strval);
+            }
 
-            } else if (*start == '*') {    // unsigned: "*<binary>" (not with strtoul and auto-base)
+            start = valueList[idx].strval;  // temporarily point start to the actual new string
+
+            if (*start == '*') {    // unsigned: "*<binary>" (not with strtoul and auto-base)
                 valueList[idx].intval = (int32_t) strtoul(start + 1, NULL, 2); // binary
 
             } else if (*start == '-') { // signed: "-<decimal>" (saturates 0x80000000/0x7fffffff!)
@@ -379,13 +390,6 @@ uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxl
 
             } else if (*start >= '0' && *start <= '9') { // unsigned:"0<octal>", "0x<hex>" or "<decimal>"
                 valueList[idx].intval = (uint32_t) strtoul(start, NULL, 0);    // auto-detect value
-
-            } else {
-                // grab as (unquoted) string
-                valueList[idx].strval = malloc(len + 1); // +1 for \0
-                strncpy(valueList[idx].strval, start, len);
-                valueList[idx].strval[len] = 0;
-                StripTrailingSpaces(valueList[idx].strval);
             }
 
         } else {

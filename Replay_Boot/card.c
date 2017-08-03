@@ -67,6 +67,8 @@ uint8_t Card_TryInit(void)
     uint8_t ocr[4];
     uint32_t spi_csr0  = AT91C_SPI_CPOL | (120 << 8) | (2 << 24); //init clock 100-400 kHz
 
+    DEBUG(3, "SPI:Card_TryInit()");
+
     AT91C_BASE_SPI->SPI_CSR[0] = spi_csr0;
     SPI_DisableCard();
 
@@ -224,6 +226,8 @@ uint64_t Card_GetCapacity(void)
     uint8_t csd[16];
     uint64_t capacity = 0;
 
+    DEBUG(3, "SPI:Card_GetCapacity()");
+
     SPI_EnableCard();
 
     timeout = Timer_Get(100);      // 100 ms timeout
@@ -287,9 +291,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
     uint32_t sectorCount = numSectors;
     uint32_t dma_end     = 0;
 
-    if (numSectors != 1) {
-        DEBUG(3, "SPI:Card_ReadM sector %lu %lu", sector, numSectors);
-    }
+    DEBUG(3, "SPI:Card_ReadM(%08x, %lu, %lu, %08x)", pBuffer, sector, numSectors, pParam);
 
     SPI_EnableCard();
 
@@ -404,7 +406,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 
 FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam)
 {
-    DEBUG(3, "SPI:Card_WriteM sector %lu num %lu", sector, numSectors);
+    DEBUG(3, "SPI:Card_WriteM(%08x, %lu, %lu, %08x)", pBuffer, sector, numSectors, pParam);
 
     const uint32_t sectorEnd = sector + numSectors;
     uint32_t offset;
@@ -506,29 +508,21 @@ uint8_t MMC_Command(uint8_t cmd, uint32_t arg)
         response = rSPI(0xFF); // get response
     } while (response == 0xFF && attempts--);
 
-    DEBUG(3, "response %02X", response);
+    DEBUG(3, "response %02X to CMD%u", response, cmd - CMD0);
     return response;
 }
 
 uint8_t MMC_Command12(void)
 {
-    rSPI(CMD12);
-    rSPI(0x00);
-    rSPI(0x00);
-    rSPI(0x00);
-    rSPI(0x00);
-    rSPI(0x00); // dummy CRC7
-    rSPI(0xFF); // skip stuff byte
+    // WORKAROUND for no compliance card (Atmel Internal ref. !MMC7 !SD19):
+    // The errors on this command must be ignored
+    // and one retry can be necessary in SPI mode for no compliance card.
+    if (MMC_Command(CMD12, 0))
+        MMC_Command(CMD12, 0);
 
-    unsigned char Ncr = 100;  // Ncr = 0..8 (SD) / 1..8 (MMC)
+    timeout = Timer_Get(500);      // 500 ms timeout for a SDXC write operation
 
-    do {
-        response = rSPI(0xFF);    // get response
-    } while (response == 0xFF && Ncr--);
-
-    timeout = Timer_Get(10);      // 10 ms timeout
-
-    while (rSPI(0xFF) == 0x00) {// wait until the card is not busy
+    while (rSPI(0xFF) != 0xFF) {// wait until the card is not busy
         if (Timer_Check(timeout)) {
             WARNING("SPI:Card_CMD12 (STOP) timeout!");
             SPI_DisableCard();

@@ -619,7 +619,7 @@ uint32_t CFG_get_free_mem(void)
     return (total);
 }
 
-void CFG_dump_mem_stats(void)
+void CFG_dump_mem_stats(uint8_t only_check_stack)
 {
     uint32_t ram_bytes, static_bytes, heap_bytes, avail_bytes, unused_bytes;
     uint32_t current_stack, peak_stack;
@@ -631,7 +631,6 @@ void CFG_dump_mem_stats(void)
     uint8_t* const stack   = (uint8_t*)__builtin_frame_address(0); // current stack frame
     uint8_t* const RAMend  = (uint8_t*)__TOP_STACK;         // end of RAM & first stack frame
     const uint32_t sentinel = 0xFA57F00D;                   // See Cstartup.S
-    const struct mallinfo mi = mallinfo();                  // See malloc.h
 
     ram_bytes = RAMend - RAMbeg;      // total amount of RAM
     static_bytes = heap - RAMbeg;     // size of data/bss sections
@@ -646,8 +645,12 @@ void CFG_dump_mem_stats(void)
 
     if (p > stack) {
         ERROR("HEAP/STACK CORRUPTION! %08x > %08x", p, stack);
-        return;
     }
+
+    if (only_check_stack)
+        return;
+
+    const struct mallinfo mi = mallinfo();                  // See malloc.h
 
     unused_bytes = p - unused;        // number of 'unmapped' bytes (i.e. not used by the heap nor touched by the stack)
     avail_bytes = unused_bytes + mi.fordblks;  // unmapped + unused bytes

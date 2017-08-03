@@ -14,8 +14,7 @@ static inline uint32_t __get_lr(void)
 void* _sbrk_r(void *_s_r, ptrdiff_t nbytes);
 void* sbrk(ptrdiff_t increment)
 {
-	mallinfo();
-	DEBUG(2, ">> sbrk(%d)", increment);
+//	DEBUG(2, ">> sbrk(%d)", increment);
 	return _sbrk_r(NULL, increment);
 }
 

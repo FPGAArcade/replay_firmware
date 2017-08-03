@@ -10,7 +10,6 @@ static uint32_t ff_heap[FF_HEAP_SIZE];
 static void* ff_sbrk(ptrdiff_t increment)
 {
 	static uint8_t init = 0;
-	DEBUG(3, ">> ff_sbrk init = %d", init);
 	if (init)
 		return (void*)-1;
 	DEBUG(3, ">> ff_sbrk(%d)", increment);
@@ -29,7 +28,6 @@ static FreeList_Context s_MallocContext = {
 
 void* ff_malloc(size_t size)
 {
-	DEBUG(3, ">> ff_malloc(%d)", size);
 	void*p = FreeList_Alloc(&s_MallocContext, size, 0x0ff4110c);
 	DEBUG(3, ">> ff_malloc(%d) => %08x", size, p);
 	return p;

@@ -423,23 +423,12 @@ static __attribute__ ((noinline)) void main_update()
     // MAIN LOOP
     uint16_t key;
 
-    if (0) { // track available stack headroom; needed for gunzip
-        static uint16_t loop = 0;
-        uint8_t* const unused  = (uint8_t*)sbrk(0);             // address of next heap block
-        uint8_t* const stack   = (uint8_t*)__builtin_frame_address(0); // current stack frame
-        uint32_t avail = stack - unused;
-
-        if ((loop++) == 0) {
-            DEBUG(1, "AVAIL = $%x (%d) bytes ( STACK_END = %8x ; HEAP_TOP = %8x )", avail, avail, stack, unused);
-        }
-    }
-
     // track memory usage, and detect heap/stack stomp
-    if (3 <= debuglevel) {
+    if (1 <= debuglevel) {
         static uint16_t loop = 0;
 
         if ((loop++) == 0) {
-            CFG_dump_mem_stats();
+            CFG_dump_mem_stats(TRUE);
         }
     }
 

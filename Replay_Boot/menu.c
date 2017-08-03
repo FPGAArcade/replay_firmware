@@ -1325,13 +1325,13 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
             if (osd_timeout_cnt++ < current_status->osd_timeout) {
                 // we set our timeout again with any update (1 sec)
                 osd_timeout = Timer_Get(1000);
-                DEBUG(3, "OSD timeout tick");
+                //DEBUG(3, "OSD timeout tick");
 
             } else {
                 // hide menu after ~30 sec
+                DEBUG(3, "OSD timed out, hiding");
                 MENU_set_state(current_status, NO_MENU);
                 OSD_Disable();
-                DEBUG(3, "OSD timed out, hiding");
                 return 0;
             }
         }
@@ -1587,4 +1587,9 @@ void MENU_set_state(status_t* current_status, tOSDMenuState state)
 
     // const_cast and write the new value
     *(tOSDMenuState*)(&current_status->menu_state) = state;
+
+    // track memory usage, and detect heap/stack stomp
+    if (3 <= debuglevel) {
+        CFG_dump_mem_stats(FALSE);
+    }
 }

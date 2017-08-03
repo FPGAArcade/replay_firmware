@@ -61,17 +61,17 @@
 /// OPTIONAL DEBUGGING MESSAGES
 //#define DEBUG(lvl, fmt...) if (lvl<=debuglevel) MSG_debug(lvl<=osdlevel,fmt);
 // dont display debug on OSD, only INFO
-#define DEBUG(lvl, fmt...) do { if (lvl<=debuglevel) MSG_debug(0, (const char*)__FILE__, (unsigned int)__LINE__, fmt); } while(0)
+#define DEBUG(lvl, ...) do { if (lvl<=debuglevel) MSG_debug(0, (const char*)__FILE__, (unsigned int)__LINE__, __VA_ARGS__); } while(0)
 
 /// INFO MESSAGES, can't be disabled
-#define INFO(fmt...) MSG_info(fmt)
+#define INFO(...) MSG_info(__VA_ARGS__)
 
 /// WARNING MESSAGES, can't be disabled
-#define WARNING(fmt...) MSG_warning(fmt)
+#define WARNING(...) MSG_warning(__VA_ARGS__)
 
 /// ERROR MESSAGES, can't be disabled
 /// The system will HALT and display on the OSD. LED will flash on-off-on-off
-#define ERROR(fmt...) MSG_error(fmt)
+#define ERROR(...) MSG_error(__VA_ARGS__)
 
 /// For errors pre FPGA load. This will load the backup image to display the error message, and halt.
 //#define ERROR_LOAD_DEFAULT(fmt...) MSG_error(fmt)

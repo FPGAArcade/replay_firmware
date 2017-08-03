@@ -303,10 +303,11 @@ void CFG_card_start(status_t* current_status)
         //DEBUG(1,"Volume Size: %lu MB", FF_GetVolumeSize(pIoman));
         //DEBUG(1,"");
 
-        MSG_info("SDCARD: %dB/%dkB/%luMB",
+        MSG_info("SDCARD: %dB/%dkB x %d/%luMB",
                  pIoman->pPartition->BlkSize,
                  (pIoman->pPartition->BlkSize *
                   pIoman->pPartition->SectorsPerCluster) >> 10,
+                 pIoman->pPartition->BlkFactor,
                  FF_GetVolumeSize(pIoman)
                 );
 

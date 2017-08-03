@@ -54,6 +54,6 @@ FF_T_SINT32 FF_Write2(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count
 		return Error;
 	}
 
-
+	return 1 | FF_WRITE;
 }
 

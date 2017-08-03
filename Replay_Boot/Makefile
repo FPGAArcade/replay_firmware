@@ -213,6 +213,9 @@ CSTANDARD = -std=gnu99
 # Place -D or -U options for C here
 CDEFS =  -D$(RUN_MODE)
 
+# Create small firmware w/o the embedded core
+#CDEFS +=  -DFPGA_DISABLE_EMBEDDED_CORE
+
 # Place -I options here
 CINCS =
 

@@ -393,7 +393,7 @@ static __attribute__ ((noinline)) void init_core()
 #ifndef FPGA_DISABLE_EMBEDDED_CORE
         int32_t status = ParseIniFromString(&_binary_embedded_ini_start, &_binary_embedded_ini_end - &_binary_embedded_ini_start, _CFG_parse_handler, &current_status);
         if (status != 0 ) {
-            ERROR("Execution stopped at INI line %d", status);
+            ERROR("Error at INI line %d", status);
         }
         _MENU_update_bits(&current_status);
 #endif

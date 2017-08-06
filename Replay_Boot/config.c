@@ -1903,7 +1903,7 @@ uint8_t CFG_pre_init(status_t* currentStatus, const char* iniFile)
             FF_Close(fIni);
 
             if (status != 0 ) {
-                ERROR("Execution stopped at INI line %d", status);
+                ERROR("Error at INI line %d", status);
                 return 1;
             }
 
@@ -2164,7 +2164,7 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
             FF_Close(fIni);
 
             if (status != 0 ) {
-                ERROR("Execution stopped at INI line %d", status);
+                ERROR("Error at INI line %d", status);
                 return status;
             }
 

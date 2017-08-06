@@ -45,7 +45,8 @@ void* ff_malloc(size_t size);
 void ff_free(void *ptr);
 
 #ifdef WIN32
-#define snprintf _snprintf
+#define ff_malloc(x) malloc(x)
+#define ff_free(x) free(x)
 #endif
 /*
 	Here you can change the configuration of FullFAT as appropriate to your

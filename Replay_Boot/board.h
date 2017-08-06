@@ -52,10 +52,12 @@
 //------------------------------------------------------------------------------
 
 #include <stdint.h>
+#ifndef WIN32
 #if defined(AT91SAM7S256)
 #include "AT91SAM7S256.h"
 #else
 #include "AT91SAM4SD32.h"
+#endif
 #endif
 #include "printf.h"
 #include "stringlight.h"

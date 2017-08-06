@@ -201,3 +201,6 @@ typedef uint32_t				AT91_REG;
 
 
 //#define PIO_ASR ?? PIO_ABCDSR ??
+
+#define  AT91C_IFLASH_NB_OF_PAGES	640 // ??
+#define  AT91C_IFLASH_PAGE_SIZE		256 // ??

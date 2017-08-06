@@ -56,6 +56,7 @@ MEMORY
 __stack_size__ = DEFINED(__stack_size__) ? __stack_size__ : 0x3000;
 __ram_end__ = ORIGIN(ram) + LENGTH(ram) - 4;
 
+__FIRST_IN_RAM = ORIGIN(ram);
 __TOP_STACK    = ORIGIN(ram) + LENGTH(ram);
 
 /* Section Definitions */

@@ -242,7 +242,7 @@ static inline uint32_t HexVal(int c)
         return (c - 'a') + 10;
     } else {
         ERROR("bad hex digit '%c'", c);
-        exit(-1);
+        return (uint32_t)-1;
     }
 }
 

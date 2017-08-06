@@ -308,6 +308,7 @@ static __attribute__ ((noinline)) void load_embedded_core()
 
         unsigned long time = Timer_Get(0);
         FPGA_DecompressToDRAM(&_binary_build_replayhand_start, &_binary_build_replayhand_end - &_binary_build_replayhand_start, 0x00400000);
+        time = Timer_Get(0) - time;
         DEBUG(0, "FPGA background image uploaded in %d ms.", (uint32_t) (time >> 20));
 
         current_status.fpga_load_ok = EMBEDDED_CORE;

@@ -386,6 +386,12 @@ typedef struct {
     /** set to 1 if pop-up is requested to synchronize RDB and MBR */
     uint8_t      sync_rdb;
 
+    /** set to 1 if pop-up is requested to flash the ARM firmware */
+    uint8_t      flash_fw;
+
+    /** set to 1 if requested to flash the ARM firmware (pre-verify) */
+    uint8_t      verify_flash_fw;
+
     /* ======== INI menu entry stuff ======== */
 
     /** link to top of menu tree (fixed, does not vary) */

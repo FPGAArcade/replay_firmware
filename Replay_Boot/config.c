@@ -2332,6 +2332,23 @@ void CFG_add_default(status_t* currentStatus)
     pStatus->item_opt_act->last = NULL;
     pStatus->item_opt_act->option_name[0] = 0;
 */
+    pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+    pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+    pStatus->menu_item_act = pStatus->menu_item_act->next;
+    pStatus->menu_item_act->next = NULL;
+
+    strcpy(pStatus->menu_item_act->item_name, "Flash ARM FW");
+    pStatus->menu_item_act->option_list = NULL;
+    pStatus->menu_item_act->selected_option = NULL;
+    pStatus->menu_item_act->conf_dynamic = 0;
+    pStatus->menu_item_act->conf_mask = 0;
+    strcpy(pStatus->menu_item_act->action_name, "flashfw");
+    pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
+    pStatus->item_opt_act = pStatus->menu_item_act->option_list;
+    pStatus->item_opt_act->next = NULL;
+    pStatus->item_opt_act->last = NULL;
+    pStatus->item_opt_act->option_name[0] = 0;
+
     // Add ini_targets - TODO : this should probably go on a separate menu screen..
     for (tIniTarget* it = pStatus->ini_targets; it != NULL; it = it->next) {
         DEBUG(3, "_CFG_add_default: adding ini_target %s", it->name);

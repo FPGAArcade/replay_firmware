@@ -55,6 +55,7 @@
 #include "messaging.h"
 #include "usb.h"
 #include "rdb.h"
+#include "flash.h"
 
 
 typedef enum {
@@ -156,6 +157,12 @@ static uint8_t _MENU_action_display(menuitem_t* item, status_t* current_status)
     // synchronize mbr with rdb ----------------
     else if MATCH(item->action_name, "syncrdb") {
         strcpy(item->selected_option->option_name, "<RETURN> syncs");
+        return 1;
+    }
+
+    // flash arm firmware ----------------------
+    else if MATCH(item->action_name, "flashfw") {
+        strcpy(item->selected_option->option_name, "<RETURN> flash");
         return 1;
     }
     return 0;
@@ -369,6 +376,20 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
         return 1;
     }
 
+    // flash arm firmware ----------------------
+    else if MATCH(item->action_name, "flashfw") {
+        // allocate dir_scan structure
+        MENU_set_state(current_status, FILE_BROWSER);
+        // open file browser
+        strcpy(current_status->act_dir, "/");
+        // search for INI files
+        static const file_ext_t ini_ext[2] = { {"S19"}, {"\0"} };
+        Filesel_Init(current_status->dir_scan, current_status->act_dir, ini_ext);
+        // initialize browser
+        Filesel_ScanFirst(current_status->dir_scan);
+        return 1;
+    }
+
     return 0;
 }
 
@@ -480,6 +501,22 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
             Timer_Wait(1);
             return 1;
         }
+    }
+
+    // flash arm firmware ----------------------
+    else if MATCH(item->action_name, "flashfw") {
+        MENU_set_state(current_status, SHOW_STATUS);
+
+        if (!(current_status->act_dir[0]) || !(mydir.FileName[0])) {
+            WARNING("No flash image selected!");
+            return 1;
+        }
+
+        sprintf(current_status->act_dir, "%s%s", current_status->act_dir, mydir.FileName);
+        INFO("Firmware file = %s", current_status->act_dir);
+        INFO("Verifying file ...");
+        current_status->verify_flash_fw = 1;
+        return 1;
     }
 
     return 0;
@@ -1346,6 +1383,23 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
         }
     }
 
+
+    if (current_status->verify_flash_fw) {
+        current_status->verify_flash_fw = 0;
+        uint32_t crc_file, crc_flash;
+        if (!FLASH_VerifySRecords(current_status->act_dir, &crc_file, &crc_flash)) {
+            WARNING("Flash image is not valid!");
+        } else {
+            MENU_set_state(current_status, POPUP_MENU);
+            sprintf(current_status->popup_msg, "CRC32 New:%08x Old:%08x", crc_file, crc_flash);
+            current_status->popup_msg2 = "Reboot and flash?";
+            current_status->selections = MENU_POPUP_YESNO;
+            current_status->selected = 0;
+            current_status->update = 1;
+            current_status->flash_fw = 1;
+        }
+    }
+
     // --------------------------------------------------
 
     if (key == KEY_MENU) {
@@ -1551,6 +1605,22 @@ uint8_t _MENU_update(status_t* current_status)
 
         MENU_set_state(current_status, SHOW_STATUS);
         current_status->sync_rdb = 0;
+        current_status->update = 1;
+
+    } else if (current_status->flash_fw) {
+
+        FLASH_RebootAndFlash(current_status->act_dir);
+
+        ERROR("Flash failed!");
+
+        OSD_Disable();
+        // "kill" FPGA content and re-run setup
+        current_status->fpga_load_ok = NO_CORE;
+
+        // reset config
+        CFG_set_status_defaults(current_status, FALSE);
+
+        current_status->flash_fw = 0;
         current_status->update = 1;
 
     } else {

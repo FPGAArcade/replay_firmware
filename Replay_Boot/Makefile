@@ -118,6 +118,7 @@ SRC += freelist.c
 SRC += osd.c
 SRC += menu.c
 SRC += rdb.c
+SRC += flash.c
 SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unicode.c
 SRC += filesys/ff_memory.c filesys/ff_safety.c filesys/ff_blk.c filesys/ff_ioman.c filesys/ff_fat.c
 SRC += filesys/ff_crc.c filesys/ff_dir.c filesys/ff_error.c filesys/ff_file.c filesys/ff_hash.c

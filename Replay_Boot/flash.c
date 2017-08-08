@@ -230,6 +230,7 @@ void FlashAndReset()
 #include "hardware/io.h"
 #include "hardware/timer.h"
 #include "fileio.h"
+#include "font8x8_basic.h"
 
 extern FF_IOMAN* pIoman;
 
@@ -557,9 +558,50 @@ static uint8_t VerifyDRAMContents(uint32_t address, uint32_t size, uint32_t crc3
 }
 
 
+static void RenderChar(uint32_t addr, uint8_t c)
+{
+    const uint8_t* map = font8x8_basic[c];
+    const uint32_t chunk = 512;
+    uint8_t tile[512*12];   // must be atleast 720*8, but in 512 chunks because of FileIO_MCh_MemToBuf
+
+    if (c > 128)
+        return;
+
+    for (int i = 0; i < sizeof(tile); i+= chunk) {
+        FileIO_MCh_MemToBuf(&tile[i], addr + i, chunk);
+    }
+
+    for (int v = 0; v < 8; ++v) {
+        for (int u = 0; u < 8; ++u) {
+            const uint8_t bit = map[v] & (1 << u);
+            tile[u + 720*v] = bit ? 0xff : 0x00;
+        }
+    }
+
+    for (int i = 0; i < sizeof(tile); i+= chunk) {
+        FileIO_MCh_BufToMem(&tile[i], addr + i, chunk);
+    }
+}
+
+
+static void RenderText(uint32_t x, uint32_t y, const char* str)
+{
+    const uint32_t DRAMbase = 0x00400000;
+    uint32_t addr = DRAMbase + (x + 720*y);
+
+    for (char c; (c = *str); str++) {
+        RenderChar(addr, c);
+        addr += 8;
+    }
+}
+
+
 // TODO - keep video mode settings in the OSD!
 uint8_t FLASH_RebootAndFlash(const char* filename)
 {
+    const uint32_t DRAMbase = 0x00400000;
+    const uint32_t DRAMupload = DRAMbase + (576-480 + 480/5) * 720;
+
     OSD_Disable();
 
     // make sure FPGA is held in reset
@@ -591,27 +633,28 @@ uint8_t FLASH_RebootAndFlash(const char* filename)
     OSD_ConfigSendUserD(0x00000002); // 60HZ progressive + background image
     OSD_Reset(OSDCMD_CTRL_RES);
 
-
     memset(srecLineBuffer, 0x00, sizeof(srecLineBuffer));
-    for (uint32_t dram = 0x00400000; dram < 0x00400000+(1024*1024); dram += sizeof(srecLineBuffer)) {
+    for (uint32_t dram = DRAMbase; dram < DRAMbase+(1024*1024); dram += sizeof(srecLineBuffer)) {
         if (FileIO_MCh_BufToMem(srecLineBuffer, dram, sizeof(srecLineBuffer)) != 0) {
             WARNING("DRAM write failed!");
         }
     }
 
+    RenderText(30, 30+(576-480), "Flashing... Please wait!");    
+
     srecCurrentAddr = 0x102000L;        // we expect the flash SREC to start at $102000 - otherwise error.
-    dramBaseAddr = 0x00400000;
+    dramBaseAddr = DRAMupload;
     uint8_t ret = ParseSRecords(filename, UploadHandler);
     if (ret != 0) {
         WARNING("SREC error at line %d", ret);
         return 0;
     }
 
-    VerifyDRAMContents(0x00400000, s_FlashSize, s_FlashCRC32);
+    VerifyDRAMContents(DRAMupload, s_FlashSize, s_FlashCRC32);
 
     DEBUG(1, "LETS GO!");
 
-    FlashAndReset(0x102000L, 0x00400000, s_FlashSize);        // will never return!
+    FlashAndReset(0x102000L, DRAMupload, s_FlashSize);        // will never return!
 
     DEBUG(1, "WHAT?!");
 

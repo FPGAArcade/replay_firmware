@@ -390,6 +390,17 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
         return 1;
     }
 
+    // rom upload -----------------------------
+    else if MATCH(item->action_name, "rom") {
+        // allocate dir_scan structure
+        MENU_set_state(current_status, FILE_BROWSER);
+        // search for INI files
+        Filesel_Init(current_status->dir_scan, current_status->act_dir, NULL);
+        // initialize browser
+        Filesel_ScanFirst(current_status->dir_scan);
+        return 1;
+    }
+
     return 0;
 }
 
@@ -516,6 +527,51 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
         INFO("Firmware file = %s", current_status->act_dir);
         INFO("Verifying file ...");
         current_status->verify_flash_fw = 1;
+        return 1;
+    }
+
+    // rom upload ----------------------------
+    else if MATCH(item->action_name, "rom") {
+        MENU_set_state(current_status, SHOW_MENU);
+    
+        if (!(current_status->act_dir[0]) || !(mydir.FileName[0])) {
+            WARNING("No image selected!");
+            return 1;
+        }
+
+        char full_filename[FF_MAX_PATH];
+        sprintf(full_filename, "%s%s", current_status->act_dir, mydir.FileName);
+        INFO("ROM file = %s", full_filename);
+
+        _strlcpy(item->selected_option->option_name, mydir.FileName, sizeof(item->selected_option->option_name));
+
+        uint32_t size = item->conf_mask;
+        uint32_t base = item->action_value;
+        uint8_t format = item->conf_dynamic;
+
+        uint32_t staticbits = current_status->config_s;
+        uint32_t dynamicbits = current_status->config_d;
+        DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
+        DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)", base, size);
+
+        OSD_Reset(OSDCMD_CTRL_RES | OSDCMD_CTRL_HALT);
+        Timer_Wait(100);
+
+        if (CFG_upload_rom(full_filename, base, size,
+                           current_status->verify_dl, format, &staticbits, &dynamicbits)) {
+            WARNING("ROM upload to FPGA failed");
+            return 0;
+        }
+
+        DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
+        current_status->config_s = staticbits;
+        //not used yet: pStatus->config_d = dynamicbits;
+        // send bits to FPGA
+        OSD_ConfigSendUserS(staticbits);
+
+        OSD_Reset(OSDCMD_CTRL_RES);
+        Timer_Wait(100);
+
         return 1;
     }
 

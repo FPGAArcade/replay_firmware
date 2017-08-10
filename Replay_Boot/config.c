@@ -1582,103 +1582,91 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
     ini_list_t valueList[8];
     uint16_t entries = ParseList(value, valueList, 8);
 
-    if ((entries == 4) && (strlen(valueList[0].strval))) {
-        char fullname[FF_MAX_PATH];
-        // set address properly
-        pStatus->last_rom_adr = valueList[2].intval + valueList[1].intval;
-        // prepare filename
-        sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
-
-        uint32_t staticbits = pStatus->config_s;
-        uint32_t dynamicbits = pStatus->config_d;
-        DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
-        DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)",
-              valueList[2].intval, valueList[1].intval);
-
-        if (CFG_upload_rom(fullname, valueList[2].intval, valueList[1].intval,
-                           pStatus->verify_dl, valueList[3].intval, &staticbits, &dynamicbits)) {
-            WARNING("ROM upload to FPGA failed");
-            FreeList(valueList, entries);
-            return 1;
-
-        } else {
-            DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
-            pStatus->config_s = staticbits;
-            //not used yet: pStatus->config_d = dynamicbits;
-            // send bits to FPGA
-            OSD_ConfigSendUserS(staticbits);
-            //not used yet: OSD_ConfigSendUserD(dynamicbits);
-            FreeList(valueList, entries);
-            return 0;
-        }
-
-    } else if ((entries == 3) && (strlen(valueList[0].strval))) {
-        char fullname[FF_MAX_PATH];
-        // set address properly
-        pStatus->last_rom_adr = valueList[2].intval + valueList[1].intval;
-        // prepare filename
-        sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
-
-        uint32_t staticbits = pStatus->config_s;
-        uint32_t dynamicbits = pStatus->config_d;
-        DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
-        DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)",
-              valueList[2].intval, valueList[1].intval);
-
-        if (CFG_upload_rom(fullname, valueList[2].intval, valueList[1].intval,
-                           pStatus->verify_dl, 0, &staticbits, &dynamicbits)) {
-            WARNING("ROM upload to FPGA failed");
-            FreeList(valueList, entries);
-            return 1;
-
-        } else {
-            DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
-            pStatus->config_s = staticbits;
-            //not used yet: pStatus->config_d = dynamicbits;
-            // send bits to FPGA
-            OSD_ConfigSendUserS(staticbits);
-            //not used yet: OSD_ConfigSendUserD(dynamicbits);
-            FreeList(valueList, entries);
-            return 0;
-        }
-
-    } else if ((entries == 2) && (strlen(valueList[0].strval))) {
-        char fullname[FF_MAX_PATH];
-        uint32_t adr = pStatus->last_rom_adr;
-        // increment address properly
-        pStatus->last_rom_adr = adr + valueList[1].intval;
-        // prepare filename
-        sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
-
-        uint32_t staticbits = pStatus->config_s;
-        uint32_t dynamicbits = pStatus->config_d;
-        DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
-        DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)",
-              adr, valueList[1].intval);
-
-        if (CFG_upload_rom(fullname, adr, valueList[1].intval,
-                           pStatus->verify_dl, 0, &staticbits, &dynamicbits)) {
-            WARNING("ROM upload to FPGA failed");
-            FreeList(valueList, entries);
-            return 1;
-
-        } else {
-            DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
-            pStatus->config_s = staticbits;
-            //not used yet: pStatus->config_d = dynamicbits;
-            // send bits to FPGA
-            OSD_ConfigSendUserS(staticbits);
-            //not used yet: OSD_ConfigSendUserD(dynamicbits);
-            FreeList(valueList, entries);
-            return 0;
-        }
-
-    } else {
+    if (entries < 2 || 4 < entries || strlen(valueList[0].strval) == 0) {
         WARNING("invalid ROM config: entries=%d str0: %s", entries, valueList[0].strval);
+        FreeList(valueList, entries);
+        return 1;
     }
 
+    char fullname[FF_MAX_PATH];
+    sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+
+    uint32_t size = valueList[1].intval;
+    uint32_t base = entries > 2 ? valueList[2].intval : pStatus->last_rom_adr;
+    uint8_t format = entries > 3 ? valueList[3].intval : 0;
+
+    pStatus->last_rom_adr = base + size;
+
+    uint32_t staticbits = pStatus->config_s;
+    uint32_t dynamicbits = pStatus->config_d;
+    DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
+    DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)", base, size);
+
+    if (CFG_upload_rom(fullname, base, size,
+                       pStatus->verify_dl, format, &staticbits, &dynamicbits)) {
+        WARNING("ROM upload to FPGA failed");
+        FreeList(valueList, entries);
+        return 1;
+    }
+
+    DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
+    pStatus->config_s = staticbits;
+    //not used yet: pStatus->config_d = dynamicbits;
+    // send bits to FPGA
+    OSD_ConfigSendUserS(staticbits);
+    //not used yet: OSD_ConfigSendUserD(dynamicbits);
+
+
+#define ROM_MENU_STRING "ROMs"
+    if (pStatus->menu_act == NULL || (pStatus->menu_act && strcmp(pStatus->menu_act->menu_title, ROM_MENU_STRING))) {
+        if (pStatus->menu_top) {   // add further entry
+            // prepare next level and set pointers correctly
+            pStatus->menu_act->next = malloc(sizeof(menu_t));
+            // link back
+            pStatus->menu_act->next->last = pStatus->menu_act;
+            // step in linked list
+            pStatus->menu_act = pStatus->menu_act->next;
+
+        } else {                   // first top entry
+            // prepare top level
+            pStatus->menu_act = malloc(sizeof(menu_t));
+            pStatus->menu_act->last = NULL;
+            // set top level
+            pStatus->menu_top = pStatus->menu_act;
+        }
+
+        pStatus->menu_act->next = NULL;
+        strcpy(pStatus->menu_act->menu_title, ROM_MENU_STRING);
+
+        pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
+        pStatus->menu_item_act = pStatus->menu_act->item_list;
+        pStatus->menu_item_act->next = NULL;
+        pStatus->menu_item_act->last = NULL;
+    } else {
+        pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+        pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+        pStatus->menu_item_act = pStatus->menu_item_act->next;
+        pStatus->menu_item_act->next = NULL;
+    }
+
+    sprintf(pStatus->menu_item_act->item_name, "0x%08x", (unsigned int)base);
+    pStatus->menu_item_act->option_list = NULL;
+    pStatus->menu_item_act->selected_option = NULL;
+    pStatus->menu_item_act->conf_dynamic = format;
+    pStatus->menu_item_act->conf_mask = size;
+    pStatus->menu_item_act->action_value = base;
+    strcpy(pStatus->menu_item_act->action_name, "rom");
+    pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
+    pStatus->item_opt_act = pStatus->menu_item_act->option_list;
+    pStatus->item_opt_act->next = NULL;
+    pStatus->item_opt_act->last = NULL;
+    _strlcpy(pStatus->item_opt_act->option_name, valueList[0].strval, sizeof(pStatus->item_opt_act->option_name));
+    pStatus->menu_item_act->selected_option = pStatus->menu_item_act->option_list;
+
+#undef ROM_MENU_STRING
+
     FreeList(valueList, entries);
-    return 1;
+    return 0;
 }
 
 

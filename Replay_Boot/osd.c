@@ -627,11 +627,16 @@ uint16_t OSD_ConvFlags(uint8_t keycode1, uint8_t keycode2, uint8_t keycode3)
     return 0;
 }
 
-uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey, uint8_t menu_enabled)
+uint16_t OSD_GetKeyCode(status_t* current_status)
 {
+    const uint8_t osd_enabled   = current_status ? current_status->spi_osd_enabled : 1;
+    const uint16_t hotkey       = current_status ? current_status->hotkey : KEY_MENU;
+    const uint8_t menu_enabled  = current_status ? current_status->menu_state != NO_MENU : 1;
+    const button_t button_func  = current_status ? current_status->button : BUTTON_MENU;
+
     // front menu button stuff
     static uint32_t button_delay;
-    static uint16_t  button_pressed = 0;
+    static uint16_t button_pressed = 0;
     static uint32_t flash_delay;
 
     // PS/2 stuff
@@ -654,7 +659,7 @@ uint16_t OSD_GetKeyCode(uint8_t osd_enabled, uint16_t hotkey, uint8_t menu_enabl
 
     // check front menu button
     // ---------------------------------------------------
-    if (IO_Input_L(PIN_MENU_BUTTON)) {
+    if (IO_Input_L(PIN_MENU_BUTTON) && button_func != BUTTON_OFF) {
         if (!button_pressed) {
             key_code = KEY_MENU;
             button_pressed = 1;

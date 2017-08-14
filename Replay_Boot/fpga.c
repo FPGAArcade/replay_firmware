@@ -308,7 +308,7 @@ uint8_t FPGA_DramTrain(void)
 
     DEBUG(0, "FPGA:DRAM TEST passed.");
 
-    //  key = OSD_GetKeyCode(1, KEY_MENU);
+    //  key = OSD_GetKeyCode(NULL);
     //} while (key != KEY_MENU);
 
     return 0;
@@ -352,7 +352,7 @@ uint8_t FPGA_DramEye(uint8_t mode)
             }
         }
 
-        key = OSD_GetKeyCode(1, KEY_MENU, 1);
+        key = OSD_GetKeyCode(NULL);
 
         if (key == KEY_LEFT) {
             ram_phase -= 8;
@@ -504,7 +504,7 @@ uint8_t FPGA_ProdTest(void)
             failed = 0;
         }
 
-        key = OSD_GetKeyCode(1, KEY_MENU, 1);
+        key = OSD_GetKeyCode(NULL);
 
         if (key == KEY_F8) {
             vidpat = (vidpat - 1) & 0x3;

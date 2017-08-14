@@ -125,8 +125,6 @@ SRC += filesys/ff_crc.c filesys/ff_dir.c filesys/ff_error.c filesys/ff_file.c fi
 SRC += ff_malloc.c
 SRC += hardware.c hardware/usart.c hardware/spi.c hardware/ssc.c hardware/twi.c hardware/timer.c hardware/io.c
 SRC += usb/cdc_enumerate.c usb/usb_flash.c usb/ptp_usb.c usb/usb_hardware.c usb/mtp_client.c usb/mtp_database.c usb/msc.c usb.c
-SRC += xdms/crc_csum.c xdms/getbits.c xdms/maketbl.c xdms/pfile.c xdms/tables.c xdms/u_deep.c
-SRC += xdms/u_heavy.c xdms/u_init.c xdms/u_medium.c xdms/u_quick.c xdms/u_rle.c
 SRC += iniparser.c messaging.c
 SRC += common/Cstartup_SAM7.c
 

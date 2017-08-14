@@ -391,6 +391,7 @@ static __attribute__ ((noinline)) void init_core()
         // dynamic/static setup bits
         OSD_ConfigSendUserS(0x00000000);
         OSD_ConfigSendUserD(0x00000000); // 60HZ progressive
+        current_status.button = BUTTON_OFF;
 #ifndef FPGA_DISABLE_EMBEDDED_CORE
         int32_t status = ParseIniFromString(&_binary_embedded_ini_start, &_binary_embedded_ini_end - &_binary_embedded_ini_start, _CFG_parse_handler, &current_status);
         if (status != 0 ) {
@@ -530,6 +531,19 @@ static __attribute__ ((noinline)) void main_update()
         FPGA_DramTrain();
         current_status.fpga_load_ok = NO_CORE;  // break the main loop
         return;
+    }
+
+    static uint32_t sd_button_delay = -1;
+    if (IO_Input_L(PIN_MENU_BUTTON) && current_status.fpga_load_ok == EMBEDDED_CORE) {
+        if (sd_button_delay == -1) {
+            current_status.config_d ^= 0x00000020;
+            OSD_ConfigSendUserD(current_status.config_d);
+            DEBUG(1, "Setting config_d = %08x", current_status.config_d);
+        }
+        sd_button_delay = Timer_Get(BUTTONDELAY);
+
+    } else if (Timer_Check(sd_button_delay)) {
+        sd_button_delay = -1;
     }
 
     // we check if we are in fallback mode and a proper sdcard is available now

@@ -1616,7 +1616,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
     OSD_ConfigSendUserS(staticbits);
     //not used yet: OSD_ConfigSendUserD(dynamicbits);
 
-
+/*
 #define ROM_MENU_STRING "ROMs"
     if (pStatus->menu_act == NULL || (pStatus->menu_act && strcmp(pStatus->menu_act->menu_title, ROM_MENU_STRING))) {
         if (pStatus->menu_top) {   // add further entry
@@ -1664,7 +1664,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
     pStatus->menu_item_act->selected_option = pStatus->menu_item_act->option_list;
 
 #undef ROM_MENU_STRING
-
+*/
     FreeList(valueList, entries);
     return 0;
 }
@@ -2320,6 +2320,7 @@ void CFG_add_default(status_t* currentStatus)
     pStatus->item_opt_act->last = NULL;
     pStatus->item_opt_act->option_name[0] = 0;
 */
+/*
     pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
     pStatus->menu_item_act->next->last = pStatus->menu_item_act;
     pStatus->menu_item_act = pStatus->menu_item_act->next;
@@ -2336,7 +2337,7 @@ void CFG_add_default(status_t* currentStatus)
     pStatus->item_opt_act->next = NULL;
     pStatus->item_opt_act->last = NULL;
     pStatus->item_opt_act->option_name[0] = 0;
-
+*/
     // Add ini_targets - TODO : this should probably go on a separate menu screen..
     for (tIniTarget* it = pStatus->ini_targets; it != NULL; it = it->next) {
         DEBUG(3, "_CFG_add_default: adding ini_target %s", it->name);

@@ -158,10 +158,10 @@ static char* FindCharr(const char* e, const char* min, char c)
 // ==========================================================================
 
 static uint32_t ParseLine(uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
-                        void* config,
-                        ini_symbols_t* section,
-                        uint32_t lineNumber,
-                        char* lineBuffer)
+                          void* config,
+                          ini_symbols_t* section,
+                          uint32_t lineNumber,
+                          char* lineBuffer)
 {
     uint32_t lineError = 0;
 
@@ -240,6 +240,7 @@ static uint32_t ParseLine(uint8_t(*parseHandle)(void*, const ini_symbols_t, cons
             }
         }
     }
+
     return lineError;
 }
 
@@ -283,8 +284,8 @@ uint8_t ParseIni(FF_FILE* pFile,
 }
 
 uint8_t ParseIniFromString(const char* str, size_t strlen,
-                 uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
-                 void* config)
+                           uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
+                           void* config)
 {
     const char* strend = str + strlen;
     ini_symbols_t section = INI_UNKNOWN;
@@ -297,7 +298,7 @@ uint8_t ParseIniFromString(const char* str, size_t strlen,
 
     do {
         // read line from file
-        for (i = 0; (i < (sizeof(lineBuffer) - 1) && ((ch = (str<strend ? *str++ : -1)) >= 0) && (ch != '\n')); i++) {
+        for (i = 0; (i < (sizeof(lineBuffer) - 1) && ((ch = (str < strend ? *str++ : -1)) >= 0) && (ch != '\n')); i++) {
             lineBuffer[i] = (char) ch;
         }
 
@@ -367,14 +368,17 @@ uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxl
                     WARNING("missing end quote: %s", start);
                 }
 
-                Assert(sizeof(s_ValueBuffer)-s_CurrentValueOffset > len);
-                valueList[idx].strval = &s_ValueBuffer[s_CurrentValueOffset]; s_CurrentValueOffset += len+1;
+                Assert(sizeof(s_ValueBuffer) - s_CurrentValueOffset > len);
+                valueList[idx].strval = &s_ValueBuffer[s_CurrentValueOffset];
+                s_CurrentValueOffset += len + 1;
                 strncpy(valueList[idx].strval, start, len);
                 valueList[idx].strval[len] = 0;
+
             } else {
                 // grab as (unquoted) string
-                Assert(sizeof(s_ValueBuffer)-s_CurrentValueOffset > len);
-                valueList[idx].strval = &s_ValueBuffer[s_CurrentValueOffset]; s_CurrentValueOffset += len+1; // +1 for \0
+                Assert(sizeof(s_ValueBuffer) - s_CurrentValueOffset > len);
+                valueList[idx].strval = &s_ValueBuffer[s_CurrentValueOffset];
+                s_CurrentValueOffset += len + 1; // +1 for \0
                 strncpy(valueList[idx].strval, start, len);
                 valueList[idx].strval[len] = 0;
                 StripTrailingSpaces(valueList[idx].strval);

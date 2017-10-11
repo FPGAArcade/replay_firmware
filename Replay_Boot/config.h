@@ -248,7 +248,7 @@ typedef enum _tOSDMenuState {
 typedef enum _tFPGAState {
     NO_CORE      = 0,
     CORE_LOADED  = 1,
-    EMBEDDED_CORE= 2,
+    EMBEDDED_CORE = 2,
 } tFPGAState;
 
 typedef struct _tIniTarget {
@@ -446,7 +446,7 @@ typedef struct {
     /* ======== file browser stuff menu ======== */
 
     /** structure handling directory browsing */
-    tDirScan     *dir_scan;
+    tDirScan*     dir_scan;
 
     /** the actual browser directory path */
     char         act_dir[FF_MAX_PATH];

@@ -647,8 +647,9 @@ void CFG_dump_mem_stats(uint8_t only_check_stack)
         ERROR("HEAP/STACK CORRUPTION! %08x > %08x", p, stack);
     }
 
-    if (only_check_stack)
+    if (only_check_stack) {
         return;
+    }
 
     const struct mallinfo mi = mallinfo();                  // See malloc.h
 

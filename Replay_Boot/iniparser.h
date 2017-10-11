@@ -74,8 +74,8 @@ uint8_t ParseIni(FF_FILE* pFile,
                  void* config);
 
 uint8_t ParseIniFromString(const char* str, size_t strlen,
-                 uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
-                 void* config);
+                           uint8_t(*parseHandle)(void*, const ini_symbols_t, const ini_symbols_t, const char*),
+                           void* config);
 
 // ===========================================================
 

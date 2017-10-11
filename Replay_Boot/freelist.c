@@ -54,11 +54,12 @@ void* FreeList_Alloc(FreeList_Context* context, size_t size, uint32_t tag)
             }
 
             size_t divider = 1;
+
             do {
                 addBytes = (addBlocks / divider) * sizeof(FreeList_Header);
                 p = (FreeList_Header*) context->sbrkFunc(addBytes);
                 divider++;
-            } while(p == (FreeList_Header*) -1 && addBytes >= numBlocks * sizeof(FreeList_Header));
+            } while (p == (FreeList_Header*) - 1 && addBytes >= numBlocks * sizeof(FreeList_Header));
 
             if (p == (FreeList_Header*) - 1) {
                 ERROR("FreeList_Alloc ERROR : Out-Of-Memory!");

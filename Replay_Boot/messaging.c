@@ -250,6 +250,7 @@ void AssertionFailure(char* exp, char* file, char* baseFile, int line)
         if (msg_serial) printf("Assert(%s) failed in file %s (included from %s), line %d\r\n",
                                    exp, file, baseFile, line);
     }
+
     MSG_error("Assert(%s) failed", exp);
 }
 

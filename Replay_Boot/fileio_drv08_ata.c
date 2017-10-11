@@ -326,6 +326,7 @@ extern FF_IOMAN* pIoman;        // fixme!
 void Drv08_CardReadSend(uint8_t ch, uint32_t lba, uint32_t numblocks, uint8_t* pBuffer)
 {
     FF_FlushCache(pIoman);
+
     while (numblocks--) {
 
         FF_ERROR err = Card_ReadM(pBuffer, lba++, 1, NULL);
@@ -778,6 +779,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             // write to file
             if (pDesc->format == MMC) {
                 Drv08_CardWrite(ch, lba_naked++, fbuf);
+
             } else {
                 Drv08_FileWrite(ch, pDrive, fbuf);
             }
@@ -845,6 +847,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
                 // write to file
                 if (pDesc->format == MMC) {
                     Drv08_CardWrite(ch, lba_naked++, fbuf);
+
                 } else {
                     Drv08_FileWrite(ch, pDrive, fbuf);
                 }
@@ -925,9 +928,11 @@ static uint32_t CalcBEsum(void* block, uint32_t numlongs)
 {
     uint32_t* p = (uint32_t*)block;
     int32_t chksum = 0;
-    if (numlongs > 512/sizeof(uint32_t)) {
-        numlongs = 512/sizeof(uint32_t);
+
+    if (numlongs > 512 / sizeof(uint32_t)) {
+        numlongs = 512 / sizeof(uint32_t);
     }
+
     for (int i = 0; i < numlongs; i++ ) {
         uint32_t v = READ_BE_32B(*p);
         chksum += (int32_t)v;
@@ -994,7 +999,7 @@ static void Drv08_PrintRDB(fch_t* pDrive, drv08_desc_t* pDesc)
 
     if (READ_BE_32B(rdsk.rdb_ID) != IDNAME_RIGIDDISK) {
         DEBUG(2, ">   INVALID RDSK BLOCK");
-        return;        
+        return;
     }
 
     uint32_t blockBytes = READ_BE_32B(rdsk.rdb_BlockBytes);
@@ -1029,7 +1034,7 @@ static void Drv08_PrintRDB(fch_t* pDrive, drv08_desc_t* pDesc)
 
         if (READ_BE_32B(part.pb_ID) != IDNAME_PARTITION) {
             DEBUG(2, ">   INVALID PART BLOCK");
-            break;        
+            break;
         }
     }
 
@@ -1071,7 +1076,7 @@ static void Drv08_PrintRDB(fch_t* pDrive, drv08_desc_t* pDesc)
 
         if (READ_BE_32B(fshd.fhb_ID) != IDNAME_FILESYSHEADER) {
             DEBUG(2, ">   INVALID FSHD BLOCK");
-            break;        
+            break;
         }
     }
 }

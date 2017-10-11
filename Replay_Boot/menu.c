@@ -165,6 +165,7 @@ static uint8_t _MENU_action_display(menuitem_t* item, status_t* current_status)
         strcpy(item->selected_option->option_name, "<RETURN> flash");
         return 1;
     }
+
     return 0;
 }
 
@@ -533,7 +534,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
     // rom upload ----------------------------
     else if MATCH(item->action_name, "rom") {
         MENU_set_state(current_status, SHOW_MENU);
-    
+
         if (!(current_status->act_dir[0]) || !(mydir.FileName[0])) {
             WARNING("No image selected!");
             return 1;
@@ -1443,8 +1444,10 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
     if (current_status->verify_flash_fw) {
         current_status->verify_flash_fw = 0;
         uint32_t crc_file, crc_flash;
+
         if (!FLASH_VerifySRecords(current_status->act_dir, &crc_file, &crc_flash)) {
             WARNING("Flash image is not valid!");
+
         } else {
             MENU_set_state(current_status, POPUP_MENU);
             sprintf(current_status->popup_msg, "CRC32 New:%08x Old:%08x", crc_file, crc_flash);

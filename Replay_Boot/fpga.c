@@ -70,7 +70,7 @@ static size_t read_embedded_core(void* buffer, size_t len, void* context)
     uint32_t offset = *(uint32_t*)context;
     uint32_t size = &_binary_build_loader_end - &_binary_build_loader_start;
 
-    if (offset+len > size) {
+    if (offset + len > size) {
         len = size - offset;
     }
 
@@ -89,9 +89,9 @@ static size_t read_embedded_core(void* buffer, size_t len, void* context)
 }
 static size_t write_embedded_core(const void* buffer, size_t len, void* context)
 {
-   SSC_WaitDMA();
-   SSC_WriteBufferSingle((void*)buffer, len, 0); 
-   return len;
+    SSC_WaitDMA();
+    SSC_WriteBufferSingle((void*)buffer, len, 0);
+    return len;
 }
 
 #endif
@@ -1050,8 +1050,7 @@ size_t gunzip(inflate_read_func_ptr read_func, void* const read_context, inflate
 
 #endif
 
-typedef struct _DecompressBufferContext
-{
+typedef struct _DecompressBufferContext {
     char*       buffer;
     uint32_t    remaining;
 } tDecompressBufferContext;
@@ -1074,6 +1073,7 @@ static size_t write_to_dram(const void* buffer, size_t len, void* context)
 {
     uint32_t* write_offset = (uint32_t*)context;
     size_t written = 0;
+
     while (len != 0) {
         uint32_t size = len > 512 ? 512 : len;
 

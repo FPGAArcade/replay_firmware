@@ -7,26 +7,26 @@
 #define BLK_SIZE 512
 
 typedef struct {
-	uint8_t		active;
-	uint8_t		start_head;
-	uint8_t		start_sector:6;
-	uint8_t		start_cylinder_hi:2;
-	uint8_t		start_cylinder_lo;
-	uint8_t		file_system;
-	uint8_t		end_head;
-	uint8_t		end_sector:6;
-	uint8_t		end_cylinder_hi:2;
-	uint8_t		end_cylinder_lo;
-	uint32_t	first_block;
-	uint32_t	total_blocks;
+    uint8_t		active;
+    uint8_t		start_head;
+    uint8_t		start_sector: 6;
+    uint8_t		start_cylinder_hi: 2;
+    uint8_t		start_cylinder_lo;
+    uint8_t		file_system;
+    uint8_t		end_head;
+    uint8_t		end_sector: 6;
+    uint8_t		end_cylinder_hi: 2;
+    uint8_t		end_cylinder_lo;
+    uint32_t	first_block;
+    uint32_t	total_blocks;
 } __attribute__ ((packed)) tPartition;
 
 typedef struct {
-	uint8_t		bootstrap[0x1b8];
-	uint8_t		serial[4];
-	uint8_t 	reserved[2];
-	tPartition	partition[4];
-	uint8_t		signature[2];
+    uint8_t		bootstrap[0x1b8];
+    uint8_t		serial[4];
+    uint8_t 	reserved[2];
+    tPartition	partition[4];
+    uint8_t		signature[2];
 } __attribute__ ((packed)) tMBR;
 
 #define cyl(hi,lo) (((hi) << 8) | (lo))
@@ -54,65 +54,69 @@ static uint32_t CalcBEsum(void* block, uint32_t numlongs)
 
 void SynchronizeRdbWithMbr()
 {
-	uint8_t num_partitions = 0;
+    uint8_t num_partitions = 0;
 
-	Assert(sizeof(tMBR) == 512);
-	// 1. read the mbr
-	tMBR mbr;
-	FF_ERROR err = Card_ReadM((uint8_t*)&mbr, 0, 1, NULL);
-	if (err != FF_ERR_NONE) {
-		WARNING("Reading MBR failed! %08x", err);
-		return;
-	}
+    Assert(sizeof(tMBR) == 512);
+    // 1. read the mbr
+    tMBR mbr;
+    FF_ERROR err = Card_ReadM((uint8_t*)&mbr, 0, 1, NULL);
 
-	DumpBuffer((uint8_t*)&mbr, sizeof(mbr));
+    if (err != FF_ERR_NONE) {
+        WARNING("Reading MBR failed! %08x", err);
+        return;
+    }
 
-	DEBUG(1,"MBR serial : %02x%02x%02x%02x", mbr.serial[0], mbr.serial[1], mbr.serial[2], mbr.serial[3]);
-	DEBUG(1,"MBR signature : %02x%02x", mbr.signature[0], mbr.signature[1]);
+    DumpBuffer((uint8_t*)&mbr, sizeof(mbr));
 
-	for (int i = 0; i < 4; ++i) {
-		tPartition* part = &mbr.partition[i];
-		if (part->active != 0x80 && (part->active != 0 || part->file_system == 0)) {
-			break;
-		}
+    DEBUG(1, "MBR serial : %02x%02x%02x%02x", mbr.serial[0], mbr.serial[1], mbr.serial[2], mbr.serial[3]);
+    DEBUG(1, "MBR signature : %02x%02x", mbr.signature[0], mbr.signature[1]);
 
-		num_partitions++;
+    for (int i = 0; i < 4; ++i) {
+        tPartition* part = &mbr.partition[i];
 
-		DEBUG(1,"MBR partition %d :", i);
-		DEBUG(1,"                   active = %d", part->active);
-		DEBUG(1,"                   start_head = 0x%02x", part->start_head);
-		DEBUG(1,"                   start_sector = 0x%02x", part->start_sector);
-		DEBUG(1,"                   start_cylinder = 0x%03x", cyl(part->start_cylinder_hi, part->start_cylinder_lo));
-		DEBUG(1,"                   file_system = %02x", part->file_system);
-		DEBUG(1,"                   end_head = 0x%02x", part->end_head);
-		DEBUG(1,"                   end_sector = 0x%02x", part->end_sector);
-		DEBUG(1,"                   end_cylinder = 0x%03x", cyl(part->end_cylinder_hi, part->end_cylinder_lo));
-		DEBUG(1,"                   first_block = %d / %08x", part->first_block, part->first_block);
-		DEBUG(1,"                   total_blocks = %d / %08x", part->total_blocks, part->total_blocks);
-	}
+        if (part->active != 0x80 && (part->active != 0 || part->file_system == 0)) {
+            break;
+        }
 
-	if (num_partitions == 0) {
-		WARNING("No partitions found!");
-		return;
-	}
+        num_partitions++;
 
-	uint32_t cur_block = 2;	// skip the MBR sector at lba 0
-	uint32_t min_blocks_needed = 1 /* RSDK */ + num_partitions /* PART */;// + 1 /* FSHD */;
+        DEBUG(1, "MBR partition %d :", i);
+        DEBUG(1, "                   active = %d", part->active);
+        DEBUG(1, "                   start_head = 0x%02x", part->start_head);
+        DEBUG(1, "                   start_sector = 0x%02x", part->start_sector);
+        DEBUG(1, "                   start_cylinder = 0x%03x", cyl(part->start_cylinder_hi, part->start_cylinder_lo));
+        DEBUG(1, "                   file_system = %02x", part->file_system);
+        DEBUG(1, "                   end_head = 0x%02x", part->end_head);
+        DEBUG(1, "                   end_sector = 0x%02x", part->end_sector);
+        DEBUG(1, "                   end_cylinder = 0x%03x", cyl(part->end_cylinder_hi, part->end_cylinder_lo));
+        DEBUG(1, "                   first_block = %d / %08x", part->first_block, part->first_block);
+        DEBUG(1, "                   total_blocks = %d / %08x", part->total_blocks, part->total_blocks);
+    }
 
-	if (mbr.partition[0].file_system == 0xee) {
-		WARNING("GUID / GPT format not supported");
-	}
-	if (mbr.partition[0].first_block < min_blocks_needed + cur_block) {
-		WARNING("Not enough space between MBR and PART");
-		return;
-	}
+    if (num_partitions == 0) {
+        WARNING("No partitions found!");
+        return;
+    }
+
+    uint32_t cur_block = 2;	// skip the MBR sector at lba 0
+    uint32_t min_blocks_needed = 1 /* RSDK */ + num_partitions /* PART */;// + 1 /* FSHD */;
+
+    if (mbr.partition[0].file_system == 0xee) {
+        WARNING("GUID / GPT format not supported");
+    }
+
+    if (mbr.partition[0].first_block < min_blocks_needed + cur_block) {
+        WARNING("Not enough space between MBR and PART");
+        return;
+    }
 
     uint32_t lba = Card_GetCapacity() / 512;
-	uint32_t cylblocks = mbr.partition[0].first_block / 2;		// first partition is assumed to be at cylinder 2
+    uint32_t cylblocks = mbr.partition[0].first_block / 2;		// first partition is assumed to be at cylinder 2
 
     uint32_t cylinders = lba / cylblocks;
 
     uint32_t sectors = 0;
+
     for (int sec = 1; sec < 255; sec += 1)
         if ((cylblocks % sec) == 0) {
             sectors = sec;
@@ -126,33 +130,33 @@ void SynchronizeRdbWithMbr()
     DEBUG(1, "sectors = %d", sectors);
     DEBUG(1, "cylblocks = %d", cylblocks);
 
-	for (int i = 0; i < num_partitions; ++i) {
-		tPartition* part = &mbr.partition[i];
+    for (int i = 0; i < num_partitions; ++i) {
+        tPartition* part = &mbr.partition[i];
 
-		if (part->first_block % cylblocks != 0)
-		{
-			WARNING("Partition #%d start unaligned!", i);
-			return;
-		}
-		if (part->total_blocks % cylblocks != 0)
-		{
-			WARNING("Partition #%d size unaligned!", i);
-			return;
-		}
-		DEBUG(1, "PART #%d : LoCylinder = %d ; HiCylinder = %d", i, part->first_block / cylblocks, ((part->first_block+part->total_blocks) / cylblocks) - 1);
-	}
+        if (part->first_block % cylblocks != 0) {
+            WARNING("Partition #%d start unaligned!", i);
+            return;
+        }
+
+        if (part->total_blocks % cylblocks != 0) {
+            WARNING("Partition #%d size unaligned!", i);
+            return;
+        }
+
+        DEBUG(1, "PART #%d : LoCylinder = %d ; HiCylinder = %d", i, part->first_block / cylblocks, ((part->first_block + part->total_blocks) / cylblocks) - 1);
+    }
 
 
-	{
-		tRigidDiskBlock rdsk;
-		memset(&rdsk, 0x00, sizeof(rdsk));
+    {
+        tRigidDiskBlock rdsk;
+        memset(&rdsk, 0x00, sizeof(rdsk));
         WRITE_BE_32B(rdsk.rdb_ID, IDNAME_RIGIDDISK);
         WRITE_BE_32B(rdsk.rdb_SummedLongs, 0x40);
         WRITE_BE_32B(rdsk.rdb_HostID, 0x7);
         WRITE_BE_32B(rdsk.rdb_BlockBytes, BLK_SIZE);
         WRITE_BE_32B(rdsk.rdb_Flags, RDBFF_DISKID | RDBFF_LASTLUN);
         WRITE_BE_32B(rdsk.rdb_BadBlockList, 0xffffffff);
-        WRITE_BE_32B(rdsk.rdb_PartitionList, cur_block+1);
+        WRITE_BE_32B(rdsk.rdb_PartitionList, cur_block + 1);
         WRITE_BE_32B(rdsk.rdb_FileSysHeaderList, 0xffffffff);
         WRITE_BE_32B(rdsk.rdb_DriveInit, 0xffffffff);
 
@@ -178,23 +182,23 @@ void SynchronizeRdbWithMbr()
         uint32_t chksum = CalcBEsum(&rdsk, READ_BE_32B(rdsk.rdb_SummedLongs));
         WRITE_BE_32B(rdsk.rdb_ChkSum, (~chksum) + 1);
 
-		DumpBuffer((uint8_t*)&rdsk, sizeof(rdsk));
+        DumpBuffer((uint8_t*)&rdsk, sizeof(rdsk));
 
         Card_WriteM((uint8_t*)&rdsk, cur_block++, 1, NULL);
     }
 
     for (int i = 0; i < num_partitions; ++i) {
-		tPartitionBlock part;
+        tPartitionBlock part;
 
-		tPartition* p = &mbr.partition[i];
-		uint32_t locyl = p->first_block / cylblocks;
-		uint32_t hicyl = locyl + p->total_blocks / cylblocks - 1;
+        tPartition* p = &mbr.partition[i];
+        uint32_t locyl = p->first_block / cylblocks;
+        uint32_t hicyl = locyl + p->total_blocks / cylblocks - 1;
 
-		memset(&part, 0x00, sizeof(part));
+        memset(&part, 0x00, sizeof(part));
         WRITE_BE_32B(part.pb_ID, IDNAME_PARTITION);
         WRITE_BE_32B(part.pb_SummedLongs, 0x40);
         WRITE_BE_32B(part.pb_HostID, 0x07);
-        WRITE_BE_32B(part.pb_Next, i == num_partitions - 1 ? 0xffffffff : cur_block+1);
+        WRITE_BE_32B(part.pb_Next, i == num_partitions - 1 ? 0xffffffff : cur_block + 1);
         WRITE_BE_32B(part.pb_Flags, PBFF_BOOTABLE);
 
         // drive name as BSTR
@@ -223,9 +227,10 @@ void SynchronizeRdbWithMbr()
         uint32_t chksum = CalcBEsum(&part, READ_BE_32B(part.pb_SummedLongs));
         WRITE_BE_32B(part.pb_ChkSum, (~chksum) + 1);
 
-		DumpBuffer((uint8_t*)&part, sizeof(part));
+        DumpBuffer((uint8_t*)&part, sizeof(part));
 
         Card_WriteM((uint8_t*)&part, cur_block++, 1, NULL);
     }
+
     INFO("RDB written");
 }

@@ -394,9 +394,11 @@ static __attribute__ ((noinline)) void init_core()
         current_status.button = BUTTON_OFF;
 #ifndef FPGA_DISABLE_EMBEDDED_CORE
         int32_t status = ParseIniFromString(&_binary_embedded_ini_start, &_binary_embedded_ini_end - &_binary_embedded_ini_start, _CFG_parse_handler, &current_status);
+
         if (status != 0 ) {
             ERROR("Error at INI line %d", status);
         }
+
         _MENU_update_bits(&current_status);
 #endif
         OSD_Reset(OSDCMD_CTRL_RES);
@@ -534,12 +536,14 @@ static __attribute__ ((noinline)) void main_update()
     }
 
     static uint32_t sd_button_delay = -1;
+
     if (IO_Input_L(PIN_MENU_BUTTON) && current_status.fpga_load_ok == EMBEDDED_CORE) {
         if (sd_button_delay == -1) {
             current_status.config_d ^= 0x00000020;
             OSD_ConfigSendUserD(current_status.config_d);
             DEBUG(1, "Setting config_d = %08x", current_status.config_d);
         }
+
         sd_button_delay = Timer_Get(BUTTONDELAY);
 
     } else if (Timer_Check(sd_button_delay)) {

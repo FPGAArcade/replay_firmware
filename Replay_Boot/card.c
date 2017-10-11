@@ -517,8 +517,9 @@ uint8_t MMC_Command12(void)
     // WORKAROUND for no compliance card (Atmel Internal ref. !MMC7 !SD19):
     // The errors on this command must be ignored
     // and one retry can be necessary in SPI mode for no compliance card.
-    if (MMC_Command(CMD12, 0))
+    if (MMC_Command(CMD12, 0)) {
         MMC_Command(CMD12, 0);
+    }
 
     timeout = Timer_Get(500);      // 500 ms timeout for a SDXC write operation
 

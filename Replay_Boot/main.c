@@ -174,8 +174,6 @@ int main(void)
     DEBUG(0, "== FPGAArcade Replay Board ==");
     DEBUG(0, "Mike Johnson & Wolfgang Scherr");
     DEBUG(0, "");
-    MSG_warning("NON-RELEASED BETA VERSION");
-    DEBUG(0, "");
     DEBUG(0, "ARM Firmware: %s", version);
     DEBUG(0, "");
 

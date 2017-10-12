@@ -366,11 +366,11 @@ uint16_t OSD_GetKeyCode(void)
     if (!key_code) {
       key_code = USART_Getc();
       if (key_code=='m') key_code=KEY_MENU;
-      if (key_code=='r') key_code=KEY_RESET;
-      if (key_code=='u') key_code=KEY_UP;
-      if (key_code=='d') key_code=KEY_DOWN;
-      if (key_code=='l') key_code=KEY_LEFT;
-      if (key_code=='r') key_code=KEY_RIGHT;
+      if (key_code=='x') key_code=KEY_RESET;
+      if (key_code=='w') key_code=KEY_UP;
+      if (key_code=='s') key_code=KEY_DOWN;
+      if (key_code=='a') key_code=KEY_LEFT;
+      if (key_code=='d') key_code=KEY_RIGHT;
       if (key_code==0x0d) key_code=KEY_ENTER;
     }
 

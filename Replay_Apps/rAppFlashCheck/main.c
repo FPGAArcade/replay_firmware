@@ -16,29 +16,20 @@
 
 const char version[] = {__BUILDNUMBER__};
 
-// we copy the actual bootloader from flash to the RAM and call it
-// (we assume there is no collision with the actual stack)
-void _call_bootloader(void)
+__attribute__ ((noreturn)) void _call_bootloader(void)
 {
-  int i;
-
-  volatile uint32_t *src = (volatile uint32_t *)0x00100200;
-  volatile uint32_t *dest = (volatile uint32_t *)0x00200000;
-
   // set PROG low to reset FPGA (open drain)
   IO_DriveLow_OD(PIN_FPGA_PROG_L);
   Timer_Wait(1);
   IO_DriveHigh_OD(PIN_FPGA_PROG_L);
   Timer_Wait(2);
 
-  // copy bootloader to SRAM
-  for(i = 0; i < 1024; i++) {
-      *dest++ = *src++;
-  }
-
-  // launch bootloader in SRAM
-  asm("ldr r3, = 0x00200000\n");
+  // perform a ARM reset
+  asm("ldr r3, = 0x00000000\n");
   asm("bx  r3\n");
+
+  // we will never reach here
+  while (1) {}
 }
 
 // initialize OSD again

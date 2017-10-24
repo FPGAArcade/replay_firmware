@@ -236,6 +236,12 @@
     <Compile Include="filesel.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="flash.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="flash.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="filesys\ff_blk.c">
       <SubType>compile</SubType>
     </Compile>
@@ -617,78 +623,6 @@
     <Compile Include="usb\usb_hardware.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="xdms\cdata.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\crc_csum.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\crc_csum.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\getbits.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\getbits.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\maketbl.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\maketbl.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\pfile.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\pfile.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\tables.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\tables.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_deep.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_deep.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_heavy.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_heavy.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_init.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_init.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_medium.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_medium.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_quick.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_quick.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_rle.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="xdms\u_rle.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <None Include="xdms\xdms.c">
-      <SubType>compile</SubType>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="common\" />
@@ -700,7 +634,6 @@
     <Folder Include="libc\string" />
     <Folder Include="sam4s\" />
     <Folder Include="usb\" />
-    <Folder Include="xdms\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="common\AT91SAM7S256-RAM.ld">
@@ -728,18 +661,6 @@
       <SubType>compile</SubType>
     </None>
     <None Include="usb\mtp_supported.inl">
-      <SubType>compile</SubType>
-    </None>
-    <None Include="xdms\ChangeLog.txt">
-      <SubType>compile</SubType>
-    </None>
-    <None Include="xdms\COPYING">
-      <SubType>compile</SubType>
-    </None>
-    <None Include="xdms\Makefile">
-      <SubType>compile</SubType>
-    </None>
-    <None Include="xdms\xdms.txt">
       <SubType>compile</SubType>
     </None>
   </ItemGroup>

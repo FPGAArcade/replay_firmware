@@ -1101,3 +1101,29 @@ void FPGA_DecompressToDRAM(char* buffer, uint32_t size, uint32_t base)
     size_t bytes = gunzip(read_embedded_buffer, &read_context, write_to_dram, &write_offset);
     DEBUG(1, "Decompressed %d bytes to %08x", bytes, base);
 }
+
+static size_t write_to_file(const void* buffer, size_t len, void* context)
+{
+    FF_FILE* file = (FF_FILE*)context;
+    size_t written = 0;
+
+    while (len != 0) {
+        uint32_t size = len > 512 ? 512 : len;
+
+        FF_Write(file, 1, size, (FF_T_UINT8 *)buffer);
+
+        written += size;
+        len -= size;
+        buffer = &((uint8_t*)buffer)[size];
+    }
+
+    return written;
+}
+
+void FPGA_WriteEmbeddedToFile(FF_FILE* file)
+{
+    uint32_t read_offset = 0;
+    size_t size = gunzip(read_embedded_core, &read_offset, write_to_file, file);
+    (void)size; // unused-variable warning/error
+    Assert(size == 746212);
+}

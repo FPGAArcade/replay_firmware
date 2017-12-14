@@ -59,8 +59,6 @@
 #include "ff_crc.h"
 #include "ff_fat.h"
 
-static void FF_IOMAN_InitBufferDescriptors(FF_IOMAN *pIoman);
-
 /**
  *      @public
  *      @brief  Creates an FF_IOMAN object, to initialise FullFAT
@@ -270,7 +268,7 @@ FF_ERROR FF_DestroyIOMAN(FF_IOMAN *pIoman) {
  *      @param  pIoman          IOMAN Object.
  *
  **/
-static void FF_IOMAN_InitBufferDescriptors(FF_IOMAN *pIoman) {
+void FF_IOMAN_InitBufferDescriptors(FF_IOMAN *pIoman) {
 	FF_T_UINT16 i;
 	FF_BUFFER *pBuffer = pIoman->pBuffers;
 	pIoman->LastReplaced = 0;

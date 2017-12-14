@@ -261,6 +261,8 @@ FF_ERROR	FF_ReleaseBuffer		(FF_IOMAN *pIoman, FF_BUFFER *pBuffer);
 
 // PRIVATE (For this module only!):
 
+/* Needed to make this public/private to be used in FF_Partition/FF_Format. */
+void FF_IOMAN_InitBufferDescriptors(FF_IOMAN *pIoman);
 
 #endif
 

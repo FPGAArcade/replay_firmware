@@ -1988,6 +1988,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                            const ini_symbols_t name, const char* value)
 {
     status_t* pStatus = (status_t*)status;
+    const uint8_t embedded = pStatus->fpga_load_ok == EMBEDDED_CORE;
 
     if (section == INI_SETUP) {
         switch (name) {
@@ -2033,7 +2034,7 @@ uint8_t _CFG_parse_handler(void* status, const ini_symbols_t section,
                 return _CFG_handle_UPLOAD_LAUNCH(pStatus, name, value);
 
             case INI_ROM:
-                return _CFG_handle_UPLOAD_ROM(pStatus, name, value);
+                return embedded ? 0 : _CFG_handle_UPLOAD_ROM(pStatus, name, value);
 
             default:
                 break;

@@ -2617,3 +2617,27 @@ void CFG_save_all(status_t* currentStatus, const char* iniDir,
     }
     */
 }
+
+void CFG_format_sdcard(status_t* currentStatus)
+{
+    srand_deterministic(Timer_Get(0) | (Timer_Get(0) >> 16));
+
+    FF_PartitionParameters_t params = {
+        .ulSectorCount = Card_GetCapacity() / 512,
+        .ulHiddenSectors = 2048,    // align to 1MB
+        .ulInterSpace = 0,
+        .xSizes = { 100, 0, 0, 0},
+        .xPrimaryCount = 1,
+        .eSizeType = eSizeIsPercent
+    };
+
+    WARNING("Partitioning... ");
+    MENU_handle_ui(0, currentStatus);
+
+    FF_Partition(pIoman, &params);
+
+    WARNING("Formatting... ");
+    MENU_handle_ui(0, currentStatus);
+
+    FF_Format(pIoman, 0, 0, 0);
+}

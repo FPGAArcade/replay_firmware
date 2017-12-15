@@ -392,6 +392,9 @@ typedef struct {
     /** set to 1 if requested to flash the ARM firmware (pre-verify) */
     uint8_t      verify_flash_fw;
 
+    /** set to 1 if pop-up is requested to format the sdcard */
+    uint8_t      format_sdcard;
+
     /* ======== INI menu entry stuff ======== */
 
     /** link to top of menu tree (fixed, does not vary) */
@@ -693,5 +696,12 @@ void CFG_free_menu(status_t* currentStatus);
 */
 void CFG_save_all(status_t* currentStatus, const char* iniDir,
                   const char* iniFile);
+
+/** @brief FORMAT SDCARD
+
+    Re-partitions and formats the sdcard in FAT32.
+
+*/
+void CFG_format_sdcard(status_t* currentStatus);
 
 #endif

@@ -1322,6 +1322,14 @@ static uint8_t key_action_popup_enter(status_t* current_status, const uint16_t k
         return _MENU_update(current_status);
     }
 
+    current_status->do_reboot = 0;
+    current_status->toggle_usb = 0;
+    current_status->usb_mounted = 0;
+    current_status->sync_rdb = 0;
+    current_status->flash_fw = 0;
+    current_status->verify_flash_fw = 0;
+    current_status->format_sdcard = 0;
+
     return 0;
 }
 
@@ -1680,6 +1688,24 @@ uint8_t _MENU_update(status_t* current_status)
         CFG_set_status_defaults(current_status, FALSE);
 
         current_status->flash_fw = 0;
+        current_status->update = 1;
+
+    } else if (current_status->format_sdcard) {
+
+        MENU_set_state(current_status, SHOW_STATUS);
+        OSD_Enable(DISABLE_KEYBOARD);
+
+        current_status->update = 1;
+        MENU_handle_ui(0,current_status);
+
+        CFG_format_sdcard(current_status);
+
+        WARNING("Done ");
+        MENU_handle_ui(0, current_status);
+
+        MENU_set_state(current_status, SHOW_STATUS);
+
+        current_status->format_sdcard = 0;
         current_status->update = 1;
 
     } else {

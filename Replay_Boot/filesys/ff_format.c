@@ -1229,6 +1229,10 @@ FF_IOMAN *pxIOManager = pIoman;
 		}
 		FF_PRINTF( "FF_Format: Clearing done\n" );
 		dirBegin = fatBeginLBA + ( 2 * ulSectorsPerFAT );
+		if (dirBegin != ulClusterBeginLBA)
+		{
+			return FF_ERR_IOMAN_OUT_OF_BOUNDS_WRITE | FF_MODULE_FORMAT;
+		}
 #if( ffconfigTIME_SUPPORT != 0 )
 		{
 			FF_SystemTime_t	str_t;

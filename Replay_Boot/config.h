@@ -395,6 +395,9 @@ typedef struct {
     /** set to 1 if pop-up is requested to format the sdcard */
     uint8_t      format_sdcard;
 
+    /** set to 1 if preparing the sdcard (post format)*/
+    uint8_t      prepare_sdcard;
+
     /* ======== INI menu entry stuff ======== */
 
     /** link to top of menu tree (fixed, does not vary) */

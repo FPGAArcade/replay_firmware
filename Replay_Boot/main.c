@@ -83,6 +83,7 @@ static void load_core_from_sdcard();
 static void load_embedded_core();
 static void init_core();
 static void main_update();
+static void prepare_sdcard();
 
 // GLOBALS
 FF_IOMAN* pIoman = NULL;  // file system handle
@@ -219,12 +220,23 @@ int main(void)
         // note, this will init filescan, but INI file not read yet
         CFG_card_start(&current_status);
 
+        // we need to handle this here because of the massive stack pressure..
+        if (current_status.fs_mounted_ok && current_status.prepare_sdcard) {
+            DEBUG(2, "time to prep the sdcard! ");
+            current_status.prepare_sdcard = 0;
+            prepare_sdcard();
+        }
+
         // we require an functional sdcard filesystem to continue
         if (current_status.fs_mounted_ok) {
             load_core_from_sdcard();
-
-        } else {
+        }
+        // if we failed loading from the sdcard, fallback to the embedded core
+        if (current_status.fpga_load_ok == NO_CORE) {
             load_embedded_core();
+            // 3 reasons we end up here : no sdcard inserted, unable to mount sdcard, error loading core.
+            // if the mounting was not successful (== no sdcard or bad format), retry mounting the card later
+            current_status.card_detected = current_status.fs_mounted_ok;
         }
 
         if ((current_status.fpga_load_ok != NO_CORE) || (IO_Input_H(PIN_FPGA_DONE))) {
@@ -278,12 +290,11 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
 
         if (status) {
             // will not get here if config fails, but just in case...
-            MSG_fatal_error(status);  // flash we fail to configure FPGA
             current_status.fpga_load_ok = NO_CORE;
 
         } else {
             DEBUG(1, "FPGA CONFIG \"%s\" done.", full_filename);
-            current_status.fpga_load_ok = 1;
+            current_status.fpga_load_ok = CORE_LOADED;
         }
     }
 }
@@ -514,8 +525,13 @@ static __attribute__ ((noinline)) void main_update()
         }
     }
 
+    const uint8_t card_already_detected = current_status.card_detected;
     CFG_update_status(&current_status);
-    CFG_card_start(&current_status); // restart file system if card re-inserted
+    if (!(card_already_detected && !current_status.fs_mounted_ok))
+        CFG_card_start(&current_status); // restart file system if card re-inserted
+
+    const uint8_t card_was_inserted = !card_already_detected && current_status.card_detected;
+    const uint8_t card_was_removed = card_already_detected && !current_status.card_detected;
 
     // we deconfigured externally!
     if ((!IO_Input_H(PIN_FPGA_DONE)) && (current_status.fpga_load_ok != NO_CORE)) {
@@ -549,18 +565,50 @@ static __attribute__ ((noinline)) void main_update()
     }
 
     // we check if we are in fallback mode and a proper sdcard is available now
-    if ((current_status.fpga_load_ok == EMBEDDED_CORE) && (current_status.fs_mounted_ok)) {
-        IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
-        ACTLED_ON;
-        // reset config
-        CFG_set_status_defaults(&current_status, FALSE);
-        // set PROG low to reset FPGA (open drain)
-        IO_DriveLow_OD(PIN_FPGA_PROG_L);
-        Timer_Wait(1);
-        IO_DriveHigh_OD(PIN_FPGA_PROG_L);
-        Timer_Wait(2);
-        // invalidate FPGA configuration here as well
-        current_status.fpga_load_ok = NO_CORE;
+    if (current_status.fpga_load_ok == EMBEDDED_CORE) {
+        if (current_status.prepare_sdcard) {
+            IO_DriveLow_OD(PIN_FPGA_RST_L);
+            IO_DriveLow_OD(PIN_FPGA_PROG_L);
+            Timer_Wait(1);
+            IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+            Timer_Wait(2);
+            current_status.fpga_load_ok = NO_CORE;
+
+        } else if (card_was_inserted && current_status.fs_mounted_ok) {
+            IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
+            ACTLED_ON;
+            // reset config
+            CFG_set_status_defaults(&current_status, FALSE);
+            // set PROG low to reset FPGA (open drain)
+            IO_DriveLow_OD(PIN_FPGA_PROG_L);
+            Timer_Wait(1);
+            IO_DriveHigh_OD(PIN_FPGA_PROG_L);
+            Timer_Wait(2);
+            // invalidate FPGA configuration here as well
+            current_status.fpga_load_ok = NO_CORE;
+
+        } else if (card_was_inserted && !current_status.fs_mounted_ok && current_status.menu_state == SHOW_STATUS) {
+
+            DEBUG(2, "grace period before asking to format .. ");
+
+            Timer_Wait(1000);
+            
+            DEBUG(2, "time to format the sdcard? ");
+
+            MENU_set_state(&current_status, POPUP_MENU);
+            strcpy(current_status.popup_msg, "Format SDCARD?");
+            current_status.popup_msg2 = "(takes ~3mins)";
+            current_status.selections = MENU_POPUP_YESNO;
+            current_status.selected = 0;
+            current_status.update = 1;
+            current_status.format_sdcard = 1;
+            current_status.do_reboot = 0;
+
+        } else if (card_was_removed) {
+            MENU_set_state(&current_status, SHOW_STATUS);
+            current_status.update = 1;
+
+        }
     }
 
     // Handle virtual drives
@@ -576,4 +624,71 @@ static __attribute__ ((noinline)) void main_update()
         FPGA_ClockMon(&current_status);
     }
 
+}
+
+static __attribute__ ((noinline)) void write_background(FF_FILE* file)
+{
+    // Creates a nice R/G pattern ;)
+    uint8_t buffer[1024];
+    uint32_t i = 0;
+    for (int y = 0; y < 576; ++y)
+    {
+        for (int x = 0; x < 720; ++x)
+        {
+            uint8_t c,r,g,b;
+
+            r = x * 255 / 720;
+            g = y * 255 / 576;
+            b = 0;
+
+            c = (r & 0xe0) | ((g &0xe0) >> 3) | ((b & 0xc0) >> 6);
+            buffer[i++] = c;
+
+            if (i == sizeof(buffer)){
+                FF_Write(file, 1, i, buffer);
+                i = 0;
+            }
+        }
+    }
+
+    if (i){
+        FF_Write(file, 1, i, buffer);
+    }
+}
+
+static __attribute__ ((noinline)) void prepare_sdcard()
+{
+    // Hacky, but we know we're right (and this saves a lot of time.. ;)
+    pIoman->pPartition->FreeClusterCount = pIoman->pPartition->NumClusters - 1;
+
+    FF_ERROR err;
+    DEBUG(2, "Writing replay.ini");
+
+    FF_FILE* file = FF_Open(pIoman, "\\replay.ini", FF_MODE_WRITE | FF_MODE_CREATE | FF_MODE_TRUNCATE, &err);
+    if (!file) {
+        ERROR("Failed to write .ini");
+        return;
+    }
+    FF_Write(file, 1, &_binary_embedded_ini_end - &_binary_embedded_ini_start, (FF_T_UINT8 *)&_binary_embedded_ini_start);
+    FF_Close(file);
+
+    DEBUG(2, "Writing loader.bin");
+    file = FF_Open(pIoman, "\\loader.bin", FF_MODE_WRITE | FF_MODE_CREATE | FF_MODE_TRUNCATE, &err);
+    if (!file) {
+        ERROR("Failed to write core");
+        return;
+    }
+    FPGA_WriteEmbeddedToFile(file);
+    FF_Close(file);
+
+    DEBUG(2, "Writing background.raw");
+    file = FF_Open(pIoman, "\\background.raw", FF_MODE_WRITE | FF_MODE_CREATE | FF_MODE_TRUNCATE, &err);
+    if (!file) {
+        ERROR("Failed to write core");
+        return;
+    }
+    write_background(file);
+    FF_Close(file);
+
+    FF_FlushCache(pIoman);
 }

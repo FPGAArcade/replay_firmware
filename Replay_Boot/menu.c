@@ -1700,11 +1700,12 @@ uint8_t _MENU_update(status_t* current_status)
 
         CFG_format_sdcard(current_status);
 
-        WARNING("Done ");
+        WARNING("Preparing... ");
         MENU_handle_ui(0, current_status);
 
         MENU_set_state(current_status, SHOW_STATUS);
 
+        current_status->prepare_sdcard = 1;
         current_status->format_sdcard = 0;
         current_status->update = 1;
 

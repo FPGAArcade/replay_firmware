@@ -1102,6 +1102,7 @@ void FPGA_DecompressToDRAM(char* buffer, uint32_t size, uint32_t base)
     DEBUG(1, "Decompressed %d bytes to %08x", bytes, base);
 }
 
+#ifndef FPGA_DISABLE_EMBEDDED_CORE
 static size_t write_to_file(const void* buffer, size_t len, void* context)
 {
     FF_FILE* file = (FF_FILE*)context;
@@ -1117,11 +1118,16 @@ static size_t write_to_file(const void* buffer, size_t len, void* context)
 
     return written;
 }
+#endif
 
 void FPGA_WriteEmbeddedToFile(FF_FILE* file)
 {
+#ifdef FPGA_DISABLE_EMBEDDED_CORE
+    ERROR("Embedded core not available!");
+#else
     uint32_t read_offset = 0;
     size_t size = gunzip(read_embedded_core, &read_offset, write_to_file, file);
     (void)size; // unused-variable warning/error
     Assert(size == 746212);
+#endif
 }

@@ -344,4 +344,15 @@ int sprintf(char* s, const char* fmt, ...)
     return strlen(s);
 }
 
-//  TO DO , add snprintf
+// ignore output buffer size.. 
+int snprintf(char* s, size_t size, const char * fmt, ...)
+{
+    (void)size;
+    *s = 0;
+    va_list va;
+    va_start(va, fmt);
+    tfp_format(&s, putcp, (char*)fmt, va);
+    putcp(&s, 0);
+    va_end(va);
+    return strlen(s);
+}

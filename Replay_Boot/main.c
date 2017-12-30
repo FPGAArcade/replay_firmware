@@ -70,6 +70,7 @@
 //#define PTP_USB 1
 
 #include "usb.h"
+#include "tests/tests.h"
 
 extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
@@ -168,6 +169,13 @@ int main(void)
     // to be sure
     IO_DriveHigh_OD(PIN_FPGA_RST_L);
 
+/*
+    while(1) {
+        RunFullTestSuite();
+        Timer_Wait(2000);
+        return 0;
+    }
+*/
     // INIT
     DEBUG(1, "\033[2J");
     //

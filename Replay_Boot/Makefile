@@ -131,6 +131,9 @@ SRC += usb/cdc_enumerate.c usb/usb_flash.c usb/ptp_usb.c usb/usb_hardware.c usb/
 SRC += iniparser.c messaging.c
 SRC += common/Cstartup_SAM7.c
 
+# tests
+SRC += tests/fullfat-test.c
+
 SRCBIN += ../../../hw/replay/cores/loader_embedded/sdcard/loader.bin
 SRCRAW += ../../../hw/replay/cores/loader_embedded/sdcard/replayhand.raw
 SRCTXT += embedded.ini
@@ -191,7 +194,7 @@ EXTRAINCDIRS  = ./filesys ./common ./usb ./xdms ./asf ./asf/cmsis/thirdparty ./b
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms ./hardware ./libc/stdlib ./libc/string ./libc
+EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms ./hardware ./libc/stdlib ./libc/string ./libc ./tests
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common

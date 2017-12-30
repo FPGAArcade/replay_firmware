@@ -187,7 +187,7 @@ DEBUG = stabs
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS  = ./filesys ./common ./usb ./xdms ./sam4s ./sam4s/cmsis/thirdparty ./base
+EXTRAINCDIRS  = ./filesys ./common ./usb ./xdms ./asf ./asf/cmsis/thirdparty ./base
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.

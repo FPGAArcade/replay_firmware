@@ -5,8 +5,8 @@
     <ProjectVersion>7.0</ProjectVersion>
     <ToolchainName>com.Atmel.ARMGCC.C</ToolchainName>
     <ProjectGuid>{2382a796-7a3a-408e-9125-02de729090c9}</ProjectGuid>
-    <avrdevice>ATSAM4SD32C</avrdevice>
-    <avrdeviceseries>none</avrdeviceseries>
+    <avrdevice>ATSAME70Q21</avrdevice>
+    <avrdeviceseries>same70</avrdeviceseries>
     <OutputType>Executable</OutputType>
     <Language>C</Language>
     <OutputFileName>$(MSBuildProjectName)</OutputFileName>
@@ -87,7 +87,7 @@
   </armgcc.linker.libraries.LibrarySearchPaths>
   <armgcc.linker.optimization.GarbageCollectUnusedSections>True</armgcc.linker.optimization.GarbageCollectUnusedSections>
   <armgcc.linker.memorysettings.ExternalRAM>False</armgcc.linker.memorysettings.ExternalRAM>
-  <armgcc.linker.miscellaneous.LinkerFlags>-T../common/SAM4SD32-ROM.ld</armgcc.linker.miscellaneous.LinkerFlags>
+  <armgcc.linker.miscellaneous.LinkerFlags>-T../common/SAME70Q21-ROM.ld</armgcc.linker.miscellaneous.LinkerFlags>
   <armgcc.assembler.general.IncludePaths>
     <ListValues>
       <Value>%24(PackRepoDir)\atmel\SAM4S_DFP\1.0.56\sam4s\include</Value>
@@ -652,6 +652,9 @@
       <SubType>compile</SubType>
     </None>
     <None Include="common\SAM4SD32-ROM.ld">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="common\SAME70Q21-ROM.ld">
       <SubType>compile</SubType>
     </None>
     <None Include="filesys\Makefile">

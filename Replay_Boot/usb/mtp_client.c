@@ -1,3 +1,5 @@
+#if !defined(SAME70Q21)
+
 #include "mtp_client.h"
 #include "mtp_supported.h"
 #include "ptp_readwrite.h"
@@ -2021,3 +2023,5 @@ static uint16_t EndEditObject(PTPUSBBulkContainer* ptp)
 { 
     return PTP_RC_GeneralError;
 }
+
+#endif // !defined(SAME70Q21)

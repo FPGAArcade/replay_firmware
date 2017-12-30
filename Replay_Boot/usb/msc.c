@@ -1,4 +1,7 @@
 #include "msc.h"
+
+#if !defined(SAME70Q21)
+
 #include "msc_descriptor.h"
 #include "usb_hardware.h"
 #include "messaging.h"
@@ -1076,3 +1079,22 @@ uint8_t MSC_PreventMediaRemoval()
 {
     return s_PreventMediaRemoval;
 }
+
+#else
+
+void MSC_Start(void)
+{
+}
+void MSC_Stop(void)
+{
+}
+uint8_t MSC_Poll(void)
+{
+    return 0;
+}
+uint8_t MSC_PreventMediaRemoval()
+{
+    return 0;
+}
+
+#endif // !defined(SAME70Q21)

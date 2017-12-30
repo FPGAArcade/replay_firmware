@@ -55,8 +55,12 @@
 #ifndef WIN32
 #if defined(AT91SAM7S256)
 #include "AT91SAM7S256.h"
-#else
+#elif defined(SAM4SD32)
 #include "AT91SAM4SD32.h"
+#elif defined(SAME70Q21)
+#include "AT91SAME70Q21.h"
+#else
+#error "unknown atmel board"
 #endif
 #endif
 #include "printf.h"

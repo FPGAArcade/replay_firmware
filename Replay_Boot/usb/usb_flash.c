@@ -20,6 +20,8 @@
 //
 // Jonathan Westhues, split Aug 14 2005, public release May 26 2006
 //-----------------------------------------------------------------------------
+#if !defined(SAME70Q21)
+
 #include "board.h"
 #include "messaging.h"
 
@@ -680,3 +682,5 @@ uint8_t UsbPoll(void)
 
     return ret;
 }
+
+#endif // !defined(SAME70Q21)

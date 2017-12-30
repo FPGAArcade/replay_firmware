@@ -1,3 +1,5 @@
+#if !defined(SAME70Q21)
+
 #include "ptp_usb.h"
 #include "ptp_usb_descriptor.h"
 #include "mtp_database.h"
@@ -204,3 +206,5 @@ static void HandleRxdData(uint8_t ep, uint8_t* packet, uint32_t length)
         UsbSoFarCount = 0;
     }
 }
+
+#endif // !defined(SAME70Q21)

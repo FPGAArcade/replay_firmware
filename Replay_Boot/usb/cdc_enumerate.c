@@ -19,6 +19,8 @@
 //                additional line marked with /* +++ */
 // 1. Sept. 2006: fixed case: board.h -> Board.h
 
+#if !defined(SAME70Q21)
+
 #include "board.h"
 #include "cdc_enumerate.h"
 
@@ -540,3 +542,5 @@ void USB_Open(void)
     // CDC Open by structure initialization
     CDC_Open(&pCDC, AT91C_BASE_UDP);
 }
+
+#endif // !defined(SAME70Q21)

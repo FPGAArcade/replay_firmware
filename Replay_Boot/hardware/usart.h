@@ -48,6 +48,13 @@
 
 #include "hardware/irq.h"
 
+#define USB_USART 0
+
+#if USB_USART==1
+#include"cdc_enumerate.h"
+extern struct _AT91S_CDC pCDC;
+#endif
+
 // Must call USART_Init before Put/Get
 void USART_Init(unsigned long baudrate);
 // Putc printf callback

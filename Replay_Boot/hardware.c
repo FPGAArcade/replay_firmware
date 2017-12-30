@@ -47,13 +47,7 @@
 
 #include "board.h"
 #include "messaging.h"
-
-#define USB_USART 0
-
-#if USB_USART==1
-#include"cdc_enumerate.h"
-extern struct _AT91S_CDC pCDC;
-#endif
+#include "hardware/usart.h"
 
 //
 // General

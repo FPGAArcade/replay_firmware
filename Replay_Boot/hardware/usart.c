@@ -58,7 +58,7 @@ volatile int16_t USART_rxptr, USART_rdptr;
 #define TXBUFLEN 128
 #define TXBUFMASK (TXBUFLEN-1)
 volatile uint8_t USART_txbuf[TXBUFLEN];
-volatile int16_t USART_txptr, USART_wrptr;
+volatile int16_t USART_txptr, USART_wrptr, USART_barrier;
 
 void ISR_USART(void)
 {
@@ -122,6 +122,8 @@ void USART_Init(unsigned long baudrate)
     // enable IRQ on ARM
     enableIRQ();
 #endif
+
+    USART_txptr = USART_wrptr = 0;
 }
 
 void USART_update(void)
@@ -158,13 +160,14 @@ void USART_Putc(void* p, char c)
     // but I am not sure if it is worth the effort...
 
     USART_txbuf[USART_wrptr] = c;
-    USART_wrptr = (USART_wrptr + 1) & 127;
+    USART_wrptr = (USART_wrptr + 1) & TXBUFMASK;
 
-    if ((c == '\n') || (!USART_wrptr)) {
+    if ((c == '\n') || (!USART_wrptr) || (USART_wrptr == USART_barrier)) {
 #if USB_USART==1
         if (pCDC.IsConfigured(&pCDC)) {
             //pCDC.Write(&pCDC, data, length);
             pCDC.Write(&pCDC, (const char*) & (USART_txbuf[USART_txptr]), (TXBUFLEN + USART_wrptr - USART_txptr) & TXBUFMASK);
+            USART_barrier = USART_txptr;
             USART_txptr = USART_wrptr;
         }
 
@@ -172,6 +175,7 @@ void USART_Putc(void* p, char c)
 
         // flush the buffer now (end of line, end of buffer reached or buffer full)
         if ((AT91C_BASE_US0->US_TCR == 0) && (AT91C_BASE_US0->US_TNCR == 0)) {
+            USART_barrier = USART_txptr;
             AT91C_BASE_US0->US_TPR = (uint32_t) & (USART_txbuf[USART_txptr]);
             AT91C_BASE_US0->US_TCR = (TXBUFLEN + USART_wrptr - USART_txptr) & TXBUFMASK;
             AT91C_BASE_US0->US_PTCR = AT91C_PDC_TXTEN;

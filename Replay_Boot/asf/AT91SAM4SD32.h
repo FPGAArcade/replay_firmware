@@ -124,20 +124,27 @@
 
 //#define AT91C_BASE_AIC  ??
 #define AT91C_BASE_AIC		NVIC		// technically totally incorrect
+#define AT91C_ALL_INT		0
 #define AIC_IECR			ISER[0]
 #define AIC_IDCR			ICER[0]
 #define AIC_ICCR			ICPR[0]
 #define AIC_SVR				IP
 #define AIC_SMR				IP
 #define AIC_SPU				STIR
+#define AIC_EOICR			STIR
 
 //#define AT91C_BASE_PITC ??
 #define AT91C_BASE_PITC		RTT			// close enough, but won't fly
+#define AT91C_ID_SYS		ID_RTT
 #define PITC_PIMR			RTT_MR
 #define PITC_PIIR			RTT_VR
+#define PITC_PISR			RTT_SR
+#define PITC_PIVR			RTT_VR
 #define AT91C_PITC_PITEN	RTT_MR_ALMIEN
 #define AT91C_PITC_PICNT	RTT_VR_CRTV_Msk
 #define AT91C_PITC_PIV		RTT_MR_RTPRES_Msk
+#define AT91C_PITC_PITS		RTT_SR_ALMS
+#define AT91C_PITC_PITIEN	RTT_MR_RTPRES_Pos
 
 //#define	AT91PS_UDP			UDP
 typedef Udp						*AT91PS_UDP;

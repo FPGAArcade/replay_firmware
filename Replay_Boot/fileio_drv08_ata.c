@@ -257,7 +257,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
 
     time = Timer_Get(0) - time;
 
-    if ((time >> 20) > 100) {
+    if (Timer_Convert(time) > 100) {
         DEBUG(1, "Long seek time %lu ms.", Timer_Convert(time));
     }
 

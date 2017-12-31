@@ -17,7 +17,7 @@ static FF_T_UINT32 volumeSize, freeSize;
         uint32_t t0 = Timer_Get(0); \
         x; \
         FF_GetErrDescription(error, error_buf, sizeof(error_buf)); \
-        MSG_debug(0, __FILE__, __LINE__, "\t(%d ms) %s", (Timer_Get(0) - t0) >> 20, #x, error_buf); \
+        DEBUG(0, "\t(%d ms) %s", (Timer_Get(0) - t0) >> 20, #x, error_buf); \
     }
 #define CHECK(x) \
     { \
@@ -25,20 +25,20 @@ static FF_T_UINT32 volumeSize, freeSize;
         FF_ERROR err = x; \
         t0 = (Timer_Get(0) - t0) >> 20; \
         FF_GetErrDescription(err, error_buf, sizeof(error_buf)); \
-        MSG_debug(0, __FILE__, __LINE__, "\t(%d ms) %s => %s", t0, #x, error_buf); \
+        DEBUG(0, "\t(%d ms) %s => %s", t0, #x, error_buf); \
     }
 #define SETUP_TEST \
     FF_ERROR error = FF_ERR_NONE; \
     (void)error; \
-    MSG_debug(0, __FILE__, __LINE__, "%s start", __FUNCTION__);
+    DEBUG(0, "%s start", __FUNCTION__);
 #define TEAR_DOWN \
-    MSG_debug(0, __FILE__, __LINE__, "%s done.", __FUNCTION__);
+    DEBUG(0, "%s done.", __FUNCTION__);
 #define EXPECT(a,b) \
     { \
         if ((a) == (b)) \
-            MSG_debug(0, __FILE__, __LINE__, "\t%s == %s OK", #a, #b); \
+            DEBUG(0, "\t%s == %s OK", #a, #b); \
         else \
-            MSG_debug(0, __FILE__, __LINE__, "FAIL:\t%s == %s FAILED!", #a, #b); \
+            DEBUG(0, "FAIL:\t%s == %s FAILED!", #a, #b); \
     }
 
 static void TEST_Setup()
@@ -280,7 +280,7 @@ static void TEST_CheckOpenReadClose()
                     {
                         if (fail)
                         {
-                            MSG_debug(0, __FILE__, __LINE__, "\t[%04x] STOPS FAILING!", p-start);
+                            DEBUG(0, "\t[%04x] STOPS FAILING!", p-start);
                             fail = 0;
                         }
                     }
@@ -288,7 +288,7 @@ static void TEST_CheckOpenReadClose()
                     {
                         if (!fail)
                         {
-                            MSG_debug(0, __FILE__, __LINE__, "\t[%04x] STARTS FAILING!", p-start);
+                            DEBUG(0, "\t[%04x] STARTS FAILING!", p-start);
                             fail = 1;
                         }
                     }

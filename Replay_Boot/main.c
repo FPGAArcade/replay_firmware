@@ -323,10 +323,10 @@ static __attribute__ ((noinline)) void load_embedded_core()
     if (!FPGA_Default()) {
         DEBUG(1, "FPGA default set.");
 
-        unsigned long time = Timer_Get(0);
+        HARDWARE_TICK time = Timer_Get(0);
         FPGA_DecompressToDRAM(&_binary_build_replayhand_start, &_binary_build_replayhand_end - &_binary_build_replayhand_start, 0x00400000);
         time = Timer_Get(0) - time;
-        DEBUG(0, "FPGA background image uploaded in %d ms.", (uint32_t) (time >> 20));
+        DEBUG(0, "FPGA background image uploaded in %d ms.", Timer_Convert(time));
 
         current_status.fpga_load_ok = EMBEDDED_CORE;
         current_status.twi_enabled = 1;
@@ -557,7 +557,7 @@ static __attribute__ ((noinline)) void main_update()
         return;
     }
 
-    static uint32_t sd_button_delay = -1;
+    static HARDWARE_TICK sd_button_delay = -1;
 
     if (IO_Input_L(PIN_MENU_BUTTON) && current_status.fpga_load_ok == EMBEDDED_CORE) {
         if (sd_button_delay == -1) {

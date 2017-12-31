@@ -2,8 +2,7 @@
 #include "board.h"
 #include "card.h"
 #include "messaging.h"
-
-uint32_t Timer_Get(uint32_t offset);
+#include "hardware/timer.h"
 
 static FF_IOMAN* pIoman = NULL;  // file system handle
 static uint8_t fatBuf[FS_FATBUF_SIZE];
@@ -14,16 +13,16 @@ static FF_T_UINT32 volumeSize, freeSize;
 
 #define TIME(x) \
     { \
-        uint32_t t0 = Timer_Get(0); \
+        HARDWARE_TICK t0 = Timer_Get(0); \
         x; \
         FF_GetErrDescription(error, error_buf, sizeof(error_buf)); \
-        DEBUG(0, "\t(%d ms) %s", (Timer_Get(0) - t0) >> 20, #x, error_buf); \
+        DEBUG(0, "\t(%d ms) %s", Timer_Convert(Timer_Get(0) - t0), #x, error_buf); \
     }
 #define CHECK(x) \
     { \
-        uint32_t t0 = Timer_Get(0); \
+        HARDWARE_TICK t0 = Timer_Get(0); \
         FF_ERROR err = x; \
-        t0 = (Timer_Get(0) - t0) >> 20; \
+        t0 = Timer_Convert(Timer_Get(0) - t0); \
         FF_GetErrDescription(err, error_buf, sizeof(error_buf)); \
         DEBUG(0, "\t(%d ms) %s => %s", t0, #x, error_buf); \
     }

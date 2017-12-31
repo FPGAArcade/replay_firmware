@@ -202,6 +202,9 @@ void CFG_call_bootloader(void)
         *delay = 0x2b1a;
     }
 
+    // disable all interrupts - we don't want them triggered while we're rebooting/flashing
+    AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
+
     // launch bootloader in SRAM
     asm("ldr r3, = 0x00200000\n");
     asm("bx  r3\n");
@@ -2620,7 +2623,7 @@ void CFG_save_all(status_t* currentStatus, const char* iniDir,
 
 void CFG_format_sdcard(status_t* currentStatus)
 {
-    srand_deterministic(Timer_Get(0) | (Timer_Get(0) >> 16));
+    srand_deterministic(Timer_Get(0) | (Timer_Get(0) << 16));
 
     FF_PartitionParameters_t params = {
         .ulSectorCount = Card_GetCapacity() / 512,

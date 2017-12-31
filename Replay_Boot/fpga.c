@@ -119,7 +119,7 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
     WARNING("FPGA:Embedded core not available!");
     return 1;
 #else
-    unsigned long time = Timer_Get(0);
+    HARDWARE_TICK time = Timer_Get(0);
 
     // set PROG low to reset FPGA (open drain)
     IO_DriveLow_OD(PIN_FPGA_PROG_L); //AT91C_BASE_PIOA->PIO_OER = PIN_FPGA_PROG_L;
@@ -164,7 +164,7 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
     } else {
         time = Timer_Get(0) - time;
 
-        DEBUG(0, "FPGA configured with fallback image in %d ms.", (uint32_t) (time >> 20));
+        DEBUG(0, "FPGA configured with fallback image in %d ms.", Timer_Convert(time));
     }
 
     return 0;
@@ -175,7 +175,7 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 {
     uint32_t bytesRead;
     uint32_t secCount;
-    unsigned long time;
+    HARDWARE_TICK time;
 
     DEBUG(2, "FPGA:Starting Configuration.");
 
@@ -252,7 +252,7 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
     } else {
         time = Timer_Get(0) - time;
 
-        DEBUG(0, "FPGA configured in %d ms.", (uint32_t) (time >> 20));
+        DEBUG(0, "FPGA configured in %d ms.", Timer_Convert(time));
     }
 
     return 0;

@@ -214,7 +214,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
         return FF_ERR_NONE;
     }
 
-    uint32_t time = Timer_Get(0);
+    HARDWARE_TICK time = Timer_Get(0);
 
     FF_IOMAN*  pIoman = pDrive->fSource->pIoman;
     uint32_t lba_byte = lba << 9;
@@ -258,7 +258,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
     time = Timer_Get(0) - time;
 
     if ((time >> 20) > 100) {
-        DEBUG(1, "Long seek time %lu ms.", time >> 20);
+        DEBUG(1, "Long seek time %lu ms.", Timer_Convert(time));
     }
 
     return err;
@@ -1302,7 +1302,7 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
 {
     DEBUG(1, "Drv08:InsertInit");
 
-    uint32_t time = Timer_Get(0);
+    HARDWARE_TICK time = Timer_Get(0);
 
     //pDrive points to the base fch_t struct for this unit. It contains a pointer (pDesc) to our drv08_desc_t
 
@@ -1376,7 +1376,7 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
     INFO("SIZE: %lu (%lu MB)", pDesc->file_size, pDesc->file_size >> 20);
     INFO("CHS : %u.%u.%u --> %lu MB", pDesc->cylinders, pDesc->heads, pDesc->sectors,
          ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
-    INFO("Opened in %lu ms", time >> 20);
+    INFO("Opened in %lu ms", Timer_Convert(time));
 
     if (pDesc->format == HDF && 2 <= debuglevel) {
         Drv08_PrintRDB(pDrive, pDesc);

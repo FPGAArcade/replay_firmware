@@ -46,9 +46,17 @@
 #ifndef HARDWARE_TIMER_H_INCLUDED
 #define HARDWARE_TIMER_H_INCLUDED
 
+#include <stdint.h>
+
+typedef uint32_t HARDWARE_TICK;						// system timer type
+
 void Timer_Init(void);
-uint32_t Timer_Get(uint32_t offset);
-uint32_t Timer_Check(uint32_t t);
-void Timer_Wait(uint32_t time);
+
+HARDWARE_TICK Timer_Get(uint32_t time_ms);		// returns hardware tick relative to time in milliseconds
+uint8_t Timer_Check(HARDWARE_TICK offset);			// return TRUE/FALSE if the number of hardware ticks has elapsed 
+void Timer_Wait(uint32_t time_ms);					// busy-wait for a 'ms' milliseconds
+
+// uint32_t Timer_Convert(HARDWARE_TICK offset);
+#define Timer_Convert(offset) ((uint32_t)offset)	// HARDWARE_TICK is in millisecond resolution
 
 #endif

@@ -48,6 +48,7 @@
 #include "filesel.h" // tDirScan
 #include "iniparser.h" // MAX_LINE_LEN
 #include "twi.h" // clockconfig_t
+#include "hardware/timer.h" // HARDWARE_TICK
 
 #ifndef CONFIG_H_INCLUDED
 #define CONFIG_H_INCLUDED
@@ -361,7 +362,7 @@ typedef struct {
 
     /* used in the file browser to delay rescan while typing */
     uint8_t  delayed_filescan;
-    uint32_t filescan_timer;
+    HARDWARE_TICK filescan_timer;
 
     /* indicated the current menu state (see typedef tOSDMenuState) READ-ONLY! */
     const tOSDMenuState menu_state;

@@ -105,7 +105,7 @@ void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
     AT91C_BASE_SPI->SPI_TCR  = length;
     AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN;
 
-    uint32_t timeout = Timer_Get(100);      // 100 ms timeout
+    HARDWARE_TICK timeout = Timer_Get(100);      // 100 ms timeout
 
     while ((AT91C_BASE_SPI->SPI_SR & AT91C_SPI_ENDTX ) != AT91C_SPI_ENDTX) {
         if (Timer_Check(timeout)) {
@@ -130,7 +130,7 @@ void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
     AT91C_BASE_SPI->SPI_RCR  = length;
     AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN;
 
-    uint32_t timeout = Timer_Get(100);      // 100 ms timeout
+    HARDWARE_TICK timeout = Timer_Get(100);      // 100 ms timeout
 
     while ((AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {
         if (Timer_Check(timeout)) {

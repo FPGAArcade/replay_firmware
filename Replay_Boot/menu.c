@@ -1397,9 +1397,9 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
 {
     // flag OSD update may be set already externally
     uint8_t update = current_status->update;
-    static uint32_t osd_timeout;
+    static HARDWARE_TICK osd_timeout;
     static uint8_t  osd_timeout_cnt = 0;
-    static uint32_t scroll_timer;
+    static HARDWARE_TICK scroll_timer;
     static uint16_t scroll_text_offset = 0;
     static uint8_t  scroll_started = 0;
 

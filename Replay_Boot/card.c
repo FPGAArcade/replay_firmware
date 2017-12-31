@@ -52,7 +52,7 @@
 
 /*variables*/
 uint8_t  crc;
-uint32_t timeout;
+HARDWARE_TICK timeout;
 uint8_t  response;
 uint8_t  cardType;
 

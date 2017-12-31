@@ -62,7 +62,7 @@ uint8_t   fch_driver[2] = {0, 0};
 uint8_t FileIO_MCh_WaitStat(uint8_t mask, uint8_t wanted)
 {
     uint8_t  stat;
-    uint32_t timeout = Timer_Get(100);      // 100 ms timeout
+    HARDWARE_TICK timeout = Timer_Get(100);      // 100 ms timeout
 
     do {
         SPI_EnableFileIO();
@@ -113,7 +113,7 @@ uint8_t FileIO_MCh_FileToMem(FF_FILE* pFile, uint32_t base, uint32_t size, uint3
 {
     uint8_t  rc = 0;
     uint32_t remaining_size = size;
-    unsigned long time;
+    HARDWARE_TICK time;
     time = Timer_Get(0);
 
     DEBUG(3, "FPGA:Uploading file Addr:%8X Size:%8X.", base, size);
@@ -183,7 +183,7 @@ uint8_t FileIO_MCh_FileToMem(FF_FILE* pFile, uint32_t base, uint32_t size, uint3
     }
 
     time = Timer_Get(0) - time;
-    DEBUG(1, "Upload done in %d ms.", (uint32_t) (time >> 20));
+    DEBUG(1, "Upload done in %d ms.", Timer_Convert(time));
 
     if (remaining_size != 0) {
         WARNING("MCh: Sent file truncated. Requested :%8X Sent :%8X.",
@@ -202,7 +202,7 @@ uint8_t FileIO_MCh_FileToMemVerify(FF_FILE* pFile, uint32_t base, uint32_t size,
     // for debug
     uint8_t  rc = 0;
     uint32_t remaining_size = size;
-    unsigned long time;
+    HARDWARE_TICK time;
     time = Timer_Get(0);
 
     DEBUG(2, "MCh:Verifying Addr:%8X Size:%8X.", base, size);
@@ -291,7 +291,7 @@ uint8_t FileIO_MCh_FileToMemVerify(FF_FILE* pFile, uint32_t base, uint32_t size,
     }
 
     time = Timer_Get(0) - time;
-    DEBUG(1, "Verify done in %d ms.", (uint32_t) (time >> 20));
+    DEBUG(1, "Verify done in %d ms.", Timer_Convert(time));
 
     if (!rc) {
         DEBUG(2, "MCh:File verified complete.");
@@ -305,7 +305,7 @@ uint8_t FileIO_MCh_MemToFile(FF_FILE* pFile, uint32_t base, uint32_t size, uint3
     // for debug
     uint8_t  rc = 0;
     uint32_t remaining_size = size;
-    unsigned long time;
+    HARDWARE_TICK time;
     time = Timer_Get(0);
 
     //DEBUG(1,"FPGA_MemToFile(%x,%x,%x,%x)",pFile,base,size,offset);
@@ -381,7 +381,7 @@ uint8_t FileIO_MCh_MemToFile(FF_FILE* pFile, uint32_t base, uint32_t size, uint3
     }
 
     time = Timer_Get(0) - time;
-    DEBUG(1, "Save done in %d ms.", (uint32_t) (time >> 20));
+    DEBUG(1, "Save done in %d ms.", Timer_Convert(time));
 
     if (!rc) {
         DEBUG(2, "MCh:File written.");
@@ -499,7 +499,7 @@ inline void FileIO_FCh_WriteStat(uint8_t ch, uint8_t stat)
 inline uint8_t FileIO_FCh_WaitStat(uint8_t ch, uint8_t mask, uint8_t wanted)
 {
     uint8_t  stat;
-    uint32_t timeout = Timer_Get(500);      // 500 ms timeout
+    HARDWARE_TICK timeout = Timer_Get(500);      // 500 ms timeout
 
     do {
         stat = FileIO_FCh_GetStat(ch);

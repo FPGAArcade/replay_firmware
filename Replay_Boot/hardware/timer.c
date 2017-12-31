@@ -43,30 +43,54 @@
 
  Email support@fpgaarcade.com
 */
-#ifndef HARDWARE_TIMER_H_INCLUDED
-#define HARDWARE_TIMER_H_INCLUDED
-
 #include "board.h"
+#include "timer.h"
+#include "irq.h"
+
+static volatile uint32_t s_milliseconds = 0;
+static void ISR_System(void)
+{
+    if (AT91C_BASE_PITC->PITC_PISR & AT91C_PITC_PITS)
+    {
+        s_milliseconds += (AT91C_BASE_PITC->PITC_PIVR & AT91C_PITC_PICNT) >> 20;
+    }
+    AT91C_BASE_AIC->AIC_ICCR = (1 << AT91C_ID_SYS);
+    AT91C_BASE_AIC->AIC_EOICR = 0;
+}
 
 //
 // Timer
 //
 void Timer_Init(void)
 {
-    AT91C_BASE_PITC->PITC_PIMR = AT91C_PITC_PITEN | ((BOARD_MCK / 16 / 1000 - 1) & AT91C_PITC_PIV); //counting period 1ms
+    void (*vector)(void) = &ISR_System;
+
+    disableIRQ();   // is this really necessary?
+    AT91C_BASE_AIC->AIC_IDCR = (1 << AT91C_ID_SYS);
+
+    AT91C_BASE_PITC->PITC_PIMR = AT91C_PITC_PITEN | ((BOARD_MCK / 16 / 1000 - 1) & AT91C_PITC_PIV) | AT91C_PITC_PITIEN; //counting period 1ms
+
+    AT91C_BASE_AIC->AIC_SMR[AT91C_ID_SYS] = 0;
+    AT91C_BASE_AIC->AIC_SVR[AT91C_ID_SYS] = (int32_t)vector;
+
+    s_milliseconds = AT91C_BASE_PITC->PITC_PIVR >> 20;  // dummy read / clear values
+    s_milliseconds = 0;
+
+    AT91C_BASE_AIC->AIC_ICCR = (1 << AT91C_ID_SYS);
+    AT91C_BASE_AIC->AIC_IECR = (1 << AT91C_ID_SYS);
+    enableIRQ();
 }
 
-uint32_t Timer_Get(uint32_t offset)
+HARDWARE_TICK Timer_Get(uint32_t offset)
 {
-    // note max timer is 4096mS with this setting
-    uint32_t systimer = (AT91C_BASE_PITC->PITC_PIIR & AT91C_PITC_PICNT);
-    systimer += offset << 20;
-    return (systimer); //valid bits [31:20]
+    uint32_t systimer = s_milliseconds;
+    systimer += offset;
+    return (systimer);
 }
 
-uint32_t Timer_Check(uint32_t time)
+uint8_t Timer_Check(HARDWARE_TICK time)
 {
-    uint32_t systimer = (AT91C_BASE_PITC->PITC_PIIR & AT91C_PITC_PICNT);
+    uint32_t systimer = s_milliseconds;
     /*calculate difference*/
     time -= systimer;
     /*check if <t> has passed*/
@@ -79,5 +103,3 @@ void Timer_Wait(uint32_t time)
 
     while (!Timer_Check(time));
 }
-
-#endif

@@ -379,7 +379,7 @@ void OSD_WaitVBL(void)
 {
     uint32_t pioa_old = 0;
     uint32_t pioa = 0;
-    uint32_t timeout = Timer_Get(100);
+    HARDWARE_TICK timeout = Timer_Get(100);
 
     while ((~pioa ^ pioa_old) & PIN_CONF_DOUT) {
         pioa_old = pioa;
@@ -635,17 +635,17 @@ uint16_t OSD_GetKeyCode(status_t* current_status)
     const button_t button_func  = current_status ? current_status->button : BUTTON_MENU;
 
     // front menu button stuff
-    static uint32_t button_delay;
+    static HARDWARE_TICK button_delay;
     static uint16_t button_pressed = 0;
-    static uint32_t flash_delay;
+    static HARDWARE_TICK flash_delay;
 
     // PS/2 stuff
     uint16_t x = 0;
     uint16_t key_break = 0;
     uint16_t key_code = 0;
 
-    static uint32_t ps2_delay = 0;
-    static uint32_t ps2_flags_delay = 0;
+    static HARDWARE_TICK ps2_delay = 0;
+    static HARDWARE_TICK ps2_flags_delay = 0;
 
     static uint8_t keybuf[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // max. amount of codes with one keypress (PAUSE key)
     static uint16_t keypos = 0;
@@ -654,7 +654,7 @@ uint16_t OSD_GetKeyCode(status_t* current_status)
     static uint16_t old_key_code = 0;
 
     // RS232 escape sequence char timeout
-    static uint32_t esc_delay = 0;
+    static HARDWARE_TICK esc_delay = 0;
     static uint16_t meta_key = 0;
 
     // check front menu button

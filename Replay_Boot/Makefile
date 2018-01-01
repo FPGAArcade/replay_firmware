@@ -190,11 +190,11 @@ DEBUG = stabs
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS  = ./filesys ./common ./usb ./xdms ./asf ./asf/cmsis/thirdparty ./base
+EXTRAINCDIRS  = ./filesys ./common ./usb ./asf ./asf/cmsis/thirdparty
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./common ./usb ./xdms ./hardware ./libc/stdlib ./libc/string ./libc ./tests
+EXTRA_LIBDIRS  = ./filesys ./common ./usb ./hardware ./libc/stdlib ./libc/string ./libc ./tests
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common

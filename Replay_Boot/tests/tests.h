@@ -5,6 +5,6 @@
 void RunFullTestSuite()
 {
     DEBUG(1, "\033[2J");
-	RunFullFatTests();
+    RunFullFatTests();
     DEBUG(1, "DONE!");
 }

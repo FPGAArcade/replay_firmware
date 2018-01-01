@@ -209,7 +209,7 @@ static void TEST_OpenWriteClose()
             total_len += written;
         }
 
-        EXPECT(total_len, 1024*256*1);
+        EXPECT(total_len, 1024 * 256 * 1);
 
         CHECK(FF_Close(pFile));
 
@@ -219,6 +219,7 @@ static void TEST_OpenWriteClose()
                 break;
             }
         }
+
         EXPECT(FF_isDirEmpty(pIoman, filename), FF_FALSE);
     }
 
@@ -245,7 +246,7 @@ static void TEST_TimeOpenReadClose()
             }
         }
 
-        EXPECT(total_len, sizeof(buffer)*256*1);
+        EXPECT(total_len, sizeof(buffer) * 256 * 1);
         CHECK(FF_Close(pFile));
     }
 
@@ -266,38 +267,35 @@ static void TEST_CheckOpenReadClose()
 
         for (int block = 0; block < 1; ++block) {
             const uint8_t* p = (uint8_t*)0x00100000;
+
             for (int kb = 0; kb < 256; kb++) {
                 FF_T_SINT32 len = sizeof(buffer);
                 read = FF_Read(pFile, 1, sizeof(buffer), buffer);
                 total_len += read;
-           
+
                 const uint8_t* start = p;
                 uint8_t fail = 0;
-                do
-                {
-                    if (*p == buffer[read-len])
-                    {
-                        if (fail)
-                        {
-                            DEBUG(0, "\t[%04x] STOPS FAILING!", p-start);
+
+                do {
+                    if (*p == buffer[read - len]) {
+                        if (fail) {
+                            DEBUG(0, "\t[%04x] STOPS FAILING!", p - start);
                             fail = 0;
                         }
-                    }
-                    else
-                    {
-                        if (!fail)
-                        {
-                            DEBUG(0, "\t[%04x] STARTS FAILING!", p-start);
+
+                    } else {
+                        if (!fail) {
+                            DEBUG(0, "\t[%04x] STARTS FAILING!", p - start);
                             fail = 1;
                         }
                     }
+
                     p++;
-                }
-                while(--len);
+                } while (--len);
             }
         }
 
-        EXPECT(total_len, sizeof(buffer)*256*1);
+        EXPECT(total_len, sizeof(buffer) * 256 * 1);
         CHECK(FF_Close(pFile));
     }
 
@@ -343,8 +341,8 @@ void RunFullFatTests()
         TIME(TEST_MkDir());
         TIME(TEST_OpenWriteClose());
         TIME(TEST_CheckOpenReadClose());
-    	TIME(TEST_RmFiles());
-    	TIME(TEST_RmDir());
+        TIME(TEST_RmFiles());
+        TIME(TEST_RmDir());
         TIME(TEST_RmDirTree());
     }
 

@@ -50,10 +50,10 @@
 static volatile uint32_t s_milliseconds = 0;
 static void ISR_System(void)
 {
-    if (AT91C_BASE_PITC->PITC_PISR & AT91C_PITC_PITS)
-    {
+    if (AT91C_BASE_PITC->PITC_PISR & AT91C_PITC_PITS) {
         s_milliseconds += (AT91C_BASE_PITC->PITC_PIVR & AT91C_PITC_PICNT) >> 20;
     }
+
     AT91C_BASE_AIC->AIC_ICCR = (1 << AT91C_ID_SYS);
     AT91C_BASE_AIC->AIC_EOICR = 0;
 }

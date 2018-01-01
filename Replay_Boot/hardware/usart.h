@@ -58,7 +58,7 @@ extern struct _AT91S_CDC pCDC;
 // Must call USART_Init before Put/Get
 void USART_Init(unsigned long baudrate);
 // Putc printf callback
-void USART_Putc(void *, char c);
+void USART_Putc(void*, char c);
 
 uint8_t USART_GetValid(void);
 uint8_t USART_Getc(void);

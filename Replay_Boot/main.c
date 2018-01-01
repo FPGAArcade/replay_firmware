@@ -169,13 +169,13 @@ int main(void)
     // to be sure
     IO_DriveHigh_OD(PIN_FPGA_RST_L);
 
-/*
-    while(1) {
-        RunFullTestSuite();
-        Timer_Wait(2000);
-        return 0;
-    }
-*/
+    /*
+        while(1) {
+            RunFullTestSuite();
+            Timer_Wait(2000);
+            return 0;
+        }
+    */
     // INIT
     DEBUG(1, "\033[2J");
     //
@@ -239,6 +239,7 @@ int main(void)
         if (current_status.fs_mounted_ok) {
             load_core_from_sdcard();
         }
+
         // if we failed loading from the sdcard, fallback to the embedded core
         if (current_status.fpga_load_ok == NO_CORE) {
             load_embedded_core();
@@ -535,8 +536,10 @@ static __attribute__ ((noinline)) void main_update()
 
     const uint8_t card_already_detected = current_status.card_detected;
     CFG_update_status(&current_status);
-    if (!(card_already_detected && !current_status.fs_mounted_ok))
-        CFG_card_start(&current_status); // restart file system if card re-inserted
+
+    if (!(card_already_detected && !current_status.fs_mounted_ok)) {
+        CFG_card_start(&current_status);    // restart file system if card re-inserted
+    }
 
     const uint8_t card_was_inserted = !card_already_detected && current_status.card_detected;
     const uint8_t card_was_removed = card_already_detected && !current_status.card_detected;
@@ -600,7 +603,7 @@ static __attribute__ ((noinline)) void main_update()
             DEBUG(2, "grace period before asking to format .. ");
 
             Timer_Wait(1000);
-            
+
             DEBUG(2, "time to format the sdcard? ");
 
             MENU_set_state(&current_status, POPUP_MENU);
@@ -639,27 +642,26 @@ static __attribute__ ((noinline)) void write_background(FF_FILE* file)
     // Creates a nice R/G pattern ;)
     uint8_t buffer[1024];
     uint32_t i = 0;
-    for (int y = 0; y < 576; ++y)
-    {
-        for (int x = 0; x < 720; ++x)
-        {
-            uint8_t c,r,g,b;
+
+    for (int y = 0; y < 576; ++y) {
+        for (int x = 0; x < 720; ++x) {
+            uint8_t c, r, g, b;
 
             r = x * 255 / 720;
             g = y * 255 / 576;
             b = 0;
 
-            c = (r & 0xe0) | ((g &0xe0) >> 3) | ((b & 0xc0) >> 6);
+            c = (r & 0xe0) | ((g & 0xe0) >> 3) | ((b & 0xc0) >> 6);
             buffer[i++] = c;
 
-            if (i == sizeof(buffer)){
+            if (i == sizeof(buffer)) {
                 FF_Write(file, 1, i, buffer);
                 i = 0;
             }
         }
     }
 
-    if (i){
+    if (i) {
         FF_Write(file, 1, i, buffer);
     }
 }
@@ -673,28 +675,34 @@ static __attribute__ ((noinline)) void prepare_sdcard()
     DEBUG(2, "Writing replay.ini");
 
     FF_FILE* file = FF_Open(pIoman, "\\replay.ini", FF_MODE_WRITE | FF_MODE_CREATE | FF_MODE_TRUNCATE, &err);
+
     if (!file) {
         ERROR("Failed to write .ini");
         return;
     }
-    FF_Write(file, 1, &_binary_embedded_ini_end - &_binary_embedded_ini_start, (FF_T_UINT8 *)&_binary_embedded_ini_start);
+
+    FF_Write(file, 1, &_binary_embedded_ini_end - &_binary_embedded_ini_start, (FF_T_UINT8*)&_binary_embedded_ini_start);
     FF_Close(file);
 
     DEBUG(2, "Writing loader.bin");
     file = FF_Open(pIoman, "\\loader.bin", FF_MODE_WRITE | FF_MODE_CREATE | FF_MODE_TRUNCATE, &err);
+
     if (!file) {
         ERROR("Failed to write core");
         return;
     }
+
     FPGA_WriteEmbeddedToFile(file);
     FF_Close(file);
 
     DEBUG(2, "Writing background.raw");
     file = FF_Open(pIoman, "\\background.raw", FF_MODE_WRITE | FF_MODE_CREATE | FF_MODE_TRUNCATE, &err);
+
     if (!file) {
         ERROR("Failed to write core");
         return;
     }
+
     write_background(file);
     FF_Close(file);
 

@@ -53,7 +53,7 @@ typedef uint32_t HARDWARE_TICK;						// system timer type
 void Timer_Init(void);
 
 HARDWARE_TICK Timer_Get(uint32_t time_ms);		// returns hardware tick relative to time in milliseconds
-uint8_t Timer_Check(HARDWARE_TICK offset);			// return TRUE/FALSE if the number of hardware ticks has elapsed 
+uint8_t Timer_Check(HARDWARE_TICK offset);			// return TRUE/FALSE if the number of hardware ticks has elapsed
 void Timer_Wait(uint32_t time_ms);					// busy-wait for a 'ms' milliseconds
 
 // uint32_t Timer_Convert(HARDWARE_TICK offset);

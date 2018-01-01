@@ -344,8 +344,8 @@ int sprintf(char* s, const char* fmt, ...)
     return strlen(s);
 }
 
-// ignore output buffer size.. 
-int snprintf(char* s, size_t size, const char * fmt, ...)
+// ignore output buffer size..
+int snprintf(char* s, size_t size, const char* fmt, ...)
 {
     (void)size;
     *s = 0;

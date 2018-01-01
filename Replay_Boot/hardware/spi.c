@@ -114,6 +114,7 @@ void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
             break;
         }
     }
+
     AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
 }
 
@@ -138,6 +139,7 @@ void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
             break;
         }
     }
+
     AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
 }
 

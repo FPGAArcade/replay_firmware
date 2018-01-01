@@ -1109,7 +1109,7 @@ static size_t write_to_file(const void* buffer, size_t len, void* context)
     size_t written = 0;
 
     while (len != 0) {
-        uint32_t size = FF_Write(file, 1, len, (FF_T_UINT8 *)buffer);
+        uint32_t size = FF_Write(file, 1, len, (FF_T_UINT8*)buffer);
 
         written += size;
         len -= size;

@@ -425,7 +425,7 @@ static uint32_t s_FlashCRC32;
 static void DumpToConsole(void)
 {
     uint32_t valid_bytes = ((srecCurrentAddr - 1) & (FLASH_PAGE_SIZE - 1)) + 1;
-//    DumpBufferOffset(srecLineBuffer, valid_bytes, srecCurrentAddr-valid_bytes);
+    //    DumpBufferOffset(srecLineBuffer, valid_bytes, srecCurrentAddr-valid_bytes);
     s_FlashSize += valid_bytes;
     feed_crc32(srecLineBuffer, valid_bytes);
 }
@@ -434,7 +434,7 @@ static uint8_t VerifyHandler(uint8_t type, uint32_t base, uint32_t offset, uint8
 {
     uint32_t addr = base + offset;
 
-//    DEBUG(1, "VerifyHandler(%02d, 0x%08x, 0x%04x, 0x%02x, 0x%02x = %c) ; srecCurrentAddr = 0x%08x ; addr = 0x%08x", type, base, offset, length, value, isgraph(value) ? value : '?', srecCurrentAddr, addr);
+    //    DEBUG(1, "VerifyHandler(%02d, 0x%08x, 0x%04x, 0x%02x, 0x%02x = %c) ; srecCurrentAddr = 0x%08x ; addr = 0x%08x", type, base, offset, length, value, isgraph(value) ? value : '?', srecCurrentAddr, addr);
 
     if (type == 0) {            // header
 

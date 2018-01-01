@@ -136,7 +136,7 @@ void USART_update(void)
         length = pCDC.Read(&pCDC, data, RXBUFLEN);
 
         if (length) {
-          if ((length + USART_rxptr) > (RXBUFLEN-1)) {
+            if ((length + USART_rxptr) > (RXBUFLEN - 1)) {
                 memcpy((void*) & (USART_rxbuf[USART_rxptr]), data, RXBUFLEN - USART_rxptr);
                 memcpy((void*)USART_rxbuf, (void*) & (data[(RXBUFLEN - USART_rxptr)]), length - (RXBUFLEN - USART_rxptr));
 
@@ -164,6 +164,7 @@ void USART_Putc(void* p, char c)
 
     if ((c == '\n') || (!USART_wrptr) || (USART_wrptr == USART_barrier)) {
 #if USB_USART==1
+
         if (pCDC.IsConfigured(&pCDC)) {
             //pCDC.Write(&pCDC, data, length);
             pCDC.Write(&pCDC, (const char*) & (USART_txbuf[USART_txptr]), (TXBUFLEN + USART_wrptr - USART_txptr) & TXBUFMASK);

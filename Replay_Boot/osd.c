@@ -378,10 +378,10 @@ void OSD_Clear(void)
 void OSD_WaitVBL(void)
 {
     uint32_t pioa_old = 0;
-    uint32_t pioa = 0;
+    uint32_t pioa = AT91C_BASE_PIOA->PIO_PDSR;
     HARDWARE_TICK timeout = Timer_Get(100);
 
-    while ((~pioa ^ pioa_old) & PIN_CONF_DOUT) {
+    while (!(~pioa & pioa_old & PIN_CONF_DOUT)) {
         pioa_old = pioa;
         pioa     = AT91C_BASE_PIOA->PIO_PDSR;
 

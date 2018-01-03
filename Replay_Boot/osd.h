@@ -218,6 +218,7 @@ uint32_t OSD_ConfigReadFileIO_Ena(void);
 uint32_t OSD_ConfigReadFileIO_Drv(void);
 
 void OSD_WaitVBL(void);
+uint32_t OSD_GetVerticalRefreshRate(void);
 
 uint8_t OSD_ConvASCII(uint8_t keycode);
 uint8_t OSD_ConvFx(uint8_t keycode);

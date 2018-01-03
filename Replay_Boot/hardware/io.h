@@ -51,4 +51,6 @@ void IO_DriveHigh_OD(uint32_t pin);
 uint8_t IO_Input_H(uint32_t pin);
 uint8_t IO_Input_L(uint32_t pin);
 
+void IO_Init(void);
+
 #endif

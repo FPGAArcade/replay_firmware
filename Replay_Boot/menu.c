@@ -695,6 +695,13 @@ static void _MENU_show_status(status_t* current_status)
         OSD_WriteRC(2 + i, 0, current_status->status[i], 0, GRAY, BLACK);
     }
 
+    // output refresh rate
+    {
+        char buffer[8];
+        sprintf(buffer, "%3dHz", OSD_GetVerticalRefreshRate());
+        OSD_WriteRC(2, OSDLINELEN - strlen(buffer), buffer, 0, YELLOW, BLACK);
+    }
+
     OSD_WriteRC(2 + i, 0,   "                                ", 0, BLACK, DARK_BLUE);
 
     // finally print the "scrolling" info lines, we start with the oldest
@@ -1537,6 +1544,13 @@ uint8_t MENU_handle_ui(const uint16_t key, status_t* current_status)
         Filesel_ScanFirst(current_status->dir_scan);
         current_status->delayed_filescan = 0;
         update = 1;
+    }
+
+    if (current_status->menu_state == SHOW_STATUS) {
+        static uint32_t last_rate = 0;
+        uint32_t refresh_rate = OSD_GetVerticalRefreshRate();
+        update |= (refresh_rate != last_rate);
+        last_rate = refresh_rate;
     }
 
     // update menu if needed

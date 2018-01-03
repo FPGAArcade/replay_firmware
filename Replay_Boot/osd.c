@@ -160,6 +160,26 @@ static void _OSD_SendKey(uint8_t key);
 uint8_t osd_vscroll = 0;
 uint8_t osd_page = 0;
 
+static volatile uint32_t vbl_counter = 0;
+static volatile uint32_t time_elapsed = 0;
+static volatile uint32_t refresh_rate = 0;
+
+void ISR_VerticalBlank()
+{
+    uint32_t ms = Timer_Convert(Timer_Get(0));
+
+    if ((vbl_counter++ & 0x3f) == 0) {
+        uint32_t delta = (ms - time_elapsed);
+
+        if (delta == 0) {
+            delta = 1;
+        }
+
+        refresh_rate = ((((64 * 1000) << 16) / delta) + 0x8000) >> 16;
+        time_elapsed = ms;
+    }
+}
+
 // a ? e1:e2 e1 a/=0, e2 a==0
 void OSD_Write(uint8_t row, const char* s, uint8_t invert)
 {
@@ -379,9 +399,10 @@ void OSD_WaitVBL(void)
 {
     uint32_t pioa_old = 0;
     uint32_t pioa = AT91C_BASE_PIOA->PIO_PDSR;
+    uint32_t vbl = vbl_counter;
     HARDWARE_TICK timeout = Timer_Get(100);
 
-    while (!(~pioa & pioa_old & PIN_CONF_DOUT)) {
+    while (!(~pioa & pioa_old & PIN_CONF_DOUT) && vbl != vbl_counter) {
         pioa_old = pioa;
         pioa     = AT91C_BASE_PIOA->PIO_PDSR;
 
@@ -390,6 +411,11 @@ void OSD_WaitVBL(void)
             break;
         }
     }
+}
+
+uint32_t OSD_GetVerticalRefreshRate(void)
+{
+    return refresh_rate;
 }
 
 // enable displaying of OSD

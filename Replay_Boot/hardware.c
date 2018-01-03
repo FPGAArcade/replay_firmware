@@ -47,6 +47,7 @@
 
 #include "board.h"
 #include "messaging.h"
+#include "hardware/io.h"
 #include "hardware/usart.h"
 
 //
@@ -103,6 +104,7 @@ void Hardware_Init(void)
     AT91C_BASE_PIOA->PIO_OER   = PIN_FPGA_RST_L;
     AT91C_BASE_PIOA->PIO_PPUDR = PIN_FPGA_RST_L;
 
+    IO_Init();
 }
 
 

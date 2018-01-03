@@ -47,7 +47,7 @@
 #include "timer.h"
 #include "irq.h"
 
-static volatile uint32_t s_milliseconds = 0;
+static volatile HARDWARE_TICK s_milliseconds = 0;
 static void ISR_System(void)
 {
     if (AT91C_BASE_PITC->PITC_PISR & AT91C_PITC_PITS) {
@@ -56,6 +56,14 @@ static void ISR_System(void)
 
     AT91C_BASE_AIC->AIC_ICCR = (1 << AT91C_ID_SYS);
     AT91C_BASE_AIC->AIC_EOICR = 0;
+}
+static inline HARDWARE_TICK GetSystemTime()
+{
+    // normally AT91C_PITC_PITS will read 0, unless interrupts are disabled..
+    if (AT91C_BASE_PITC->PITC_PISR & AT91C_PITC_PITS) {
+        s_milliseconds += (AT91C_BASE_PITC->PITC_PIVR & AT91C_PITC_PICNT) >> 20;
+    }
+    return s_milliseconds;
 }
 
 //
@@ -81,25 +89,25 @@ void Timer_Init(void)
     enableIRQ();
 }
 
-HARDWARE_TICK Timer_Get(uint32_t offset)
+HARDWARE_TICK Timer_Get(uint32_t time_ms)
 {
-    uint32_t systimer = s_milliseconds;
-    systimer += offset;
+    HARDWARE_TICK systimer = GetSystemTime();
+    systimer += time_ms;       // HACK - we know hw ticks match systimer
     return (systimer);
 }
 
-uint8_t Timer_Check(HARDWARE_TICK time)
+uint8_t Timer_Check(HARDWARE_TICK offset)
 {
-    uint32_t systimer = s_milliseconds;
+    uint32_t systimer = GetSystemTime();
     /*calculate difference*/
-    time -= systimer;
+    offset -= systimer;
     /*check if <t> has passed*/
-    return (time > (1 << 31));
+    return (offset > (1 << 31));
 }
 
-void Timer_Wait(uint32_t time)
+void Timer_Wait(uint32_t time_ms)
 {
-    time = Timer_Get(time);
+    HARDWARE_TICK tick = Timer_Get(time_ms);
 
-    while (!Timer_Check(time));
+    while (!Timer_Check(tick));
 }

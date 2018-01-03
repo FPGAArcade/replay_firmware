@@ -46,6 +46,7 @@
 //
 #include "card.h"
 #include "hardware.h"
+#include "hardware/irq.h"
 #include "hardware/spi.h"
 #include "hardware/timer.h"
 #include "messaging.h"
@@ -206,7 +207,9 @@ uint8_t Card_Init(void)
 
     for (uint8_t i = 0; i < 3; i++) {
         DEBUG(1, "SPI:Card_Init:Attempt %d", i);
+        disableIRQ();
         card_type = Card_TryInit();
+        enableIRQ();
 
         if (card_type != (CARDTYPE_NONE)) {
             return card_type;

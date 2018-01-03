@@ -74,8 +74,8 @@
 
 extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
-extern char _binary_embedded_ini_start;
-extern char _binary_embedded_ini_end;
+extern char _binary_replay_ini_start;
+extern char _binary_replay_ini_end;
 extern char _binary_build_replayhand_start;
 extern char _binary_build_replayhand_end;
 
@@ -411,7 +411,7 @@ static __attribute__ ((noinline)) void init_core()
         OSD_ConfigSendUserD(0x00000000); // 60HZ progressive
         current_status.button = BUTTON_OFF;
 #ifndef FPGA_DISABLE_EMBEDDED_CORE
-        int32_t status = ParseIniFromString(&_binary_embedded_ini_start, &_binary_embedded_ini_end - &_binary_embedded_ini_start, _CFG_parse_handler, &current_status);
+        int32_t status = ParseIniFromString(&_binary_replay_ini_start, &_binary_replay_ini_end - &_binary_replay_ini_start, _CFG_parse_handler, &current_status);
 
         if (status != 0 ) {
             ERROR("Error at INI line %d", status);
@@ -681,7 +681,7 @@ static __attribute__ ((noinline)) void prepare_sdcard()
         return;
     }
 
-    FF_Write(file, 1, &_binary_embedded_ini_end - &_binary_embedded_ini_start, (FF_T_UINT8*)&_binary_embedded_ini_start);
+    FF_Write(file, 1, &_binary_replay_ini_end - &_binary_replay_ini_start, (FF_T_UINT8*)&_binary_replay_ini_start);
     FF_Close(file);
 
     DEBUG(2, "Writing loader.bin");

@@ -136,7 +136,7 @@ SRC += tests/fullfat-test.c
 
 SRCBIN += ../../../hw/replay/cores/loader_embedded/sdcard/loader.bin
 SRCRAW += ../../../hw/replay/cores/loader_embedded/sdcard/replayhand.raw
-SRCTXT += embedded.ini
+SRCTXT += ../../../hw/replay/cores/loader_embedded/sdcard/replay.ini
 
 ifeq ($(USE_NEWLIB),NO)
 SRC += $(wildcard libc/*.c) $(wildcard libc/stdlib/*.c) $(wildcard libc/string/*.c)
@@ -372,7 +372,7 @@ CPPOBJ    = $(addprefix $(BUILDDIR),$(CPPSRC:.cpp=.o))
 CPPOBJARM = $(addprefix $(BUILDDIR),$(CPPSRCARM:.cpp=.o))
 BINOBJ    = $(addprefix $(BUILDDIR),$(notdir $(SRCBIN:.bin=.o)))
 RAWOBJ    = $(addprefix $(BUILDDIR),$(notdir $(SRCRAW:.raw=.o)))
-TXTOBJ    = $(addprefix $(BUILDDIR),$(addsuffix .o, $(basename $(notdir $(SRCTXT)))))
+TXTOBJ    = $(addprefix $(BUILDDIR),$(notdir $(SRCTXT:.ini=.o)))
 EXTOBJ    = $(BINOBJ) $(RAWOBJ) $(TXTOBJ)
 VPATH += $(sort $(dir $(SRCRAW)) $(dir $(SRCBIN)))
 
@@ -517,7 +517,7 @@ $(BINOBJ) $(RAWOBJ):
 $(TXTOBJ) : $(BUILDDIR)%.o : %.ini
 	@echo
 	@echo Obj-copying raw $<
-	$(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $< $@	
+	cd $(dir $<) && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(notdir $<) $(abspath $@)	
 
 # Compile: create assembler files from C source files. ARM/Thumb
 ## does not work - TODO - hints welcome

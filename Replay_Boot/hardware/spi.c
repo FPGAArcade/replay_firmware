@@ -195,3 +195,18 @@ inline void SPI_DisableDirect(void)
 {
     AT91C_BASE_PIOA->PIO_SODR = PIN_CONF_DIN;
 }
+
+unsigned char SPI_IsActive(void)
+{
+    uint32_t mask = PIN_CARD_CS_L | PIN_FPGA_CTRL0 | PIN_FPGA_CTRL1 | PIN_CONF_DIN;
+
+    if ((AT91C_BASE_PIOA->PIO_ODSR & mask) != mask) {
+        return 1;
+    }
+
+    if (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY)) {
+        return 1;
+    }
+
+    return 0;
+}

@@ -61,4 +61,6 @@ void SPI_DisableOsd(void);
 void SPI_EnableDirect(void);
 void SPI_DisableDirect(void);
 
+unsigned char SPI_IsActive(void);
+
 #endif

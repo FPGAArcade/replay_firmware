@@ -554,6 +554,10 @@ void FileIO_FCh_Process(uint8_t ch)
                 FileIO_Drv01_Process(ch, fch_handle, status);
                 break;
 
+            case 0x2:
+                FileIO_Drv02_Process(ch, fch_handle, status);
+                break;
+
             case 0x8:
                 FileIO_Drv08_Process(ch, fch_handle, status);
                 break;
@@ -637,6 +641,10 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char* path)
 
         case 0x1:
             fail = FileIO_Drv01_InsertInit(ch, drive_number, pDrive, pFile_ext);
+            break;
+
+        case 0x2:
+            fail = FileIO_Drv02_InsertInit(ch, drive_number, pDrive, pFile_ext);
             break;
 
         case 0x8:

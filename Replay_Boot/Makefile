@@ -115,6 +115,7 @@ SRC += filesel.c
 SRC += config.c
 SRC += fileio_drv00_generic.c
 SRC += fileio_drv01_floppy.c
+SRC += fileio_drv02_tape.c
 SRC += fileio_drv08_ata.c
 SRC += fileio.c
 SRC += freelist.c

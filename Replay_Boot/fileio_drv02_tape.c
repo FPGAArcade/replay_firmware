@@ -59,10 +59,14 @@ const uint8_t DRV02_DEBUG = 1;
 #define DRV02_BUF_SIZE 512
 
 #define UEF_ChunkHeaderSize (sizeof(uint16_t) + sizeof(uint32_t))
+#define UEF_infoID      0x0000
 #define UEF_tapeID      0x0100
 #define UEF_highToneID  0x0110
 #define UEF_highDummyID 0x0111
 #define UEF_gapID       0x0112
+#define UEF_freqChgID   0x0113
+#define UEF_securityID  0x0114
+#define UEF_floatGapID  0x0116
 #define UEF_startBit    0
 #define UEF_stopBit     1
 #define UEF_Baud        (1000000.0/(16.0*52.0))
@@ -263,6 +267,7 @@ static ChunkInfo* GetChunkAtPosFile(FF_FILE* f, uint32_t* p_bit_pos)
         }
 
         /*DEBUG(1, "Parse ChunkID : %04x - Length : %4d bytes (%04x) - Offset = %d", chunk->id, chunk->length, chunk->length, (uint32_t)FF_Tell(f));*/
+        chunk->file_offset = FF_Tell(f);
 
         if (UEF_tapeID == id || UEF_gapID == id || UEF_highToneID == id || UEF_highDummyID == id) {
 
@@ -298,7 +303,6 @@ static ChunkInfo* GetChunkAtPosFile(FF_FILE* f, uint32_t* p_bit_pos)
             }
 
             if (bit_pos < chunk_bitlen) {
-                chunk->file_offset = FF_Tell(f);// - sizeof(Chunk_header);
                 chunk->bit_offset_start = chunk_start;
                 chunk->bit_offset_end = chunk_start + chunk_bitlen;
                 break;
@@ -308,7 +312,55 @@ static ChunkInfo* GetChunkAtPosFile(FF_FILE* f, uint32_t* p_bit_pos)
             chunk_start += chunk_bitlen;
 
         } else if (length_check) {
-            DEBUG(0, "Drv02:Unknown UEF block ID %04x", id);
+
+            if (UEF_infoID == id) {
+                char buffer[64];
+                uint32_t length = chunk->length;
+
+                while (length > 0) {
+                    uint32_t read_len = length;
+
+                    if (read_len > sizeof(buffer) - 1) {
+                        read_len = sizeof(buffer) - 1;
+                    }
+
+                    if (fread(buffer, 1, read_len, f) != read_len) {
+                        break;
+                    }
+
+                    buffer[read_len] = '\0';
+                    DEBUG(0, "Drv02:UEF Info : '%s'", buffer);
+
+                    length -= read_len;
+                }
+
+            } else if (UEF_freqChgID == id) {
+                float freq;
+
+                if (fread(&freq, 1, sizeof(freq), f) != sizeof(freq)) {
+                    break;
+                }
+
+                DEBUG(0, "Drv02:Ignoring base frequency change : %d", (int)freq);
+
+            } else if (UEF_floatGapID == id) {
+                float gap;
+
+                if (fread(&gap, 1, sizeof(gap), f) != sizeof(gap)) {
+                    break;
+                }
+
+                DEBUG(0, "Drv02:Ignoring floating point gap : %d ms", (int)(gap * 1000.f));
+
+            } else if (UEF_securityID == id) {
+
+                DEBUG(0, "Drv02:UEF security block ignored");
+
+            } else {
+                DEBUG(0, "Drv02:Unknown UEF block ID %04x", id);
+            }
+            
+            fseek(f, chunk->file_offset, FF_SEEK_SET);
         }
 
         fseek(f, chunk->length, FF_SEEK_CUR);

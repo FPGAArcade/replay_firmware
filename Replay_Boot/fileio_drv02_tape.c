@@ -59,12 +59,13 @@ const uint8_t DRV02_DEBUG = 1;
 #define DRV02_BUF_SIZE 512
 
 #define UEF_ChunkHeaderSize (sizeof(uint16_t) + sizeof(uint32_t))
-#define UEF_tapeID     0x0100
-#define UEF_highToneID 0x0110
-#define UEF_gapID      0x0112
-#define UEF_startBit   0
-#define UEF_stopBit    1
-#define UEF_Baud       (1000000.0/(16.0*52.0))
+#define UEF_tapeID      0x0100
+#define UEF_highToneID  0x0110
+#define UEF_highDummyID 0x0111
+#define UEF_gapID       0x0112
+#define UEF_startBit    0
+#define UEF_stopBit     1
+#define UEF_Baud        (1000000.0/(16.0*52.0))
 
 typedef enum {
     XXX, // unsupported
@@ -85,6 +86,7 @@ typedef struct {
     uint32_t    file_offset;
     uint32_t    bit_offset_start;
     uint32_t    bit_offset_end;
+    uint32_t    pre_carrier;
 } __attribute__((packed)) ChunkInfo;
 
 // TODO - allocate this as part of the desc structure
@@ -228,6 +230,7 @@ static uint16_t ReadChunkHeader(FF_FILE* f, ChunkInfo* chunk)
 static ChunkInfo* GetChunkAtPosFile(FF_FILE* f, uint32_t* p_bit_pos)
 {
     uint32_t bit_pos = *p_bit_pos;
+    uint8_t length_check = (bit_pos == 0xffffffff);
     ChunkInfo* chunk = &s_ChunkData;
 
     /*DEBUG(1, "Find pos : %d", bit_pos);*/
@@ -261,12 +264,12 @@ static ChunkInfo* GetChunkAtPosFile(FF_FILE* f, uint32_t* p_bit_pos)
 
         /*DEBUG(1, "Parse ChunkID : %04x - Length : %4d bytes (%04x) - Offset = %d", chunk->id, chunk->length, chunk->length, (uint32_t)FF_Tell(f));*/
 
-        if (UEF_tapeID == id || UEF_gapID == id || UEF_highToneID == id) {
+        if (UEF_tapeID == id || UEF_gapID == id || UEF_highToneID == id || UEF_highDummyID == id) {
 
             if (id == UEF_tapeID) {
                 chunk_bitlen = chunk->length * 10;
 
-            } else {
+            } else if (id == UEF_gapID || id == UEF_highToneID) {
                 uint16_t ms;
 
                 if (fread(&ms, 1, sizeof(ms), f) != sizeof(ms)) {
@@ -275,6 +278,23 @@ static ChunkInfo* GetChunkAtPosFile(FF_FILE* f, uint32_t* p_bit_pos)
 
                 chunk_bitlen = ms * (UEF_Baud / 1000.0);
                 fseek(f, -sizeof(ms), FF_SEEK_CUR);
+
+            } else if (id == UEF_highDummyID) {
+                uint16_t ms;
+
+                if (fread(&ms, 1, sizeof(ms), f) != sizeof(ms)) {
+                    break;
+                }
+
+                chunk->pre_carrier = ms * (UEF_Baud / 1000.0);
+
+                if (fread(&ms, 1, sizeof(ms), f) != sizeof(ms)) {
+                    break;
+                }
+
+                uint32_t post_carrier = ms * (UEF_Baud / 1000.0);
+                chunk_bitlen = chunk->pre_carrier + 20 + post_carrier;
+                fseek(f, -sizeof(ms) * 2, FF_SEEK_CUR);
             }
 
             if (bit_pos < chunk_bitlen) {
@@ -286,6 +306,9 @@ static ChunkInfo* GetChunkAtPosFile(FF_FILE* f, uint32_t* p_bit_pos)
 
             bit_pos -= chunk_bitlen;
             chunk_start += chunk_bitlen;
+
+        } else if (length_check) {
+            DEBUG(0, "Drv02:Unknown UEF block ID %04x", id);
         }
 
         fseek(f, chunk->length, FF_SEEK_CUR);
@@ -314,27 +337,51 @@ static uint8_t GetBitAtPos(FF_FILE* f, uint32_t bit_pos)
         return 1;
     }
 
-    Assert(id == UEF_tapeID);
+    if (id == UEF_tapeID) {
 
-    uint32_t byte_offset = bit_pos / 10;
-    uint32_t bit_offset = bit_pos - byte_offset * 10;
+        uint32_t byte_offset = bit_pos / 10;
+        uint32_t bit_offset = bit_pos - byte_offset * 10;
 
-    if (bit_offset == 0) {
+        if (bit_offset == 0) {
+            return UEF_startBit;
+        }
+
+        if (bit_offset == 9) {
+            return UEF_stopBit;
+        }
+
+        uint8_t byte;
+        fseek(f, info->file_offset + byte_offset, FF_SEEK_SET);
+        fread(&byte, 1, sizeof(byte), f);
+
+        bit_offset -= 1;        // E (0,7)
+        Assert(bit_offset < 8);
+
+        return (byte & (1 << bit_offset)) ? 1 : 0;
+    }
+
+    Assert(id == UEF_highDummyID);
+
+    if ((bit_pos < info->pre_carrier) || (bit_pos >= info->pre_carrier + 20)) {
+        return 1;
+    }
+
+    bit_pos -= info->pre_carrier;
+    bit_pos %= 10;
+
+    if (bit_pos == 0) {
         return UEF_startBit;
     }
 
-    if (bit_offset == 9) {
+    if (bit_pos == 9) {
         return UEF_stopBit;
     }
 
-    uint8_t byte;
-    fseek(f, info->file_offset + byte_offset, FF_SEEK_SET);
-    fread(&byte, 1, sizeof(byte), f);
+    bit_pos -= 1;       // E (0,7)
+    Assert(bit_pos < 8);
+    uint8_t byte = 'A';
 
-    bit_offset -= 1;        // E (0,7)
-    Assert(bit_offset < 8);
-
-    return (byte & (1 << bit_offset)) ? 1 : 0;
+    return (byte & (1 << bit_pos)) ? 1 : 0;
 }
 
 // *** UEF ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

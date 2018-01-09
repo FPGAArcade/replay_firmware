@@ -1040,6 +1040,8 @@ uint16_t OSD_GetKeyCode(status_t* current_status)
         // if the OSD menu is not enabled, forward the USART key input to the core
         if (!menu_enabled) {
             OSD_SendPS2(key_code);
+            // Electron core needs a small delay between make/break for kbd polling
+            Timer_Wait(30);
             OSD_SendPS2(KF_RELEASED | key_code);
         }
     }

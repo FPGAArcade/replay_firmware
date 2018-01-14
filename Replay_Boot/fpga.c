@@ -182,8 +182,8 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
     static const uint8_t BIT_HEADER[] = {
         0x0f, 0xf0,
         0x0f, 0xf0,
-        0x0f, 0xf0, 
-        0x0f, 0xf0, 
+        0x0f, 0xf0,
+        0x0f, 0xf0,
         0x00
     };
 
@@ -206,7 +206,7 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
         uint8_t bitTag = 0x00;
         uint16_t length = 0;
 
-        while(!FF_isEOF(pFile)) {
+        while (!FF_isEOF(pFile)) {
             uint16_t seekLength = 0;
 
             FF_Read(pFile, 1, sizeof(length), (uint8_t*)&length);
@@ -217,14 +217,21 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
                 length = maxSize;
             }
 
+            if (BIT_STREAM_LENGTH == bitTag) {
+                length = sizeof(uint32_t);
+                FF_Seek(pFile, -sizeof(length), FF_SEEK_CUR);
+            }
+
             FF_Read(pFile, 1, length, data);
 
-            if (BIT_INIT == bitTag){
+            if (BIT_INIT == bitTag) {
                 if (length != sizeof(BIT_HEADER) ||
-                    memcmp(data, BIT_HEADER, length)) {
+                        memcmp(data, BIT_HEADER, length)) {
                     WARNING("FPGA:Unknown binary format");
-                    return 1;                    
+                    return 1;
                 }
+
+                ++bitTag;
                 continue;
 
             } else if (BIT_NEXT == bitTag) {
@@ -238,20 +245,22 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
             } else if (BIT_PART_NAME == bitTag) {
                 data[length] = '\0';
                 INFO("PART:%s", data);
-                
+
             } else if (BIT_CREATE_DATE == bitTag) {
                 data[length] = '\0';
                 INFO("DATE:%s", data);
-                
+
             } else if (BIT_CREATE_TIME == bitTag) {
                 data[length] = '\0';
                 INFO("TIME:%s", data);
-                
+
             } else if (BIT_STREAM_LENGTH == bitTag) {
                 uint32_t dataLength = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
+
                 if (FileLength != dataLength) {
                     WARNING("FPGA:Stream length mismatch");
                 }
+
                 break;
             }
 

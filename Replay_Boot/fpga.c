@@ -176,8 +176,94 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
     uint32_t bytesRead;
     uint32_t secCount;
     HARDWARE_TICK time;
+    uint8_t fBuf1[FILEBUF_SIZE];
+    uint8_t fBuf2[FILEBUF_SIZE];
+
+    static const uint8_t BIT_HEADER[] = {
+        0x0f, 0xf0,
+        0x0f, 0xf0,
+        0x0f, 0xf0, 
+        0x0f, 0xf0, 
+        0x00
+    };
+
+    static const uint8_t BIT_INIT           = 0x00;
+    static const uint8_t BIT_NEXT           = 0x01;
+    static const uint8_t BIT_NCD_NAME       = 0x61;
+    static const uint8_t BIT_PART_NAME      = 0x62;
+    static const uint8_t BIT_CREATE_DATE    = 0x63;
+    static const uint8_t BIT_CREATE_TIME    = 0x64;
+    static const uint8_t BIT_STREAM_LENGTH  = 0x65;
+    static const uint32_t FileLength        = 746212;
 
     DEBUG(2, "FPGA:Starting Configuration.");
+
+    // if file is larger than a raw .bin file let's see if it has a .bit header
+    if (pFile->Filesize > FileLength) {
+        uint8_t* data = fBuf1;
+        const uint32_t maxSize = sizeof(fBuf1);
+
+        uint8_t bitTag = 0x00;
+        uint16_t length = 0;
+
+        while(!FF_isEOF(pFile)) {
+            uint16_t seekLength = 0;
+
+            FF_Read(pFile, 1, sizeof(length), (uint8_t*)&length);
+            length = (length << 8) | (length >> 8);
+
+            if (length > maxSize) {
+                seekLength = length - maxSize;
+                length = maxSize;
+            }
+
+            FF_Read(pFile, 1, length, data);
+
+            if (BIT_INIT == bitTag){
+                if (length != sizeof(BIT_HEADER) ||
+                    memcmp(data, BIT_HEADER, length)) {
+                    WARNING("FPGA:Unknown binary format");
+                    return 1;                    
+                }
+                continue;
+
+            } else if (BIT_NEXT == bitTag) {
+                bitTag = data[0];
+                continue;
+
+            } else if (BIT_NCD_NAME == bitTag) {
+                data[length] = '\0';
+                INFO("NCD: %s", data);
+
+            } else if (BIT_PART_NAME == bitTag) {
+                data[length] = '\0';
+                INFO("PART:%s", data);
+                
+            } else if (BIT_CREATE_DATE == bitTag) {
+                data[length] = '\0';
+                INFO("DATE:%s", data);
+                
+            } else if (BIT_CREATE_TIME == bitTag) {
+                data[length] = '\0';
+                INFO("TIME:%s", data);
+                
+            } else if (BIT_STREAM_LENGTH == bitTag) {
+                uint32_t dataLength = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
+                if (FileLength != dataLength) {
+                    WARNING("FPGA:Stream length mismatch");
+                }
+                break;
+            }
+
+            FF_Seek(pFile, seekLength, FF_SEEK_CUR);
+            FF_Read(pFile, 1, sizeof(bitTag), &bitTag);
+        }
+    }
+
+    if ((pFile->Filesize - pFile->FilePointer) < FileLength) {
+        WARNING("FPGA:Bitstream too short!");
+        return 1;
+    }
 
     time = Timer_Get(0);
 
@@ -207,8 +293,6 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
     secCount = 0;
 
     do {
-        uint8_t fBuf1[FILEBUF_SIZE];
-        uint8_t fBuf2[FILEBUF_SIZE];
         uint8_t* pBufR;
         uint8_t* pBufW;
 

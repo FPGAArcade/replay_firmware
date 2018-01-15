@@ -198,8 +198,9 @@ void CFG_call_bootloader(void)
     }
 
     // set an extended timeout - when debugging firmware flashing over USB
-    if (*delay == 0x2b0a && 0) {
-        *delay = 0x2b1a;
+    // older bootroms use 10 loops (~5s) while newer use 20 loops (~10s)
+    if ((*delay == 0x2b0a || *delay == 0x2b14) && 0) {
+        *delay = 0x2b32;    // timeout = ~25s
     }
 
     // disable all interrupts - we don't want them triggered while we're rebooting/flashing

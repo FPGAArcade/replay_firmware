@@ -118,6 +118,10 @@ void MSG_fatal_error(uint8_t error)
     Timer_Wait(1);
     IO_DriveHigh_OD(PIN_FPGA_PROG_L);
     Timer_Wait(2);
+
+    // hack! disable interrupts to not hang during reboot
+    AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
+
     // perform a ARM reset
     asm("ldr r3, = 0x00000000\n");
     asm("bx  r3\n");

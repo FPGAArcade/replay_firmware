@@ -240,8 +240,8 @@ int main(void)
             load_core_from_sdcard();
         }
 
-        // if we failed loading from the sdcard, fallback to the embedded core
-        if (current_status.fpga_load_ok == NO_CORE) {
+        // if we failed loading from the sdcard, fallback to the embedded core (make sure we didn't reconfigure through JTAG)
+        if (current_status.fpga_load_ok == NO_CORE && !IO_Input_H(PIN_FPGA_DONE)) {
             load_embedded_core();
             // 3 reasons we end up here : no sdcard inserted, unable to mount sdcard, error loading core.
             // if the mounting was not successful (== no sdcard or bad format), retry mounting the card later

@@ -63,6 +63,7 @@ static inline HARDWARE_TICK GetSystemTime()
     if (AT91C_BASE_PITC->PITC_PISR & AT91C_PITC_PITS) {
         s_milliseconds += (AT91C_BASE_PITC->PITC_PIVR & AT91C_PITC_PICNT) >> 20;
     }
+
     return s_milliseconds;
 }
 

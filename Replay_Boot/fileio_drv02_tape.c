@@ -359,7 +359,7 @@ static ChunkInfo* GetChunkAtPosFile(FF_FILE* f, uint32_t* p_bit_pos)
             } else {
                 DEBUG(0, "Drv02:Unknown UEF block ID %04x", id);
             }
-            
+
             fseek(f, chunk->file_offset, FF_SEEK_SET);
         }
 

@@ -588,6 +588,7 @@ uint8_t FileIO_Drv02_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
     DEBUG(1, "Drv02:InsertInit");
 
     pDrive->pDesc = calloc(1, sizeof(drv02_desc_t)); // 0 everything
+    memset(&s_ChunkData, 0x00, sizeof(ChunkInfo));
 
     if (pDrive->pDesc == NULL) {
         WARNING("Drv02:Failed to allocate memory.");
@@ -620,7 +621,7 @@ uint8_t FileIO_Drv02_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
             WARNING("File compressed?");
 
         } else {
-
+            
             pDesc->format = UEF;
 
             HARDWARE_TICK before = Timer_Get(0);

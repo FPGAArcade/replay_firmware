@@ -4,7 +4,7 @@
 # by Martin Thomas, Kaiserslautern, Germany
 # <eversmith@heizung-thomas.de>
 #
-# based on the WinAVR makefile written by Eric B. Weddington, Jörg Wunsch, et al.
+# based on the WinAVR makefile written by Eric B. Weddington, Jï¿½rg Wunsch, et al.
 # Released to the Public Domain
 # Please read the make user manual!
 #
@@ -580,7 +580,7 @@ clean_list :
 	$(REMOVE) $(EXTOBJ)
 	$(REMOVE) $(EXTOBJ:.o=)
 	$(REMOVE) -r $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
-	svn revert -R build*
+	git clean -fd build/ .dep/
 
 astyle :
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "*.h" "*.c"

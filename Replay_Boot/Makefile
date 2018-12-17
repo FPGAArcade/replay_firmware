@@ -123,12 +123,19 @@ SRC += osd.c
 SRC += menu.c
 SRC += rdb.c
 SRC += flash.c
-SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unicode.c filesys/ff_format.c
-SRC += filesys/ff_memory.c filesys/ff_safety.c filesys/ff_blk.c filesys/ff_ioman.c filesys/ff_fat.c
-SRC += filesys/ff_crc.c filesys/ff_dir.c filesys/ff_error.c filesys/ff_file.c filesys/ff_hash.c
+#SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unicode.c filesys/ff_format.c
+#SRC += filesys/ff_memory.c filesys/ff_safety.c filesys/ff_blk.c filesys/ff_ioman.c filesys/ff_fat.c
+#SRC += filesys/ff_crc.c filesys/ff_dir.c filesys/ff_error.c filesys/ff_file.c filesys/ff_hash.c
 SRC += ff_malloc.c
+SRC += fatfs/ff.c
+SRC += fatfs/ffunicode.c
+SRC += fatfs/wrapper.c
 SRC += hardware.c hardware/usart.c hardware/spi.c hardware/ssc.c hardware/twi.c hardware/timer.c hardware/io.c
-SRC += usb/cdc_enumerate.c usb/usb_flash.c usb/ptp_usb.c usb/usb_hardware.c usb/mtp_client.c usb/mtp_database.c usb/msc.c usb.c
+SRC += usb/cdc_enumerate.c usb/usb_flash.c 
+#SRC += usb/ptp_usb.c usb/mtp_client.c usb/mtp_database.c
+SRC += usb/usb_hardware.c
+SRC += usb/msc.c
+SRC += usb.c
 SRC += iniparser.c messaging.c
 SRC += common/Cstartup_SAM7.c
 
@@ -191,11 +198,11 @@ DEBUG = stabs
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS  = ./filesys ./common ./usb ./asf ./asf/cmsis/thirdparty
+EXTRAINCDIRS  = ./fatfs ./common ./usb ./asf ./asf/cmsis/thirdparty
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./common ./usb ./hardware ./libc/stdlib ./libc/string ./libc ./tests
+EXTRA_LIBDIRS  = ./filesys ./fatfs ./common ./usb ./hardware ./libc/stdlib ./libc/string ./libc ./tests
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common

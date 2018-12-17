@@ -126,7 +126,7 @@ typedef struct {
     uint16_t heads;
     uint16_t sectors;
     uint16_t sectors_per_block;
-    uint32_t index[1024];
+//    uint32_t index[1024];
     uint32_t index_size;
 
     drv08_rdb_t hdf_rdb;
@@ -216,7 +216,9 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
 
     HARDWARE_TICK time = Timer_Get(0);
 
-    FF_IOMAN*  pIoman = pDrive->fSource->pIoman;
+    FF_IOMAN*  pIoman;// = pDrive->fSource->pIoman;
+    (void)pIoman;
+    
     uint32_t lba_byte = lba << 9;
 
     if (pDesc->format == HDF_NAKED) {
@@ -232,6 +234,9 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
         lba -= pDesc->lba_offset;
         lba_byte = lba << 9;
     }
+
+#if 0
+    pIoman = pDrive->fSource->pIoman;
 
     // first check if we are moving to the same cluster
     FF_T_UINT32 nNewCluster = FF_getClusterChainNumber(pIoman, lba_byte, 1);
@@ -252,6 +257,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
 
         //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, nNewCluster, index_cluster);
     }
+#endif
 
     FF_ERROR err = FF_Seek(pDrive->fSource, lba_byte, FF_SEEK_SET);
 
@@ -1138,6 +1144,7 @@ void Drv08_GetHardfileGeometry(fch_t* pDrive, drv08_desc_t* pDesc)
 
 void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
 {
+#if 0
     pDesc->index_size = 16; // indexing size
 
     uint64_t i; // 64 as the last index (> filesize) can cause a 32 bit int to wrap
@@ -1164,6 +1171,7 @@ void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
         pDesc->index[idx++] = pDrive->fSource->AddrCurrentCluster;
         // call me paranoid
     };
+#endif
 }
 
 void Drv08_CreateRDB(drv08_desc_t* pDesc, uint8_t drive_number)
@@ -1320,7 +1328,7 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
     if (strnicmp(ext, "HDF", 3) == 0) {
         //
         pDesc->format    = (drv08_format_t)HDF;
-        pDesc->file_size =  pDrive->fSource->Filesize;
+        pDesc->file_size =  FF_Size(pDrive->fSource); //->Filesize;
 
     } else if (strnicmp(ext, "?MMC", 4) == 0) {
 

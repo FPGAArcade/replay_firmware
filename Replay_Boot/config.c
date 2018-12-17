@@ -61,6 +61,7 @@
 
 #include <unistd.h> // sbrk()
 #include <malloc.h> // mallinfo()
+#include <stdlib.h> // abs()
 
 extern char __FIRST_IN_RAM[];
 extern char end[];

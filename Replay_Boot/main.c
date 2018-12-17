@@ -99,6 +99,8 @@ int main(void)
     // used by file system
     uint8_t fatBuf[FS_FATBUF_SIZE];
 
+    RunFullFatTests();
+
     // initialise
     Hardware_Init(); // Initialise board hardware
     IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset

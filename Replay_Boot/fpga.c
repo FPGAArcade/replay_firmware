@@ -199,7 +199,7 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
     DEBUG(2, "FPGA:Starting Configuration.");
 
     // if file is larger than a raw .bin file let's see if it has a .bit header
-    if (pFile->Filesize > FileLength) {
+    if (FF_Size(pFile)/*->Filesize*/ > FileLength) {
         uint8_t* data = fBuf1;
         const uint32_t maxSize = sizeof(fBuf1);
 
@@ -269,7 +269,7 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
         }
     }
 
-    if ((pFile->Filesize - pFile->FilePointer) < FileLength) {
+    if ((FF_Size(pFile) /*->Filesize*/ - FF_Tell(pFile) /*->FilePointer*/) < FileLength) {
         WARNING("FPGA:Bitstream too short!");
         return 1;
     }

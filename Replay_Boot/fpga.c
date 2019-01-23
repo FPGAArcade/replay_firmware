@@ -89,8 +89,7 @@ static size_t read_embedded_core(void* buffer, size_t len, void* context)
 }
 static size_t write_embedded_core(const void* buffer, size_t len, void* context)
 {
-    SSC_WaitDMA();
-    SSC_WriteBufferSingle((void*)buffer, len, 0);
+    SSC_WriteBufferSingle((void*)buffer, len, 1);
     return len;
 }
 
@@ -141,13 +140,13 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
         return 1;
     }
 
+    SSC_WaitDMA();
+
     // send FPGA data with SSC DMA in parallel to reading the file
     uint32_t read_offset = 0;
     size_t size = gunzip(read_embedded_core, &read_offset, write_embedded_core, NULL);
     (void)size; // unused-variable warning/error
     Assert(size == 746212);
-
-    SSC_WaitDMA();
 
     // some extra clocks
     SSC_Write(0x00);

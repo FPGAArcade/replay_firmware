@@ -96,7 +96,7 @@ int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
     return (rc);
 }
 
-inline uint8_t FilterExtension(const file_ext_t* file_exts, const char* pFile_ext)
+static inline uint8_t FilterExtension(const file_ext_t* file_exts, const char* pFile_ext)
 {
     if (!file_exts) {
         return TRUE;
@@ -116,7 +116,7 @@ inline uint8_t FilterExtension(const file_ext_t* file_exts, const char* pFile_ex
 }
 
 
-inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
+static inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
 {
     uint8_t hide_hidden_entries;              // "hidden" = files/dirs that start with '.'
 

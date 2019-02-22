@@ -865,7 +865,7 @@ inline uint8_t _rSPI(uint8_t outByte)
     return ((uint8_t)AT91C_BASE_SPI->SPI_RDR);
 }
 
-inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
+static inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
 {
     do {
         _SPI_EnableFileIO();

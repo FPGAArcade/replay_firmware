@@ -860,7 +860,7 @@ void _MENU_show_file_browser(status_t* current_status)
     if (current_status->dir_scan->total_entries == 0) {
         // nothing there
         char s[OSDMAXLEN + 1];
-        strcpy(s, "            No files                   ");
+        strcpy(s, "            No files            ");
         OSD_WriteRC(1 + 2, 0, s, 1, RED, BLACK);
 
     } else {

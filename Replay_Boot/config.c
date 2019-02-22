@@ -1336,7 +1336,7 @@ static uint8_t _CFG_handle_MENU_ITEM(status_t* pStatus, const ini_symbols_t name
         pStatus->menu_item_act->selected_option = NULL;
         pStatus->menu_item_act->action_name[0] = 0;
         strncpy(pStatus->menu_item_act->item_name,
-                valueList[0].strval, MAX_MENU_STRING);
+                valueList[0].strval, MAX_ITEM_STRING);
 
         // special item with own handler, options handled there or ignored
         if (entries == 2) {

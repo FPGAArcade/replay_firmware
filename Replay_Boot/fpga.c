@@ -219,7 +219,7 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
             if (BIT_STREAM_LENGTH == bitTag) {
                 length = sizeof(uint32_t);
-                FF_Seek(pFile, -sizeof(length), FF_SEEK_CUR);
+                FF_Seek(pFile, (FF_T_SINT32) -sizeof(length), FF_SEEK_CUR);
             }
 
             FF_Read(pFile, 1, length, data);

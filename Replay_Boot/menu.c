@@ -582,8 +582,10 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
 // ==============================================
 // == PLATFORM DEPENDENT MENU CHANGES --> HERE !
 // ==============================================
-uint8_t _MENU_action(menuitem_t* item, status_t* current_status, tActionType mode)
+uint8_t _MENU_action(menuitem_t* item, status_t* current_status, uint8_t mode_)
 {
+    tActionType mode = mode_;
+
     // check first if we need to do anything...
     if (!item || !item->action_name[0]) {
         return 0;

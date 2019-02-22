@@ -1268,7 +1268,7 @@ static uint8_t _CFG_handle_MENU_TITLE(status_t* pStatus, const ini_symbols_t nam
     if (entries == 1) {
         DEBUG(2, "TITLE: %s ", value);
         DEBUG(3, "T1: %lx %lx %lx ", pStatus->menu_act,
-              pStatus->menu_act->next, pStatus->menu_act->item_list);
+              pStatus->menu_top ? pStatus->menu_act->next : 0, pStatus->menu_top ? pStatus->menu_act->item_list : 0);
 
         // we filled this menu branch already with items
         if (pStatus->menu_top) {   // add further entry
@@ -2388,21 +2388,21 @@ void CFG_free_menu(status_t* currentStatus)
         void* p;
         DEBUG(3, "T:%08lx >%08lx <%08lx ><%08lx", currentStatus->menu_act,
               currentStatus->menu_act->next, currentStatus->menu_act->last,
-              currentStatus->menu_act->next->last);
+              currentStatus->menu_act->next ? currentStatus->menu_act->next->last : 0);
         currentStatus->menu_item_act = currentStatus->menu_act->item_list;
 
         while (currentStatus->menu_item_act) {
             DEBUG(3, "I:%08lx >%08lx <%08lx ><%08lx", currentStatus->menu_item_act,
                   currentStatus->menu_item_act->next,
                   currentStatus->menu_item_act->last,
-                  currentStatus->menu_item_act->next->last);
+                  currentStatus->menu_item_act->next ? currentStatus->menu_item_act->next->last : 0);
             currentStatus->item_opt_act = currentStatus->menu_item_act->option_list;
 
             while (currentStatus->item_opt_act) {
                 DEBUG(3, "O:%08lx >%08lx <%08lx ><%08lx",
                       currentStatus->item_opt_act, currentStatus->item_opt_act->next,
                       currentStatus->item_opt_act->last,
-                      currentStatus->item_opt_act->next->last);
+                      currentStatus->item_opt_act->next ? currentStatus->item_opt_act->next->last : 0);
                 p = currentStatus->item_opt_act;
                 currentStatus->item_opt_act = currentStatus->item_opt_act->next;
                 free(p);

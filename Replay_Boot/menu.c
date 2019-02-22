@@ -585,7 +585,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
 uint8_t _MENU_action(menuitem_t* item, status_t* current_status, tActionType mode)
 {
     // check first if we need to do anything...
-    if (!item->action_name[0]) {
+    if (!item || !item->action_name[0]) {
         return 0;
     }
 

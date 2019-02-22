@@ -174,6 +174,10 @@ static uint32_t ParseLine(uint8_t(*parseHandle)(void*, const ini_symbols_t, cons
 
     start = FindFirstChar(StripTrailingSpaces(lineBuffer));
 
+    if (!start) {
+        return 0;
+    }
+
     if (*start == '[') {
         end = FindChar(start + 1, ']'); // find end or comment
 

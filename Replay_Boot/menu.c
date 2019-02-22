@@ -291,7 +291,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
 
     // storeselect ----------------------------------
     else if MATCH(item->action_name, "storeselect") {
-        if ((item->option_list) && (item->option_list->option_name)) {
+        if ((item->option_list) && !(item->option_list->option_name[0])) {
             char full_filename[FF_MAX_PATH];
             DEBUG(1, "STORE to: %s file: %s", current_status->act_dir, (item->option_list->option_name));
 

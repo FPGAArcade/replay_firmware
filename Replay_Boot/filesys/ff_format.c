@@ -1419,10 +1419,6 @@ FF_ERROR FF_Partition( FF_IOMAN *pIoman, FF_PartitionParameters_t *pParams )
 	{
 		const uint32_t maxNumSectors = 8;
 		uint8_t pucSectorBuffer[512*maxNumSectors];
-		if( pucSectorBuffer == NULL )
-		{
-			return FF_ERR_NOT_ENOUGH_MEMORY | FF_MODULE_FORMAT;
-		}
 		FF_PRINTF( "FF_Format: Clearing hidden sectors (%lu sectors):\n", pParams->ulHiddenSectors );
 		{
 		int32_t addr;

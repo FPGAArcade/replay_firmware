@@ -40,7 +40,7 @@
 #ifndef _FF_CONFIG_H_
 #define _FF_CONFIG_H_
 
-#include <malloc.h>
+#include <stddef.h>
 void* ff_malloc(size_t size);
 void ff_free(void *ptr);
 

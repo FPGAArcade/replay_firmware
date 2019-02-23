@@ -63,8 +63,6 @@
 #error "unknown atmel board"
 #endif
 #endif
-#include "printf.h"
-#include "stringlight.h"
 
 #define FALSE 0
 #define TRUE 1

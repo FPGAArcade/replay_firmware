@@ -61,8 +61,10 @@
 
 #include "messaging.h"
 
+#if !defined(HOSTED)
 #include <unistd.h> // sbrk()
 #include <malloc.h> // mallinfo()
+#endif
 
 extern char __FIRST_IN_RAM[];
 extern char end[];
@@ -209,8 +211,10 @@ void CFG_call_bootloader(void)
     IRQ_DisableAllInterrupts();
 
     // launch bootloader in SRAM
+#if defined(__arm__)
     asm("ldr r3, = 0x00200000\n");
     asm("bx  r3\n");
+#endif
 }
 
 void CFG_update_status(status_t* current_status)
@@ -612,12 +616,18 @@ uint8_t CFG_download_rom(char* filename, uint32_t base, uint32_t size)
 
 uint32_t CFG_get_free_mem(void)
 {
+#if !defined(HOSTED)
     uint8_t  stack;
     uint32_t total;
     void*    heap;
     const struct mallinfo mi = mallinfo();
     heap = mi.uordblks + end;
     total =  (uint32_t)&stack - (uint32_t)heap;
+
+#else
+    uint32_t total = 0;
+
+#endif
 
     DEBUG(3, "===========================");
     DEBUG(3, " Free memory %ld bytes", total);
@@ -627,6 +637,7 @@ uint32_t CFG_get_free_mem(void)
 
 void CFG_dump_mem_stats(uint8_t only_check_stack)
 {
+#if !defined(HOSTED)
     uint32_t ram_bytes, static_bytes, heap_bytes, avail_bytes, unused_bytes;
     uint32_t current_stack, peak_stack;
 
@@ -670,6 +681,7 @@ void CFG_dump_mem_stats(uint8_t only_check_stack)
     DEBUG(1, "MEM | Heap  : %5d = %5d in-use  + %5d free", mi.arena, mi.uordblks, mi.fordblks);
     DEBUG(1, "MEM | Stack : %5d = %5d current + %5d touched", peak_stack, current_stack, peak_stack - current_stack);
     DEBUG(1, "MEM | Avail : %5d = %5d free    + %5d unused", avail_bytes, mi.fordblks, unused_bytes);
+#endif
 }
 
 uint8_t CFG_configure_fpga(char* filename)

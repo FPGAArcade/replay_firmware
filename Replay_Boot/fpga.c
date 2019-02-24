@@ -974,8 +974,10 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     }
 
     // execute from SRAM the code we just pushed in
+#if defined(__arm__)
     asm("ldr r3, = 0x00200000\n");
     asm("bx  r3\n");
+#endif
 }
 
 #ifdef TINFL_HEADER_INCLUDED

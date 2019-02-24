@@ -124,8 +124,15 @@ void MSG_fatal_error(uint8_t error)
     IRQ_DisableAllInterrupts();
 
     // perform a ARM reset
+#if defined(__arm__)
     asm("ldr r3, = 0x00000000\n");
     asm("bx  r3\n");
+#else
+    {
+        int* p = 0;
+        *p = 3;     // crash
+    }
+#endif
 
 }
 

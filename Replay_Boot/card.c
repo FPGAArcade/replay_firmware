@@ -336,6 +336,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
             SPI_EnableFileIO();
         }
 
+#if defined(AT91SAM7S256)
         // set override (send '1's to card)
         AT91C_BASE_PIOA->PIO_SODR = PIN_CARD_MOSI;  // set GPIO output register
         AT91C_BASE_PIOA->PIO_OER  = PIN_CARD_MOSI;  // GPIO pin as output
@@ -387,6 +388,16 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
 
         AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
+
+#else
+        (void) dma_end;
+
+        // read sector bytes
+        for (uint32_t offset = 0; offset < 512; offset++) {
+            pBuffer[offset] = rSPI(0xff);
+        }
+
+#endif
 
         if (!pBuffer) {
             SPI_DisableFileIO();

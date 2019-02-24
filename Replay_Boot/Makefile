@@ -84,6 +84,11 @@ USE_THUMB_MODE = YES
 #USE_NEWLIB = YES
 USE_NEWLIB = NO
 
+ifeq (1,${HOSTED})
+USE_THUMB_MODE = NO
+USE_NEWLIB = YES
+endif
+
 ## Create ROM-Image (final)
 RUN_MODE=ROM_RUN
 ## Create RAM-Image (debugging)
@@ -127,10 +132,15 @@ SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unicode.c filesys/ff_for
 SRC += filesys/ff_memory.c filesys/ff_safety.c filesys/ff_blk.c filesys/ff_ioman.c filesys/ff_fat.c
 SRC += filesys/ff_crc.c filesys/ff_dir.c filesys/ff_error.c filesys/ff_file.c filesys/ff_hash.c
 SRC += ff_malloc.c
+SRC += iniparser.c messaging.c
+
+ifeq (,${HOSTED})
 SRC += hardware.c hardware/usart.c hardware/spi.c hardware/ssc.c hardware/twi.c hardware/timer.c hardware/io.c
 SRC += usb/cdc_enumerate.c usb/usb_flash.c usb/ptp_usb.c usb/usb_hardware.c usb/mtp_client.c usb/mtp_database.c usb/msc.c usb.c
-SRC += iniparser.c messaging.c
 SRC += common/Cstartup_SAM7.c
+else
+SRC += hardware_host/hardware.c usb/msc.c usb.c hardware_host/embedded.c
+endif
 
 # tests
 SRC += tests/fullfat-test.c
@@ -195,7 +205,7 @@ EXTRAINCDIRS  = ./filesys ./common ./usb ./asf ./asf/cmsis/thirdparty
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./common ./usb ./hardware ./libc/stdlib ./libc/string ./libc ./tests
+EXTRA_LIBDIRS  = ./filesys ./common ./usb ./hardware ./libc/stdlib ./libc/string ./libc ./tests ./hardware_host
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common
@@ -260,7 +270,9 @@ CFLAGS += -O$(OPT)
 CFLAGS += -Wall -Wcast-align -Wimplicit
 CFLAGS += -Wpointer-arith -Wswitch
 CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused -Werror
+ifeq (,${HOSTED})
 CFLAGS += -Wa,-adhlns=$(addprefix $(BUILDDIR), $(subst $(suffix $<),.lst,$<))
+endif
 ifeq ($(USE_NEWLIB),NO)
 CFLAGS += -nostdinc -I./libc/include -Wno-attributes -Wno-redundant-decls -D_ANSI_LIBRARY
 endif
@@ -343,6 +355,26 @@ NM = arm-none-eabi-nm
 REMOVE = rm -f
 COPY = cp
 
+ifeq (1,${HOSTED})
+CC = cc
+CPP = c++
+OBJCOPY = objcopy # brew install binutils ; PATH=$PATH:/usr/local/opt/binutils/bin
+OBJDUMP = objdump
+SIZE = size
+NM = nm
+
+CFLAGS += -Wno-unused-command-line-argument
+
+SUBMDL=HOSTED
+
+SRCARM = 
+ASRCARM =
+OPT = 0
+DEBUG=
+LDFLAGS = -lc -lncurses -Wl,-map,$(BUILDDIR)$(TARGET).map
+
+endif
+
 # Define Messages
 # English
 MSG_ERRORS_NONE = Errors: none
@@ -407,7 +439,11 @@ $(BUILDDIR)/isset:
 	echo ok > $(BUILDDIR)/isset
 #       mkdir -p $(OUTDIR)
 
+ifeq (,${HOSTED})
 build: elf hex bin s19 lss sym size
+else
+build: elf bin s19 sym size
+endif
 
 elf: $(BUILDDIR)$(TARGET).elf
 hex: $(BUILDDIR)$(TARGET).hex
@@ -520,6 +556,13 @@ $(TXTOBJ) : $(BUILDDIR)%.o : %.ini
 	@echo Obj-copying raw $<
 	cd $(dir $<) && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(notdir $<) $(abspath $@)	
 
+hardware_host/embedded.c: $(BUILDDIR)buildnum $(EXTOBJ)
+
+$(BUILDDIR)buildnum:
+	@echo
+	@echo Creating unique build ID $<
+	$(BUILD_NUM) > $(BUILDDIR)buildnum
+
 # Compile: create assembler files from C source files. ARM/Thumb
 ## does not work - TODO - hints welcome
 ##$(COBJ) : %.s : %.c
@@ -579,12 +622,14 @@ clean_list :
 	$(REMOVE) $(CPPSRCARM:.cpp=.d)
 	$(REMOVE) $(EXTOBJ)
 	$(REMOVE) $(EXTOBJ:.o=)
+	$(REMOVE) $(BUILDDIR)buildnum
 	$(REMOVE) -r $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
 	git clean -fd build/ .dep/
 
 astyle :
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "*.h" "*.c"
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware/*.c" "hardware/*.h" 
+	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware_host/*.c"
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "libc/*"
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "tests/*.c" "tests/*.h"
 #	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "usb/*.c" "usb/*.h"

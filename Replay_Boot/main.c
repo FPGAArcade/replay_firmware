@@ -46,7 +46,6 @@
 /** @file main.c */
 
 #include "board.h"
-#include "swi.h"
 #include "hardware.h"
 #include "hardware/io.h"
 #include "hardware/spi.h"

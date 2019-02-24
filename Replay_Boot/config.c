@@ -52,6 +52,7 @@
 #include "osd.h"
 #include "card.h"
 #include "hardware/io.h"
+#include "hardware/spi.h"
 #include "hardware/timer.h"
 #include "twi.h"
 #include "fileio.h"
@@ -319,7 +320,7 @@ void CFG_card_start(status_t* current_status)
         current_status->card_init_ok = FALSE;
         current_status->fs_mounted_ok = FALSE;
         // set SPI clock to 24MHz, perhaps the debugger is being used
-        AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | (2 << 8);
+        SPI_SetFreq25MHz();
     }
 }
 
@@ -1042,17 +1043,15 @@ static uint8_t _CFG_handle_SETUP_SPI_CLK(status_t* pStatus, const ini_symbols_t 
 
     if (entries == 1) {
         // we allow only reducing clock to avoid issues with sdcard settings
-        if (valueList[0].intval >
-                ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8)) {
-            /*pStatus->spiclk_old = ((AT91C_BASE_SPI->SPI_CSR[0] &*/
-            /*AT91C_SPI_SCBR) >> 8);*/
-            AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL |
-                                         (valueList[0].intval << 8);
-            uint32_t spiFreq = BOARD_MCK /
-                               ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
-                               1000000;
+        // $TODO hide this calc under 'hardware'...
+        uint32_t spiFreq = BOARD_MCK /
+                           valueList[0].intval /
+                           1000000;
+
+        if (spiFreq < SPI_GetFreq()) {
+            SPI_SetFreqDivide(valueList[0].intval);
+            spiFreq = SPI_GetFreq();
             DEBUG(1, "New SPI clock: %d MHz", spiFreq);
-            /*pStatus->spiclk_bak = valueList[0].intval;*/
         }
 
         return 0;

@@ -2625,7 +2625,7 @@ void CFG_save_all(status_t* currentStatus, const char* iniDir,
 
 void CFG_format_sdcard(status_t* currentStatus)
 {
-    srand_deterministic(Timer_Get(0) | (Timer_Get(0) << 16));
+    srand(Timer_Get(0) | (Timer_Get(0) << 16));
 
     FF_PartitionParameters_t params = {
         .ulSectorCount = Card_GetCapacity() / 512,

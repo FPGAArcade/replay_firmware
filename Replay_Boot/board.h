@@ -72,6 +72,7 @@
 //#define OSD_DEBUG
 
 #define __ramfunc __attribute__ ((long_call, section (".fastrun")))
+#define __fastrun __attribute__ ((section (".fastrun")))
 
 /*-------------------------------*/
 /* SAM7Board Memories Definition */

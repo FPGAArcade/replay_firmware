@@ -53,6 +53,7 @@
 #include "card.h"
 #include "hardware/io.h"
 #include "hardware/spi.h"
+#include "hardware/irq.h"
 #include "hardware/timer.h"
 #include "twi.h"
 #include "fileio.h"
@@ -205,7 +206,7 @@ void CFG_call_bootloader(void)
     }
 
     // disable all interrupts - we don't want them triggered while we're rebooting/flashing
-    AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
+    IRQ_DisableAllInterrupts();
 
     // launch bootloader in SRAM
     asm("ldr r3, = 0x00200000\n");

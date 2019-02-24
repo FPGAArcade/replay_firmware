@@ -332,38 +332,38 @@ void CFG_set_coder(coder_t standard)
     switch (standard) {
         case CODER_DISABLE :
             DEBUG(2, "CODER: Disabled.");
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_CODER_NTSC_H | PIN_CODER_CE;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_DTXD_Y1      | PIN_DRXD_Y2;
+            IO_ClearOutputData(PIN_CODER_NTSC_H | PIN_CODER_CE);
+            IO_ClearOutputData(PIN_DTXD_Y1      | PIN_DRXD_Y2);
             break;
 
         case CODER_PAL:
             DEBUG(2, "CODER: PAL Y trap.");
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_CE;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_CODER_NTSC_H;
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_DTXD_Y1;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_DRXD_Y2;
+            IO_SetOutputData(PIN_CODER_CE);
+            IO_ClearOutputData(PIN_CODER_NTSC_H);
+            IO_SetOutputData(PIN_DTXD_Y1);
+            IO_ClearOutputData(PIN_DRXD_Y2);
             break;
 
         case CODER_NTSC:
             DEBUG(2, "CODER: NTSC Y trap.");
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_CE;
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_NTSC_H;
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_DTXD_Y1;
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_DRXD_Y2;
+            IO_SetOutputData(PIN_CODER_CE);
+            IO_SetOutputData(PIN_CODER_NTSC_H);
+            IO_SetOutputData(PIN_DTXD_Y1);
+            IO_SetOutputData(PIN_DRXD_Y2);
             break;
 
         case CODER_PAL_NOTRAP:
             DEBUG(2, "CODER: PAL no trap.");
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_CE;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_CODER_NTSC_H;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_DTXD_Y1 | PIN_DRXD_Y2;
+            IO_SetOutputData(PIN_CODER_CE);
+            IO_ClearOutputData(PIN_CODER_NTSC_H);
+            IO_ClearOutputData(PIN_DTXD_Y1 | PIN_DRXD_Y2);
             break;
 
         case CODER_NTSC_NOTRAP:
             DEBUG(2, "CODER: NTSC no trap.");
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_CE;
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_NTSC_H;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_DTXD_Y1 | PIN_DRXD_Y2;
+            IO_SetOutputData(PIN_CODER_CE);
+            IO_SetOutputData(PIN_CODER_NTSC_H);
+            IO_ClearOutputData(PIN_DTXD_Y1 | PIN_DRXD_Y2);
             break;
 
         default :

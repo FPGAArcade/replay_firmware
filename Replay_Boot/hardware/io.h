@@ -46,10 +46,40 @@
 #ifndef HARDWARE_IO_H_INCLUDED
 #define HARDWARE_IO_H_INCLUDED
 
+#include "hardware/timer.h"
+#include "messaging.h"	// ugly.. 
+
 void IO_DriveLow_OD(uint32_t pin);
 void IO_DriveHigh_OD(uint32_t pin);
 uint8_t IO_Input_H(uint32_t pin);
 uint8_t IO_Input_L(uint32_t pin);
+static inline void IO_ClearOutputData(uint32_t pin)
+{
+    AT91C_BASE_PIOA->PIO_CODR = pin;
+}
+static inline void IO_SetOutputData(uint32_t pin)
+{
+    AT91C_BASE_PIOA->PIO_SODR = pin;
+}
+
+extern volatile uint32_t vbl_counter;
+static inline void IO_WaitVBL(void)
+{
+    uint32_t pioa_old = 0;
+    uint32_t pioa = AT91C_BASE_PIOA->PIO_PDSR;
+    uint32_t vbl = vbl_counter;
+    HARDWARE_TICK timeout = Timer_Get(100);
+
+    while (!(~pioa & pioa_old & PIN_CONF_DOUT) && vbl != vbl_counter) {
+        pioa_old = pioa;
+        pioa     = AT91C_BASE_PIOA->PIO_PDSR;
+
+        if (Timer_Check(timeout)) {
+            WARNING("IO_WaitVBL timeout");
+            break;
+        }
+    }
+}
 
 void IO_Init(void);
 

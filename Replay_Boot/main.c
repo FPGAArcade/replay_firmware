@@ -265,9 +265,9 @@ int main(void)
         IO_DriveLow_OD(PIN_FPGA_RST_L); // reset FPGA
 
         // loop again
-        AT91C_BASE_PIOA->PIO_SODR = PIN_ACT_LED;
+        ACTLED_OFF;
         Timer_Wait(500);
-        AT91C_BASE_PIOA->PIO_CODR = PIN_ACT_LED;
+        ACTLED_ON;
         Timer_Wait(500);
     }
 

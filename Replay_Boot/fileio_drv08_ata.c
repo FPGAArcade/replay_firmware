@@ -374,7 +374,7 @@ void Drv08_CardWrite(uint8_t ch, uint32_t lba, uint8_t* pBuffer)
 }
 
 static inline void Drv08_GetParams(uint8_t tfr[8], drv08_desc_t* pDesc,  // inputs
-                            uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint16_t* sector_count, uint32_t* lba, uint8_t* lba_mode)
+                                   uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint16_t* sector_count, uint32_t* lba, uint8_t* lba_mode)
 {
     // given the register file, extract address and sector count.
     // then convert this into an LBA.
@@ -433,7 +433,7 @@ static inline void Drv08_UpdateParams(uint8_t ch, uint8_t tfr[8], uint16_t secto
 }
 
 static inline void Drv08_IncParams(drv08_desc_t* pDesc,  // inputs
-                            uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint32_t* lba)
+                                   uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint32_t* lba)
 {
     // increment address.
     // At command completion, the Command Block Registers contain the cylinder, head and sector number of the last sector read

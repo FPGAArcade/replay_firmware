@@ -1,4 +1,4 @@
-#include <malloc.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include "config.h"
 #include "messaging.h"

@@ -55,6 +55,7 @@
 #include "hardware/timer.h"
 #include "osd.h"  // for keyboard input to DRAM debug only
 #include "messaging.h"
+#include "hardware/spi.h"
 
 #ifndef FPGA_DISABLE_EMBEDDED_CORE
 // Bah! But that's how it is proposed by this lib...
@@ -218,7 +219,7 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
             if (BIT_STREAM_LENGTH == bitTag) {
                 length = sizeof(uint32_t);
-                FF_Seek(pFile, -sizeof(length), FF_SEEK_CUR);
+                FF_Seek(pFile, (FF_T_SINT32) - sizeof(length), FF_SEEK_CUR);
             }
 
             FF_Read(pFile, 1, length, data);
@@ -848,23 +849,9 @@ void FPGA_ClockMon(status_t* currentStatus)
 //  we need this local/inline to avoid function calls in this stage
 // ----------------------------------------------------------------
 
-#define _SPI_EnableFileIO() { AT91C_BASE_PIOA->PIO_CODR=PIN_FPGA_CTRL0; }
-#define _SPI_DisableFileIO() { while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY)); AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL0; }
 
-inline uint8_t _rSPI(uint8_t outByte)
-{
-    volatile __attribute__((unused)) uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // unused, but is a must!
 
-    while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
-
-    AT91C_BASE_SPI->SPI_TDR = outByte;
-
-    while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));
-
-    return ((uint8_t)AT91C_BASE_SPI->SPI_RDR);
-}
-
-inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
+static inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
 {
     do {
         _SPI_EnableFileIO();
@@ -880,21 +867,6 @@ inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
     _SPI_DisableFileIO();
 }
 
-inline void _SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
-{
-    Assert((AT91C_BASE_SPI->SPI_PTSR & (AT91C_PDC_TXTEN | AT91C_PDC_RXTEN)) == 0);
-
-    AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
-    AT91C_BASE_SPI->SPI_TCR  = length;
-    AT91C_BASE_SPI->SPI_RPR  = (uint32_t) pBuffer;
-    AT91C_BASE_SPI->SPI_RCR  = length;
-    AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN;
-
-    while ((AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {};
-
-    AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
-
-}
 
 void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 {
@@ -1001,8 +973,10 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     }
 
     // execute from SRAM the code we just pushed in
+#if defined(__arm__)
     asm("ldr r3, = 0x00200000\n");
     asm("bx  r3\n");
+#endif
 }
 
 #ifdef TINFL_HEADER_INCLUDED

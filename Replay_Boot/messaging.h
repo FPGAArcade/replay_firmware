@@ -51,6 +51,8 @@
 #include "config.h"
 #include "osd.h"
 #include "iniparser.h"
+#include "printf.h"
+#include "stringlight.h"
 
 /// DEBUGLEVEL: 0...off, 1...basic, 2...most, 3...gory details
 #define debuglevel 0

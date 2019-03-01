@@ -78,7 +78,7 @@ static void* stdout_putp;
 static void uli2a(unsigned long int num, unsigned int base, int uc, char* bf)
 {
     int n = 0;
-    unsigned int d = 1;
+    unsigned long d = 1;
 
     while (num / d >= base) {
         d *= base;
@@ -200,7 +200,7 @@ static void putchw(void* putp, putcf putf, int n, char z, char* bf)
 
 void tfp_format(void* putp, putcf putf, char* fmt, va_list va)
 {
-    char bf[12];
+    char bf[24];
 
     char ch;
 

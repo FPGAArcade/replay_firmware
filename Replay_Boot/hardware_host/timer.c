@@ -43,66 +43,54 @@
 
  Email support@fpgaarcade.com
 */
-#ifndef HARDWARE_IO_H_INCLUDED
-#define HARDWARE_IO_H_INCLUDED
-
+#include "board.h"
 #include "hardware/timer.h"
+#include "hardware/irq.h"
+#include <sys/time.h>
 
-#if defined(AT91SAM7S256)
+static volatile uint64_t s_milliseconds = 0;
+static    struct timeval tv;
 
-#include "messaging.h"	// ugly.. 
-
-void IO_DriveLow_OD(uint32_t pin);
-void IO_DriveHigh_OD(uint32_t pin);
-uint8_t IO_Input_H(uint32_t pin);
-uint8_t IO_Input_L(uint32_t pin);
-static inline void IO_ClearOutputData(uint32_t pin)
+static inline HARDWARE_TICK GetSystemTime()
 {
-    AT91C_BASE_PIOA->PIO_CODR = pin;
-}
-static inline void IO_SetOutputData(uint32_t pin)
-{
-    AT91C_BASE_PIOA->PIO_SODR = pin;
-}
+    gettimeofday(&tv, 0);
+    uint64_t current_ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    static uint8_t first = 0;
 
-extern volatile uint32_t vbl_counter;
-static inline void IO_WaitVBL(void)
-{
-    uint32_t pioa_old = 0;
-    uint32_t pioa = AT91C_BASE_PIOA->PIO_PDSR;
-    uint32_t vbl = vbl_counter;
-    HARDWARE_TICK timeout = Timer_Get(100);
-
-    while (!(~pioa & pioa_old & PIN_CONF_DOUT) && vbl != vbl_counter) {
-        pioa_old = pioa;
-        pioa     = AT91C_BASE_PIOA->PIO_PDSR;
-
-        if (Timer_Check(timeout)) {
-            WARNING("IO_WaitVBL timeout");
-            break;
-        }
+    if (!first) {
+        first = 1;
+        s_milliseconds = current_ms;
     }
+
+    return (HARDWARE_TICK)((current_ms - s_milliseconds));
 }
 
-#else
+//
+// Timer
+//
+void Timer_Init(void)
+{
+}
 
-#include <stdint.h>
+HARDWARE_TICK Timer_Get(uint32_t time_ms)
+{
+    HARDWARE_TICK systimer = GetSystemTime();
+    systimer += time_ms;       // HACK - we know hw ticks match systimer
+    return (systimer);
+}
 
-void IO_DriveLow_OD(const char* pin);
-void IO_DriveHigh_OD(const char* pin);
-uint8_t IO_Input_H(const char* pin);
-uint8_t IO_Input_L(const char* pin);
+uint8_t Timer_Check(HARDWARE_TICK offset)
+{
+    uint32_t systimer = GetSystemTime();
+    /*calculate difference*/
+    offset -= systimer;
+    /*check if <t> has passed*/
+    return (offset > (1 << 31));
+}
 
-#define IO_ClearOutputData(x) 	do { IO_ClearOutputDataX(#x); } while(0)
-#define IO_SetOutputData(x)		do { IO_SetOutputDataX(#x);   } while(0)
+void Timer_Wait(uint32_t time_ms)
+{
+    HARDWARE_TICK tick = Timer_Get(time_ms);
 
-void IO_ClearOutputDataX(const char* pin);
-void IO_SetOutputDataX(const char* pin);
-
-void IO_WaitVBL(void);
-
-#endif
-
-void IO_Init(void);
-
-#endif
+    while (!Timer_Check(tick));
+}

@@ -43,66 +43,48 @@
 
  Email support@fpgaarcade.com
 */
-#ifndef HARDWARE_IO_H_INCLUDED
-#define HARDWARE_IO_H_INCLUDED
+#include "board.h"
+#include "hardware/ssc.h"
 
-#include "hardware/timer.h"
+extern uint8_t pin_fpga_prog_l;
+extern uint8_t pin_fpga_done;
 
-#if defined(AT91SAM7S256)
+static uint32_t written = 0;
 
-#include "messaging.h"	// ugly.. 
-
-void IO_DriveLow_OD(uint32_t pin);
-void IO_DriveHigh_OD(uint32_t pin);
-uint8_t IO_Input_H(uint32_t pin);
-uint8_t IO_Input_L(uint32_t pin);
-static inline void IO_ClearOutputData(uint32_t pin)
+// SSC
+void SSC_Configure_Boot(void)
 {
-    AT91C_BASE_PIOA->PIO_CODR = pin;
-}
-static inline void IO_SetOutputData(uint32_t pin)
-{
-    AT91C_BASE_PIOA->PIO_SODR = pin;
 }
 
-extern volatile uint32_t vbl_counter;
-static inline void IO_WaitVBL(void)
+void SSC_EnableTxRx(void)
 {
-    uint32_t pioa_old = 0;
-    uint32_t pioa = AT91C_BASE_PIOA->PIO_PDSR;
-    uint32_t vbl = vbl_counter;
-    HARDWARE_TICK timeout = Timer_Get(100);
+    written = 0;
 
-    while (!(~pioa & pioa_old & PIN_CONF_DOUT) && vbl != vbl_counter) {
-        pioa_old = pioa;
-        pioa     = AT91C_BASE_PIOA->PIO_PDSR;
+    if (pin_fpga_prog_l) {
+        pin_fpga_init_l = FALSE;
 
-        if (Timer_Check(timeout)) {
-            WARNING("IO_WaitVBL timeout");
-            break;
-        }
+    } else {
+        pin_fpga_init_l = TRUE;
     }
 }
 
-#else
+void SSC_DisableTxRx(void)
+{
+    if (written > 746212 /* bit file length */) {
+        pin_fpga_done = TRUE;
+    }
+}
 
-#include <stdint.h>
+void SSC_Write(uint32_t frame)
+{
+    written ++;
+}
 
-void IO_DriveLow_OD(const char* pin);
-void IO_DriveHigh_OD(const char* pin);
-uint8_t IO_Input_H(const char* pin);
-uint8_t IO_Input_L(const char* pin);
+void SSC_WaitDMA(void)
+{
+}
 
-#define IO_ClearOutputData(x) 	do { IO_ClearOutputDataX(#x); } while(0)
-#define IO_SetOutputData(x)		do { IO_SetOutputDataX(#x);   } while(0)
-
-void IO_ClearOutputDataX(const char* pin);
-void IO_SetOutputDataX(const char* pin);
-
-void IO_WaitVBL(void);
-
-#endif
-
-void IO_Init(void);
-
-#endif
+void SSC_WriteBufferSingle(void* pBuffer, uint32_t length, uint32_t wait)
+{
+    written += length;
+}

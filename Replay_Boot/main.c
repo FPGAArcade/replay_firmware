@@ -46,7 +46,6 @@
 /** @file main.c */
 
 #include "board.h"
-#include "swi.h"
 #include "hardware.h"
 #include "hardware/io.h"
 #include "hardware/spi.h"
@@ -265,9 +264,9 @@ int main(void)
         IO_DriveLow_OD(PIN_FPGA_RST_L); // reset FPGA
 
         // loop again
-        AT91C_BASE_PIOA->PIO_SODR = PIN_ACT_LED;
+        ACTLED_OFF;
         Timer_Wait(500);
-        AT91C_BASE_PIOA->PIO_CODR = PIN_ACT_LED;
+        ACTLED_ON;
         Timer_Wait(500);
     }
 
@@ -361,9 +360,7 @@ static __attribute__ ((noinline)) void init_core()
     IO_DriveHigh_OD(PIN_FPGA_RST_L);
     Timer_Wait(200);
 
-    uint32_t spiFreq = BOARD_MCK /
-                       ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
-                       1000000;
+    uint32_t spiFreq = SPI_GetFreq();
     DEBUG(0, "SPI clock: %d MHz", spiFreq);
 
     if (current_status.fpga_load_ok != EMBEDDED_CORE) {

@@ -621,7 +621,7 @@ uint8_t FileIO_Drv02_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
             WARNING("File compressed?");
 
         } else {
-            
+
             pDesc->format = UEF;
 
             HARDWARE_TICK before = Timer_Get(0);

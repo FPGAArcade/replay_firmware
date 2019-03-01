@@ -291,7 +291,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
 
     // storeselect ----------------------------------
     else if MATCH(item->action_name, "storeselect") {
-        if ((item->option_list) && (item->option_list->option_name)) {
+        if ((item->option_list) && !(item->option_list->option_name[0])) {
             char full_filename[FF_MAX_PATH];
             DEBUG(1, "STORE to: %s file: %s", current_status->act_dir, (item->option_list->option_name));
 
@@ -582,10 +582,12 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
 // ==============================================
 // == PLATFORM DEPENDENT MENU CHANGES --> HERE !
 // ==============================================
-uint8_t _MENU_action(menuitem_t* item, status_t* current_status, tActionType mode)
+uint8_t _MENU_action(menuitem_t* item, status_t* current_status, uint8_t mode_)
 {
+    tActionType mode = mode_;
+
     // check first if we need to do anything...
-    if (!item->action_name[0]) {
+    if (!item || !item->action_name[0]) {
         return 0;
     }
 
@@ -860,7 +862,7 @@ void _MENU_show_file_browser(status_t* current_status)
     if (current_status->dir_scan->total_entries == 0) {
         // nothing there
         char s[OSDMAXLEN + 1];
-        strcpy(s, "            No files                   ");
+        strcpy(s, "            No files            ");
         OSD_WriteRC(1 + 2, 0, s, 1, RED, BLACK);
 
     } else {

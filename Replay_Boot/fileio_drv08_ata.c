@@ -193,7 +193,7 @@ void Drv08_IdentifyDevice(fch_t* pDrive, drv08_desc_t* pDesc, uint16_t* pBuffer)
 /*--$DA2014 CylinderHigh       < tf5*/
 /*--$DA2018 Device/Head        < tf6*/
 /*--$DA201C Status / Command   < tf7*/
-inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count, uint8_t sector_number, uint8_t cylinder_low, uint8_t cylinder_high, uint8_t drive_head)
+static inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count, uint8_t sector_number, uint8_t cylinder_low, uint8_t cylinder_high, uint8_t drive_head)
 {
     SPI_EnableFileIO();
     rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_CMD_W)); // write task file registers command
@@ -373,8 +373,8 @@ void Drv08_CardWrite(uint8_t ch, uint32_t lba, uint8_t* pBuffer)
     }
 }
 
-inline void Drv08_GetParams(uint8_t tfr[8], drv08_desc_t* pDesc,  // inputs
-                            uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint16_t* sector_count, uint32_t* lba, uint8_t* lba_mode)
+static inline void Drv08_GetParams(uint8_t tfr[8], drv08_desc_t* pDesc,  // inputs
+                                   uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint16_t* sector_count, uint32_t* lba, uint8_t* lba_mode)
 {
     // given the register file, extract address and sector count.
     // then convert this into an LBA.
@@ -407,7 +407,7 @@ inline void Drv08_GetParams(uint8_t tfr[8], drv08_desc_t* pDesc,  // inputs
     }
 }
 
-inline void Drv08_UpdateParams(uint8_t ch, uint8_t tfr[8], uint16_t sector, uint16_t cylinder, uint8_t head, uint32_t lba, uint8_t lba_mode)
+static inline void Drv08_UpdateParams(uint8_t ch, uint8_t tfr[8], uint16_t sector, uint16_t cylinder, uint8_t head, uint32_t lba, uint8_t lba_mode)
 {
     // note, we can only update the taskfile when BUSY
     // all params inputs
@@ -432,8 +432,8 @@ inline void Drv08_UpdateParams(uint8_t ch, uint8_t tfr[8], uint16_t sector, uint
     SPI_DisableFileIO();
 }
 
-inline void Drv08_IncParams(drv08_desc_t* pDesc,  // inputs
-                            uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint32_t* lba)
+static inline void Drv08_IncParams(drv08_desc_t* pDesc,  // inputs
+                                   uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint32_t* lba)
 {
     // increment address.
     // At command completion, the Command Block Registers contain the cylinder, head and sector number of the last sector read

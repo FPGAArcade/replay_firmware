@@ -66,18 +66,16 @@ uint8_t Card_TryInit(void)
 {
     uint8_t n;
     uint8_t ocr[4];
-    uint32_t spi_csr0  = AT91C_SPI_CPOL | (120 << 8) | (2 << 24); //init clock 100-400 kHz
 
     DEBUG(3, "SPI:Card_TryInit()");
 
-    AT91C_BASE_SPI->SPI_CSR[0] = spi_csr0;
+    SPI_SetFreq400kHz(); //init clock 100-400 kHz
+
     SPI_DisableCard();
 
     for (n = 0; n < 10; n++) {               /*Set SDcard in SPI-Mode, Reset*/
         rSPI(0xFF);    /*10 * 8bits = 80 clockpulses*/
     }
-
-    spi_csr0 = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SDHC card)
 
     Timer_Wait(20);           // 20ms delay
     SPI_EnableCard();
@@ -111,8 +109,8 @@ uint8_t Card_TryInit(void)
 
                                 // if CCS set then the card is SDHC compatible
                                 cardType = (ocr[0] & 0x40) ? CARDTYPE_SDHC : CARDTYPE_SD;
+                                break;
 
-                                spi_csr0 = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SDHC card)
 
                             } else {
                                 WARNING("SPI:Card_Init CMD58 (READ_OCR) failed!");
@@ -151,8 +149,8 @@ uint8_t Card_TryInit(void)
                                 }
 
 
-                                spi_csr0 = AT91C_SPI_CPOL | (2 << 8); // 24 MHz SPI clock (max 25 MHz for SD card)
                                 cardType = CARDTYPE_SD;
+                                break;
                             }
 
                         } else {
@@ -177,8 +175,8 @@ uint8_t Card_TryInit(void)
                             WARNING("SPI:Card_Init CMD16 (SET_BLOCKLEN) failed!");
                         }
 
-                        spi_csr0 = AT91C_SPI_CPOL | (3 << 8); // 16 MHz SPI clock (max 20 MHz for MMC card);
                         cardType = CARDTYPE_MMC;
+                        break;
                     }
                 }
 
@@ -194,8 +192,11 @@ uint8_t Card_TryInit(void)
     if (cardType == (CARDTYPE_NONE)) {
         WARNING("SPI:Card_Init No memory card detected!");
 
-    } else {
-        AT91C_BASE_SPI->SPI_CSR[0] = spi_csr0;
+    } else if (cardType == CARDTYPE_MMC) {
+        SPI_SetFreq20MHz();
+
+    } else if (cardType == CARDTYPE_SD || cardType == CARDTYPE_SDHC) {
+        SPI_SetFreq25MHz();
     }
 
     return cardType;
@@ -335,6 +336,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
             SPI_EnableFileIO();
         }
 
+#if defined(AT91SAM7S256)
         // set override (send '1's to card)
         AT91C_BASE_PIOA->PIO_SODR = PIN_CARD_MOSI;  // set GPIO output register
         AT91C_BASE_PIOA->PIO_OER  = PIN_CARD_MOSI;  // GPIO pin as output
@@ -386,6 +388,16 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
 
         AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
+
+#else
+        (void) dma_end;
+
+        // read sector bytes
+        for (uint32_t offset = 0; offset < 512; offset++) {
+            pBuffer[offset] = rSPI(0xff);
+        }
+
+#endif
 
         if (!pBuffer) {
             SPI_DisableFileIO();

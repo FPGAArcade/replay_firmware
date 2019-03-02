@@ -168,9 +168,11 @@ void SPI_Init(void)
     start_color();
     short basic_colors[] = { COLOR_BLACK, COLOR_BLUE, COLOR_GREEN, COLOR_CYAN, COLOR_RED, COLOR_MAGENTA, COLOR_YELLOW, COLOR_WHITE };
 
-    for (int b = 0; b < 8; ++b) {
-        for (int f = 0; f < 8; ++f) {
-            init_pair(b * 8 + f + 1, basic_colors[f], basic_colors[b]);
+    for (int b = 0; b < 16; ++b) {
+        for (int f = 0; f < 16; ++f) {
+            short fg = basic_colors[f & 0x7] + (f & 0x8 ? 8 : 0);
+            short bg = basic_colors[b & 0x7] + (b & 0x8 ? 8 : 0);
+            init_pair(b * 16 + f + 1, fg, bg);
         }
     }
 
@@ -759,19 +761,7 @@ void SPI_DisableOsd(void)
             attrib[i] = a;
             short f = a & 0xf;
             short b = (a & 0xf0) >> 4;
-            uint8_t bold = (f & 0x8);
-            uint8_t dim = (b & 0x8);
-            uint8_t invert = (b == 4);
-            f &= 7;
-            b &= 7;
-
-            if (invert) {
-                b = 0, f = 4;
-            }
-
-            int extras = (bold ? A_BOLD : 0) | (dim ? A_DIM : 0) | (invert ? A_REVERSE : 0);
-            (void)extras;
-            waddch(win, c | COLOR_PAIR(b * 8 + f + 1) | extras);
+            waddch(win, c | COLOR_PAIR(b * 16 + f + 1));
         }
 
         buffer[(spi_osd_offset - 2) / 2] = 0;

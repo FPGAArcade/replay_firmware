@@ -269,8 +269,8 @@ static inline uint32_t AsciiToHex(const char** strref, int maxsize)
 
     for (int i = 0; i < maxsize * 2; ++i) {
         uint8_t c = toupper(*str++);
-        uint8_t isnum = isdigit(c);
-        uint8_t ishex = isxdigit(c);
+        int isnum = isdigit(c);
+        int ishex = isxdigit(c);
 
         if (c == '\0') {
             break;

@@ -875,9 +875,9 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     uint8_t value;
 
     DEBUG(0, "FPGA:copy %d bytes from 0x%lx and execute if the checksum is 0x%lx", len, base, checksum);
-    DEBUG(0, "FPGA:we have about %ld bytes free for the code", ((uint32_t)&value) - 0x00200000L);
+    DEBUG(0, "FPGA:we have about %ld bytes free for the code", ((uint32_t)(intptr_t)&value) - 0x00200000L);
 
-    if ((((uint32_t)&value) - 0x00200000L) < len) {
+    if ((((uint32_t)(intptr_t)&value) - 0x00200000L) < len) {
         WARNING("FPGA: Not enough memory, processor may crash!");
     }
 
@@ -938,7 +938,7 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 
     sum = 0;
     dest = (volatile uint32_t*)0x00200000L;
-    DEBUG(0, "FPGA:SRAM start: 0x%lx (%d blocks)", (uint32_t)dest, 1 + len / 512);
+    DEBUG(0, "FPGA:SRAM start: 0x%lx (%d blocks)", (uint32_t)(intptr_t)dest, 1 + len / 512);
     Timer_Wait(500); // take care we can send this message before we go on!
 
     _SPI_EnableFileIO();

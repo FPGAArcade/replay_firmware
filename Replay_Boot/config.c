@@ -252,6 +252,8 @@ void CFG_print_status(status_t* current_status)
 
 void CFG_card_start(status_t* current_status)
 {
+    HARDWARE_TICK ts = Timer_Get(0);
+
     if (current_status->card_detected) {
         if ( (current_status->card_init_ok && current_status->fs_mounted_ok) || current_status->usb_mounted)
             // assume all good
@@ -327,6 +329,8 @@ void CFG_card_start(status_t* current_status)
         // set SPI clock to 24MHz, perhaps the debugger is being used
         SPI_SetFreq25MHz();
     }
+
+    DEBUG(0, "CFG_card_start() took %d ms", Timer_Convert(Timer_Get(0) - ts));
 }
 
 void CFG_set_coder(coder_t standard)

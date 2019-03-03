@@ -285,6 +285,7 @@ int main(void)
 
 static __attribute__ ((noinline)) void load_core_from_sdcard()
 {
+    HARDWARE_TICK ts = Timer_Get(0);
     char full_filename[FF_MAX_PATH];
     sprintf(full_filename, "%s%s", current_status.ini_dir, current_status.ini_file);
 
@@ -315,6 +316,8 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
             current_status.fpga_load_ok = CORE_LOADED;
         }
     }
+
+    DEBUG(0, "load_core_from_sdcard() took %d ms", Timer_Convert(Timer_Get(0) - ts));
 }
 
 static __attribute__ ((noinline)) void load_embedded_core()
@@ -358,6 +361,7 @@ static __attribute__ ((noinline)) void load_embedded_core()
 
 static __attribute__ ((noinline)) void init_core()
 {
+    HARDWARE_TICK ts = Timer_Get(0);
     char full_filename[FF_MAX_PATH];
     sprintf(full_filename, "%s%s", current_status.ini_dir, current_status.ini_file);
 
@@ -445,6 +449,8 @@ static __attribute__ ((noinline)) void init_core()
         MENU_set_state(&current_status, NO_MENU);
         current_status.update = 0;
     }
+
+    DEBUG(0, "init_core() took %d ms", Timer_Convert(Timer_Get(0) - ts));
 }
 
 static __attribute__ ((noinline)) void main_update()

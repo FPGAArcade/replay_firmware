@@ -272,12 +272,6 @@ int main(void)
 
         // we try again!
         IO_DriveLow_OD(PIN_FPGA_RST_L); // reset FPGA
-
-        // loop again
-        ACTLED_OFF;
-        Timer_Wait(500);
-        ACTLED_ON;
-        Timer_Wait(500);
     }
 
     return 0; /* never reached */

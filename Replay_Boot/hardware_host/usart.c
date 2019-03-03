@@ -64,13 +64,18 @@ volatile int16_t USART_rxptr, USART_rdptr;
 volatile uint8_t USART_txbuf[TXBUFLEN];
 volatile int16_t USART_txptr, USART_wrptr, USART_barrier;
 
-int fd; // fake serial file descriptor
+int fd = -1; // fake serial file descriptor
 
 void USART_Init(unsigned long baudrate)
 {
     // socat -d -d pty,raw,echo=0 pty,raw,echo=0
     // minicom -D /dev/ttys002
     fd = open("/dev/ttys001", O_RDWR);
+
+    if (fd == -1) {
+        return;
+    }
+
     int saved_flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, saved_flags | O_NONBLOCK);
 
@@ -81,6 +86,11 @@ void USART_update(void)
 {
     char data[RXBUFLEN];
     ssize_t length = -1;
+
+    if (fd == -1) {
+        return;
+    }
+
     length = read(fd, data, RXBUFLEN);
 
     if (length == -1) {
@@ -102,6 +112,10 @@ void USART_update(void)
 
 void USART_Putc(void* p, char c)
 {
+    if (fd == -1) {
+        return;
+    }
+
     USART_txbuf[USART_wrptr] = c;
     USART_wrptr = (USART_wrptr + 1) & TXBUFMASK;
 

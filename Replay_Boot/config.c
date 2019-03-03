@@ -1346,6 +1346,7 @@ static uint8_t _CFG_handle_MENU_ITEM(status_t* pStatus, const ini_symbols_t name
         pStatus->menu_item_act->next = NULL;
         pStatus->menu_item_act->option_list = NULL;
         pStatus->menu_item_act->selected_option = NULL;
+        pStatus->menu_item_act->conf_dynamic = 1;
         pStatus->menu_item_act->action_name[0] = 0;
         strncpy(pStatus->menu_item_act->item_name,
                 valueList[0].strval, MAX_ITEM_STRING);

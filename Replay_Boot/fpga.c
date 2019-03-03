@@ -200,6 +200,8 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
     // if file is larger than a raw .bin file let's see if it has a .bit header
     if (pFile->Filesize > FileLength) {
+        char bitinfo[20] = {0}; // "YYYY/MM/DD HH:MM:SS",0
+
         uint8_t* data = fBuf1;
         const uint32_t maxSize = sizeof(fBuf1);
 
@@ -240,19 +242,31 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
             } else if (BIT_NCD_NAME == bitTag) {
                 data[length] = '\0';
-                INFO("NCD: %s", data);
+                DEBUG(0, "NCD: %s", data);
 
             } else if (BIT_PART_NAME == bitTag) {
                 data[length] = '\0';
-                INFO("PART:%s", data);
+                DEBUG(0, "PART:%s", data);
 
             } else if (BIT_CREATE_DATE == bitTag) {
                 data[length] = '\0';
-                INFO("DATE:%s", data);
+                DEBUG(0, "DATE:%s", data);
+
+                if (*bitinfo) {
+                    strcat(bitinfo, " ");
+                }
+
+                strncat(bitinfo, (char*)data, 10);
 
             } else if (BIT_CREATE_TIME == bitTag) {
                 data[length] = '\0';
-                INFO("TIME:%s", data);
+                DEBUG(0, "TIME:%s", data);
+
+                if (*bitinfo) {
+                    strcat(bitinfo, " ");
+                }
+
+                strncat(bitinfo, (char*)data, 8);
 
             } else if (BIT_STREAM_LENGTH == bitTag) {
                 uint32_t dataLength = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
@@ -266,6 +280,10 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
             FF_Seek(pFile, seekLength, FF_SEEK_CUR);
             FF_Read(pFile, 1, sizeof(bitTag), &bitTag);
+        }
+
+        if (*bitinfo) {
+            INFO("CORE: %s", bitinfo);
         }
     }
 
@@ -875,9 +893,9 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     uint8_t value;
 
     DEBUG(0, "FPGA:copy %d bytes from 0x%lx and execute if the checksum is 0x%lx", len, base, checksum);
-    DEBUG(0, "FPGA:we have about %ld bytes free for the code", ((uint32_t)&value) - 0x00200000L);
+    DEBUG(0, "FPGA:we have about %ld bytes free for the code", ((uint32_t)(intptr_t)&value) - 0x00200000L);
 
-    if ((((uint32_t)&value) - 0x00200000L) < len) {
+    if ((((uint32_t)(intptr_t)&value) - 0x00200000L) < len) {
         WARNING("FPGA: Not enough memory, processor may crash!");
     }
 
@@ -938,7 +956,7 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 
     sum = 0;
     dest = (volatile uint32_t*)0x00200000L;
-    DEBUG(0, "FPGA:SRAM start: 0x%lx (%d blocks)", (uint32_t)dest, 1 + len / 512);
+    DEBUG(0, "FPGA:SRAM start: 0x%lx (%d blocks)", (uint32_t)(intptr_t)dest, 1 + len / 512);
     Timer_Wait(500); // take care we can send this message before we go on!
 
     _SPI_EnableFileIO();

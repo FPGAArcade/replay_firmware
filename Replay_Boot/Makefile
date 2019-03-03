@@ -358,20 +358,22 @@ COPY = cp
 ifeq (1,${HOSTED})
 CC = cc
 CPP = c++
-OBJCOPY = objcopy # brew install binutils ; PATH=$PATH:/usr/local/opt/binutils/bin
+OBJCOPY = :
 OBJDUMP = objdump
 SIZE = size
 NM = nm
 
-CFLAGS += -Wno-unused-command-line-argument
+ifeq (,$(findstring clang,$(shell $(CC) 2>&1)))
+CFLAGS += -Wno-unused-but-set-variable -Wno-redundant-decls
+endif
 
 SUBMDL=HOSTED
 
-SRCARM = 
+SRCARM =
 ASRCARM =
 OPT = 0
 DEBUG=
-LDFLAGS = -lc -lncurses -Wl,-map,$(BUILDDIR)$(TARGET).map
+LDFLAGS = -lc -lpthread -lncurses
 
 endif
 
@@ -420,9 +422,13 @@ DEPMAKEFILE = .dep/Makefile
 
 # Combine all necessary flags and optional flags.
 # Add target processor to flags.
+ifeq (,${HOSTED})
 ALL_CFLAGS  = -mcpu=$(MCU) $(THUMB_IW) -I. $(CFLAGS) $(GENDEPFLAGS)
 ALL_ASFLAGS = -mcpu=$(MCU) $(THUMB_IW) -I. -x assembler-with-cpp $(ASFLAGS)
+else
+ALL_CFLAGS  = -I. $(CFLAGS) $(GENDEPFLAGS)
 
+endif
 
 # Default target.
 #all: begin gccversion sizebefore build sizeafter finished end
@@ -510,6 +516,7 @@ $(BUILDDIR)%.sym: $(BUILDDIR)%.elf
 # Link: create ELF output file from object files.
 .SECONDARY : $(BUILDDIR)$(TARGET).elf
 .PRECIOUS : $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
+ifeq (,${HOSTED})
 $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
 	@echo
 	$(BUILD_NUM) > buildnum
@@ -518,6 +525,12 @@ $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) 
 	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ) buildnum.o --output $@ $(LDFLAGS)
 	$(REMOVE) buildnum buildnum.o
 #       $(CPP) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
+else	# collapse ifeq() once we convert from objcopy to incbin
+$(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
+	@echo
+	@echo $(MSG_LINKING) $@
+	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
+endif
 
 # Compile: create object files from C source files. ARM/Thumb
 $(COBJ) : $(BUILDDIR)%.o : %.c

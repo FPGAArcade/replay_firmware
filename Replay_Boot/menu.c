@@ -1148,7 +1148,7 @@ static uint8_t key_action_menu_down(status_t* current_status, const uint16_t key
 
 static uint8_t key_action_menu_enter(status_t* current_status, const uint16_t key)
 {
-    if (current_status->menu_item_act->action_name[0]) {
+    if (current_status->menu_item_act && current_status->menu_item_act->action_name[0]) {
         // check for menu action and update display if succesfully
         return _MENU_action(current_status->menu_item_act, current_status, ACTION_MENU_EXECUTE);
     }

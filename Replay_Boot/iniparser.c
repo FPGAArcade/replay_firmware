@@ -354,6 +354,7 @@ uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxl
 
         // clear array entry first, then we copy the string and convert it to decimal
         valueList[idx].strval = NULL;
+        valueList[idx].intval = 0;
 
         if (len) {
             if (*start == '"') { // string for sure

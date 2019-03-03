@@ -1139,6 +1139,8 @@ typedef struct _DecompressBufferContext {
     uint32_t    remaining;
 } tDecompressBufferContext;
 
+#ifndef FPGA_DISABLE_EMBEDDED_CORE
+
 static size_t read_embedded_buffer(void* buffer, size_t len, void* context)
 {
     tDecompressBufferContext* read_context = (tDecompressBufferContext*)context;
@@ -1174,16 +1176,20 @@ static size_t write_to_dram(const void* buffer, size_t len, void* context)
 
     return written;
 }
-
+#endif // FPGA_DISABLE_EMBEDDED_CORE
 
 void FPGA_DecompressToDRAM(char* buffer, uint32_t size, uint32_t base)
 {
+#ifdef FPGA_DISABLE_EMBEDDED_CORE
+    ERROR("Embedded core not available!");
+#else
     tDecompressBufferContext read_context;
     read_context.buffer = buffer;
     read_context.remaining = size;
     uint32_t write_offset = base;
     size_t bytes = gunzip(read_embedded_buffer, &read_context, write_to_dram, &write_offset);
     DEBUG(1, "Decompressed %d bytes to %08x", bytes, base);
+#endif
 }
 
 #ifndef FPGA_DISABLE_EMBEDDED_CORE

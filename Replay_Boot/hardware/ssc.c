@@ -62,7 +62,7 @@ void SSC_Configure_Boot(void)
     // Configure clock frequency
     // MMCK / ( 2 * SSC_CMR). Setting to 3 gives us ~8MHz.
     AT91C_BASE_SSC->SSC_CMR = 3;
-    
+
     // Configure TX
 
     // Enable pull ups

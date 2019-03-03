@@ -95,6 +95,7 @@ const char* version = "0.0";
 
 int main(void)
 {
+    HARDWARE_TICK ts;
     // used by file system
     uint8_t fatBuf[FS_FATBUF_SIZE];
 
@@ -106,6 +107,8 @@ int main(void)
     USART_Init(115200); // Initialize debug USART
     init_printf(NULL, USART_Putc); // Initialise printf
     Timer_Init();
+
+    ts = Timer_Get(0);
 
 #if PTP_USB
     PTP_USB_Stop();
@@ -203,6 +206,9 @@ int main(void)
     // start up virtual drives
     FileIO_FCh_Init();
 
+    DEBUG(0, "Firmware startup in %d ms", Timer_Convert(Timer_Get(0) - ts));
+    ts = Timer_Get(0);
+
     // Loop forever
     while (TRUE) {
         // eject all drives
@@ -254,10 +260,14 @@ int main(void)
             PTP_USB_Start();
 #endif
 
+            INFO("Configured in %d ms", Timer_Convert(Timer_Get(0) - ts));
+
             // we run in here as long as there is no need to reload the FPGA
             while (current_status.fpga_load_ok != NO_CORE) {
                 main_update();
             }
+
+            ts = Timer_Get(0);
         }
 
         // we try again!

@@ -71,6 +71,10 @@
 #include "usb.h"
 #include "tests/tests.h"
 
+#ifndef HOSTED
+#include <malloc.h>
+#endif
+
 extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
 extern char _binary_replay_ini_start;
@@ -224,7 +228,9 @@ int main(void)
 
         // at this point we must've free _all_ dynamically allocated memory!
         CFG_free_menu(&current_status);
+#ifndef HOSTED
         Assert(!mallinfo().uordblks);
+#endif
 
         // read inputs
         CFG_update_status(&current_status);

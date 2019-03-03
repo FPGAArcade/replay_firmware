@@ -2349,7 +2349,7 @@ FF_ERROR FF_Close(FF_FILE *pFile) {
 
 
 	// UpDate Dirent if File-size has changed?
-	if(!(pFile->ValidFlags & FF_VALID_FLAG_DELETED) && (pFile->Mode & (FF_MODE_WRITE | FF_MODE_APPEND | FF_MODE_CREATE))) {
+	if(!(pFile->ValidFlags & FF_VALID_FLAG_DELETED) && (pFile->Mode & (FF_MODE_TRUNCATE | FF_MODE_APPEND | FF_MODE_CREATE))) {
 		// Update the Dirent!
 
 		if(pFile->Filesize % (pFile->pIoman->pPartition->BlkSize * pFile->pIoman->pPartition->SectorsPerCluster) == 0) {

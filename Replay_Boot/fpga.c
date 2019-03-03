@@ -200,6 +200,8 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
     // if file is larger than a raw .bin file let's see if it has a .bit header
     if (pFile->Filesize > FileLength) {
+        char bitinfo[20] = {0}; // "YYYY/MM/DD HH:MM:SS",0
+
         uint8_t* data = fBuf1;
         const uint32_t maxSize = sizeof(fBuf1);
 
@@ -240,19 +242,31 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
             } else if (BIT_NCD_NAME == bitTag) {
                 data[length] = '\0';
-                INFO("NCD: %s", data);
+                DEBUG(0, "NCD: %s", data);
 
             } else if (BIT_PART_NAME == bitTag) {
                 data[length] = '\0';
-                INFO("PART:%s", data);
+                DEBUG(0, "PART:%s", data);
 
             } else if (BIT_CREATE_DATE == bitTag) {
                 data[length] = '\0';
-                INFO("DATE:%s", data);
+                DEBUG(0, "DATE:%s", data);
+
+                if (*bitinfo) {
+                    strcat(bitinfo, " ");
+                }
+
+                strncat(bitinfo, (char*)data, 10);
 
             } else if (BIT_CREATE_TIME == bitTag) {
                 data[length] = '\0';
-                INFO("TIME:%s", data);
+                DEBUG(0, "TIME:%s", data);
+
+                if (*bitinfo) {
+                    strcat(bitinfo, " ");
+                }
+
+                strncat(bitinfo, (char*)data, 8);
 
             } else if (BIT_STREAM_LENGTH == bitTag) {
                 uint32_t dataLength = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
@@ -266,6 +280,10 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
             FF_Seek(pFile, seekLength, FF_SEEK_CUR);
             FF_Read(pFile, 1, sizeof(bitTag), &bitTag);
+        }
+
+        if (*bitinfo) {
+            INFO("CORE: %s", bitinfo);
         }
     }
 

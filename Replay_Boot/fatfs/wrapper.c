@@ -3,7 +3,7 @@
 #include "diskio.h"
 
 #include <stdio.h>
-
+#undef sprintf
 #include "messaging.h"
 
 static FF_ERROR mapError(FRESULT err)
@@ -94,11 +94,11 @@ static void* DriverFunctionParam = 0;
 
 DSTATUS disk_status(BYTE pdrv)
 {
-	return STA_NOINIT;
+	return 0;//STA_NOINIT;
 }
 DSTATUS disk_initialize(BYTE pdrv)
 {
-	return STA_NOINIT;
+	return 0;//STA_NOINIT;
 }
 DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void *buff)
 {
@@ -186,7 +186,7 @@ static FRESULT get_total_and_free_mb(DWORD* fre_sect, DWORD* tot_sect)
 	if (!ret)
 		return ret;
 
-	Assert(FF_GetPartitionBlockSize() == 512);
+	Assert(FF_GetPartitionBlockSize(0) == 512);
 
 	if (tot_sect)
 		*tot_sect = (fs->n_fatent - 2) * fs->csize / (2 * 1024);
@@ -269,12 +269,17 @@ FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_T_UINT8 Mode, FF_ER
 
 FF_ERROR FF_Close(FF_FILE *pFile)
 {
-	return mapError(f_close((FIL*)pFile));
+	FF_ERROR ret = mapError(f_close((FIL*)pFile));
+	if (pFile)
+		ff_free(pFile);
+	return ret;
 }
 FF_T_SINT32 FF_GetC(FF_FILE *pFile)
 {
 	FF_T_UINT8 c;
 	UINT read = 0;
+	if (f_eof((FIL*)pFile))
+		return -1;
 	mapError(f_read((FIL*)pFile, &c, sizeof(c), &read));
 	Assert(read == sizeof(c));
 	return (FF_T_UINT32)c;
@@ -289,13 +294,13 @@ FF_T_SINT32 FF_Read(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, 
 {
 	UINT read = 0;
 	mapError(f_read((FIL*)pFile, buffer, ElementSize*Count, &read));
-	return read / ElementSize;
+	return read;
 }
 FF_T_SINT32 FF_Write(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, FF_T_UINT8 *buffer)
 {
 	UINT written = 0;
 	mapError(f_write((FIL*)pFile, buffer, ElementSize*Count, &written));
-	return written / ElementSize;
+	return written;
 }
 FF_T_BOOL FF_isEOF(FF_FILE *pFile)
 {
@@ -307,9 +312,9 @@ FF_T_SINT32 FF_BytesLeft(FF_FILE *pFile) ///< Returns # of bytes left to read
 }
 FF_ERROR FF_Seek(FF_FILE *pFile, FF_T_SINT32 Offset, FF_T_INT8 Origin)
 {
-	if (Origin == SEEK_CUR)
+	if (Origin == FF_SEEK_CUR)
 		Offset += f_tell((FIL*)pFile);
-	else if (Origin == SEEK_END)
+	else if (Origin == FF_SEEK_END)
 		Offset += f_size((FIL*)pFile);
 	return mapError(f_lseek((FIL*)pFile, Offset));
 }
@@ -317,7 +322,8 @@ FF_ERROR FF_Seek(FF_FILE *pFile, FF_T_SINT32 Offset, FF_T_INT8 Origin)
 
 FF_T_UINT32 FF_Tell(FF_FILE *pFile)
 {
-	return f_tell((FIL*)pFile);
+	FF_T_UINT32 pos = f_tell((FIL*)pFile);
+	return pos;
 }
 /*{
 	return pFile ? pFile->FilePointer , 0;
@@ -325,7 +331,8 @@ FF_T_UINT32 FF_Tell(FF_FILE *pFile)
 */
 FF_T_UINT32 FF_Size(FF_FILE *pFile)
 {
-	return f_size((FIL*)pFile);
+	FF_T_UINT32 size = f_size((FIL*)pFile);
+	return size;
 }
 
 
@@ -334,7 +341,7 @@ FF_T_UINT32 FF_Size(FF_FILE *pFile)
 // FF_T_SINT32      FF_Invalidate (FF_IOMAN *pIoman); ///< Invalidate all handles belonging to pIoman
 FF_T_SINT32 FF_ReadDirect(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count)
 {
-	Assert(false);
+	Assert(0);
 	return 0;
 }
 

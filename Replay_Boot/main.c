@@ -112,7 +112,7 @@ int main(void)
     init_printf(NULL, USART_Putc); // Initialise printf
     Timer_Init();
 
-    RunFullFatTests();
+    //RunFullFatTests();
 
     ts = Timer_Get(0);
 

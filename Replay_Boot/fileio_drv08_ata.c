@@ -126,7 +126,7 @@ typedef struct {
     uint16_t heads;
     uint16_t sectors;
     uint16_t sectors_per_block;
-//    uint32_t index[1024];
+    uint32_t index[1024];
     uint32_t index_size;
 
     drv08_rdb_t hdf_rdb;
@@ -218,7 +218,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
 
     FF_IOMAN*  pIoman;// = pDrive->fSource->pIoman;
     (void)pIoman;
-    
+
     uint32_t lba_byte = lba << 9;
 
     if (pDesc->format == HDF_NAKED) {
@@ -288,6 +288,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
 
         //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, nNewCluster, index_cluster);
     }
+
 #endif
 
     FF_ERROR err = FF_Seek(pDrive->fSource, lba_byte, FF_SEEK_SET);

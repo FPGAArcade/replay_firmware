@@ -43,66 +43,68 @@
 
  Email support@fpgaarcade.com
 */
-#ifndef HARDWARE_IO_H_INCLUDED
-#define HARDWARE_IO_H_INCLUDED
-
+#include "board.h"
+#include "hardware/twi.h"
+#include "hardware/io.h"
 #include "hardware/timer.h"
+#include "messaging.h"
 
-#if defined(AT91SAM7S256)
+static uint8_t offset = 0;
+static uint8_t memory[256];
 
-#include "messaging.h"	// ugly.. 
-
-void IO_DriveLow_OD(uint32_t pin);
-void IO_DriveHigh_OD(uint32_t pin);
-uint8_t IO_Input_H(uint32_t pin);
-uint8_t IO_Input_L(uint32_t pin);
-static inline void IO_ClearOutputData(uint32_t pin)
+void TWI_Configure(void)
 {
-    AT91C_BASE_PIOA->PIO_CODR = pin;
-}
-static inline void IO_SetOutputData(uint32_t pin)
-{
-    AT91C_BASE_PIOA->PIO_SODR = pin;
 }
 
-extern volatile uint32_t vbl_counter;
-static inline void IO_WaitVBL(void)
+void TWI_Stop(void)
 {
-    uint32_t pioa_old = 0;
-    uint32_t pioa = AT91C_BASE_PIOA->PIO_PDSR;
-    uint32_t vbl = vbl_counter;
-    HARDWARE_TICK timeout = Timer_Get(100);
+    printf("%s - ", __FUNCTION__);
+}
 
-    while (!(~pioa & pioa_old & PIN_CONF_DOUT) && vbl != vbl_counter) {
-        pioa_old = pioa;
-        pioa     = AT91C_BASE_PIOA->PIO_PDSR;
+uint8_t TWI_ReadByte(void)
+{
+    printf("%s - ", __FUNCTION__);
+    return memory[offset];
+}
 
-        if (Timer_Check(timeout)) {
-            WARNING("IO_WaitVBL timeout");
-            break;
-        }
+void TWI_WriteByte(uint8_t byte)
+{
+    printf("%s %02X - ", __FUNCTION__, byte);
+    memory[offset] = byte;
+}
+
+uint8_t TWI_ByteReceived(void)
+{
+    printf("%s - ", __FUNCTION__);
+    return 1;
+}
+
+uint8_t TWI_ByteSent(void)
+{
+    printf("%s - ", __FUNCTION__);
+    return 1;
+}
+
+uint8_t TWI_TransferComplete(void)
+{
+    printf("%s\n", __FUNCTION__);
+    return 1;
+}
+
+void TWI_StartRead(uint8_t DevAddr, uint8_t IntAddrSize, uint16_t IntAddr)
+{
+    printf("%s  %02x %02x %04x    - ", __FUNCTION__, DevAddr, IntAddrSize, IntAddr);
+}
+
+void TWI_StartWrite(uint8_t DevAddr, uint8_t IntAddrSize, uint16_t IntAddr, uint8_t WriteData)
+{
+    printf("%s %02x %02x %04x %02x - ", __FUNCTION__, DevAddr, IntAddrSize, IntAddr, WriteData);
+
+    if (IntAddr) {
+        offset = IntAddr;
+        memory[offset] = WriteData;
+
+    } else {
+        offset = WriteData;
     }
 }
-
-#else
-
-#include <stdint.h>
-
-void IO_DriveLow_OD(const char* pin);
-void IO_DriveHigh_OD(const char* pin);
-uint8_t IO_Input_H(const char* pin);
-uint8_t IO_Input_L(const char* pin);
-
-#define IO_ClearOutputData(x) 	do { IO_ClearOutputDataX(#x); } while(0)
-#define IO_SetOutputData(x)		do { IO_SetOutputDataX(#x);   } while(0)
-
-void IO_ClearOutputDataX(const char* pin);
-void IO_SetOutputDataX(const char* pin);
-
-void IO_WaitVBL(void);
-
-#endif
-
-void IO_Init(void);
-
-#endif

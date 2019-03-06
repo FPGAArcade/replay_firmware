@@ -175,6 +175,10 @@ static uint32_t ParseLine(uint8_t(*parseHandle)(void*, const ini_symbols_t, cons
 
     start = FindFirstChar(StripTrailingSpaces(lineBuffer));
 
+    if (!start) {
+        return 0;
+    }
+
     if (*start == '[') {
         end = FindChar(start + 1, ']'); // find end or comment
 
@@ -351,6 +355,7 @@ uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxl
 
         // clear array entry first, then we copy the string and convert it to decimal
         valueList[idx].strval = NULL;
+        valueList[idx].intval = 0;
 
         if (len) {
             if (*start == '"') { // string for sure

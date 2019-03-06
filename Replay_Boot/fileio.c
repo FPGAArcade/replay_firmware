@@ -46,6 +46,7 @@
 #include "fileio.h"
 #include "fileio_drv.h"
 #include "hardware.h"
+#include "hardware/io.h"
 #include "hardware/spi.h"
 #include "hardware/timer.h"
 #include "messaging.h"

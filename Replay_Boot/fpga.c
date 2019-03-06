@@ -55,6 +55,7 @@
 #include "hardware/timer.h"
 #include "osd.h"  // for keyboard input to DRAM debug only
 #include "messaging.h"
+#include "hardware/spi.h"
 
 #ifndef FPGA_DISABLE_EMBEDDED_CORE
 // Bah! But that's how it is proposed by this lib...
@@ -89,8 +90,7 @@ static size_t read_embedded_core(void* buffer, size_t len, void* context)
 }
 static size_t write_embedded_core(const void* buffer, size_t len, void* context)
 {
-    SSC_WaitDMA();
-    SSC_WriteBufferSingle((void*)buffer, len, 0);
+    SSC_WriteBufferSingle((void*)buffer, len, 1);
     return len;
 }
 
@@ -141,13 +141,13 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
         return 1;
     }
 
+    SSC_WaitDMA();
+
     // send FPGA data with SSC DMA in parallel to reading the file
     uint32_t read_offset = 0;
     size_t size = gunzip(read_embedded_core, &read_offset, write_embedded_core, NULL);
     (void)size; // unused-variable warning/error
     Assert(size == 746212);
-
-    SSC_WaitDMA();
 
     // some extra clocks
     SSC_Write(0x00);
@@ -200,6 +200,8 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
     // if file is larger than a raw .bin file let's see if it has a .bit header
     if (FF_Size(pFile)/*->Filesize*/ > FileLength) {
+        char bitinfo[20] = {0}; // "YYYY/MM/DD HH:MM:SS",0
+
         uint8_t* data = fBuf1;
         const uint32_t maxSize = sizeof(fBuf1);
 
@@ -219,7 +221,7 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
             if (BIT_STREAM_LENGTH == bitTag) {
                 length = sizeof(uint32_t);
-                FF_Seek(pFile, -sizeof(length), FF_SEEK_CUR);
+                FF_Seek(pFile, (FF_T_SINT32) - sizeof(length), FF_SEEK_CUR);
             }
 
             FF_Read(pFile, 1, length, data);
@@ -240,19 +242,31 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
             } else if (BIT_NCD_NAME == bitTag) {
                 data[length] = '\0';
-                INFO("NCD: %s", data);
+                DEBUG(0, "NCD: %s", data);
 
             } else if (BIT_PART_NAME == bitTag) {
                 data[length] = '\0';
-                INFO("PART:%s", data);
+                DEBUG(0, "PART:%s", data);
 
             } else if (BIT_CREATE_DATE == bitTag) {
                 data[length] = '\0';
-                INFO("DATE:%s", data);
+                DEBUG(0, "DATE:%s", data);
+
+                if (*bitinfo) {
+                    strcat(bitinfo, " ");
+                }
+
+                strncat(bitinfo, (char*)data, 10);
 
             } else if (BIT_CREATE_TIME == bitTag) {
                 data[length] = '\0';
-                INFO("TIME:%s", data);
+                DEBUG(0, "TIME:%s", data);
+
+                if (*bitinfo) {
+                    strcat(bitinfo, " ");
+                }
+
+                strncat(bitinfo, (char*)data, 8);
 
             } else if (BIT_STREAM_LENGTH == bitTag) {
                 uint32_t dataLength = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
@@ -266,6 +280,10 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
 
             FF_Seek(pFile, seekLength, FF_SEEK_CUR);
             FF_Read(pFile, 1, sizeof(bitTag), &bitTag);
+        }
+
+        if (*bitinfo) {
+            INFO("CORE: %s", bitinfo);
         }
     }
 
@@ -849,23 +867,9 @@ void FPGA_ClockMon(status_t* currentStatus)
 //  we need this local/inline to avoid function calls in this stage
 // ----------------------------------------------------------------
 
-#define _SPI_EnableFileIO() { AT91C_BASE_PIOA->PIO_CODR=PIN_FPGA_CTRL0; }
-#define _SPI_DisableFileIO() { while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TXEMPTY)); AT91C_BASE_PIOA->PIO_SODR = PIN_FPGA_CTRL0; }
 
-inline uint8_t _rSPI(uint8_t outByte)
-{
-    volatile __attribute__((unused)) uint32_t t = AT91C_BASE_SPI->SPI_RDR;  // unused, but is a must!
 
-    while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_TDRE));
-
-    AT91C_BASE_SPI->SPI_TDR = outByte;
-
-    while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));
-
-    return ((uint8_t)AT91C_BASE_SPI->SPI_RDR);
-}
-
-inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
+static inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
 {
     do {
         _SPI_EnableFileIO();
@@ -881,21 +885,6 @@ inline void _FPGA_WaitStat(uint8_t mask, uint8_t wanted)
     _SPI_DisableFileIO();
 }
 
-inline void _SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
-{
-    Assert((AT91C_BASE_SPI->SPI_PTSR & (AT91C_PDC_TXTEN | AT91C_PDC_RXTEN)) == 0);
-
-    AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
-    AT91C_BASE_SPI->SPI_TCR  = length;
-    AT91C_BASE_SPI->SPI_RPR  = (uint32_t) pBuffer;
-    AT91C_BASE_SPI->SPI_RCR  = length;
-    AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN;
-
-    while ((AT91C_BASE_SPI->SPI_SR & (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX)) != (AT91C_SPI_ENDTX | AT91C_SPI_ENDRX) ) {};
-
-    AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
-
-}
 
 void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 {
@@ -904,9 +893,9 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     uint8_t value;
 
     DEBUG(0, "FPGA:copy %d bytes from 0x%lx and execute if the checksum is 0x%lx", len, base, checksum);
-    DEBUG(0, "FPGA:we have about %ld bytes free for the code", ((uint32_t)&value) - 0x00200000L);
+    DEBUG(0, "FPGA:we have about %ld bytes free for the code", ((uint32_t)(intptr_t)&value) - 0x00200000L);
 
-    if ((((uint32_t)&value) - 0x00200000L) < len) {
+    if ((((uint32_t)(intptr_t)&value) - 0x00200000L) < len) {
         WARNING("FPGA: Not enough memory, processor may crash!");
     }
 
@@ -967,7 +956,7 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
 
     sum = 0;
     dest = (volatile uint32_t*)0x00200000L;
-    DEBUG(0, "FPGA:SRAM start: 0x%lx (%d blocks)", (uint32_t)dest, 1 + len / 512);
+    DEBUG(0, "FPGA:SRAM start: 0x%lx (%d blocks)", (uint32_t)(intptr_t)dest, 1 + len / 512);
     Timer_Wait(500); // take care we can send this message before we go on!
 
     _SPI_EnableFileIO();
@@ -1002,8 +991,10 @@ void FPGA_ExecMem(uint32_t base, uint16_t len, uint32_t checksum)
     }
 
     // execute from SRAM the code we just pushed in
+#if defined(__arm__)
     asm("ldr r3, = 0x00200000\n");
     asm("bx  r3\n");
+#endif
 }
 
 #ifdef TINFL_HEADER_INCLUDED
@@ -1148,6 +1139,8 @@ typedef struct _DecompressBufferContext {
     uint32_t    remaining;
 } tDecompressBufferContext;
 
+#ifndef FPGA_DISABLE_EMBEDDED_CORE
+
 static size_t read_embedded_buffer(void* buffer, size_t len, void* context)
 {
     tDecompressBufferContext* read_context = (tDecompressBufferContext*)context;
@@ -1183,16 +1176,20 @@ static size_t write_to_dram(const void* buffer, size_t len, void* context)
 
     return written;
 }
-
+#endif // FPGA_DISABLE_EMBEDDED_CORE
 
 void FPGA_DecompressToDRAM(char* buffer, uint32_t size, uint32_t base)
 {
+#ifdef FPGA_DISABLE_EMBEDDED_CORE
+    ERROR("Embedded core not available!");
+#else
     tDecompressBufferContext read_context;
     read_context.buffer = buffer;
     read_context.remaining = size;
     uint32_t write_offset = base;
     size_t bytes = gunzip(read_embedded_buffer, &read_context, write_to_dram, &write_offset);
     DEBUG(1, "Decompressed %d bytes to %08x", bytes, base);
+#endif
 }
 
 #ifndef FPGA_DISABLE_EMBEDDED_CORE

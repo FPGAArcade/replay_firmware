@@ -52,7 +52,7 @@
 //------------------------------------------------------------------------------
 
 #include <stdint.h>
-#ifndef WIN32
+#if !defined(WIN32) && !defined(__APPLE__) && !defined(__linux__)
 #if defined(AT91SAM7S256)
 #include "AT91SAM7S256.h"
 #elif defined(SAM4SD32)
@@ -63,8 +63,6 @@
 #error "unknown atmel board"
 #endif
 #endif
-#include "printf.h"
-#include "stringlight.h"
 
 #define FALSE 0
 #define TRUE 1
@@ -73,13 +71,21 @@
 
 //#define OSD_DEBUG
 
+#if defined(AT91SAM7S256)
 #define __ramfunc __attribute__ ((long_call, section (".fastrun")))
+#define __fastrun __attribute__ ((section (".fastrun")))
+#else
+#define __ramfunc
+#define __fastrun
+#endif
+
 
 /*-------------------------------*/
 /* SAM7Board Memories Definition */
 /*-------------------------------*/
 // The AT91SAM7S256 embeds a 64 kByte SRAM bank and 256 kByte Flash
 
+#if defined(AT91SAM7S256)
 #define  INT_SARM           0x00200000
 #define  INT_SARM_REMAP     0x00000000
 
@@ -88,6 +94,10 @@
 
 #define  FLASH_PAGE_NB      AT91C_IFLASH_NB_OF_PAGES
 #define  FLASH_PAGE_SIZE    AT91C_IFLASH_PAGE_SIZE
+#else
+#define  FLASH_PAGE_NB      0
+#define  FLASH_PAGE_SIZE    0
+#endif
 
 //------------------------------------------------------------------------------
 
@@ -145,6 +155,8 @@
 /// DBGU pins definition. Contains DRXD (PA9) and DTXD (PA10).
 #define AT91C_DBGU_BAUD         115200   // Baud rate
 
+#if defined(AT91SAM7S256)
+
 #define PIN_ACT_LED             AT91C_PIO_PA31
 
 #define PIN_CODER_NTSC_H        AT91C_PIO_PA30
@@ -188,9 +200,48 @@
 #define DBGU_TXD                AT91C_PA10_DTXD
 #define DBGU_RXD                AT91C_PA9_DRXD
 
+#else // defined(AT91SAM7S256)
+
+#define PIN_ACT_LED             "PIN_ACT_LED"
+#define PIN_CODER_NTSC_H        "PIN_CODER_NTSC_H"
+#define PIN_CODER_CE            "PIN_CODER_CE"
+#define PIN_WRITE_PROTECT       "PIN_WRITE_PROTECT"
+#define PIN_CARD_DETECT         "PIN_CARD_DETECT"
+#define PIN_CARD_DAT2           "PIN_CARD_DAT2"
+#define PIN_FPGA_PROG_L         "PIN_FPGA_PROG_L"
+#define PIN_FPGA_DONE           "PIN_FPGA_DONE"
+#define PIN_CARD_DAT1           "PIN_CARD_DAT1"
+#define PIN_CARD_CS_L           "PIN_CARD_CS_L"
+#define PIN_CODER_FITTED_L      "PIN_CODER_FITTED_L"
+#define PIN_FPGA_CTRL1          "PIN_FPGA_CTRL1"
+#define PIN_CONF_CCLK           "PIN_CONF_CCLK"
+#define PIN_CONF_DOUT           "PIN_CONF_DOUT"
+#define PIN_CONF_DIN            "PIN_CONF_DIN"
+#define PIN_USB_PULLUP_L        "PIN_USB_PULLUP_L"
+#define PIN_FPGA_INIT_L         "PIN_FPGA_INIT_L"
+#define PIN_CARD_CLK            "PIN_CARD_CLK"
+#define PIN_CARD_MOSI           "PIN_CARD_MOSI"
+#define PIN_CARD_MISO           "PIN_CARD_MISO"
+#define PIN_FPGA_CTRL0          "PIN_FPGA_CTRL0"
+#define PIN_DTXD_Y1             "PIN_DTXD_Y1"
+#define PIN_DRXD_Y2             "PIN_DRXD_Y2"
+#define PIN_FPGA_RST_L          "PIN_FPGA_RST_L"
+#define PIN_USB_VBUS_MON        "PIN_USB_VBUS_MON"
+#define PIN_TXD                 "PIN_TXD"
+#define PIN_RXD                 "PIN_RXD"
+#define PIN_SCL                 "PIN_SCL"
+#define PIN_SDA                 "PIN_SDA"
+#define PIN_NOT_USED_PA2        "PIN_NOT_USED_PA2"
+#define PIN_NOT_USED_PA1        "PIN_NOT_USED_PA1"
+#define PIN_MENU_BUTTON         "PIN_MENU_BUTTON"
+#define DBGU_TXD                "DBGU_TXD"
+#define DBGU_RXD                "DBGU_RXD"
+
+#endif // defined(AT91SAM7S256)
+
 // Macros to toggle state of activity LED on board
-#define ACTLED_OFF AT91C_BASE_PIOA->PIO_SODR = PIN_ACT_LED;
-#define ACTLED_ON  AT91C_BASE_PIOA->PIO_CODR = PIN_ACT_LED;
+#define ACTLED_OFF do { IO_DriveLow_OD(PIN_ACT_LED); } while (0)
+#define ACTLED_ON  do { IO_DriveHigh_OD(PIN_ACT_LED); } while (0)
 
 //---------------------------------------------------------------------------
 

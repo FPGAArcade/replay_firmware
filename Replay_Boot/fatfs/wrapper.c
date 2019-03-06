@@ -79,7 +79,7 @@ const FF_T_INT8 *FF_GetErrDescription(FF_ERROR iErrorCode, char *apBuf, int aMax
 	case FF_ERR_NULL_POINTER:					err = "(19) Given parameter is invalid";
 	default:									err = "(?) Generic";
 	};
-	snprintf (apBuf, aMaxlen, "%li : %s", iErrorCode, err);
+	snprintf (apBuf, aMaxlen, "%i : %s", (int)iErrorCode, err);
 	return apBuf;
 }
 

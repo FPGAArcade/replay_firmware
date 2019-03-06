@@ -47,6 +47,7 @@
 
 #include "board.h" // actled
 #include "hardware/io.h"
+#include "hardware/irq.h"
 #include "hardware/timer.h"
 #include "messaging.h"
 #include "fpga.h"
@@ -120,11 +121,18 @@ void MSG_fatal_error(uint8_t error)
     Timer_Wait(2);
 
     // hack! disable interrupts to not hang during reboot
-    AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
+    IRQ_DisableAllInterrupts();
 
     // perform a ARM reset
+#if defined(__arm__)
     asm("ldr r3, = 0x00000000\n");
     asm("bx  r3\n");
+#else
+    {
+        int* p = 0;
+        *p = 3;     // crash
+    }
+#endif
 
 }
 

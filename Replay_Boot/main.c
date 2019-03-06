@@ -46,7 +46,6 @@
 /** @file main.c */
 
 #include "board.h"
-#include "swi.h"
 #include "hardware.h"
 #include "hardware/io.h"
 #include "hardware/spi.h"
@@ -72,6 +71,10 @@
 #include "usb.h"
 #include "tests/tests.h"
 
+#ifndef HOSTED
+#include <malloc.h>
+#endif
+
 extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
 extern char _binary_replay_ini_start;
@@ -96,6 +99,7 @@ const char* version = "0.0";
 
 int main(void)
 {
+    HARDWARE_TICK ts;
     // used by file system
     uint8_t fatBuf[FS_FATBUF_SIZE];
 
@@ -109,6 +113,8 @@ int main(void)
     USART_Init(115200); // Initialize debug USART
     init_printf(NULL, USART_Putc); // Initialise printf
     Timer_Init();
+
+    ts = Timer_Get(0);
 
 #if PTP_USB
     PTP_USB_Stop();
@@ -206,6 +212,9 @@ int main(void)
     // start up virtual drives
     FileIO_FCh_Init();
 
+    DEBUG(0, "Firmware startup in %d ms", Timer_Convert(Timer_Get(0) - ts));
+    ts = Timer_Get(0);
+
     // Loop forever
     while (TRUE) {
         // eject all drives
@@ -221,7 +230,9 @@ int main(void)
 
         // at this point we must've free _all_ dynamically allocated memory!
         CFG_free_menu(&current_status);
+#ifndef HOSTED
         Assert(!mallinfo().uordblks);
+#endif
 
         // read inputs
         CFG_update_status(&current_status);
@@ -257,20 +268,18 @@ int main(void)
             PTP_USB_Start();
 #endif
 
+            INFO("Configured in %d ms", Timer_Convert(Timer_Get(0) - ts));
+
             // we run in here as long as there is no need to reload the FPGA
             while (current_status.fpga_load_ok != NO_CORE) {
                 main_update();
             }
+
+            ts = Timer_Get(0);
         }
 
         // we try again!
         IO_DriveLow_OD(PIN_FPGA_RST_L); // reset FPGA
-
-        // loop again
-        AT91C_BASE_PIOA->PIO_SODR = PIN_ACT_LED;
-        Timer_Wait(500);
-        AT91C_BASE_PIOA->PIO_CODR = PIN_ACT_LED;
-        Timer_Wait(500);
     }
 
     return 0; /* never reached */
@@ -278,6 +287,7 @@ int main(void)
 
 static __attribute__ ((noinline)) void load_core_from_sdcard()
 {
+    HARDWARE_TICK ts = Timer_Get(0);
     char full_filename[FF_MAX_PATH];
     sprintf(full_filename, "%s%s", current_status.ini_dir, current_status.ini_file);
 
@@ -308,6 +318,8 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
             current_status.fpga_load_ok = CORE_LOADED;
         }
     }
+
+    DEBUG(0, "load_core_from_sdcard() took %d ms", Timer_Convert(Timer_Get(0) - ts));
 }
 
 static __attribute__ ((noinline)) void load_embedded_core()
@@ -351,6 +363,7 @@ static __attribute__ ((noinline)) void load_embedded_core()
 
 static __attribute__ ((noinline)) void init_core()
 {
+    HARDWARE_TICK ts = Timer_Get(0);
     char full_filename[FF_MAX_PATH];
     sprintf(full_filename, "%s%s", current_status.ini_dir, current_status.ini_file);
 
@@ -363,9 +376,7 @@ static __attribute__ ((noinline)) void init_core()
     IO_DriveHigh_OD(PIN_FPGA_RST_L);
     Timer_Wait(200);
 
-    uint32_t spiFreq = BOARD_MCK /
-                       ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
-                       1000000;
+    uint32_t spiFreq = SPI_GetFreq();
     DEBUG(0, "SPI clock: %d MHz", spiFreq);
 
     if (current_status.fpga_load_ok != EMBEDDED_CORE) {
@@ -440,6 +451,8 @@ static __attribute__ ((noinline)) void init_core()
         MENU_set_state(&current_status, NO_MENU);
         current_status.update = 0;
     }
+
+    DEBUG(0, "init_core() took %d ms", Timer_Convert(Timer_Get(0) - ts));
 }
 
 static __attribute__ ((noinline)) void main_update()

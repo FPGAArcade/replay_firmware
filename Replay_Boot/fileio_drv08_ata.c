@@ -193,7 +193,7 @@ void Drv08_IdentifyDevice(fch_t* pDrive, drv08_desc_t* pDesc, uint16_t* pBuffer)
 /*--$DA2014 CylinderHigh       < tf5*/
 /*--$DA2018 Device/Head        < tf6*/
 /*--$DA201C Status / Command   < tf7*/
-inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count, uint8_t sector_number, uint8_t cylinder_low, uint8_t cylinder_high, uint8_t drive_head)
+static inline void Drv08_WriteTaskFile(uint8_t ch, uint8_t error, uint8_t sector_count, uint8_t sector_number, uint8_t cylinder_low, uint8_t cylinder_high, uint8_t drive_head)
 {
     SPI_EnableFileIO();
     rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_CMD_W)); // write task file registers command
@@ -249,7 +249,38 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
         nNewCluster = FF_getClusterChainNumber(pIoman, pos, 1);
 
         Assert(idx < 1024);
+
+        // The current cluster index is not yet known;
+        //  *) find the first valid cluster,
+        //  *) step through all indices up to the current one,
+        //  *) and fill out the index cluster table
+        if (pDesc->index[idx] == 0xffffffff) {
+            // find the first and the last indices
+            uint16_t start = idx;
+
+            // step backwards until we find a valid cluster
+            for (; start ; --start)
+                if (pDesc->index[start] != 0xffffffff) {
+                    break;
+                }
+
+            uint64_t step = 1 << pDesc->index_size;
+            uint64_t filepos = start * step;
+
+            for (uint16_t i = start; i <= idx; ++i, filepos += step) {
+                if (pDesc->index[i] != 0xffffffff) {
+                    continue;
+                }
+
+                FF_Seek(pDrive->fSource, filepos, FF_SEEK_SET);
+                //DEBUG(1,"index %08x %08x %08x @ %08x", (int)filepos,  pDrive->fSource->AddrCurrentCluster, pDrive->fSource->CurrentCluster, (int)i);
+                Assert(i < 1024);
+                pDesc->index[i] = pDrive->fSource->AddrCurrentCluster;
+            }
+        }
+
         uint32_t index_cluster = pDesc->index[idx];
+        Assert(index_cluster != 0xffffffff);
 
         pDrive->fSource->FilePointer        = pos;
         pDrive->fSource->CurrentCluster     = nNewCluster;
@@ -379,8 +410,8 @@ void Drv08_CardWrite(uint8_t ch, uint32_t lba, uint8_t* pBuffer)
     }
 }
 
-inline void Drv08_GetParams(uint8_t tfr[8], drv08_desc_t* pDesc,  // inputs
-                            uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint16_t* sector_count, uint32_t* lba, uint8_t* lba_mode)
+static inline void Drv08_GetParams(uint8_t tfr[8], drv08_desc_t* pDesc,  // inputs
+                                   uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint16_t* sector_count, uint32_t* lba, uint8_t* lba_mode)
 {
     // given the register file, extract address and sector count.
     // then convert this into an LBA.
@@ -413,7 +444,7 @@ inline void Drv08_GetParams(uint8_t tfr[8], drv08_desc_t* pDesc,  // inputs
     }
 }
 
-inline void Drv08_UpdateParams(uint8_t ch, uint8_t tfr[8], uint16_t sector, uint16_t cylinder, uint8_t head, uint32_t lba, uint8_t lba_mode)
+static inline void Drv08_UpdateParams(uint8_t ch, uint8_t tfr[8], uint16_t sector, uint16_t cylinder, uint8_t head, uint32_t lba, uint8_t lba_mode)
 {
     // note, we can only update the taskfile when BUSY
     // all params inputs
@@ -438,8 +469,8 @@ inline void Drv08_UpdateParams(uint8_t ch, uint8_t tfr[8], uint16_t sector, uint
     SPI_DisableFileIO();
 }
 
-inline void Drv08_IncParams(drv08_desc_t* pDesc,  // inputs
-                            uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint32_t* lba)
+static inline void Drv08_IncParams(drv08_desc_t* pDesc,  // inputs
+                                   uint16_t* sector, uint16_t* cylinder, uint8_t* head, uint32_t* lba)
 {
     // increment address.
     // At command completion, the Command Block Registers contain the cylinder, head and sector number of the last sector read
@@ -1149,7 +1180,6 @@ void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
 
     uint64_t i; // 64 as the last index (> filesize) can cause a 32 bit int to wrap
     uint64_t j;
-    uint32_t idx = 0;
 
     i = pDesc->file_size >> 10; // file size divided by 1024 (index table size)
     j = 1 << pDesc->index_size;
@@ -1163,6 +1193,9 @@ void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
     // 2^22 = 0040,0000 step size
     //
     DEBUG(1, "index size %08X j %08X", pDesc->index_size, j); // j step size
+    //  Build table on-the-fly instead ; see Drv08_HardFileSeek()
+#if 0
+    uint32_t idx = 0;
 
     for (i = 0; i < pDesc->file_size; i += j) {
         FF_Seek(pDrive->fSource, i, FF_SEEK_SET);
@@ -1171,6 +1204,10 @@ void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
         pDesc->index[idx++] = pDrive->fSource->AddrCurrentCluster;
         // call me paranoid
     };
+
+#endif
+    memset(pDesc->index, 0xff, sizeof(pDesc->index));
+
 #endif
 }
 

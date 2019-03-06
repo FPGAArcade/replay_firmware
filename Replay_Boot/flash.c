@@ -10,10 +10,10 @@ when done we reboot the ARM
 
 */
 
+#include <stdint.h>
+
 #if defined(AT91SAM7S256)
 #include "AT91SAM7S256.h"
-
-#include <stdint.h>
 
 #define BOARD_MCK               48054857
 
@@ -21,8 +21,8 @@ when done we reboot the ARM
 #define PIN_FPGA_CTRL0          AT91C_PIO_PA11
 #define PIN_FPGA_PROG_L         AT91C_PIO_PA25
 
-#define ACTLED_OFF AT91C_BASE_PIOA->PIO_SODR = PIN_ACT_LED;
-#define ACTLED_ON  AT91C_BASE_PIOA->PIO_CODR = PIN_ACT_LED;
+#define LED_OFF AT91C_BASE_PIOA->PIO_SODR = PIN_ACT_LED;
+#define LED_ON  AT91C_BASE_PIOA->PIO_CODR = PIN_ACT_LED;
 
 #define TIMER_INIT()        do { AT91C_BASE_PITC->PITC_PIMR = AT91C_PITC_PITEN | ((BOARD_MCK / 16 / 1000 - 1) & AT91C_PITC_PIV); } while(0)
 #define TIMER_GET(offset)   ((AT91C_BASE_PITC->PITC_PIIR & AT91C_PITC_PICNT) + (offset << 20))
@@ -157,10 +157,10 @@ __attribute__( ( section(".data") ) ) __attribute__ ((noreturn)) __attribute__ (
         while (!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
 
         if ((base >> 8) & 1) {
-            ACTLED_ON;
+            LED_ON;
 
         } else {
-            ACTLED_OFF;
+            LED_OFF;
         }
 
         AT91C_BASE_MC->MC_FCR = ((0x5a) << 24) | (base & AT91C_MC_PAGEN) | AT91C_MC_FCMD_START_PROG;
@@ -219,8 +219,9 @@ __attribute__( ( section(".data") ) ) __attribute__ ((noreturn)) __attribute__ (
 
 #else
 
-void FlashAndReset()
+void FlashAndReset(uint32_t base, uint32_t dram, uint32_t length)
 {
+    (void) base, (void) dram, (void) length;
     // noop!
 }
 
@@ -268,8 +269,8 @@ static inline uint32_t AsciiToHex(const char** strref, int maxsize)
 
     for (int i = 0; i < maxsize * 2; ++i) {
         uint8_t c = toupper(*str++);
-        uint8_t isnum = isdigit(c);
-        uint8_t ishex = isxdigit(c);
+        int isnum = isdigit(c);
+        int ishex = isxdigit(c);
 
         if (c == '\0') {
             break;
@@ -414,7 +415,7 @@ static unsigned int feed_crc32(uint8_t* data, uint32_t length)
 
 
 static uint32_t srecCurrentAddr;
-static uint8_t srecLineBuffer[AT91C_IFLASH_PAGE_SIZE];
+static uint8_t srecLineBuffer[FLASH_PAGE_SIZE];
 
 static uint32_t dramBaseAddr;
 
@@ -473,7 +474,7 @@ static uint8_t VerifyHandler(uint8_t type, uint32_t base, uint32_t offset, uint8
 
         uint8_t b = (addr == srecCurrentAddr) ? value : 0xff;
 
-        srecLineBuffer[srecCurrentAddr & (AT91C_IFLASH_PAGE_SIZE - 1)] = b;
+        srecLineBuffer[srecCurrentAddr & (FLASH_PAGE_SIZE - 1)] = b;
         srecCurrentAddr++;
 
         if ((srecCurrentAddr & (FLASH_PAGE_SIZE - 1)) == 0) {
@@ -551,7 +552,7 @@ static uint8_t UploadHandler(uint8_t type, uint32_t base, uint32_t offset, uint8
 
         uint8_t b = (addr == srecCurrentAddr) ? value : 0xff;
 
-        srecLineBuffer[srecCurrentAddr & (AT91C_IFLASH_PAGE_SIZE - 1)] = b;
+        srecLineBuffer[srecCurrentAddr & (FLASH_PAGE_SIZE - 1)] = b;
         srecCurrentAddr++;
 
         if ((srecCurrentAddr & (FLASH_PAGE_SIZE - 1)) == 0) {

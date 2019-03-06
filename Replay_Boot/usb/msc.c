@@ -1,6 +1,6 @@
 #include "msc.h"
 
-#if !defined(SAME70Q21)
+#if defined(AT91SAM7S256)
 
 #include "msc_descriptor.h"
 #include "usb_hardware.h"

@@ -122,7 +122,7 @@ typedef struct {
 } drv01_desc_t;
 
 
-inline uint8_t MFMDecode(uint8_t* odd, uint8_t* even)
+static inline uint8_t MFMDecode(uint8_t* odd, uint8_t* even)
 {
 
     uint8_t r  = ((*odd ) & 0x55) << 1;
@@ -130,7 +130,7 @@ inline uint8_t MFMDecode(uint8_t* odd, uint8_t* even)
     return r;
 }
 
-inline uint8_t MFMEncode(uint8_t d, uint8_t l)
+static inline uint8_t MFMEncode(uint8_t d, uint8_t l)
 {
     // strips out even bits and replaces with clock bits
     uint8_t r = d & 0x55;

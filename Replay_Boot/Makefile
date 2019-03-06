@@ -84,6 +84,11 @@ USE_THUMB_MODE = YES
 #USE_NEWLIB = YES
 USE_NEWLIB = NO
 
+ifeq (1,${HOSTED})
+USE_THUMB_MODE = NO
+USE_NEWLIB = YES
+endif
+
 ## Create ROM-Image (final)
 RUN_MODE=ROM_RUN
 ## Create RAM-Image (debugging)
@@ -130,14 +135,16 @@ SRC += ff_malloc.c
 SRC += fatfs/ff.c
 SRC += fatfs/ffunicode.c
 SRC += fatfs/wrapper.c
-SRC += hardware.c hardware/usart.c hardware/spi.c hardware/ssc.c hardware/twi.c hardware/timer.c hardware/io.c
-SRC += usb/cdc_enumerate.c usb/usb_flash.c 
-#SRC += usb/ptp_usb.c usb/mtp_client.c usb/mtp_database.c
-SRC += usb/usb_hardware.c
-SRC += usb/msc.c
-SRC += usb.c
 SRC += iniparser.c messaging.c
+
+ifeq (,${HOSTED})
+SRC += hardware.c hardware/usart.c hardware/spi.c hardware/ssc.c hardware/twi.c hardware/timer.c hardware/io.c
+SRC += usb/cdc_enumerate.c usb/usb_flash.c usb/usb_hardware.c usb/msc.c usb.c
+#SRC += usb/ptp_usb.c usb/mtp_database.c usb/mtp_client.c 
 SRC += common/Cstartup_SAM7.c
+else
+SRC += hardware_host/hardware.c usb/msc.c usb.c hardware_host/embedded.c
+endif
 
 # tests
 SRC += tests/fullfat-test.c
@@ -202,7 +209,7 @@ EXTRAINCDIRS  = ./fatfs ./common ./usb ./asf ./asf/cmsis/thirdparty
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./fatfs ./common ./usb ./hardware ./libc/stdlib ./libc/string ./libc ./tests
+EXTRA_LIBDIRS  = ./filesys ./fatfs ./common ./usb ./hardware ./libc/stdlib ./libc/string ./libc ./tests ./hardware_host
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common
@@ -267,7 +274,9 @@ CFLAGS += -O$(OPT)
 CFLAGS += -Wall -Wcast-align -Wimplicit
 CFLAGS += -Wpointer-arith -Wswitch
 CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused -Werror
+ifeq (,${HOSTED})
 CFLAGS += -Wa,-adhlns=$(addprefix $(BUILDDIR), $(subst $(suffix $<),.lst,$<))
+endif
 ifeq ($(USE_NEWLIB),NO)
 CFLAGS += -nostdinc -I./libc/include -Wno-attributes -Wno-redundant-decls -D_ANSI_LIBRARY
 endif
@@ -350,6 +359,28 @@ NM = arm-none-eabi-nm
 REMOVE = rm -f
 COPY = cp
 
+ifeq (1,${HOSTED})
+CC = cc
+CPP = c++
+OBJCOPY = :
+OBJDUMP = objdump
+SIZE = size
+NM = nm
+
+ifeq (,$(findstring clang,$(shell $(CC) 2>&1)))
+CFLAGS += -Wno-unused-but-set-variable -Wno-redundant-decls
+endif
+
+SUBMDL=HOSTED
+
+SRCARM =
+ASRCARM =
+OPT = 0
+DEBUG=
+LDFLAGS = -lc -lpthread -lncurses
+
+endif
+
 # Define Messages
 # English
 MSG_ERRORS_NONE = Errors: none
@@ -395,9 +426,13 @@ DEPMAKEFILE = .dep/Makefile
 
 # Combine all necessary flags and optional flags.
 # Add target processor to flags.
+ifeq (,${HOSTED})
 ALL_CFLAGS  = -mcpu=$(MCU) $(THUMB_IW) -I. $(CFLAGS) $(GENDEPFLAGS)
 ALL_ASFLAGS = -mcpu=$(MCU) $(THUMB_IW) -I. -x assembler-with-cpp $(ASFLAGS)
+else
+ALL_CFLAGS  = -I. $(CFLAGS) $(GENDEPFLAGS)
 
+endif
 
 # Default target.
 #all: begin gccversion sizebefore build sizeafter finished end
@@ -414,7 +449,11 @@ $(BUILDDIR)/isset:
 	echo ok > $(BUILDDIR)/isset
 #       mkdir -p $(OUTDIR)
 
+ifeq (,${HOSTED})
 build: elf hex bin s19 lss sym size
+else
+build: elf bin s19 sym size
+endif
 
 elf: $(BUILDDIR)$(TARGET).elf
 hex: $(BUILDDIR)$(TARGET).hex
@@ -481,6 +520,7 @@ $(BUILDDIR)%.sym: $(BUILDDIR)%.elf
 # Link: create ELF output file from object files.
 .SECONDARY : $(BUILDDIR)$(TARGET).elf
 .PRECIOUS : $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
+ifeq (,${HOSTED})
 $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
 	@echo
 	$(BUILD_NUM) > buildnum
@@ -489,6 +529,12 @@ $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) 
 	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ) buildnum.o --output $@ $(LDFLAGS)
 	$(REMOVE) buildnum buildnum.o
 #       $(CPP) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
+else	# collapse ifeq() once we convert from objcopy to incbin
+$(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
+	@echo
+	@echo $(MSG_LINKING) $@
+	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
+endif
 
 # Compile: create object files from C source files. ARM/Thumb
 $(COBJ) : $(BUILDDIR)%.o : %.c
@@ -526,6 +572,13 @@ $(TXTOBJ) : $(BUILDDIR)%.o : %.ini
 	@echo
 	@echo Obj-copying raw $<
 	cd $(dir $<) && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(notdir $<) $(abspath $@)	
+
+hardware_host/embedded.c: $(BUILDDIR)buildnum $(EXTOBJ)
+
+$(BUILDDIR)buildnum:
+	@echo
+	@echo Creating unique build ID $<
+	$(BUILD_NUM) > $(BUILDDIR)buildnum
 
 # Compile: create assembler files from C source files. ARM/Thumb
 ## does not work - TODO - hints welcome
@@ -586,12 +639,14 @@ clean_list :
 	$(REMOVE) $(CPPSRCARM:.cpp=.d)
 	$(REMOVE) $(EXTOBJ)
 	$(REMOVE) $(EXTOBJ:.o=)
+	$(REMOVE) $(BUILDDIR)buildnum
 	$(REMOVE) -r $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
 	git clean -fd build/ .dep/
 
 astyle :
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "*.h" "*.c"
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware/*.c" "hardware/*.h" 
+	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware_host/*.c"
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "libc/*"
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "tests/*.c" "tests/*.h"
 #	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "usb/*.c" "usb/*.h"

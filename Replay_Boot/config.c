@@ -52,6 +52,8 @@
 #include "osd.h"
 #include "card.h"
 #include "hardware/io.h"
+#include "hardware/spi.h"
+#include "hardware/irq.h"
 #include "hardware/timer.h"
 #include "twi.h"
 #include "fileio.h"
@@ -59,9 +61,12 @@
 
 #include "messaging.h"
 
+#include <stdlib.h> // abs()
+
+#if !defined(HOSTED)
 #include <unistd.h> // sbrk()
 #include <malloc.h> // mallinfo()
-#include <stdlib.h> // abs()
+#endif
 
 extern char __FIRST_IN_RAM[];
 extern char end[];
@@ -205,11 +210,13 @@ void CFG_call_bootloader(void)
     }
 
     // disable all interrupts - we don't want them triggered while we're rebooting/flashing
-    AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
+    IRQ_DisableAllInterrupts();
 
     // launch bootloader in SRAM
+#if defined(__arm__)
     asm("ldr r3, = 0x00200000\n");
     asm("bx  r3\n");
+#endif
 }
 
 void CFG_update_status(status_t* current_status)
@@ -247,6 +254,8 @@ void CFG_print_status(status_t* current_status)
 
 void CFG_card_start(status_t* current_status)
 {
+    HARDWARE_TICK ts = Timer_Get(0);
+
     if (current_status->card_detected) {
         if ( (current_status->card_init_ok && current_status->fs_mounted_ok) || current_status->usb_mounted)
             // assume all good
@@ -320,8 +329,10 @@ void CFG_card_start(status_t* current_status)
         current_status->card_init_ok = FALSE;
         current_status->fs_mounted_ok = FALSE;
         // set SPI clock to 24MHz, perhaps the debugger is being used
-        AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL | (2 << 8);
+        SPI_SetFreq25MHz();
     }
+
+    DEBUG(0, "CFG_card_start() took %d ms", Timer_Convert(Timer_Get(0) - ts));
 }
 
 void CFG_set_coder(coder_t standard)
@@ -332,38 +343,38 @@ void CFG_set_coder(coder_t standard)
     switch (standard) {
         case CODER_DISABLE :
             DEBUG(2, "CODER: Disabled.");
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_CODER_NTSC_H | PIN_CODER_CE;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_DTXD_Y1      | PIN_DRXD_Y2;
+            IO_ClearOutputData(PIN_CODER_NTSC_H | PIN_CODER_CE);
+            IO_ClearOutputData(PIN_DTXD_Y1      | PIN_DRXD_Y2);
             break;
 
         case CODER_PAL:
             DEBUG(2, "CODER: PAL Y trap.");
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_CE;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_CODER_NTSC_H;
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_DTXD_Y1;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_DRXD_Y2;
+            IO_SetOutputData(PIN_CODER_CE);
+            IO_ClearOutputData(PIN_CODER_NTSC_H);
+            IO_SetOutputData(PIN_DTXD_Y1);
+            IO_ClearOutputData(PIN_DRXD_Y2);
             break;
 
         case CODER_NTSC:
             DEBUG(2, "CODER: NTSC Y trap.");
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_CE;
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_NTSC_H;
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_DTXD_Y1;
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_DRXD_Y2;
+            IO_SetOutputData(PIN_CODER_CE);
+            IO_SetOutputData(PIN_CODER_NTSC_H);
+            IO_SetOutputData(PIN_DTXD_Y1);
+            IO_SetOutputData(PIN_DRXD_Y2);
             break;
 
         case CODER_PAL_NOTRAP:
             DEBUG(2, "CODER: PAL no trap.");
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_CE;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_CODER_NTSC_H;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_DTXD_Y1 | PIN_DRXD_Y2;
+            IO_SetOutputData(PIN_CODER_CE);
+            IO_ClearOutputData(PIN_CODER_NTSC_H);
+            IO_ClearOutputData(PIN_DTXD_Y1 | PIN_DRXD_Y2);
             break;
 
         case CODER_NTSC_NOTRAP:
             DEBUG(2, "CODER: NTSC no trap.");
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_CE;
-            AT91C_BASE_PIOA->PIO_SODR  = PIN_CODER_NTSC_H;
-            AT91C_BASE_PIOA->PIO_CODR  = PIN_DTXD_Y1 | PIN_DRXD_Y2;
+            IO_SetOutputData(PIN_CODER_CE);
+            IO_SetOutputData(PIN_CODER_NTSC_H);
+            IO_ClearOutputData(PIN_DTXD_Y1 | PIN_DRXD_Y2);
             break;
 
         default :
@@ -611,12 +622,18 @@ uint8_t CFG_download_rom(char* filename, uint32_t base, uint32_t size)
 
 uint32_t CFG_get_free_mem(void)
 {
+#if !defined(HOSTED)
     uint8_t  stack;
     uint32_t total;
     void*    heap;
     const struct mallinfo mi = mallinfo();
     heap = mi.uordblks + end;
     total =  (uint32_t)&stack - (uint32_t)heap;
+
+#else
+    uint32_t total = 0;
+
+#endif
 
     DEBUG(3, "===========================");
     DEBUG(3, " Free memory %ld bytes", total);
@@ -626,6 +643,7 @@ uint32_t CFG_get_free_mem(void)
 
 void CFG_dump_mem_stats(uint8_t only_check_stack)
 {
+#if !defined(HOSTED)
     uint32_t ram_bytes, static_bytes, heap_bytes, avail_bytes, unused_bytes;
     uint32_t current_stack, peak_stack;
 
@@ -669,6 +687,7 @@ void CFG_dump_mem_stats(uint8_t only_check_stack)
     DEBUG(1, "MEM | Heap  : %5d = %5d in-use  + %5d free", mi.arena, mi.uordblks, mi.fordblks);
     DEBUG(1, "MEM | Stack : %5d = %5d current + %5d touched", peak_stack, current_stack, peak_stack - current_stack);
     DEBUG(1, "MEM | Avail : %5d = %5d free    + %5d unused", avail_bytes, mi.fordblks, unused_bytes);
+#endif
 }
 
 uint8_t CFG_configure_fpga(char* filename)
@@ -1043,17 +1062,15 @@ static uint8_t _CFG_handle_SETUP_SPI_CLK(status_t* pStatus, const ini_symbols_t 
 
     if (entries == 1) {
         // we allow only reducing clock to avoid issues with sdcard settings
-        if (valueList[0].intval >
-                ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8)) {
-            /*pStatus->spiclk_old = ((AT91C_BASE_SPI->SPI_CSR[0] &*/
-            /*AT91C_SPI_SCBR) >> 8);*/
-            AT91C_BASE_SPI->SPI_CSR[0] = AT91C_SPI_CPOL |
-                                         (valueList[0].intval << 8);
-            uint32_t spiFreq = BOARD_MCK /
-                               ((AT91C_BASE_SPI->SPI_CSR[0] & AT91C_SPI_SCBR) >> 8) /
-                               1000000;
+        // $TODO hide this calc under 'hardware'...
+        uint32_t spiFreq = BOARD_MCK /
+                           valueList[0].intval /
+                           1000000;
+
+        if (spiFreq < SPI_GetFreq()) {
+            SPI_SetFreqDivide(valueList[0].intval);
+            spiFreq = SPI_GetFreq();
             DEBUG(1, "New SPI clock: %d MHz", spiFreq);
-            /*pStatus->spiclk_bak = valueList[0].intval;*/
         }
 
         return 0;
@@ -1269,7 +1286,7 @@ static uint8_t _CFG_handle_MENU_TITLE(status_t* pStatus, const ini_symbols_t nam
     if (entries == 1) {
         DEBUG(2, "TITLE: %s ", value);
         DEBUG(3, "T1: %lx %lx %lx ", pStatus->menu_act,
-              pStatus->menu_act->next, pStatus->menu_act->item_list);
+              pStatus->menu_top ? pStatus->menu_act->next : 0, pStatus->menu_top ? pStatus->menu_act->item_list : 0);
 
         // we filled this menu branch already with items
         if (pStatus->menu_top) {   // add further entry
@@ -1335,9 +1352,10 @@ static uint8_t _CFG_handle_MENU_ITEM(status_t* pStatus, const ini_symbols_t name
         pStatus->menu_item_act->next = NULL;
         pStatus->menu_item_act->option_list = NULL;
         pStatus->menu_item_act->selected_option = NULL;
+        pStatus->menu_item_act->conf_dynamic = 1;
         pStatus->menu_item_act->action_name[0] = 0;
         strncpy(pStatus->menu_item_act->item_name,
-                valueList[0].strval, MAX_MENU_STRING);
+                valueList[0].strval, MAX_ITEM_STRING);
 
         // special item with own handler, options handled there or ignored
         if (entries == 2) {
@@ -2389,21 +2407,21 @@ void CFG_free_menu(status_t* currentStatus)
         void* p;
         DEBUG(3, "T:%08lx >%08lx <%08lx ><%08lx", currentStatus->menu_act,
               currentStatus->menu_act->next, currentStatus->menu_act->last,
-              currentStatus->menu_act->next->last);
+              currentStatus->menu_act->next ? currentStatus->menu_act->next->last : 0);
         currentStatus->menu_item_act = currentStatus->menu_act->item_list;
 
         while (currentStatus->menu_item_act) {
             DEBUG(3, "I:%08lx >%08lx <%08lx ><%08lx", currentStatus->menu_item_act,
                   currentStatus->menu_item_act->next,
                   currentStatus->menu_item_act->last,
-                  currentStatus->menu_item_act->next->last);
+                  currentStatus->menu_item_act->next ? currentStatus->menu_item_act->next->last : 0);
             currentStatus->item_opt_act = currentStatus->menu_item_act->option_list;
 
             while (currentStatus->item_opt_act) {
                 DEBUG(3, "O:%08lx >%08lx <%08lx ><%08lx",
                       currentStatus->item_opt_act, currentStatus->item_opt_act->next,
                       currentStatus->item_opt_act->last,
-                      currentStatus->item_opt_act->next->last);
+                      currentStatus->item_opt_act->next ? currentStatus->item_opt_act->next->last : 0);
                 p = currentStatus->item_opt_act;
                 currentStatus->item_opt_act = currentStatus->item_opt_act->next;
                 free(p);
@@ -2626,7 +2644,7 @@ void CFG_save_all(status_t* currentStatus, const char* iniDir,
 
 void CFG_format_sdcard(status_t* currentStatus)
 {
-    srand_deterministic(Timer_Get(0) | (Timer_Get(0) << 16));
+    srand(Timer_Get(0) | (Timer_Get(0) << 16));
 
     FF_PartitionParameters_t params = {
         .ulSectorCount = Card_GetCapacity() / 512,

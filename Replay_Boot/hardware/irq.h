@@ -46,7 +46,18 @@
 #ifndef HARDWARE_IRQ_H_INCLUDED
 #define HARDWARE_IRQ_H_INCLUDED
 
+#include "board.h"
+
 unsigned disableIRQ(void);
 unsigned enableIRQ(void);
+
+#if defined(AT91SAM7S256)
+static inline void IRQ_DisableAllInterrupts(void)
+{
+    AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
+}
+#else
+void IRQ_DisableAllInterrupts(void);
+#endif
 
 #endif

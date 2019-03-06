@@ -293,23 +293,29 @@ void CFG_card_start(status_t* current_status)
             return;
         }
 
-        if (pIoman)
-            switch (pIoman->pPartition->Type) {
-                case FF_T_FAT32:
-                    MSG_info("SDCARD: FAT32 formatted");
-                    break;
+        switch (pIoman->pPartition->Type) {
+            case FF_T_FAT32+1:
+                MSG_info("SDCARD: exFAT formatted");
+                break;
 
-                //DEBUG(1,"FAT32 Formatted Drive"); break;
-                case FF_T_FAT16:
-                    MSG_info("SDCARD: FAT16 formatted");
-                    break;
+            case FF_T_FAT32:
+                MSG_info("SDCARD: FAT32 formatted");
+                break;
 
-                //DEBUG(1,"FAT16 Formatted Drive"); break;
-                case FF_T_FAT12:
-                    MSG_info("SDCARD: FAT12 formatted");
-                    break;
-                    //DEBUG(1,"FAT12 Formatted Drive"); break;
-            }
+            //DEBUG(1,"FAT32 Formatted Drive"); break;
+            case FF_T_FAT16:
+                MSG_info("SDCARD: FAT16 formatted");
+                break;
+
+            //DEBUG(1,"FAT16 Formatted Drive"); break;
+            case FF_T_FAT12:
+                MSG_info("SDCARD: FAT12 formatted");
+                break;
+
+            //DEBUG(1,"FAT12 Formatted Drive"); break;
+            default:
+                MSG_info("SDCARD: Unknown format %d", pIoman->pPartition->Type);
+        }
 
         //DEBUG(1,"");
         //DEBUG(1,"Block Size: %d",     pIoman->pPartition->BlkSize);
@@ -318,15 +324,13 @@ void CFG_card_start(status_t* current_status)
         //DEBUG(1,"Volume Size: %lu MB", FF_GetVolumeSize(pIoman));
         //DEBUG(1,"");
 
-        if (pIoman) {
-            MSG_info("SDCARD: %dB/%dkB x %d/%luMB",
-                     pIoman->pPartition->BlkSize,
-                     (pIoman->pPartition->BlkSize *
-                      pIoman->pPartition->SectorsPerCluster) >> 10,
-                     pIoman->pPartition->BlkFactor,
-                     FF_GetVolumeSize(pIoman)
-                    );
-        }
+        MSG_info("SDCARD: %dB/%dkB x %d/%luMB",
+                 pIoman->pPartition->BlkSize,
+                 (pIoman->pPartition->BlkSize *
+                  pIoman->pPartition->SectorsPerCluster) >> 10,
+                 pIoman->pPartition->BlkFactor,
+                 FF_GetVolumeSize(pIoman)
+                );
 
     }  else { // no card, maybe removed
         current_status->card_init_ok = FALSE;

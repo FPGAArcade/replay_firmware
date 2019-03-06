@@ -118,14 +118,18 @@ FF_IOMAN* FF_CreateIOMAN(FF_T_UINT8 *pCacheMem, FF_T_UINT32 Size, FF_T_UINT16 Bl
 	CacheMem = pCacheMem;
 	CacheSize = Size;
 	PreferredBlkSize = BlkSize;
+	FF_IOMAN* pIoman = ff_malloc(sizeof(FF_IOMAN));
+	pIoman->pPartition = ff_malloc(sizeof(FF_PARTITION));
 
-	return 0;
+	return pIoman;
 }
 FF_ERROR FF_DestroyIOMAN(FF_IOMAN *pIoman)
 {
 	CacheMem = 0;
 	CacheSize = 0;
 	PreferredBlkSize = 0;
+	ff_free(pIoman->pPartition);
+	ff_free(pIoman);
 	return 0;
 }
 FF_ERROR FF_RegisterBlkDevice(FF_IOMAN *pIoman, FF_T_UINT16 BlkSize, FF_WRITE_BLOCKS fnWriteBlocks, FF_READ_BLOCKS fnReadBlocks, void *pParam)
@@ -148,7 +152,14 @@ FF_ERROR FF_MountPartition (FF_IOMAN *pIoman, FF_T_UINT8 PartitionNumber)
 {
 	Assert(CacheSize >= sizeof(FATFS));
 	FATFS* fs = (FATFS*)(void*)CacheMem;
-	return mapError(f_mount(fs, "", 0));
+	FF_ERROR ret = mapError(f_mount(fs, "", 1));
+	pIoman->pPartition->Type = fs->fs_type + FF_T_FAT12 - 1;
+
+	pIoman->pPartition->BlkSize = 512;//fs->ssize;
+	pIoman->pPartition->SectorsPerCluster = fs->csize;
+	pIoman->pPartition->BlkFactor = pIoman->pPartition->BlkSize / 512;
+
+	return ret;
 }
 FF_ERROR FF_UnmountPartition(FF_IOMAN *pIoman)
 {
@@ -181,9 +192,9 @@ static FRESULT get_total_and_free_mb(DWORD* fre_sect, DWORD* tot_sect)
 	FATFS *fs = 0;
 	DWORD fre_clust;
 
-	FRESULT ret = f_getfree("0:", &fre_clust, &fs);
+	FRESULT ret = mapError(f_getfree("0:", &fre_clust, &fs));
 	Assert(!ret);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	Assert(FF_GetPartitionBlockSize(0) == 512);

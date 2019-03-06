@@ -103,8 +103,6 @@ int main(void)
     // used by file system
     uint8_t fatBuf[FS_FATBUF_SIZE];
 
-    RunFullFatTests();
-
     // initialise
     Hardware_Init(); // Initialise board hardware
     IO_DriveLow_OD(PIN_FPGA_RST_L); // make sure FPGA is held in reset
@@ -113,6 +111,8 @@ int main(void)
     USART_Init(115200); // Initialize debug USART
     init_printf(NULL, USART_Putc); // Initialise printf
     Timer_Init();
+
+    RunFullFatTests();
 
     ts = Timer_Get(0);
 

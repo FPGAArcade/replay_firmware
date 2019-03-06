@@ -79,7 +79,7 @@ const FF_T_INT8 *FF_GetErrDescription(FF_ERROR iErrorCode, char *apBuf, int aMax
 	case FF_ERR_NULL_POINTER:					err = "(19) Given parameter is invalid";
 	default:									err = "(?) Generic";
 	};
-	snprintf (apBuf, aMaxlen, "%i : %s", (int)iErrorCode, err);
+	snprintf (apBuf, aMaxlen, "%d : %s", (int)iErrorCode, err);
 	return apBuf;
 }
 
@@ -178,7 +178,7 @@ FF_T_SINT32 FF_GetPartitionBlockSize(FF_IOMAN *pIoman)
 
 static FRESULT get_total_and_free_mb(DWORD* fre_sect, DWORD* tot_sect)
 {
-	FATFS *fs;
+	FATFS *fs = 0;
 	DWORD fre_clust;
 
 	FRESULT ret = f_getfree("0:", &fre_clust, &fs);

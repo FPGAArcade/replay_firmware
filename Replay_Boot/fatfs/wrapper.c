@@ -164,6 +164,7 @@ FF_ERROR FF_MountPartition (FF_IOMAN *pIoman, FF_T_UINT8 PartitionNumber)
 FF_ERROR FF_UnmountPartition(FF_IOMAN *pIoman)
 {
 	FATFS* fs = 0;
+	pIoman->pPartition->Type = 0;
 	return mapError(f_mount(fs, "", 0));
 }
 
@@ -173,7 +174,7 @@ FF_ERROR FF_FlushCache (FF_IOMAN *pIoman)
 }
 FF_T_BOOL FF_Mounted(FF_IOMAN *pIoman)
 {
-	return 0;
+	return pIoman->pPartition->Type != 0;
 }
 
 FF_ERROR FF_IncreaseFreeClusters(FF_IOMAN *pIoman, FF_T_UINT32 Count)

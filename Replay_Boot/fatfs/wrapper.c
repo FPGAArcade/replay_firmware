@@ -266,7 +266,72 @@ FF_ERROR FF_RmDir(FF_IOMAN *pIoman, const FF_T_INT8 *path)
 }
 FF_ERROR FF_RmDirTree(FF_IOMAN *pIoman, const FF_T_INT8 *path)
 {
-	return mapError(f_unlink(path));
+	FF_T_INT8 p[FF_MAX_PATH] = {0};
+	FF_ERROR ret;
+
+	DIR dir;
+	if ((ret = f_opendir(&dir, path)))
+		return mapError(ret);
+
+	uint32_t root = dir.clust;
+	uint32_t leaf = 0;
+
+	strcpy(p, path);
+	size_t index = strlen(p);
+
+	FILINFO info;
+	while(!(ret = f_readdir(&dir, &info))) {
+
+		// did we reach the end of the current dir?
+		if (info.fname[0] == 0)
+		{
+			uint32_t clust = dir.clust;
+			f_closedir(&dir);
+
+			// if the dir just processed is a leaf dir then it's empty and we can delete it
+			// if the dir is the root, then we're done and we can delete the root dir
+			if (leaf == clust || root == clust) {
+				p[index] = 0;
+		        // DEBUG(1, "\t: unlinking %s ... ", p);
+				if ((ret = f_unlink(p)))
+					return mapError(ret);
+			}
+
+			// if the current dir was not the root we restart and try again
+			if (root != clust) {
+				strcpy(p, path);
+				index = strlen(p);
+
+				if ((ret = f_opendir(&dir, p)))
+					return mapError(ret);
+
+				continue;
+			}
+
+			// we're done!
+			break;
+		}
+
+    	strcpy(&p[index],"/");
+    	strcat(p, info.fname);
+
+        // DEBUG(1, "\t: %s (%s)", p, info.fattrib & AM_DIR ? "dir" : "file");
+
+    	// if we encounter a sub-dir then start scanning the sub-dir instead
+		if ((info.fattrib & AM_DIR)) {
+	        index = strlen(p);
+			if ((ret = f_opendir(&dir, p)))
+				return mapError(ret);
+
+			leaf = dir.clust;
+        } else {	// otherwise just delete the file
+	        // DEBUG(1, "\t: unlinking %s ... ", p);
+			if ((ret = f_unlink(p)))
+				return mapError(ret);
+        }
+	}
+
+	return mapError(ret);
 }
 FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT8 *szDestinationFile)
 {
@@ -396,7 +461,30 @@ FF_ERROR FF_FindNext(FF_IOMAN *pIoman, FF_DIRENT *pDirent)
 	return mapError(ret);
 }
 
-FF_ERROR FF_MkDirTree(FF_IOMAN *pIoman, const FF_T_INT8 *Path)
+FF_ERROR FF_MkDir(FF_IOMAN *pIoman, const FF_T_INT8 *Path)
 {
 	return mapError(f_mkdir(Path));
+}
+
+FF_ERROR FF_MkDirTree(FF_IOMAN *pIoman, const FF_T_INT8 *Path)
+{
+	FF_ERROR err = FF_ERR_NONE;
+	FF_T_INT8 p[FF_MAX_PATH] = {0};
+	for (size_t i = 0, j = 0; j < FF_MAX_PATH-1; ++i, ++j)
+	 {
+		FF_T_INT8 c = Path[i];
+		if (i > 0 && (c == '/' || c == '\\' || c == '\0')) {
+			p[j] = 0;
+			err = FF_MkDir(pIoman, p);
+			if (err == FF_ERR_FILE_DESTINATION_EXISTS && Path[i+1] != 0)
+				;
+			else if (err != FF_ERR_NONE)
+				break;
+			if (Path[i] == 0)
+				break;
+		}
+		p[j] = c;
+	}
+
+	return err;
 }

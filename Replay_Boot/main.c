@@ -112,8 +112,6 @@ int main(void)
     init_printf(NULL, USART_Putc); // Initialise printf
     Timer_Init();
 
-    //RunFullFatTests();
-
     ts = Timer_Get(0);
 
 #if PTP_USB
@@ -184,8 +182,12 @@ int main(void)
             return 0;
         }
     */
+
+    RunFullFatTests();
+
+    
     // INIT
-    DEBUG(1, "\033[2J");
+//    DEBUG(1, "\033[2J");
     //
     DEBUG(0, "");
     DEBUG(0, "== FPGAArcade Replay Board ==");

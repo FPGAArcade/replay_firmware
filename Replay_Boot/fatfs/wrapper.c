@@ -102,6 +102,10 @@ DSTATUS disk_initialize(BYTE pdrv)
 }
 DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void *buff)
 {
+	if (cmd == CTRL_SYNC)
+		return RES_OK;
+	int *p = 0;
+	*p = 3;
 	return RES_PARERR;
 }
 DRESULT disk_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)

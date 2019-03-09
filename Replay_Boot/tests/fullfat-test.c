@@ -4,6 +4,15 @@
 #include "messaging.h"
 #include "hardware/timer.h"
 
+#if defined(HOSTED)
+#include "hardware_host/incbin.h"
+    INCBIN(Dummy,"make.exe");
+    INCBIN(Dummy2,"make.exe");
+intptr_t flash = (intptr_t)&gDummyData[0];
+#else
+intptr_t flash = 0x00100000;
+#endif
+
 static FF_IOMAN* pIoman = NULL;  // file system handle
 static uint8_t fatBuf[FS_FATBUF_SIZE];
 static char error_buf[256];
@@ -151,7 +160,7 @@ static void TEST_MkDir()
     TEAR_DOWN;
 }
 
-static __attribute__((unused)) void TEST_RmDir()
+static void TEST_RmDir()
 {
     SETUP_TEST;
 
@@ -204,7 +213,7 @@ static void TEST_OpenWriteClose()
         size_t total_len = 0;
 
         for (int block = 0; block < 1; ++block) {
-            uint8_t* p = (uint8_t*)0x00100000;
+            uint8_t* p = (uint8_t*)flash;
             TIME(written = FF_Write(pFile, 1, 256 * 1024, p));
             total_len += written;
         }
@@ -266,7 +275,7 @@ static void TEST_CheckOpenReadClose()
         size_t total_len = 0;
 
         for (int block = 0; block < 1; ++block) {
-            const uint8_t* p = (uint8_t*)0x00100000;
+            const uint8_t* p = (uint8_t*)flash;
 
             for (int kb = 0; kb < 256; kb++) {
                 FF_T_SINT32 len = sizeof(buffer);
@@ -302,7 +311,7 @@ static void TEST_CheckOpenReadClose()
     TEAR_DOWN;
 }
 
-static __attribute__((unused)) void TEST_RmFiles()
+static void TEST_RmFiles()
 {
     SETUP_TEST;
 

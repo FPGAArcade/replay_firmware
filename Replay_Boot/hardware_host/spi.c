@@ -209,6 +209,7 @@ struct _sdc_cmd {
 uint8_t sdc_result_length = 0;
 uint8_t sdc_result[5] = {0};
 uint32_t sdc_read_sector = 0;
+uint32_t sdc_write_sector = 0;
 uint32_t sdc_data_length = 0;
 uint8_t sdc_data[1 + 512 + 2] = {0};
 uint8_t* sdc_data_ptr = 0;
@@ -233,6 +234,28 @@ unsigned char rSPI(unsigned char outByte)
     uint8_t v = 0;
 
     if (spi_enable & SPI_SDCARD) {
+
+        if (last_command == CMD24) {
+            if (sdc_data_length && !sdc_result_length) {
+                *sdc_data_ptr++ = outByte;
+                --sdc_data_length;
+
+                if (sdc_data_length == 0) {
+
+                    FILE* f = fopen("sdcard.bin", "rb+");
+
+                    if (f) {
+                        fseek(f, sdc_write_sector * 512, SEEK_SET);
+                        fwrite(&sdc_data[2], 1, 512, f);
+                        fclose(f);
+                    }
+
+                    sdc_result_length = 1;
+                    sdc_result[0] = 0x05;
+                }
+            return 0;
+            }
+        }
         sdc_cmd.buffer[0] = sdc_cmd.buffer[1];
         sdc_cmd.buffer[1] = sdc_cmd.buffer[2];
         sdc_cmd.buffer[2] = sdc_cmd.buffer[3];
@@ -328,6 +351,27 @@ unsigned char rSPI(unsigned char outByte)
                     fclose(f1);
                 }
 
+                break;
+            }
+
+            case CMD24: {
+                printf("CMD24 [%02x,%02x,%02x,%02x] CRC = %02x\n", sdc_cmd.arg0, sdc_cmd.arg1, sdc_cmd.arg2, sdc_cmd.arg3, sdc_cmd.crc);
+                last_command = sdc_cmd.command;
+                sdc_write_sector = 0;
+                sdc_write_sector |= sdc_cmd.arg0;
+                sdc_write_sector <<= 8;
+                sdc_write_sector |= sdc_cmd.arg1;
+                sdc_write_sector <<= 8;
+                sdc_write_sector |= sdc_cmd.arg2;
+                sdc_write_sector <<= 8;
+                sdc_write_sector |= sdc_cmd.arg3;
+                printf("write_sector = $%x\n", sdc_write_sector);
+                sdc_result_length = 1;
+                sdc_result[0] = 0x00;
+                memset(sdc_cmd.buffer, 0x00, sizeof(sdc_cmd.buffer));
+
+                sdc_data_length = 1 /*gap = $ff*/ + 1 /*start = $fe*/ + 512 + 2 /*crc = $????*/;
+                sdc_data_ptr = sdc_data;
                 break;
             }
 

@@ -362,7 +362,7 @@ FF_ERROR FF_FindFirst(FF_IOMAN *pIoman, FF_DIRENT *pDirent, const FF_T_INT8 *pat
 	FRESULT ret;
 	DIR* dir = &pDirent->dir;
 	memset(dir, 0x00, sizeof(DIR));
-	if (!(ret = f_opendir(dir, path)))
+	if ((ret = f_opendir(dir, path)))
 		return mapError(ret);
 
 	return FF_FindNext(pIoman, pDirent);
@@ -373,8 +373,7 @@ FF_ERROR FF_FindNext(FF_IOMAN *pIoman, FF_DIRENT *pDirent)
 	FILINFO info;
 	DIR* dir = &pDirent->dir;
 	size_t filelen = sizeof(pDirent->FileName);
-
-	if (!(ret = f_readdir(dir, &info)))
+	if ((ret = f_readdir(dir, &info)))
 		return mapError(ret);
 
 	if (info.fname[0] == 0)

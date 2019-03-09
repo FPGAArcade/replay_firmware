@@ -422,8 +422,7 @@ FF_T_UINT32 FF_Size(FF_FILE *pFile)
 // FF_T_SINT32      FF_Invalidate (FF_IOMAN *pIoman); ///< Invalidate all handles belonging to pIoman
 FF_T_SINT32 FF_ReadDirect(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count)
 {
-	Assert(0);
-	return 0;
+	return FF_Read(pFile, ElementSize, Count, NULL);
 }
 
 

@@ -26,7 +26,7 @@ static FF_ERROR mapError(FRESULT err)
 				return FF_ERR_FILE_INVALID_PATH;
 	case FR_DENIED:						/* (7) Access denied due to prohibited access or directory full */
 				return FF_ERR_FILE_IS_READ_ONLY;
-	case FR_EXIST:						/* (8) Access denied due to prohibited access */
+	case FR_EXIST:						/* (8) Object already exists */
 				return FF_ERR_FILE_DESTINATION_EXISTS;
 	case FR_INVALID_OBJECT:				/* (9) The file/directory object is invalid */
 				return FF_ERR_FILE_BAD_HANDLE;
@@ -59,25 +59,25 @@ const FF_T_INT8 *FF_GetErrDescription(FF_ERROR iErrorCode, char *apBuf, int aMax
 	const char* err = "No error";
 	switch (iErrorCode)
 	{
-	case FF_ERR_NONE:							err = "(0) Succeeded";
-	case FF_ERR_DEVICE_DRIVER_FAILED:			err = "(1) A hard error occurred in the low level disk I/O layer";
-	case FF_ERR_IOMAN_DRIVER_FATAL_ERROR:		err = "(2) Assertion failed";
-	case FF_ERR_IOMAN_NO_MOUNTABLE_PARTITION:	err = "(3) The physical drive cannot work";
-	case FF_ERR_FILE_NOT_FOUND:					err = "(4/5) Could not find the file/path";
-	case FF_ERR_FILE_INVALID_PATH:				err = "(6) The path name format is invalid";
-	case FF_ERR_FILE_IS_READ_ONLY:				err = "(7/10) Access denied due to prohibited access or directory full, or the physical drive is write protected";
-	case FF_ERR_FILE_DESTINATION_EXISTS:		err = "(8) Access denied due to prohibited access";
-	case FF_ERR_FILE_BAD_HANDLE:				err = "(9) The file/directory object is invalid";
-	case FF_ERR_IOMAN_INVALID_PARTITION_NUM:	err = "(11) The logical drive number is invalid";
-	case FF_ERR_IOMAN_NOT_ENOUGH_FREE_SPACE:	err = "(12) The volume has no work area";
-	case FF_ERR_IOMAN_NOT_FAT_FORMATTED:		err = "(13) There is no valid FAT volume";
-	case FF_ERR_IOMAN_INVALID_FORMAT:			err = "(14) The f_mkfs() aborted due to any problem";
-	case FF_ERR_IOMAN_DRIVER_BUSY:				err = "(15) Could not get a grant to access the volume within defined period";
-	case FF_ERR_FILE_ALREADY_OPEN:				err = "(16) The operation is rejected according to the file sharing policy";
-	case FF_ERR_NOT_ENOUGH_MEMORY:				err = "(17) LFN working buffer could not be allocated";
-	case FF_ERR_FILE_COULD_NOT_CREATE_DIRENT:	err = "(18) Number of open files > FF_FS_LOCK";
-	case FF_ERR_NULL_POINTER:					err = "(19) Given parameter is invalid";
-	default:									err = "(?) Generic";
+	case FF_ERR_NONE:							err = "(0) Succeeded"; break;
+	case FF_ERR_DEVICE_DRIVER_FAILED:			err = "(1) A hard error occurred in the low level disk I/O layer"; break;
+	case FF_ERR_IOMAN_DRIVER_FATAL_ERROR:		err = "(2) Assertion failed"; break;
+	case FF_ERR_IOMAN_NO_MOUNTABLE_PARTITION:	err = "(3) The physical drive cannot work"; break;
+	case FF_ERR_FILE_NOT_FOUND:					err = "(4/5) Could not find the file/path"; break;
+	case FF_ERR_FILE_INVALID_PATH:				err = "(6) The path name format is invalid"; break;
+	case FF_ERR_FILE_IS_READ_ONLY:				err = "(7/10) Access denied due to prohibited access or directory full, or the physical drive is write protected"; break;
+	case FF_ERR_FILE_DESTINATION_EXISTS:		err = "(8) Object already exists"; break;
+	case FF_ERR_FILE_BAD_HANDLE:				err = "(9) The file/directory object is invalid"; break;
+	case FF_ERR_IOMAN_INVALID_PARTITION_NUM:	err = "(11) The logical drive number is invalid"; break;
+	case FF_ERR_IOMAN_NOT_ENOUGH_FREE_SPACE:	err = "(12) The volume has no work area"; break;
+	case FF_ERR_IOMAN_NOT_FAT_FORMATTED:		err = "(13) There is no valid FAT volume"; break;
+	case FF_ERR_IOMAN_INVALID_FORMAT:			err = "(14) The f_mkfs() aborted due to any problem"; break;
+	case FF_ERR_IOMAN_DRIVER_BUSY:				err = "(15) Could not get a grant to access the volume within defined period"; break;
+	case FF_ERR_FILE_ALREADY_OPEN:				err = "(16) The operation is rejected according to the file sharing policy"; break;
+	case FF_ERR_NOT_ENOUGH_MEMORY:				err = "(17) LFN working buffer could not be allocated"; break;
+	case FF_ERR_FILE_COULD_NOT_CREATE_DIRENT:	err = "(18) Number of open files > FF_FS_LOCK"; break;
+	case FF_ERR_NULL_POINTER:					err = "(19) Given parameter is invalid"; break;
+	default:									err = "(?) Generic"; break;
 	};
 	snprintf (apBuf, aMaxlen, "%d : %s", (int)iErrorCode, err);
 	return apBuf;

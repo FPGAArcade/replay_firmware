@@ -185,9 +185,9 @@ int main(void)
 
     // RunFullFatTests();
 
-    
+
     // INIT
-//    DEBUG(1, "\033[2J");
+    DEBUG(1, "\033[2J");
     //
     DEBUG(0, "");
     DEBUG(0, "== FPGAArcade Replay Board ==");

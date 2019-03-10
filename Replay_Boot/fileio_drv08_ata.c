@@ -235,7 +235,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
         lba_byte = lba << 9;
     }
 
-#if 0
+#if !defined(FF_DEFINED)    // Using FullFAT backend?
     pIoman = pDrive->fSource->pIoman;
 
     // first check if we are moving to the same cluster
@@ -285,6 +285,61 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
         pDrive->fSource->FilePointer        = pos;
         pDrive->fSource->CurrentCluster     = nNewCluster;
         pDrive->fSource->AddrCurrentCluster = index_cluster;
+
+        //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, nNewCluster, index_cluster);
+    }
+
+#else   // defined(FF_DEFINED) == using FATFS backend
+    FIL* fp = (FIL*)pDrive->fSource;
+    FATFS* fs = fp->obj.fs;
+
+    uint32_t clusterSize = fs->csize * /*((fs)->ssize)*/ ((UINT)FF_MAX_SS);
+    uint32_t newCluster = lba_byte / clusterSize;
+    uint32_t currentCluster = fp->fptr / clusterSize;
+
+    if ((newCluster < currentCluster) || (newCluster > (currentCluster + 1)) ) {
+        // reposition using table
+        uint16_t idx = lba >> (pDesc->index_size - 9); // 9 as lba is in 512 byte sectors
+        uint32_t pos = lba_byte & (-1 << pDesc->index_size);
+
+        newCluster = pos / clusterSize;
+
+        Assert(idx < 1024);
+
+        // The current cluster index is not yet known;
+        //  *) find the first valid cluster,
+        //  *) step through all indices up to the current one,
+        //  *) and fill out the index cluster table
+        if (pDesc->index[idx] == 0xffffffff) {
+            // find the first and the last indices
+            uint16_t start = idx;
+
+            // step backwards until we find a valid cluster
+            for (; start ; --start)
+                if (pDesc->index[start] != 0xffffffff) {
+                    break;
+                }
+
+            uint64_t step = 1 << pDesc->index_size;
+            uint64_t filepos = start * step;
+
+            for (uint16_t i = start; i <= idx; ++i, filepos += step) {
+                if (pDesc->index[i] != 0xffffffff) {
+                    continue;
+                }
+
+                FF_Seek(pDrive->fSource, filepos, FF_SEEK_SET);
+                // DEBUG(1,"index %08x %08x %08x @ %08x", (int)filepos,  fp->clust, currentCluster, (int)i);
+                Assert(i < 1024);
+                pDesc->index[i] = fp->clust;
+            }
+        }
+
+        uint32_t index_cluster = pDesc->index[idx];
+        Assert(index_cluster != 0xffffffff);
+
+        fp->fptr        = pos;
+        fp->clust = index_cluster;
 
         //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, nNewCluster, index_cluster);
     }
@@ -1176,7 +1231,6 @@ void Drv08_GetHardfileGeometry(fch_t* pDrive, drv08_desc_t* pDesc)
 
 void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
 {
-#if 0
     pDesc->index_size = 16; // indexing size
 
     uint64_t i; // 64 as the last index (> filesize) can cause a 32 bit int to wrap
@@ -1209,7 +1263,6 @@ void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
 #endif
     memset(pDesc->index, 0xff, sizeof(pDesc->index));
 
-#endif
 }
 
 void Drv08_CreateRDB(drv08_desc_t* pDesc, uint8_t drive_number)

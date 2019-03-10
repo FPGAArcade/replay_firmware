@@ -422,19 +422,9 @@ FF_T_UINT32 FF_Size(FF_FILE *pFile)
 // FF_T_SINT32      FF_Invalidate (FF_IOMAN *pIoman); ///< Invalidate all handles belonging to pIoman
 FF_T_SINT32 FF_ReadDirect(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count)
 {
-	const FF_T_UINT32 bytes = ElementSize * Count;
-
-	// DEBUG(0, "\t: %s(%08x, %d, %d) => %d @ %d", __FUNCTION__, pFile, ElementSize, Count, ElementSize * Count, FF_Tell(pFile));
 	Assert((FF_Tell(pFile) % 512) == 0);
-	Assert((bytes % 512) == 0);
-
-	FF_T_SINT32 read = 0;
-	for (int i = 0; i < bytes; i += 512) {
-		read += FF_Read(pFile, 1, 512, NULL);
-		Assert((read % 512) == 0);
-	}
-
-	return read;
+	Assert(((ElementSize * Count) % 512) == 0);
+	return FF_Read(pFile, ElementSize, Count, NULL);
 }
 
 

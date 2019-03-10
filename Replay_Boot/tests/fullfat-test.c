@@ -6,9 +6,9 @@
 
 #if defined(HOSTED)
 #include "hardware_host/incbin.h"
-    INCBIN(Dummy,"make.exe");
-    INCBIN(Dummy2,"make.exe");
-intptr_t flash = (intptr_t)&gDummyData[0];
+INCBIN(Dummy, "make.exe");
+INCBIN(Dummy2, "make.exe");
+intptr_t flash = (intptr_t)& gDummyData[0];
 #else
 intptr_t flash = 0x00100000;
 #endif

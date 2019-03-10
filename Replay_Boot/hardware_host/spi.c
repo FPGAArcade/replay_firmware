@@ -253,9 +253,11 @@ unsigned char rSPI(unsigned char outByte)
                     sdc_result_length = 1;
                     sdc_result[0] = 0x05;
                 }
-            return 0;
+
+                return 0;
             }
         }
+
         sdc_cmd.buffer[0] = sdc_cmd.buffer[1];
         sdc_cmd.buffer[1] = sdc_cmd.buffer[2];
         sdc_cmd.buffer[2] = sdc_cmd.buffer[3];

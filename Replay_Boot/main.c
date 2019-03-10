@@ -197,7 +197,9 @@ int main(void)
     DEBUG(0, "");
 
     DEBUG(0, "Built upon work by Dennis van Weeren & Jakub Bednarski");
+#if !defined(FF_DEFINED)
     MSG_info("Using %s by James Walmsley", FF_REVISION);
+#endif
     DEBUG(0, "");
 
     //MSG_warning("A test warning.");

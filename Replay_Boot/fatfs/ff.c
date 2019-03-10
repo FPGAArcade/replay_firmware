@@ -3755,7 +3755,7 @@ FRESULT f_read (
 	if (btr > remain) btr = (UINT)remain;		/* Truncate btr by remaining bytes */
 
 	for ( ;  btr;								/* Repeat until btr bytes read */
-		btr -= rcnt, *br += rcnt, rbuff += rcnt, fp->fptr += rcnt) {
+		btr -= rcnt, *br += rcnt, rbuff += rbuff ? rcnt : 0, fp->fptr += rcnt) {
 		if (fp->fptr % SS(fs) == 0) {			/* On the sector boundary? */
 			csect = (UINT)(fp->fptr / SS(fs) & (fs->csize - 1));	/* Sector offset in the cluster */
 			if (csect == 0) {					/* On the cluster boundary? */

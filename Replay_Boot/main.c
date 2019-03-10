@@ -183,7 +183,7 @@ int main(void)
         }
     */
 
-    RunFullFatTests();
+    // RunFullFatTests();
 
     
     // INIT

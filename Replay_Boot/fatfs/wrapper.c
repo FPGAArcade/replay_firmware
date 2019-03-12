@@ -236,6 +236,8 @@ PARTITION VolToPart[] = {
 };
 #endif
 
+#if FF_USE_MKFS
+
 FF_ERROR FF_Partition( FF_IOMAN *pIoman, FF_PartitionParameters_t *pParams )
 {
 	// params ignored
@@ -249,6 +251,8 @@ FF_ERROR FF_Format( FF_IOMAN *pIoman, int xPartitionNumber, int xPreferFAT16, in
 	BYTE work[FF_MAX_SS];
 	return mapError(f_mkfs("", FM_ANY, 0, work, sizeof(work)));
 }
+
+#endif // FF_USE_MKFS
 
 FF_T_BOOL FF_isDirEmpty(FF_IOMAN *pIoman, const FF_T_INT8 *Path)
 {

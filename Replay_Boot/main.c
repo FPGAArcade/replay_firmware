@@ -616,7 +616,7 @@ static __attribute__ ((noinline)) void main_update()
             Timer_Wait(2);
             // invalidate FPGA configuration here as well
             current_status.fpga_load_ok = NO_CORE;
-
+/*
         } else if (card_was_inserted && !current_status.fs_mounted_ok && current_status.menu_state == SHOW_STATUS) {
 
             DEBUG(2, "grace period before asking to format .. ");
@@ -633,7 +633,7 @@ static __attribute__ ((noinline)) void main_update()
             current_status.update = 1;
             current_status.format_sdcard = 1;
             current_status.do_reboot = 0;
-
+*/
         } else if (card_was_removed) {
             MENU_set_state(&current_status, SHOW_STATUS);
             current_status.update = 1;

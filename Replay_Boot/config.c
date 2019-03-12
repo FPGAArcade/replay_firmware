@@ -2651,6 +2651,7 @@ void CFG_save_all(status_t* currentStatus, const char* iniDir,
 
 void CFG_format_sdcard(status_t* currentStatus)
 {
+#if !defined(FF_DEFINED) || FF_USE_MKFS
     srand(Timer_Get(0) | (Timer_Get(0) << 16));
 
     FF_PartitionParameters_t params = {
@@ -2671,4 +2672,5 @@ void CFG_format_sdcard(status_t* currentStatus)
     MENU_handle_ui(0, currentStatus);
 
     FF_Format(pIoman, 0, 0, 0);
+#endif
 }

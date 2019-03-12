@@ -341,7 +341,14 @@ FF_ERROR FF_Move(FF_IOMAN *pIoman, const FF_T_INT8 *szSourceFile, const FF_T_INT
 FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_T_UINT8 Mode, FF_ERROR *pError)
 {
 	FIL* fp = ff_malloc(sizeof(FIL));
-	BYTE mode = Mode;	// TODO map mode!
+
+	uint8_t mode = 0;
+	mode |= (Mode &     FF_MODE_READ) ? FA_READ : 0;
+	mode |= (Mode &    FF_MODE_WRITE) ? FA_WRITE : 0;
+	mode |= (Mode &   FF_MODE_APPEND) ? FA_OPEN_APPEND : 0;
+	mode |= (Mode &   FF_MODE_CREATE) ? FA_CREATE_ALWAYS : 0;
+	mode |= (Mode & FF_MODE_TRUNCATE) ? FA_CREATE_ALWAYS : 0;
+
 	FRESULT result = f_open (fp, path, mode);
 	if (pError)
 		*pError = FF_OPEN| mapError(result);

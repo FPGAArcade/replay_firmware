@@ -480,6 +480,15 @@ FF_ERROR FF_FindFirst(FF_IOMAN *pIoman, FF_DIRENT *pDirent, const FF_T_INT8 *pat
 	if ((ret = f_opendir(dir, p)))
 		return mapError(ret);
 
+	// FullFAT returns "." and ".." while FatFS does not.
+	// Here we (hack) detect if 'path' is pointing to the root, and if not, return a dummy ".."
+	const uint8_t root = path && (path[0] == '/' || path[0] == '\\') && !path[1];
+	if (!root) {
+		pDirent->Attrib = FF_FAT_ATTR_DIR;
+		strcpy(pDirent->FileName, "..");
+		return FF_ERR_NONE;
+	}
+
 	return FF_FindNext(pIoman, pDirent);
 }
 FF_ERROR FF_FindNext(FF_IOMAN *pIoman, FF_DIRENT *pDirent)

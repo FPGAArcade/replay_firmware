@@ -52,9 +52,12 @@
 #include "../fileio.h"
 
 #include <ncurses.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 // hdiutil create sdcard.dmg -volname "REPLAY" -fs FAT32 -size 256m -format UDRW -srcfolder ../../../hw/replay/cores/amiga_68060/sdcard/
 // mv sdcard.dmg sdcard.bin
+#define SDCARD_FILE "sdcard.bin"
 
 enum {
     SPI_SDCARD = 1 << 0,
@@ -242,12 +245,12 @@ unsigned char rSPI(unsigned char outByte)
 
                 if (sdc_data_length == 0) {
 
-                    FILE* f = fopen("sdcard.bin", "rb+");
+                    int f = open(SDCARD_FILE, O_RDWR);
 
-                    if (f) {
-                        fseek(f, sdc_write_sector * 512, SEEK_SET);
-                        fwrite(&sdc_data[2], 1, 512, f);
-                        fclose(f);
+                    if (f >= 0) {
+                        lseek(f, sdc_write_sector * 512, SEEK_SET);
+                        write(f, &sdc_data[2], 512);
+                        close(f);
                     }
 
                     sdc_result_length = 1;
@@ -314,12 +317,12 @@ unsigned char rSPI(unsigned char outByte)
                 sdc_data_ptr = sdc_data;
                 sdc_data[0] = 0xfe;
 
-                FILE* f = fopen("sdcard.bin", "rb");
+                int f = open(SDCARD_FILE, O_RDWR);
 
-                if (f) {
-                    fseek(f, sdc_read_sector * 512, SEEK_SET);
-                    fread(&sdc_data[1], 1, 512, f);
-                    fclose(f);
+                if (f >= 0) {
+                    lseek(f, (off_t)sdc_read_sector * 512, SEEK_SET);
+                    read(f, &sdc_data[1], 512);
+                    close(f);
                 }
 
                 break;
@@ -345,12 +348,12 @@ unsigned char rSPI(unsigned char outByte)
                 sdc_data_ptr = sdc_data;
                 sdc_data[0] = 0xfe;
 
-                FILE* f1 = fopen("sdcard.bin", "rb");
+                int f = open(SDCARD_FILE, O_RDWR);
 
-                if (f1) {
-                    fseek(f1, sdc_read_sector * 512, SEEK_SET);
-                    fread(&sdc_data[1], 1, 512, f1);
-                    fclose(f1);
+                if (f >= 0) {
+                    lseek(f, (off_t)sdc_read_sector * 512, SEEK_SET);
+                    read(f, &sdc_data[1], 512);
+                    close(f);
                 }
 
                 break;
@@ -426,12 +429,12 @@ unsigned char rSPI(unsigned char outByte)
                         sdc_data_ptr = sdc_data;
                         sdc_data[0] = 0xfe;
 
-                        FILE* f = fopen("sdcard.bin", "rb");
+                        int f = open(SDCARD_FILE, O_RDWR);
 
-                        if (f) {
-                            fseek(f, sdc_read_sector * 512, SEEK_SET);
-                            fread(&sdc_data[1], 1, 512, f);
-                            fclose(f);
+                        if (f >= 0) {
+                            lseek(f, (off_t)sdc_read_sector * 512, SEEK_SET);
+                            read(f, &sdc_data[1], 512);
+                            close(f);
                         }
 
                     }

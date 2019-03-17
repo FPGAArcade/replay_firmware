@@ -426,7 +426,7 @@ FF_T_SINT32 FF_BytesLeft(FF_FILE *pFile) ///< Returns # of bytes left to read
 {
 	return f_size((FIL*)pFile) - f_tell((FIL*)pFile);
 }
-FF_ERROR FF_Seek(FF_FILE *pFile, FF_T_SINT32 Offset, FF_T_INT8 Origin)
+FF_ERROR FF_Seek(FF_FILE *pFile, int64_t Offset, FF_T_INT8 Origin)
 {
 	if (Origin == FF_SEEK_CUR)
 		Offset += f_tell((FIL*)pFile);
@@ -436,18 +436,18 @@ FF_ERROR FF_Seek(FF_FILE *pFile, FF_T_SINT32 Offset, FF_T_INT8 Origin)
 }
 // FF_T_SINT32      FF_PutC                (FF_FILE *pFile, FF_T_UINT8 Value);
 
-FF_T_UINT32 FF_Tell(FF_FILE *pFile)
+uint64_t FF_Tell(FF_FILE *pFile)
 {
-	FF_T_UINT32 pos = f_tell((FIL*)pFile);
+	uint64_t pos = f_tell((FIL*)pFile);
 	return pos;
 }
 /*{
 	return pFile ? pFile->FilePointer , 0;
 }
 */
-FF_T_UINT32 FF_Size(FF_FILE *pFile)
+uint64_t FF_Size(FF_FILE *pFile)
 {
-	FF_T_UINT32 size = f_size((FIL*)pFile);
+	uint64_t size = f_size((FIL*)pFile);
 	return size;
 }
 

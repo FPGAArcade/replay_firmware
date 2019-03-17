@@ -124,15 +124,15 @@ FF_T_SINT32      FF_Read                (FF_FILE *pFile, FF_T_UINT32 ElementSize
 FF_T_SINT32      FF_Write               (FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 Count, FF_T_UINT8 *buffer);
 FF_T_BOOL        FF_isEOF               (FF_FILE *pFile);
 FF_T_SINT32      FF_BytesLeft   (FF_FILE *pFile); ///< Returns # of bytes left to read
-FF_ERROR         FF_Seek                (FF_FILE *pFile, FF_T_SINT32 Offset, FF_T_INT8 Origin);
+FF_ERROR         FF_Seek                (FF_FILE *pFile, int64_t Offset, FF_T_INT8 Origin);
 // FF_T_SINT32      FF_PutC                (FF_FILE *pFile, FF_T_UINT8 Value);
 
-FF_T_UINT32    FF_Tell                (FF_FILE *pFile);
+uint64_t    FF_Tell                (FF_FILE *pFile);
 /*{
 	return pFile ? pFile->FilePointer , 0;
 }
 */
-FF_T_UINT32    FF_Size                (FF_FILE *pFile);
+uint64_t    FF_Size                (FF_FILE *pFile);
 
 
 // FF_T_UINT8       FF_GetModeBits (FF_T_INT8 *Mode);

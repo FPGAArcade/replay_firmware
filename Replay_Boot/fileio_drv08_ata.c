@@ -121,7 +121,7 @@ typedef struct {
 typedef struct {
     drv08_format_t format;
 
-    uint32_t file_size;
+    uint64_t file_size;
     uint16_t cylinders;
     uint16_t heads;
     uint16_t sectors;
@@ -219,7 +219,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
     FF_IOMAN*  pIoman;// = pDrive->fSource->pIoman;
     (void)pIoman;
 
-    uint32_t lba_byte = lba << 9;
+    uint64_t lba_byte = (uint64_t)lba << 9;
 
     if (pDesc->format == HDF_NAKED) {
         if (DRV08_DEBUG) {
@@ -232,7 +232,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
         }
 
         lba -= pDesc->lba_offset;
-        lba_byte = lba << 9;
+        lba_byte = (uint64_t)lba << 9;
     }
 
 #if !defined(FF_DEFINED)    // Using FullFAT backend?
@@ -244,7 +244,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
     if ((nNewCluster < pDrive->fSource->CurrentCluster) || (nNewCluster > (pDrive->fSource->CurrentCluster + 1)) ) {
         // reposition using table
         uint16_t idx = lba >> (pDesc->index_size - 9); // 9 as lba is in 512 byte sectors
-        uint32_t pos = lba_byte & (-1 << pDesc->index_size);
+        uint32_t pos = (uint32_t)lba_byte & (-1 << pDesc->index_size);
 
         nNewCluster = FF_getClusterChainNumber(pIoman, pos, 1);
 
@@ -300,7 +300,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
     if ((newCluster < currentCluster) || (newCluster > (currentCluster + 1)) ) {
         // reposition using table
         uint16_t idx = lba >> (pDesc->index_size - 9); // 9 as lba is in 512 byte sectors
-        uint32_t pos = lba_byte & (-1 << pDesc->index_size);
+        uint64_t pos = lba_byte & (-1 << pDesc->index_size);
 
         newCluster = pos / clusterSize;
 
@@ -1184,7 +1184,7 @@ void Drv08_GetHardfileGeometry(fch_t* pDrive, drv08_desc_t* pDesc)
     uint32_t cyl  = 0;
     uint32_t spt  = 0;
     uint32_t sptt[] = { 63, 127, 255, 0 };
-    uint32_t size = pDesc->file_size;
+    uint64_t size = pDesc->file_size;
 
     if (size == 0) {
         return;

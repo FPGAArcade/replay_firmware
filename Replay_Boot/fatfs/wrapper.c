@@ -256,9 +256,33 @@ FF_ERROR FF_Format( FF_IOMAN *pIoman, int xPartitionNumber, int xPreferFAT16, in
 
 FF_T_BOOL FF_isDirEmpty(FF_IOMAN *pIoman, const FF_T_INT8 *Path)
 {
-	FF_DIRENT dirent;
-	FF_ERROR ret = FF_FindFirst(pIoman, &dirent, Path);
-	return FF_GETERROR(ret) == FF_ERR_DIR_END_OF_DIR;
+	FF_T_BOOL empty = FALSE;
+
+	DIR dir;
+	FILINFO info;
+	FRESULT ret = FR_OK;
+
+	if ((ret = f_opendir(&dir, Path)))
+		goto out;
+
+	if ((ret = f_readdir(&dir, &info)))
+		goto out;
+
+	empty = info.fname[0] == 0;
+
+	if ((ret = f_closedir(&dir)))
+		goto out;
+
+	// DEBUG(1, "%s = %s", Path, empty ? "empty" : "not empty");
+
+out:
+	if (ret) {
+		char errorMsg[256];
+		FF_GetErrDescription(mapError(ret), errorMsg, sizeof(errorMsg));
+		WARNING("%s", errorMsg);
+	}
+
+	return empty;
 }
 FF_ERROR FF_RmFile(FF_IOMAN *pIoman, const FF_T_INT8 *path)
 {

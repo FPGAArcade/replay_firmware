@@ -1006,7 +1006,7 @@ uint8_t Drv08_GetHardfileType(fch_t* pDrive, drv08_desc_t* pDesc)
     }
 
     WARNING("Drv08:Unknown HDF format");
-    return (1);
+    return (0);
 }
 
 #define READ_BE_32B(x)  ((uint32_t) (( ((uint8_t*)&x)[0] << 24) | (((uint8_t*)&x)[1] << 16) | (((uint8_t*)&x)[2] << 8) | ((uint8_t*)&x)[3]))

@@ -443,8 +443,17 @@ FF_ERROR FF_FindFirst(FF_IOMAN *pIoman, FF_DIRENT *pDirent, const FF_T_INT8 *pat
 {
 	FRESULT ret;
 	DIR* dir = &pDirent->dir;
+
+	// FullFAT supports opening a dir with trailing '/' or '\\' while FatFS does not.
+	// Here we copy and remove that trailing character if present.
+	FF_T_INT8 p[FF_MAX_PATH];
+	const size_t len = strlen(path);
+	memcpy(p, path, len+1);
+	if (len > 1 && (path[len-1] == '/' || path[len-1] == '\\'))
+		p[len-1] = 0;
+
 	memset(dir, 0x00, sizeof(DIR));
-	if ((ret = f_opendir(dir, path)))
+	if ((ret = f_opendir(dir, p)))
 		return mapError(ret);
 
 	return FF_FindNext(pIoman, pDirent);

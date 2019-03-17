@@ -1446,7 +1446,7 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
         lba /= pDesc->heads;
         pDesc->cylinders = lba;
 
-        INFO("SIZE: %lu sectors (%lu MB)", pDesc->file_size, pDesc->file_size >> 11);
+        INFO("SIZE: %lu sectors (%lu MB)", (uint32_t)pDesc->file_size, (uint32_t)pDesc->file_size >> 11);
         INFO("CHS : %u.%u.%u --> %lu MB", pDesc->cylinders, pDesc->heads, pDesc->sectors,
              ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
 
@@ -1472,7 +1472,7 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
         Drv08_CreateRDB(pDesc, drive_number);
     }
 
-    INFO("SIZE: %lu (%lu MB)", pDesc->file_size, pDesc->file_size >> 20);
+    INFO("SIZE: %lu sectors (%lu MB)", (uint32_t)(pDesc->file_size / 512), (uint32_t)(pDesc->file_size >> 20));
     INFO("CHS : %u.%u.%u --> %lu MB", pDesc->cylinders, pDesc->heads, pDesc->sectors,
          ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
     INFO("Opened in %lu ms", Timer_Convert(time));

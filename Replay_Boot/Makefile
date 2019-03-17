@@ -148,6 +148,7 @@ endif
 
 # tests
 SRC += tests/fullfat-test.c
+SRC += tests/exfat-test.c
 
 SRCBIN += ../../../hw/replay/cores/loader_embedded/sdcard/loader.bin
 SRCRAW += ../../../hw/replay/cores/loader_embedded/sdcard/replayhand.raw

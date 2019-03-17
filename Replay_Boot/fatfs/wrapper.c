@@ -511,6 +511,7 @@ FF_ERROR FF_FindNext(FF_IOMAN *pIoman, FF_DIRENT *pDirent)
 	if (filelen > sizeof(info.fname))
 		filelen = sizeof(info.fname);
 	memcpy(pDirent->FileName, info.fname, filelen);
+	pDirent->FileName[filelen - 1] = '\0';
 
 	return mapError(ret);
 }

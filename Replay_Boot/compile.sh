@@ -1,7 +1,5 @@
 #!/bin/bash
 
-#cp buildnum.elf buildnum
-
 echo "Building firmware"
 make
 

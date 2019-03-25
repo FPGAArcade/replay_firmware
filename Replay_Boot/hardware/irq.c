@@ -39,20 +39,4 @@ unsigned enableIRQ(void)
     return _cpsr;
 }
 
-#else // sam4sd32?
-
-#include "AT91SAM4SD32.h"
-
-unsigned disableIRQ(void)
-{
-    __disable_irq();
-    return 0;
-}
-
-unsigned enableIRQ(void)
-{
-    __enable_irq();
-    return 0;
-}
-
-#endif
+#endif // defined(AT91SAM7S256)

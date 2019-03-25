@@ -64,16 +64,8 @@ endif
 BUILD_NUM = ./buildnum_$(HOST).$(APP_SUFFIX)
 
 # MCU name and submodel
-ifeq (1,${SAM4S})
-MCU      = cortex-m4
-SUBMDL   = SAM4SD32
-else ifeq (1,${SAME70})
-MCU      = cortex-m7
-SUBMDL   = SAME70Q21
-else
 MCU      = arm7tdmi
 SUBMDL   = AT91SAM7S256
-endif
 
 # Toolchain prefix (i.e arm-elf -> arm-elf-gcc.exe)
 TCHAIN_PREFIX  =  arm-none-eabi-
@@ -178,14 +170,6 @@ ASRC =
 ASRCARM  = common/Cstartup.S
 ASRCARM += common/swi_handler.S
 
-# sam4s / cortex-m4 / armv7-m doesn't support the ARM instruction set
-ifeq (1,$(filter 1, ${SAM4S} ${SAME70})) 
-SRC += common/startup_sam4s.c
-SRC += hardware/irq.c
-SRCARM =
-ASRCARM =
-endif
-
 # Optimization level, can be [0, 1, 2, 3, s].
 # 0 = turn off optimization. s = optimize for size.
 # (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
@@ -200,7 +184,7 @@ DEBUG = stabs
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS  = ./filesys ./common ./usb ./asf ./asf/cmsis/thirdparty
+EXTRAINCDIRS  = ./filesys ./common ./usb
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.

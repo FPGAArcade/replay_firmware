@@ -1,4 +1,4 @@
-#if !defined(SAME70Q21)
+#if defined(AT91SAM7S256)
 
 #include "mtp_client.h"
 #include "mtp_supported.h"
@@ -2024,4 +2024,4 @@ static uint16_t EndEditObject(PTPUSBBulkContainer* ptp)
     return PTP_RC_GeneralError;
 }
 
-#endif // !defined(SAME70Q21)
+#endif // defined(AT91SAM7S256)

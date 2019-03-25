@@ -91,11 +91,7 @@ static void prepare_sdcard();
 
 // GLOBALS
 FF_IOMAN* pIoman = NULL;  // file system handle
-#if !defined(__SAM4SD32C__) && !defined(__SAME70Q21__)
 const char* version = &_binary_buildnum_start; // actual build version
-#else
-const char* version = "0.0";
-#endif
 
 int main(void)
 {

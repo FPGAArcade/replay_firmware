@@ -184,7 +184,7 @@ DEBUG = stabs
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS  = ./filesys ./common ./usb
+EXTRAINCDIRS  =
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.

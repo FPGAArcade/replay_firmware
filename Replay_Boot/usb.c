@@ -1,7 +1,7 @@
 #include "usb.h"
 #include "messaging.h"
 #include "fileio.h"
-#include "msc.h"
+#include "usb/msc.h"
 
 extern FF_IOMAN* pIoman;
 

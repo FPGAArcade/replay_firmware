@@ -54,7 +54,7 @@
 #include <stdint.h>
 #if !defined(WIN32) && !defined(__APPLE__) && !defined(__linux__)
 #if defined(AT91SAM7S256)
-#include "AT91SAM7S256.h"
+#include "common/AT91SAM7S256.h"
 #else
 #error "unknown atmel board"
 #endif

@@ -76,8 +76,7 @@ SUBMDL   = AT91SAM7S256
 endif
 
 # Toolchain prefix (i.e arm-elf -> arm-elf-gcc.exe)
-TCHAIN =  arm-none-eabi
-FLASH_TOOL = OPENOCD
+TCHAIN_PREFIX  =  arm-none-eabi-
 USE_THUMB_MODE = YES
 #USE_THUMB_MODE = NO
 
@@ -346,12 +345,12 @@ endif
 
 # Define programs and commands.
 #SHELL = arm-none-eabi-sh
-CC = arm-none-eabi-gcc
-CPP = arm-none-eabi-g++
-OBJCOPY = arm-none-eabi-objcopy
-OBJDUMP = arm-none-eabi-objdump
-SIZE = arm-none-eabi-size
-NM = arm-none-eabi-nm
+CC = $(TCHAIN_PREFIX)gcc
+CPP = $(TCHAIN_PREFIX)g++
+OBJCOPY = $(TCHAIN_PREFIX)objcopy
+OBJDUMP = $(TCHAIN_PREFIX)objdump
+SIZE = $(TCHAIN_PREFIX)size
+NM = $(TCHAIN_PREFIX)nm
 REMOVE = rm -f
 COPY = cp
 

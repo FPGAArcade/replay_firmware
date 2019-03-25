@@ -226,9 +226,6 @@ CDEFS += -D$(VECTOR_LOCATION)
 ADEFS += -D$(VECTOR_LOCATION)
 endif
 
-CDEFS += -D__WinARM__
-ADEFS += -D__WinARM__
-
 # Compiler flags.
 
 ifeq ($(USE_THUMB_MODE),YES)

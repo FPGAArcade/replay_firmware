@@ -188,7 +188,7 @@ EXTRAINCDIRS  =
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./common ./usb ./hardware ./libc/stdlib ./libc/string ./libc ./tests ./hardware_host
+EXTRA_LIBDIRS  = ./common
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common
@@ -380,7 +380,7 @@ MSG_LPC21_RESETREMINDER = You may have to bring the target in bootloader-mode no
 
 # Define all object files.
 COBJ      = $(addprefix $(BUILDDIR),$(SRC:.c=.o))
-COBJARM   = $(addprefix $(BUILDDIR),$(SRCARM:.c=.o))
+COBJARM   = $(addprefix $(BUILDDIR),$(SRCARM:.c=.arm.o))
 AOBJ      = $(addprefix $(BUILDDIR),$(ASRC:.S=.o))
 AOBJARM   = $(addprefix $(BUILDDIR),$(ASRCARM:.S=.o))
 CPPOBJ    = $(addprefix $(BUILDDIR),$(CPPSRC:.cpp=.o))
@@ -412,7 +412,7 @@ endif
 
 # Default target.
 #all: begin gccversion sizebefore build sizeafter finished end
-all: begin $(BUILDDIR)/isset gccversion build finished end
+all: begin $(BUILDDIR)isset gccversion build finished end
 
 install: all usbdl
 
@@ -420,10 +420,10 @@ usbdl: $(BUILDDIR)$(TARGET).s19
 	../../bootloader/replay_loader_v1.2/$(USBDL) load $(BUILDDIR)$(TARGET).s19
 
 # set up directory for output files, inluding subdirs for libs
-$(BUILDDIR)/isset:
-	mkdir -p $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
-	echo ok > $(BUILDDIR)/isset
-#       mkdir -p $(OUTDIR)
+$(BUILDDIR)isset: $(SRC)
+	@echo
+	mkdir -p $(addprefix $(BUILDDIR), $(sort $(filter-out .,$(^D))))
+	@echo ok > $(BUILDDIR)isset
 
 ifeq (,${HOSTED})
 build: elf hex bin s19 lss sym size
@@ -513,13 +513,13 @@ $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) 
 endif
 
 # Compile: create object files from C source files. ARM/Thumb
-$(COBJ) : $(BUILDDIR)%.o : %.c
+$(COBJ) : $(BUILDDIR)%.o : %.c | $(BUILDDIR)isset
 	@echo
 	@echo $(MSG_COMPILING) $<
 	$(CC) -c $(THUMB) $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@
 
 # Compile: create object files from C source files. ARM-only
-$(COBJARM) : $(BUILDDIR)%.o : %.c
+$(COBJARM) : $(BUILDDIR)%.arm.o : %.c | $(BUILDDIR)isset
 	@echo
 	@echo $(MSG_COMPILING_ARM) $<
 	$(CC) -c $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@
@@ -584,11 +584,11 @@ $(DEPMAKEFILE): Makefile
 clean: begin clean_list finished end
 
 
-clean_list :
+clean_list : $(SRC)
 	@echo
 	@echo $(MSG_CLEANING)
 	$(REMOVE) -r .dep
-	$(REMOVE) $(BUILDDIR)/isset
+	$(REMOVE) $(BUILDDIR)isset
 	$(REMOVE) $(BUILDDIR)$(TARGET).hex
 	$(REMOVE) $(BUILDDIR)$(TARGET).bin
 	$(REMOVE) $(TARGET).s19
@@ -616,7 +616,7 @@ clean_list :
 	$(REMOVE) $(EXTOBJ)
 	$(REMOVE) $(EXTOBJ:.o=)
 	$(REMOVE) $(BUILDDIR)buildnum
-	$(REMOVE) -r $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
+	$(REMOVE) -r $(addprefix $(BUILDDIR), $(sort $(filter-out .,$(^D))))
 	git clean -fd build/ .dep/
 
 astyle :

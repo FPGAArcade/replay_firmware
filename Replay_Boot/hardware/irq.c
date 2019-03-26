@@ -9,6 +9,7 @@
 
 #define IRQ_MASK 0x00000080
 
+#if !defined(__thumb__)
 static inline unsigned __get_cpsr(void)
 {
     unsigned long retval;
@@ -38,5 +39,6 @@ unsigned enableIRQ(void)
     __set_cpsr(_cpsr & ~IRQ_MASK);
     return _cpsr;
 }
+#endif // !defined(__thumb__)
 
 #endif // defined(AT91SAM7S256)

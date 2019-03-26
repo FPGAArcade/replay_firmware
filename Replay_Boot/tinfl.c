@@ -8,7 +8,7 @@
 #ifndef TINFL_HEADER_INCLUDED
 #define TINFL_HEADER_INCLUDED
 
-////#include <stdlib.h>
+#include <stdlib.h>
 
 typedef unsigned char mz_uint8;
 typedef signed short mz_int16;
@@ -115,7 +115,7 @@ struct tinfl_decompressor_tag {
 
 #ifndef TINFL_HEADER_FILE_ONLY
 
-////#include <string.h>
+#include <string.h>
 
 // MZ_MALLOC, etc. are only used by the optional high-level helper functions.
 #ifdef MINIZ_NO_MALLOC

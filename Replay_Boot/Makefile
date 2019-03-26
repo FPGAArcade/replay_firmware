@@ -99,38 +99,16 @@ TARGET = main
 
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
-SRC = $(TARGET).c
-SRC += common/syscalls.c
-SRC += swi_handler_user.c
-SRC += printf.c
-SRC += stringlight.c
-SRC += card.c
-SRC += fpga.c
-SRC += twi.c
-SRC += filesel.c
-SRC += config.c
-SRC += fileio_drv00_generic.c
-SRC += fileio_drv01_floppy.c
-SRC += fileio_drv02_tape.c
-SRC += fileio_drv08_ata.c
-SRC += fileio.c
-SRC += freelist.c
-SRC += osd.c
-SRC += menu.c
-SRC += rdb.c
-SRC += flash.c
-SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unicode.c filesys/ff_format.c
-SRC += filesys/ff_memory.c filesys/ff_safety.c filesys/ff_blk.c filesys/ff_ioman.c filesys/ff_fat.c
-SRC += filesys/ff_crc.c filesys/ff_dir.c filesys/ff_error.c filesys/ff_file.c filesys/ff_hash.c
-SRC += ff_malloc.c
-SRC += iniparser.c messaging.c
+SRC = common/syscalls.c
+SRC += $(wildcard *.c)
+SRC += $(wildcard filesys/*.c)
 
 ifeq (,${HOSTED})
-SRC += hardware.c hardware/usart.c hardware/spi.c hardware/ssc.c hardware/twi.c hardware/timer.c hardware/io.c
-SRC += usb/cdc_enumerate.c usb/usb_flash.c usb/ptp_usb.c usb/usb_hardware.c usb/mtp_client.c usb/mtp_database.c usb/msc.c usb.c
+SRC += $(wildcard hardware/*.c)
+SRC += $(wildcard usb/*.c)
 SRC += common/Cstartup_SAM7.c
 else
-SRC += hardware_host/hardware.c usb/msc.c usb.c hardware_host/embedded.c
+SRC += hardware_host/hardware.c usb/msc.c hardware_host/embedded.c
 endif
 
 # tests

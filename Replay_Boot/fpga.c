@@ -59,6 +59,7 @@
 
 #ifndef FPGA_DISABLE_EMBEDDED_CORE
 // Bah! But that's how it is proposed by this lib...
+#define TINFL_HEADER_FILE_ONLY
 #include "tinfl.c"
 // ok, so it is :-)
 

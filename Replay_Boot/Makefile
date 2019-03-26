@@ -430,11 +430,12 @@ end:
 
 size: $(BUILDDIR)$(TARGET).elf
 	@echo
-	$(SIZE) $<
+	@$(SIZE) $<
 	@echo
 
 # Display compiler version information.
 gccversion :
+	@echo
 	@$(CC) --version
 
 
@@ -442,34 +443,32 @@ gccversion :
 $(BUILDDIR)%.hex: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -Oihex $< $@
+	@$(OBJCOPY) -Oihex $< $@
 
 # Create final output file (.bin) from ELF output file.
 $(BUILDDIR)%.bin: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -Obinary $< $@
+	@$(OBJCOPY) -Obinary $< $@
 
 # Create final output file (.s19) from ELF output file.
 $(BUILDDIR)%.s19: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -Osrec --srec-forceS3 $< $@
-
+	@$(OBJCOPY) -Osrec --srec-forceS3 $< $@
 
 # Create extended listing file from ELF output file.
 # testing: option -C
 $(BUILDDIR)%.lss: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_EXTENDED_LISTING) $@
-	$(OBJDUMP) -h -S -C $< > $@
-
+	@$(OBJDUMP) -h -S -C $< > $@
 
 # Create a symbol table from ELF output file.
 $(BUILDDIR)%.sym: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_SYMBOL_TABLE) $@
-	$(NM) -n $< > $@
+	@$(NM) -n $< > $@
 
 # Link: create ELF output file from object files.
 .SECONDARY : $(BUILDDIR)$(TARGET).elf
@@ -479,28 +478,26 @@ $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) 
 	@echo
 	$(BUILD_NUM) > buildnum
 	$(OBJCOPY) -I binary -O elf32-littlearm -B arm buildnum buildnum.o
+	@echo
 	@echo $(MSG_LINKING) $@
-	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ) buildnum.o --output $@ $(LDFLAGS)
-	$(REMOVE) buildnum buildnum.o
+	@$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ) buildnum.o --output $@ $(LDFLAGS)
+	@$(REMOVE) buildnum buildnum.o
 #       $(CPP) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
 else	# collapse ifeq() once we convert from objcopy to incbin
 $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
-	@echo
 	@echo $(MSG_LINKING) $@
-	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
+	@$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
 endif
 
 # Compile: create object files from C source files. ARM/Thumb
 $(COBJ) : $(BUILDDIR)%.o : %.c | $(BUILDDIR)isset
-	@echo
 	@echo $(MSG_COMPILING) $<
-	$(CC) -c $(THUMB) $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@
+	@$(CC) -c $(THUMB) $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@
 
 # Compile: create object files from C source files. ARM-only
 $(COBJARM) : $(BUILDDIR)%.arm.o : %.c | $(BUILDDIR)isset
-	@echo
 	@echo $(MSG_COMPILING_ARM) $<
-	$(CC) -c $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@
+	@$(CC) -c $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@
 
 # Compile: create object files from C++ source files. ARM/Thumb
 $(CPPOBJ) : $(BUILDDIR)%.o : %.cpp
@@ -519,13 +516,13 @@ $(RAWOBJ) : $(BUILDDIR)%.o : %.raw
 $(BINOBJ) $(RAWOBJ): 
 	@echo
 	@echo Obj-copying compressed binary $<
-	gzip < $< > $(basename $@)
-	$(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(basename $@) $@	
+	@gzip < $< > $(basename $@)
+	@$(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(basename $@) $@	
 
 $(TXTOBJ) : $(BUILDDIR)%.o : %.ini
 	@echo
 	@echo Obj-copying raw $<
-	cd $(dir $<) && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(notdir $<) $(abspath $@)	
+	@cd $(dir $<) && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(notdir $<) $(abspath $@)	
 
 hardware_host/embedded.c: $(BUILDDIR)buildnum $(EXTOBJ)
 
@@ -549,9 +546,9 @@ $(AOBJ) : $(BUILDDIR)%.o : %.S
 
 # Assemble: create object files from assembler source files. ARM-only
 $(AOBJARM) : $(BUILDDIR)%.o : %.S
-	@echo
 	@echo $(MSG_ASSEMBLING_ARM) $<
-	$(CC) -c $(ALL_ASFLAGS) $< -o $@
+	@$(CC) -c $(ALL_ASFLAGS) $< -o $@
+	@echo
 
 $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM): $(DEPMAKEFILE)
 
@@ -569,7 +566,6 @@ clean_list : $(SRC)
 	$(REMOVE) $(BUILDDIR)isset
 	$(REMOVE) $(BUILDDIR)$(TARGET).hex
 	$(REMOVE) $(BUILDDIR)$(TARGET).bin
-	$(REMOVE) $(TARGET).s19
 	$(REMOVE) $(BUILDDIR)$(TARGET).elf
 	$(REMOVE) $(BUILDDIR)$(TARGET).map
 	$(REMOVE) $(BUILDDIR)$(TARGET).a90
@@ -577,20 +573,20 @@ clean_list : $(SRC)
 	$(REMOVE) $(BUILDDIR)$(TARGET).lnk
 	$(REMOVE) $(BUILDDIR)$(TARGET).lss
 	$(REMOVE) $(COBJ)
-	$(REMOVE) $(CPPOBJ)
-	$(REMOVE) $(AOBJ)
+	#$(REMOVE) $(CPPOBJ)
+	#$(REMOVE) $(AOBJ)
 	$(REMOVE) $(COBJARM)
-	$(REMOVE) $(CPPOBJARM)
-	$(REMOVE) $(AOBJARM)
+	#$(REMOVE) $(CPPOBJARM)
+	#$(REMOVE) $(AOBJARM)
 	$(REMOVE) $(LST)
 	$(REMOVE) $(SRC:.c=.s)
 	$(REMOVE) $(SRC:.c=.d)
 	$(REMOVE) $(SRCARM:.c=.s)
 	$(REMOVE) $(SRCARM:.c=.d)
-	$(REMOVE) $(CPPSRC:.cpp=.s)
-	$(REMOVE) $(CPPSRC:.cpp=.d)
-	$(REMOVE) $(CPPSRCARM:.cpp=.s)
-	$(REMOVE) $(CPPSRCARM:.cpp=.d)
+	# $(REMOVE) $(CPPSRC:.cpp=.s)
+	# $(REMOVE) $(CPPSRC:.cpp=.d)
+	# $(REMOVE) $(CPPSRCARM:.cpp=.s)
+	# $(REMOVE) $(CPPSRCARM:.cpp=.d)
 	$(REMOVE) $(EXTOBJ)
 	$(REMOVE) $(EXTOBJ:.o=)
 	$(REMOVE) $(BUILDDIR)buildnum

@@ -43,21 +43,86 @@
 
  Email support@fpgaarcade.com
 */
-#ifndef HARDWARE_IRQ_H_INCLUDED
-#define HARDWARE_IRQ_H_INCLUDED
-
 #include "../board.h"
+#include "../messaging.h"
+#include "../hardware/spi.h"
+#include "../hardware/timer.h"
+#include "../osd.h"
+#include "../fileio.h"
 
-unsigned disableIRQ(void);
-unsigned enableIRQ(void);
-
-#if defined(AT91SAM7S256)
-static inline void IRQ_DisableAllInterrupts(void)
+//
+// SPI
+//
+void SPI_Init(void)
 {
-    AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
 }
-#else
-void IRQ_DisableAllInterrupts(void);
-#endif
 
-#endif
+
+unsigned char rSPI(unsigned char outByte)
+{
+    unsigned char v = outByte;
+    printf("%s %02x => %02x\n", __FUNCTION__, outByte, v);
+    return v;
+}
+
+void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
+{
+    printf("%s %p %08x -> %08x\n", __FUNCTION__, pBuffer, length);
+}
+
+void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
+{
+    printf("%s %p %08x <- %08x\n", __FUNCTION__, pBuffer, length);
+}
+
+void SPI_Wait4XferEnd(void)
+{
+    printf("%s\n", __FUNCTION__);
+}
+
+void SPI_EnableCard(void)
+{
+    printf("%s\n", __FUNCTION__);
+}
+
+void SPI_DisableCard(void)
+{
+    printf("%s\n", __FUNCTION__);
+}
+
+void SPI_EnableFileIO(void)
+{
+    printf("%s\n", __FUNCTION__);
+}
+
+void SPI_DisableFileIO(void)
+{
+    printf("%s\n", __FUNCTION__);
+}
+
+void SPI_EnableOsd(void)
+{
+    printf("%s\n", __FUNCTION__);
+}
+
+void SPI_DisableOsd(void)
+{
+    printf("%s\n", __FUNCTION__);
+}
+
+void SPI_EnableDirect(void)
+{
+    printf("%s\n", __FUNCTION__);
+}
+
+void SPI_DisableDirect(void)
+{
+    printf("%s\n", __FUNCTION__);
+}
+
+unsigned char SPI_IsActive(void)
+{
+    printf("%s\n", __FUNCTION__);
+    return 0;
+}
+

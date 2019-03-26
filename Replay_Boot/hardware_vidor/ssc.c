@@ -43,21 +43,38 @@
 
  Email support@fpgaarcade.com
 */
-#ifndef HARDWARE_IRQ_H_INCLUDED
-#define HARDWARE_IRQ_H_INCLUDED
-
 #include "../board.h"
+#include "../hardware/ssc.h"
 
-unsigned disableIRQ(void);
-unsigned enableIRQ(void);
+static uint32_t written = 0;
 
-#if defined(AT91SAM7S256)
-static inline void IRQ_DisableAllInterrupts(void)
+// SSC
+void SSC_Configure_Boot(void)
 {
-    AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
 }
-#else
-void IRQ_DisableAllInterrupts(void);
-#endif
 
-#endif
+void SSC_EnableTxRx(void)
+{
+    written = 0;
+}
+
+void SSC_DisableTxRx(void)
+{
+    if (written > 746212 /* bit file length */) {
+        // done
+    }
+}
+
+void SSC_Write(uint32_t frame)
+{
+    written ++;
+}
+
+void SSC_WaitDMA(void)
+{
+}
+
+void SSC_WriteBufferSingle(void* pBuffer, uint32_t length, uint32_t wait)
+{
+    written += length;
+}

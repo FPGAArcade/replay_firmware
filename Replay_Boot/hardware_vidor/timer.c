@@ -43,21 +43,51 @@
 
  Email support@fpgaarcade.com
 */
-#ifndef HARDWARE_IRQ_H_INCLUDED
-#define HARDWARE_IRQ_H_INCLUDED
-
 #include "../board.h"
+#include "../hardware/timer.h"
+#include "../hardware/irq.h"
 
-unsigned disableIRQ(void);
-unsigned enableIRQ(void);
+static volatile uint64_t s_milliseconds = 0;
 
-#if defined(AT91SAM7S256)
-static inline void IRQ_DisableAllInterrupts(void)
+static inline HARDWARE_TICK GetSystemTime()
 {
-    AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
-}
-#else
-void IRQ_DisableAllInterrupts(void);
-#endif
+    uint64_t current_ms = 0;
+    static uint8_t first = 0;
 
-#endif
+    if (!first) {
+        first = 1;
+        s_milliseconds = current_ms;
+    }
+
+    return (HARDWARE_TICK)((current_ms - s_milliseconds));
+}
+
+//
+// Timer
+//
+void Timer_Init(void)
+{
+}
+
+HARDWARE_TICK Timer_Get(uint32_t time_ms)
+{
+    HARDWARE_TICK systimer = GetSystemTime();
+    systimer += time_ms;       // HACK - we know hw ticks match systimer
+    return (systimer);
+}
+
+uint8_t Timer_Check(HARDWARE_TICK offset)
+{
+    uint32_t systimer = GetSystemTime();
+    /*calculate difference*/
+    offset -= systimer;
+    /*check if <t> has passed*/
+    return (offset > (1 << 31));
+}
+
+void Timer_Wait(uint32_t time_ms)
+{
+    HARDWARE_TICK tick = Timer_Get(time_ms);
+
+    while (!Timer_Check(tick));
+}

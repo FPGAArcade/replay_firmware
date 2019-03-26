@@ -46,8 +46,6 @@
 #ifndef HARDWARE_USART_H_INCLUDED
 #define HARDWARE_USART_H_INCLUDED
 
-#include "hardware/irq.h"
-
 #define USB_USART 0
 
 #if USB_USART==1

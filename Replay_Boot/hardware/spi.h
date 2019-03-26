@@ -46,9 +46,8 @@
 #ifndef HARDWARE_SPI_H_INCLUDED
 #define HARDWARE_SPI_H_INCLUDED
 
-#include "board.h"
-
 #if defined(AT91SAM7S256)
+#include "board.h"
 #include "messaging.h"  // ugly.. 
 #endif
 

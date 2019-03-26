@@ -597,6 +597,7 @@ astyle :
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "*.h" "*.c"
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware/*.c" "hardware/*.h" 
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware_host/*.c"
+	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware_vidor/*.c"
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "libc/*"
 	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "tests/*.c" "tests/*.h"
 #	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "usb/*.c" "usb/*.h"

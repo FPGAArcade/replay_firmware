@@ -46,10 +46,9 @@
 #ifndef HARDWARE_IO_H_INCLUDED
 #define HARDWARE_IO_H_INCLUDED
 
-#include "hardware/timer.h"
-
 #if defined(AT91SAM7S256)
 
+#include "hardware/timer.h"
 #include "messaging.h"	// ugly.. 
 
 void IO_DriveLow_OD(uint32_t pin);
@@ -83,6 +82,21 @@ static inline void IO_WaitVBL(void)
         }
     }
 }
+
+#elif defined(__SAMD21G18A__)
+
+void IO_DriveLow_OD(uint32_t pin);
+void IO_DriveHigh_OD(uint32_t pin);
+uint8_t IO_Input_H(uint32_t pin);
+uint8_t IO_Input_L(uint32_t pin);
+
+#define IO_ClearOutputData(x) 	do { IO_ClearOutputDataX(#x); } while(0)
+#define IO_SetOutputData(x)		do { IO_SetOutputDataX(#x);   } while(0)
+
+void IO_ClearOutputDataX(const char* pin);
+void IO_SetOutputDataX(const char* pin);
+
+void IO_WaitVBL(void);
 
 #else
 

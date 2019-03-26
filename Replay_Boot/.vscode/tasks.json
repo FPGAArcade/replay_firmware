@@ -7,6 +7,13 @@
             "label": "make hosted",
             "type": "shell",
             "command": "HOSTED=1 make -j8",
+            "group": "build"
+        },
+        {
+            "label": "build vidor",
+            "type": "shell",
+            // -verbose
+            "command": "/Applications/Arduino.app/Contents/Java/arduino-builder -compile -hardware /Applications/Arduino.app/Contents/Java/hardware -hardware $HOME/Library/Arduino15/packages -tools /Applications/Arduino.app/Contents/Java/tools-builder -tools $HOME/Library/Arduino15/packages -fqbn=arduino:samd_beta:mkrvidor4000 -warnings=null Replay_Boot.ino",
             "group": {
                 "kind": "build",
                 "isDefault": true

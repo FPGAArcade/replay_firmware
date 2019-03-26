@@ -29,7 +29,7 @@ when done we reboot the ARM
 #define TIMER_CHECK(time)   ((time - (AT91C_BASE_PITC->PITC_PIIR & AT91C_PITC_PICNT)) > (1 << 31))
 #define TIMER_WAIT(time)    do { unsigned int t = TIMER_GET(time); while (!TIMER_CHECK(t)); } while(0)
 
-static __attribute__( ( section(".data") ) )  __attribute__ ((always_inline)) unsigned char rSPI(unsigned char outByte)
+static __attribute__( ( section(".data") ) )  inline unsigned char rSPI(unsigned char outByte)
 {
     volatile unsigned int t = AT91C_BASE_SPI->SPI_RDR;
     // for t not to generate a warning, add a dummy asm that 'reference' t

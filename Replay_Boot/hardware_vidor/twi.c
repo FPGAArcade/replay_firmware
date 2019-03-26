@@ -43,21 +43,68 @@
 
  Email support@fpgaarcade.com
 */
-#ifndef HARDWARE_IRQ_H_INCLUDED
-#define HARDWARE_IRQ_H_INCLUDED
-
 #include "../board.h"
+#include "../hardware/twi.h"
+#include "../hardware/io.h"
+#include "../hardware/timer.h"
+#include "../messaging.h"
 
-unsigned disableIRQ(void);
-unsigned enableIRQ(void);
+static uint8_t offset = 0;
+static uint8_t memory[256];
 
-#if defined(AT91SAM7S256)
-static inline void IRQ_DisableAllInterrupts(void)
+void TWI_Configure(void)
 {
-    AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
 }
-#else
-void IRQ_DisableAllInterrupts(void);
-#endif
 
-#endif
+void TWI_Stop(void)
+{
+    printf("%s - ", __FUNCTION__);
+}
+
+uint8_t TWI_ReadByte(void)
+{
+    printf("%s - ", __FUNCTION__);
+    return memory[offset];
+}
+
+void TWI_WriteByte(uint8_t byte)
+{
+    printf("%s %02X - ", __FUNCTION__, byte);
+    memory[offset] = byte;
+}
+
+uint8_t TWI_ByteReceived(void)
+{
+    printf("%s - ", __FUNCTION__);
+    return 1;
+}
+
+uint8_t TWI_ByteSent(void)
+{
+    printf("%s - ", __FUNCTION__);
+    return 1;
+}
+
+uint8_t TWI_TransferComplete(void)
+{
+    printf("%s\n", __FUNCTION__);
+    return 1;
+}
+
+void TWI_StartRead(uint8_t DevAddr, uint8_t IntAddrSize, uint16_t IntAddr)
+{
+    printf("%s  %02x %02x %04x    - ", __FUNCTION__, DevAddr, IntAddrSize, IntAddr);
+}
+
+void TWI_StartWrite(uint8_t DevAddr, uint8_t IntAddrSize, uint16_t IntAddr, uint8_t WriteData)
+{
+    printf("%s %02x %02x %04x %02x - ", __FUNCTION__, DevAddr, IntAddrSize, IntAddr, WriteData);
+
+    if (IntAddr) {
+        offset = IntAddr;
+        memory[offset] = WriteData;
+
+    } else {
+        offset = WriteData;
+    }
+}

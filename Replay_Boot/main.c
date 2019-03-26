@@ -68,6 +68,7 @@
 #include "usb/ptp_usb.h"
 //#define PTP_USB 1
 
+#include "main.h"
 #include "usb.h"
 #include "tests/tests.h"
 
@@ -93,7 +94,11 @@ static void prepare_sdcard();
 FF_IOMAN* pIoman = NULL;  // file system handle
 const char* version = &_binary_buildnum_start; // actual build version
 
+#if defined(ARDUINO)   // sketches already have a main()
+int replay_main(void)
+#else
 int main(void)
+#endif
 {
     HARDWARE_TICK ts;
     // used by file system

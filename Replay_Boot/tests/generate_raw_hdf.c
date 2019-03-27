@@ -2,47 +2,53 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-int main(int argc, const char *argv[])
+int main(int argc, const char* argv[])
 {
-	int num_gbs = 4;	// default 4GiB
-	if (argc > 1) {
-		num_gbs = atoi(argv[1]);
-	}
-	if (num_gbs == 0 || num_gbs > 256)
-		return 1;
+    int num_gbs = 4;	// default 4GiB
 
-	char filename[256];
-	sprintf(filename, "raw_%igb.hdf", num_gbs);
+    if (argc > 1) {
+        num_gbs = atoi(argv[1]);
+    }
 
-	printf("Generating %i GiB file '%s' ... \n", num_gbs, filename);
+    if (num_gbs == 0 || num_gbs > 256) {
+        return 1;
+    }
 
-	const uint64_t size = (uint64_t)num_gbs * 1024 * 1024 * 1024 / sizeof(uint32_t);
+    char filename[256];
+    sprintf(filename, "raw_%igb.hdf", num_gbs);
 
-	FILE* f = fopen(filename,"wb");
-	if (f) {
-		uint8_t sector[512];
-		uint32_t offset = 0;
+    printf("Generating %i GiB file '%s' ... \n", num_gbs, filename);
 
-		for (uint64_t i = 0; i < size; ++i) {
-			uint32_t v = (uint32_t)i;
+    const uint64_t size = (uint64_t)num_gbs * 1024 * 1024 * 1024 / sizeof(uint32_t);
 
-			uint8_t a = (v >>  0) & 0xff;
-			uint8_t b = (v >>  8) & 0xff;
-			uint8_t c = (v >> 16) & 0xff;
-			uint8_t d = (v >> 24) & 0xff;
+    FILE* f = fopen(filename, "wb");
 
-			sector[offset++] = d;
-			sector[offset++] = c;
-			sector[offset++] = b;
-			sector[offset++] = a;
+    if (f) {
+        uint8_t sector[512];
+        uint32_t offset = 0;
 
-			if (offset == sizeof(sector)) {
-				fwrite(sector, 1, sizeof(sector), f);
-				offset = 0;
-				printf("%3.2f%%\r", (float)(100.0 * (double)i / (double)size));
-			}
-		}
-		fclose(f);
-	}
-	return 0;
+        for (uint64_t i = 0; i < size; ++i) {
+            uint32_t v = (uint32_t)i;
+
+            uint8_t a = (v >>  0) & 0xff;
+            uint8_t b = (v >>  8) & 0xff;
+            uint8_t c = (v >> 16) & 0xff;
+            uint8_t d = (v >> 24) & 0xff;
+
+            sector[offset++] = d;
+            sector[offset++] = c;
+            sector[offset++] = b;
+            sector[offset++] = a;
+
+            if (offset == sizeof(sector)) {
+                fwrite(sector, 1, sizeof(sector), f);
+                offset = 0;
+                printf("%3.2f%%\r", (float)(100.0 * (double)i / (double)size));
+            }
+        }
+
+        fclose(f);
+    }
+
+    return 0;
 }

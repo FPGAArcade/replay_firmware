@@ -1,4 +1,4 @@
-#if !defined(SAME70Q21)
+#if defined(AT91SAM7S256)
 
 #include "ptp_usb.h"
 #include "ptp_usb_descriptor.h"
@@ -207,4 +207,4 @@ static void HandleRxdData(uint8_t ep, uint8_t* packet, uint32_t length)
     }
 }
 
-#endif // !defined(SAME70Q21)
+#endif // defined(AT91SAM7S256)

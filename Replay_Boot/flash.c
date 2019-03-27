@@ -13,7 +13,7 @@ when done we reboot the ARM
 #include <stdint.h>
 
 #if defined(AT91SAM7S256)
-#include "AT91SAM7S256.h"
+#include "common/AT91SAM7S256.h"
 
 #define BOARD_MCK               48054857
 

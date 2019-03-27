@@ -4,7 +4,7 @@
 #define INIPARSER_H_INCLUDED
 
 #include <stdint.h>
-#include "ff_file.h"
+#include "fullfat.h"
 
 /** maximum length of a line in the INI file */
 #define MAX_LINE_LEN 128

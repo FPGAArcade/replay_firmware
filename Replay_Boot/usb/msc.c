@@ -1080,7 +1080,7 @@ uint8_t MSC_PreventMediaRemoval()
     return s_PreventMediaRemoval;
 }
 
-#else
+#else // defined(AT91SAM7S256)
 
 void MSC_Start(void)
 {
@@ -1097,4 +1097,4 @@ uint8_t MSC_PreventMediaRemoval()
     return 0;
 }
 
-#endif // !defined(SAME70Q21)
+#endif

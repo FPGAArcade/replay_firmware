@@ -64,20 +64,11 @@ endif
 BUILD_NUM = ./buildnum_$(HOST).$(APP_SUFFIX)
 
 # MCU name and submodel
-ifeq (1,${SAM4S})
-MCU      = cortex-m4
-SUBMDL   = SAM4SD32
-else ifeq (1,${SAME70})
-MCU      = cortex-m7
-SUBMDL   = SAME70Q21
-else
 MCU      = arm7tdmi
 SUBMDL   = AT91SAM7S256
-endif
 
 # Toolchain prefix (i.e arm-elf -> arm-elf-gcc.exe)
-TCHAIN =  arm-none-eabi
-FLASH_TOOL = OPENOCD
+TCHAIN_PREFIX  =  arm-none-eabi-
 USE_THUMB_MODE = YES
 #USE_THUMB_MODE = NO
 
@@ -108,42 +99,17 @@ TARGET = main
 
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
-SRC = $(TARGET).c
-SRC += common/syscalls.c
-SRC += swi_handler_user.c
-SRC += printf.c
-SRC += stringlight.c
-SRC += card.c
-SRC += fpga.c
-SRC += twi.c
-SRC += filesel.c
-SRC += config.c
-SRC += fileio_drv00_generic.c
-SRC += fileio_drv01_floppy.c
-SRC += fileio_drv02_tape.c
-SRC += fileio_drv08_ata.c
-SRC += fileio.c
-SRC += freelist.c
-SRC += osd.c
-SRC += menu.c
-SRC += rdb.c
-SRC += flash.c
-#SRC += filesys/ff_string.c filesys/ff_time.c filesys/ff_unicode.c filesys/ff_format.c
-#SRC += filesys/ff_memory.c filesys/ff_safety.c filesys/ff_blk.c filesys/ff_ioman.c filesys/ff_fat.c
-#SRC += filesys/ff_crc.c filesys/ff_dir.c filesys/ff_error.c filesys/ff_file.c filesys/ff_hash.c
-SRC += ff_malloc.c
-SRC += fatfs/ff.c
-SRC += fatfs/ffunicode.c
-SRC += fatfs/wrapper.c
-SRC += iniparser.c messaging.c
+SRC = common/syscalls.c
+SRC += $(wildcard *.c)
+SRC += $(wildcard fatfs/*.c)
 
 ifeq (,${HOSTED})
-SRC += hardware.c hardware/usart.c hardware/spi.c hardware/ssc.c hardware/twi.c hardware/timer.c hardware/io.c
-SRC += usb/cdc_enumerate.c usb/usb_flash.c usb/usb_hardware.c usb/msc.c usb.c
-#SRC += usb/ptp_usb.c usb/mtp_database.c usb/mtp_client.c 
+SRC += $(wildcard hardware/*.c)
+#SRC += $(wildcard usb/*.c) # mtp is not supported with fatfs
+SRC += usb/msc.c usb/usb_hardware.c
 SRC += common/Cstartup_SAM7.c
 else
-SRC += hardware_host/hardware.c usb/msc.c usb.c hardware_host/embedded.c
+SRC += hardware_host/hardware.c usb/msc.c hardware_host/embedded.c
 endif
 
 # tests
@@ -184,14 +150,6 @@ ASRC =
 ASRCARM  = common/Cstartup.S
 ASRCARM += common/swi_handler.S
 
-# sam4s / cortex-m4 / armv7-m doesn't support the ARM instruction set
-ifeq (1,$(filter 1, ${SAM4S} ${SAME70})) 
-SRC += common/startup_sam4s.c
-SRC += hardware/irq.c
-SRCARM =
-ASRCARM =
-endif
-
 # Optimization level, can be [0, 1, 2, 3, s].
 # 0 = turn off optimization. s = optimize for size.
 # (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
@@ -206,11 +164,11 @@ DEBUG = stabs
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS  = ./fatfs ./common ./usb ./asf ./asf/cmsis/thirdparty
+EXTRAINCDIRS  =
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
-EXTRA_LIBDIRS  = ./filesys ./fatfs ./common ./usb ./hardware ./libc/stdlib ./libc/string ./libc ./tests ./hardware_host
+EXTRA_LIBDIRS  = ./common
 
 # Path to Linker-Scripts
 LINKERSCRIPTPATH = ./common
@@ -247,9 +205,6 @@ ifdef VECTOR_LOCATION
 CDEFS += -D$(VECTOR_LOCATION)
 ADEFS += -D$(VECTOR_LOCATION)
 endif
-
-CDEFS += -D__WinARM__
-ADEFS += -D__WinARM__
 
 # Compiler flags.
 
@@ -351,12 +306,12 @@ endif
 
 # Define programs and commands.
 #SHELL = arm-none-eabi-sh
-CC = arm-none-eabi-gcc
-CPP = arm-none-eabi-g++
-OBJCOPY = arm-none-eabi-objcopy
-OBJDUMP = arm-none-eabi-objdump
-SIZE = arm-none-eabi-size
-NM = arm-none-eabi-nm
+CC = $(TCHAIN_PREFIX)gcc
+CPP = $(TCHAIN_PREFIX)g++
+OBJCOPY = $(TCHAIN_PREFIX)objcopy
+OBJDUMP = $(TCHAIN_PREFIX)objdump
+SIZE = $(TCHAIN_PREFIX)size
+NM = $(TCHAIN_PREFIX)nm
 REMOVE = rm -f
 COPY = cp
 
@@ -405,7 +360,7 @@ MSG_LPC21_RESETREMINDER = You may have to bring the target in bootloader-mode no
 
 # Define all object files.
 COBJ      = $(addprefix $(BUILDDIR),$(SRC:.c=.o))
-COBJARM   = $(addprefix $(BUILDDIR),$(SRCARM:.c=.o))
+COBJARM   = $(addprefix $(BUILDDIR),$(SRCARM:.c=.arm.o))
 AOBJ      = $(addprefix $(BUILDDIR),$(ASRC:.S=.o))
 AOBJARM   = $(addprefix $(BUILDDIR),$(ASRCARM:.S=.o))
 CPPOBJ    = $(addprefix $(BUILDDIR),$(CPPSRC:.cpp=.o))
@@ -437,7 +392,7 @@ endif
 
 # Default target.
 #all: begin gccversion sizebefore build sizeafter finished end
-all: begin $(BUILDDIR)/isset gccversion build finished end
+all: begin $(BUILDDIR)isset gccversion build finished end
 
 install: all usbdl
 
@@ -445,10 +400,10 @@ usbdl: $(BUILDDIR)$(TARGET).s19
 	../../bootloader/replay_loader_v1.2/$(USBDL) load $(BUILDDIR)$(TARGET).s19
 
 # set up directory for output files, inluding subdirs for libs
-$(BUILDDIR)/isset:
-	mkdir -p $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
-	echo ok > $(BUILDDIR)/isset
-#       mkdir -p $(OUTDIR)
+$(BUILDDIR)isset: $(SRC)
+	@echo
+	mkdir -p $(addprefix $(BUILDDIR), $(sort $(filter-out .,$(^D))))
+	@echo ok > $(BUILDDIR)isset
 
 ifeq (,${HOSTED})
 build: elf hex bin s19 lss sym size
@@ -477,11 +432,12 @@ end:
 
 size: $(BUILDDIR)$(TARGET).elf
 	@echo
-	$(SIZE) $<
+	@$(SIZE) $<
 	@echo
 
 # Display compiler version information.
 gccversion :
+	@echo
 	@$(CC) --version
 
 
@@ -489,34 +445,32 @@ gccversion :
 $(BUILDDIR)%.hex: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -Oihex $< $@
+	@$(OBJCOPY) -Oihex $< $@
 
 # Create final output file (.bin) from ELF output file.
 $(BUILDDIR)%.bin: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -Obinary $< $@
+	@$(OBJCOPY) -Obinary $< $@
 
 # Create final output file (.s19) from ELF output file.
 $(BUILDDIR)%.s19: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -Osrec --srec-forceS3 $< $@
-
+	@$(OBJCOPY) -Osrec --srec-forceS3 $< $@
 
 # Create extended listing file from ELF output file.
 # testing: option -C
 $(BUILDDIR)%.lss: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_EXTENDED_LISTING) $@
-	$(OBJDUMP) -h -S -C $< > $@
-
+	@$(OBJDUMP) -h -S -C $< > $@
 
 # Create a symbol table from ELF output file.
 $(BUILDDIR)%.sym: $(BUILDDIR)%.elf
 	@echo
 	@echo $(MSG_SYMBOL_TABLE) $@
-	$(NM) -n $< > $@
+	@$(NM) -n $< > $@
 
 # Link: create ELF output file from object files.
 .SECONDARY : $(BUILDDIR)$(TARGET).elf
@@ -526,28 +480,26 @@ $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) 
 	@echo
 	$(BUILD_NUM) > buildnum
 	$(OBJCOPY) -I binary -O elf32-littlearm -B arm buildnum buildnum.o
+	@echo
 	@echo $(MSG_LINKING) $@
-	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ) buildnum.o --output $@ $(LDFLAGS)
-	$(REMOVE) buildnum buildnum.o
+	@$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ) buildnum.o --output $@ $(LDFLAGS)
+	@$(REMOVE) buildnum buildnum.o
 #       $(CPP) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
 else	# collapse ifeq() once we convert from objcopy to incbin
 $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
-	@echo
 	@echo $(MSG_LINKING) $@
-	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
+	@$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
 endif
 
 # Compile: create object files from C source files. ARM/Thumb
-$(COBJ) : $(BUILDDIR)%.o : %.c
-	@echo
+$(COBJ) : $(BUILDDIR)%.o : %.c | $(BUILDDIR)isset
 	@echo $(MSG_COMPILING) $<
-	$(CC) -c $(THUMB) $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@
+	@$(CC) -c $(THUMB) $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@
 
 # Compile: create object files from C source files. ARM-only
-$(COBJARM) : $(BUILDDIR)%.o : %.c
-	@echo
+$(COBJARM) : $(BUILDDIR)%.arm.o : %.c | $(BUILDDIR)isset
 	@echo $(MSG_COMPILING_ARM) $<
-	$(CC) -c $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@
+	@$(CC) -c $(ALL_CFLAGS) $(CONLYFLAGS) $< -o $@
 
 # Compile: create object files from C++ source files. ARM/Thumb
 $(CPPOBJ) : $(BUILDDIR)%.o : %.cpp
@@ -566,13 +518,13 @@ $(RAWOBJ) : $(BUILDDIR)%.o : %.raw
 $(BINOBJ) $(RAWOBJ): 
 	@echo
 	@echo Obj-copying compressed binary $<
-	gzip < $< > $(basename $@)
-	$(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(basename $@) $@	
+	@gzip < $< > $(basename $@)
+	@$(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(basename $@) $@	
 
 $(TXTOBJ) : $(BUILDDIR)%.o : %.ini
 	@echo
 	@echo Obj-copying raw $<
-	cd $(dir $<) && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(notdir $<) $(abspath $@)	
+	@cd $(dir $<) && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(notdir $<) $(abspath $@)	
 
 hardware_host/embedded.c: $(BUILDDIR)buildnum $(EXTOBJ)
 
@@ -596,9 +548,9 @@ $(AOBJ) : $(BUILDDIR)%.o : %.S
 
 # Assemble: create object files from assembler source files. ARM-only
 $(AOBJARM) : $(BUILDDIR)%.o : %.S
-	@echo
 	@echo $(MSG_ASSEMBLING_ARM) $<
-	$(CC) -c $(ALL_ASFLAGS) $< -o $@
+	@$(CC) -c $(ALL_ASFLAGS) $< -o $@
+	@echo
 
 $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM): $(DEPMAKEFILE)
 
@@ -609,14 +561,13 @@ $(DEPMAKEFILE): Makefile
 clean: begin clean_list finished end
 
 
-clean_list :
+clean_list : $(SRC)
 	@echo
 	@echo $(MSG_CLEANING)
 	$(REMOVE) -r .dep
-	$(REMOVE) $(BUILDDIR)/isset
+	$(REMOVE) $(BUILDDIR)isset
 	$(REMOVE) $(BUILDDIR)$(TARGET).hex
 	$(REMOVE) $(BUILDDIR)$(TARGET).bin
-	$(REMOVE) $(TARGET).s19
 	$(REMOVE) $(BUILDDIR)$(TARGET).elf
 	$(REMOVE) $(BUILDDIR)$(TARGET).map
 	$(REMOVE) $(BUILDDIR)$(TARGET).a90
@@ -624,24 +575,24 @@ clean_list :
 	$(REMOVE) $(BUILDDIR)$(TARGET).lnk
 	$(REMOVE) $(BUILDDIR)$(TARGET).lss
 	$(REMOVE) $(COBJ)
-	$(REMOVE) $(CPPOBJ)
-	$(REMOVE) $(AOBJ)
+	#$(REMOVE) $(CPPOBJ)
+	#$(REMOVE) $(AOBJ)
 	$(REMOVE) $(COBJARM)
-	$(REMOVE) $(CPPOBJARM)
-	$(REMOVE) $(AOBJARM)
+	#$(REMOVE) $(CPPOBJARM)
+	#$(REMOVE) $(AOBJARM)
 	$(REMOVE) $(LST)
 	$(REMOVE) $(SRC:.c=.s)
 	$(REMOVE) $(SRC:.c=.d)
 	$(REMOVE) $(SRCARM:.c=.s)
 	$(REMOVE) $(SRCARM:.c=.d)
-	$(REMOVE) $(CPPSRC:.cpp=.s)
-	$(REMOVE) $(CPPSRC:.cpp=.d)
-	$(REMOVE) $(CPPSRCARM:.cpp=.s)
-	$(REMOVE) $(CPPSRCARM:.cpp=.d)
+	# $(REMOVE) $(CPPSRC:.cpp=.s)
+	# $(REMOVE) $(CPPSRC:.cpp=.d)
+	# $(REMOVE) $(CPPSRCARM:.cpp=.s)
+	# $(REMOVE) $(CPPSRCARM:.cpp=.d)
 	$(REMOVE) $(EXTOBJ)
 	$(REMOVE) $(EXTOBJ:.o=)
 	$(REMOVE) $(BUILDDIR)buildnum
-	$(REMOVE) -r $(addprefix $(BUILDDIR), $(EXTRA_LIBDIRS))
+	$(REMOVE) -r $(addprefix $(BUILDDIR), $(sort $(filter-out .,$(^D))))
 	git clean -fd build/ .dep/
 
 astyle :

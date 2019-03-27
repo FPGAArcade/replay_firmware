@@ -1,4 +1,4 @@
-#if !defined(SAME70Q21)
+#if defined(AT91SAM7S256)
 
 #include "board.h"
 #include "usb_hardware.h"
@@ -325,4 +325,4 @@ void usb_setup_faddr(uint16_t wValue)
     udp->UDP_GLBSTATE  = (wValue) ? AT91C_UDP_FADDEN : 0;
 }
 
-#endif // !defined(SAME70Q21)
+#endif // defined(AT91SAM7S256)

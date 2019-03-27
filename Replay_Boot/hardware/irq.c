@@ -9,6 +9,7 @@
 
 #define IRQ_MASK 0x00000080
 
+#if !defined(__thumb__)
 static inline unsigned __get_cpsr(void)
 {
     unsigned long retval;
@@ -38,21 +39,6 @@ unsigned enableIRQ(void)
     __set_cpsr(_cpsr & ~IRQ_MASK);
     return _cpsr;
 }
+#endif // !defined(__thumb__)
 
-#else // sam4sd32?
-
-#include "AT91SAM4SD32.h"
-
-unsigned disableIRQ(void)
-{
-    __disable_irq();
-    return 0;
-}
-
-unsigned enableIRQ(void)
-{
-    __enable_irq();
-    return 0;
-}
-
-#endif
+#endif // defined(AT91SAM7S256)

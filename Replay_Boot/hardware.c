@@ -53,6 +53,9 @@
 //
 // General
 //
+
+#if defined(AT91SAM7S256)
+
 void Hardware_Init(void)
 {
     AT91C_BASE_WDTC->WDTC_WDMR = AT91C_WDTC_WDDIS; //disable watchdog
@@ -107,4 +110,4 @@ void Hardware_Init(void)
     IO_Init();
 }
 
-
+#endif // defined(AT91SAM7S256)

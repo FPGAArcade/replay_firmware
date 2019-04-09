@@ -178,6 +178,10 @@ int main(void)
             return 0;
         }
     */
+
+    // RunFullFatTests();
+
+
     // INIT
     DEBUG(1, "\033[2J");
     //
@@ -189,7 +193,9 @@ int main(void)
     DEBUG(0, "");
 
     DEBUG(0, "Built upon work by Dennis van Weeren & Jakub Bednarski");
+#if !defined(FF_DEFINED)
     MSG_info("Using %s by James Walmsley", FF_REVISION);
+#endif
     DEBUG(0, "");
 
     //MSG_warning("A test warning.");
@@ -607,22 +613,22 @@ static __attribute__ ((noinline)) void main_update()
             // invalidate FPGA configuration here as well
             current_status.fpga_load_ok = NO_CORE;
 
-        } else if (card_was_inserted && !current_status.fs_mounted_ok && current_status.menu_state == SHOW_STATUS) {
+            // } else if (card_was_inserted && !current_status.fs_mounted_ok && current_status.menu_state == SHOW_STATUS) {
 
-            DEBUG(2, "grace period before asking to format .. ");
+            // DEBUG(2, "grace period before asking to format .. ");
 
-            Timer_Wait(1000);
+            // Timer_Wait(1000);
 
-            DEBUG(2, "time to format the sdcard? ");
+            // DEBUG(2, "time to format the sdcard? ");
 
-            MENU_set_state(&current_status, POPUP_MENU);
-            strcpy(current_status.popup_msg, "Format SDCARD?");
-            current_status.popup_msg2 = "(takes ~3mins)";
-            current_status.selections = MENU_POPUP_YESNO;
-            current_status.selected = 0;
-            current_status.update = 1;
-            current_status.format_sdcard = 1;
-            current_status.do_reboot = 0;
+            // MENU_set_state(&current_status, POPUP_MENU);
+            // strcpy(current_status.popup_msg, "Format SDCARD?");
+            // current_status.popup_msg2 = "(takes ~3mins)";
+            // current_status.selections = MENU_POPUP_YESNO;
+            // current_status.selected = 0;
+            // current_status.update = 1;
+            // current_status.format_sdcard = 1;
+            // current_status.do_reboot = 0;
 
         } else if (card_was_removed) {
             MENU_set_state(&current_status, SHOW_STATUS);

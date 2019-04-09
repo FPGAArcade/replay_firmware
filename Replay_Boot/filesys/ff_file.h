@@ -142,6 +142,10 @@ FF_INLINE FF_T_UINT32    FF_Tell                (FF_FILE *pFile)
 {
 	return pFile ? pFile->FilePointer : 0;
 }
+FF_INLINE FF_T_UINT32    FF_Size                (FF_FILE *pFile)
+{
+	return pFile ? pFile->Filesize : 0;
+}
 
 FF_T_UINT8       FF_GetModeBits (FF_T_INT8 *Mode);
 

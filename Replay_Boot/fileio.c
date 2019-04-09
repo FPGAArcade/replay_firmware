@@ -51,6 +51,8 @@
 #include "hardware/timer.h"
 #include "messaging.h"
 
+#include "tests/exfat-test.h"
+
 extern FF_IOMAN* pIoman;
 
 fch_t fch_handle[2][FCH_MAX_NUM];
@@ -667,6 +669,8 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char* path)
     pDrive->status |= FILEIO_STAT_INSERTED;
     FileIO_FCh_UpdateDriveStatus(ch);
     DEBUG(1, "FCh:Inserted <%s>", pDrive->name);
+
+    // exfat_compare_sectors(pDrive);
 }
 
 void FileIO_FCh_Eject(uint8_t ch, uint8_t drive_number)

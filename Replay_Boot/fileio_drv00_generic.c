@@ -239,7 +239,7 @@ uint8_t FileIO_Drv00_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
 
     drv00_desc_t* pDesc = pDrive->pDesc;
 
-    pDesc->file_size =  pDrive->fSource->Filesize;
+    pDesc->file_size =  FF_Size(pDrive->fSource); //->Filesize;
 
     // NOTE, core may still be in reset
     // select drive

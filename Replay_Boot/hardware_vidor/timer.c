@@ -51,7 +51,7 @@ static volatile uint64_t s_milliseconds = 0;
 
 static inline HARDWARE_TICK GetSystemTime()
 {
-    uint64_t current_ms = 0;
+    uint64_t current_ms = millis();
     static uint8_t first = 0;
 
     if (!first) {

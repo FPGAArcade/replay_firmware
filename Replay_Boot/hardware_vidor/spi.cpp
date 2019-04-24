@@ -44,85 +44,167 @@
  Email support@fpgaarcade.com
 */
 #include "../board.h"
+/*
+void vidor_SPI_init();
+void vidor_SPI_beginTransaction();
+uint8_t vidor_SPI_transfer(uint8_t data);
+void vidor_SPI_endTransaction();
+
+void vidor_SPI_setFreq(uint32_t freq);
+uint32_t vidor_SPI_getFreq();
+*/
+
+#include "SPI.h"
+
+static SPISettings settings;
+static uint8_t chip_select_asserted = 0;
+static const uint8_t chipSelectPin = PIN_SPI_SS;
+
+static void vidor_SPI_init()
+{
+}
+
+static void vidor_SPI_beginTransaction()
+{
+    if (!chip_select_asserted) {
+        chip_select_asserted = 1;
+        SPI.beginTransaction(settings);
+    }
+    digitalWrite(chipSelectPin, LOW);
+}
+
+static void vidor_SPI_endTransaction()
+{
+    digitalWrite(chipSelectPin, HIGH);
+    if (chip_select_asserted) {
+        chip_select_asserted = 0;
+        SPI.endTransaction();
+    }
+}
+
+static void vidor_SPI_setFreq(uint32_t freq)
+{
+    settings = SPISettings(freq, MSBFIRST, SPI_MODE0);
+}
+
+static uint32_t vidor_SPI_getFreq()
+{
+    return settings.getClockFreq();
+}
+
+
+//
+// SPI
+//
+extern "C" {
+
 #include "../messaging.h"
 #include "../hardware/spi.h"
 #include "../hardware/timer.h"
 #include "../osd.h"
 #include "../fileio.h"
 
-//
-// SPI
-//
 void SPI_Init(void)
 {
+    pinMode(chipSelectPin, OUTPUT);
+    digitalWrite(chipSelectPin, HIGH);
+
+    SPI.begin();
+    settings = SPISettings(250000, MSBFIRST, SPI_MODE0);
 }
 
 
 unsigned char rSPI(unsigned char outByte)
 {
-    unsigned char v = outByte;
-    printf("%s %02x => %02x\n", __FUNCTION__, outByte, v);
-    return v;
+    return SPI.transfer(outByte);
 }
 
 void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
 {
-    printf("%s %p %08x -> %08x\n", __FUNCTION__, pBuffer, length);
+    printf("%s %p %08x -> %08x\r\n", __FUNCTION__, pBuffer, length);
 }
 
 void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 {
-    printf("%s %p %08x <- %08x\n", __FUNCTION__, pBuffer, length);
+    printf("%s %p %08x <- %08x\r\n", __FUNCTION__, pBuffer, length);
 }
 
 void SPI_Wait4XferEnd(void)
 {
-    printf("%s\n", __FUNCTION__);
+    printf("%s\r\n", __FUNCTION__);
 }
 
 void SPI_EnableCard(void)
 {
-    printf("%s\n", __FUNCTION__);
+//    printf("%s\r\n", __FUNCTION__);
+    vidor_SPI_beginTransaction();
 }
 
 void SPI_DisableCard(void)
 {
-    printf("%s\n", __FUNCTION__);
+//    printf("%s\r\n", __FUNCTION__);
+    vidor_SPI_endTransaction();
 }
 
 void SPI_EnableFileIO(void)
 {
-    printf("%s\n", __FUNCTION__);
+    printf("%s\r\n", __FUNCTION__);
 }
 
 void SPI_DisableFileIO(void)
 {
-    printf("%s\n", __FUNCTION__);
+    printf("%s\r\n", __FUNCTION__);
 }
 
 void SPI_EnableOsd(void)
 {
-    printf("%s\n", __FUNCTION__);
+//    printf("%s\r\n", __FUNCTION__);
 }
 
 void SPI_DisableOsd(void)
 {
-    printf("%s\n", __FUNCTION__);
+//    printf("%s\r\n", __FUNCTION__);
 }
 
 void SPI_EnableDirect(void)
 {
-    printf("%s\n", __FUNCTION__);
+    printf("%s\r\n", __FUNCTION__);
 }
 
 void SPI_DisableDirect(void)
 {
-    printf("%s\n", __FUNCTION__);
+    printf("%s\r\n", __FUNCTION__);
 }
 
 unsigned char SPI_IsActive(void)
 {
-    printf("%s\n", __FUNCTION__);
+    printf("%s\r\n", __FUNCTION__);
     return 0;
 }
 
+void SPI_SetFreq400kHz()
+{
+    vidor_SPI_setFreq(400*1000);
+    printf("%s -> %d\r\n", __FUNCTION__, vidor_SPI_getFreq());
+}
+void SPI_SetFreq20MHz()
+{
+    vidor_SPI_setFreq(20*1000*1000);
+    printf("%s -> %d\r\n", __FUNCTION__, vidor_SPI_getFreq());
+}
+void SPI_SetFreq25MHz()
+{
+    vidor_SPI_setFreq(25*1000*1000);
+    printf("%s -> %d\r\n", __FUNCTION__, vidor_SPI_getFreq());
+}
+void SPI_SetFreqDivide(uint32_t freqDivide)
+{
+    printf("%s\r\n", __FUNCTION__);
+    vidor_SPI_setFreq(48054857 / freqDivide);
+}
+uint32_t SPI_GetFreq()
+{
+    printf("%s\r\n", __FUNCTION__);
+    return vidor_SPI_getFreq();
+}
+} // extern "C"

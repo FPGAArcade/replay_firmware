@@ -126,6 +126,16 @@ static inline void _SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 #endif
 }
 
+#if defined(__SAMD21G18A__)
+
+void SPI_SetFreq400kHz();
+void SPI_SetFreq20MHz();
+void SPI_SetFreq25MHz();
+void SPI_SetFreqDivide(uint32_t freqDivide);
+uint32_t SPI_GetFreq();
+
+#else
+
 static inline void SPI_SetFreq400kHz()
 {
 #if defined(AT91SAM7S256)
@@ -161,5 +171,7 @@ static inline uint32_t SPI_GetFreq()
 #endif
     return spiFreq;
 }
+
+#endif
 
 #endif

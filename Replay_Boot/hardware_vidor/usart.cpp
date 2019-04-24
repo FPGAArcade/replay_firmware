@@ -44,8 +44,6 @@
  Email support@fpgaarcade.com
 */
 #include "../board.h"
-#include "../hardware/usart.h"
-#include "../hardware/irq.h"
 
 // for RX, we use a software ring buffer as we are interested in any character
 // as soon as it is received.
@@ -54,17 +52,25 @@
 volatile uint8_t USART_rxbuf[RXBUFLEN];
 volatile int16_t USART_rxptr, USART_rdptr;
 
-// for TX, we use a hardware buffer triggered to be sent when full or on a CR.
-#define TXBUFLEN 128
-#define TXBUFMASK (TXBUFLEN-1)
-volatile uint8_t USART_txbuf[TXBUFLEN];
-volatile int16_t USART_txptr, USART_wrptr, USART_barrier;
+static int read(void* buf, size_t count)
+{
+    uint8_t* p = (uint8_t*)buf;
+    while(count--) {
+        if (!Serial1.available())
+            break;
+        *p++ = Serial1.read();
+    }
+    return p-(uint8_t*)buf;
+}
 
-int fd = -1; // fake serial file descriptor
+extern "C" {
+
+#include "../hardware/usart.h"
 
 void USART_Init(unsigned long baudrate)
 {
-    USART_txptr = USART_wrptr = 0;
+    Serial1.end();
+    Serial1.begin(baudrate);
 }
 
 void USART_update(void)
@@ -72,11 +78,7 @@ void USART_update(void)
     char data[RXBUFLEN];
     size_t length = -1;
 
-    if (fd == -1) {
-        return;
-    }
-
-    // length = read(fd, data, RXBUFLEN);
+    length = read(data, RXBUFLEN);
 
     if (length == -1) {
         return;
@@ -95,20 +97,9 @@ void USART_update(void)
     }
 }
 
-void USART_Putc(void* p, char c)
+void USART_Putc(void*, char c)
 {
-    if (fd == -1) {
-        return;
-    }
-
-    USART_txbuf[USART_wrptr] = c;
-    USART_wrptr = (USART_wrptr + 1) & TXBUFMASK;
-
-    if ((c == '\n') || (!USART_wrptr) || (USART_wrptr == USART_barrier) || 1) {
-        // write(fd, (const char*) & (USART_txbuf[USART_txptr]), (TXBUFLEN + USART_wrptr - USART_txptr) & TXBUFMASK);
-        USART_barrier = USART_txptr;
-        USART_txptr = USART_wrptr;
-    }
+    Serial1.write(c);
 }
 
 
@@ -152,7 +143,7 @@ uint8_t USART_Peekc(void)
     return val;
 }
 
-inline int16_t USART_CharAvail(void)
+int16_t USART_CharAvail(void)
 {
     return (RXBUFLEN + USART_rxptr - USART_rdptr) & RXBUFMASK;
 }
@@ -203,3 +194,5 @@ uint16_t USART_GetBuf(const uint8_t* buf, int16_t len)
     USART_rdptr = (USART_rdptr + len) & RXBUFMASK;
     return 1;
 }
+
+} // extern "C"

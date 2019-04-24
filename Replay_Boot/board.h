@@ -222,6 +222,8 @@
 #define PIN_DTXD_Y1             0x1234
 #define PIN_DRXD_Y2             0x1234
 
+#define FPGA_DISABLE_EMBEDDED_CORE 1
+
 #else // HOSTED
 
 #define PIN_ACT_LED             "PIN_ACT_LED"

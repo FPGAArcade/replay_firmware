@@ -69,8 +69,8 @@ Added a few string copy functions, MikeJ
 #include "stringlight.h"
 
 typedef void (*putcf) (void*, char);
-static putcf stdout_putf;
-static void* stdout_putp;
+static putcf stdout_putf = 0;
+static void* stdout_putp = 0;
 
 
 #ifdef PRINTF_LONG_SUPPORT
@@ -159,9 +159,9 @@ static int a2d(char ch)
     }
 }
 
-static char a2i(char ch, char** src, int base, int* nump)
+static char a2i(char ch, const char** src, int base, int* nump)
 {
-    char* p = *src;
+    const char* p = *src;
     int num = 0;
     int digit;
 
@@ -198,7 +198,7 @@ static void putchw(void* putp, putcf putf, int n, char z, char* bf)
     }
 }
 
-void tfp_format(void* putp, putcf putf, char* fmt, va_list va)
+void tfp_format(void* putp, putcf putf, const char* fmt, va_list va)
 {
     char bf[24];
 
@@ -308,8 +308,10 @@ void init_printf(void* putp, void (*putf) (void*, char))
     stdout_putp = putp;
 }
 
-void tfp_printf(char* fmt, ...)
+void tfp_printf(const char* fmt, ...)
 {
+    if (!stdout_putf)
+        return;
     va_list va;
     va_start(va, fmt);
     tfp_format(stdout_putp, stdout_putf, fmt, va);
@@ -323,7 +325,7 @@ static void putcp(void* p, char c)
 
 
 
-void tfp_sprintf(char* s, char* fmt, ...)
+void tfp_sprintf(char* s, const char* fmt, ...)
 {
     va_list va;
     va_start(va, fmt);

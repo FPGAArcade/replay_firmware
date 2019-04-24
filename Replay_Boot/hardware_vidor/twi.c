@@ -87,7 +87,7 @@ uint8_t TWI_ByteSent(void)
 
 uint8_t TWI_TransferComplete(void)
 {
-    printf("%s\n", __FUNCTION__);
+    printf("%s\r\n", __FUNCTION__);
     return 1;
 }
 

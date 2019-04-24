@@ -76,6 +76,11 @@
 #include <malloc.h>
 #endif
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+#include <setjmp.h>
+jmp_buf exit_env;
+#endif
+
 extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
 extern char _binary_replay_ini_start;
@@ -103,6 +108,12 @@ int main(void)
     HARDWARE_TICK ts;
     // used by file system
     uint8_t fatBuf[FS_FATBUF_SIZE];
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+    int exit = setjmp(exit_env);
+    if (exit)
+        return exit;
+#endif
 
     // initialise
     Hardware_Init(); // Initialise board hardware

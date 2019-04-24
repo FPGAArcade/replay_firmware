@@ -53,6 +53,12 @@
 #include "fpga.h"
 #include "menu.h"
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+#include "Reset.h"
+#include <setjmp.h>
+extern jmp_buf exit_env;
+#endif
+
 /** @brief status pointer for messaging via OSD
 
   We use this pointer only for the messaging functions,
@@ -124,7 +130,13 @@ void MSG_fatal_error(uint8_t error)
     IRQ_DisableAllInterrupts();
 
     // perform a ARM reset
-#if defined(__arm__)
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+    longjmp(exit_env, error);
+
+    initiateReset(1);           // reboot in 'factory' mode (not reached)
+    tickReset();
+
+#elif defined(__arm__)
     asm("ldr r3, = 0x00000000\n");
     asm("bx  r3\n");
 #else

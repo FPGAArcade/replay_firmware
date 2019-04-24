@@ -203,18 +203,24 @@
 #elif defined(ARDUINO_SAMD_MKRVIDOR4000)
 
 #define PIN_ACT_LED             LED_BUILTIN
-#define PIN_MENU_BUTTON         0   // dont we have a button?
+#define PIN_MENU_BUTTON         (1<<0)   // dont we have a button?
 
 // use JTAG instead
-#define PIN_FPGA_INIT_L         0
-#define PIN_FPGA_RST_L          0
-#define PIN_FPGA_PROG_L         0
-#define PIN_FPGA_DONE           0
+#define PIN_FPGA_INIT_L         (1<<1)
+#define PIN_FPGA_RST_L          (1<<2)
+#define PIN_FPGA_PROG_L         (1<<3)
+#define PIN_FPGA_DONE           (1<<4)
 
 // unsupported
-#define PIN_CODER_FITTED_L      0
-#define PIN_CARD_DETECT         0
-#define PIN_WRITE_PROTECT       0
+#define PIN_CODER_FITTED_L      (1<<5)
+#define PIN_CARD_DETECT         (1<<6)
+#define PIN_WRITE_PROTECT       (1<<7)
+
+// coder
+#define PIN_CODER_NTSC_H        0x1234
+#define PIN_CODER_CE            0x1234
+#define PIN_DTXD_Y1             0x1234
+#define PIN_DRXD_Y2             0x1234
 
 #else // HOSTED
 

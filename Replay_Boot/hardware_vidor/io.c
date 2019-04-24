@@ -6,28 +6,40 @@
 #include "../messaging.h"
 #include "../hardware/timer.h"
 
-void IO_DriveLow_OD(uint32_t pin)
+void IO_DriveLow_OD_(uint32_t pin, const char* pin_name)
 {
-    printf("%s : %08x\n", __FUNCTION__, pin);
+    printf("%s  : %08x (%s)\r\n", __FUNCTION__, pin, pin_name);
+    digitalWrite(pin, LOW);
 }
 
-void IO_DriveHigh_OD(uint32_t pin)
+void IO_DriveHigh_OD_(uint32_t pin, const char* pin_name)
 {
-    printf("%s : %08x\n", __FUNCTION__, pin);
+    printf("%s : %08x (%s)\r\n", __FUNCTION__, pin, pin_name);
+    digitalWrite(pin, HIGH);
 }
 
-uint8_t IO_Input_H(uint32_t pin)  // returns true if pin high
+static uint8_t IO_Input_(uint32_t pin)  // return pin state high == TRUE / low == FALSE
 {
-    printf("%s : %08x\n", __FUNCTION__, pin);
-
-    return FALSE;
+    if (pin == PIN_CARD_DETECT)
+        return FALSE;
+    else if (pin == PIN_CODER_FITTED_L)
+        return TRUE;
+    else
+        return digitalRead(pin);
 }
 
-uint8_t IO_Input_L(uint32_t pin)  // returns true if pin low
+uint8_t IO_Input_H_(uint32_t pin, const char* pin_name)  // returns true if pin high
 {
-    printf("%s : %08x\n", __FUNCTION__, pin);
+    uint8_t v = IO_Input_(pin);
+    printf("%s : %08x (%s) => %s\r\n", __FUNCTION__, pin, pin_name, v ? "TRUE" : "FALSE");
+    return v;
+}
 
-    return FALSE;
+uint8_t IO_Input_L_(uint32_t pin, const char* pin_name)  // returns true if pin low
+{
+    uint8_t v = !IO_Input_(pin);
+    printf("%s : %08x (%s) => %s\r\n", __FUNCTION__, pin, pin_name, v ? "TRUE" : "FALSE");
+    return v;
 }
 
 void ISR_VerticalBlank();       // a bit hacky - just assume this is implemented _somewhere_
@@ -42,13 +54,13 @@ void IO_Init(void)
 {
 }
 
-void IO_ClearOutputDataX(const char* pin)
+void IO_ClearOutputData_(uint32_t pins, const char* pin_names)
 {
-    printf("%s : %s\n", __FUNCTION__, pin);
+    printf("%s : %08x (%s)\r\n", __FUNCTION__, pins, pin_names);
 }
-void IO_SetOutputDataX(const char* pin)
+void IO_SetOutputData_(uint32_t pins, const char* pin_names)
 {
-    printf("%s : %s\n", __FUNCTION__, pin);
+    printf("%s : %08x (%s)\r\n", __FUNCTION__, pins, pin_names);
 }
 
 void IO_WaitVBL(void)

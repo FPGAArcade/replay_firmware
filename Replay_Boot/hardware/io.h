@@ -85,16 +85,21 @@ static inline void IO_WaitVBL(void)
 
 #elif defined(__SAMD21G18A__)
 
-void IO_DriveLow_OD(uint32_t pin);
-void IO_DriveHigh_OD(uint32_t pin);
-uint8_t IO_Input_H(uint32_t pin);
-uint8_t IO_Input_L(uint32_t pin);
+#define IO_DriveLow_OD(pin)     do { IO_DriveLow_OD_(pin, #pin); } while(0)
+#define IO_DriveHigh_OD(pin)    do { IO_DriveHigh_OD_(pin, #pin); } while(0)
+#define IO_Input_H(pin)         IO_Input_H_(pin, #pin)
+#define IO_Input_L(pin)         IO_Input_L_(pin, #pin)
 
-#define IO_ClearOutputData(x) 	do { IO_ClearOutputDataX(#x); } while(0)
-#define IO_SetOutputData(x)		do { IO_SetOutputDataX(#x);   } while(0)
+#define IO_ClearOutputData(x) 	do { IO_ClearOutputData_(x, #x); } while(0)
+#define IO_SetOutputData(x)		do { IO_SetOutputData_(x, #x);   } while(0)
 
-void IO_ClearOutputDataX(const char* pin);
-void IO_SetOutputDataX(const char* pin);
+void IO_DriveLow_OD_(uint32_t pin, const char* pin_name);
+void IO_DriveHigh_OD_(uint32_t pin, const char* pin_name);
+uint8_t IO_Input_H_(uint32_t pin, const char* pin_name);
+uint8_t IO_Input_L_(uint32_t pin, const char* pin_name);
+
+void IO_ClearOutputData_(uint32_t pins, const char* pin_names);
+void IO_SetOutputData_(uint32_t pins, const char* pin_names);
 
 void IO_WaitVBL(void);
 

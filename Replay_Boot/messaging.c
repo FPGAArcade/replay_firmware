@@ -148,7 +148,7 @@ void MSG_fatal_error(uint8_t error)
 
 }
 
-void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char* fmt, ...)
+void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, const char* fmt, ...)
 {
     char s[256]; // take "enough" size here, not to get any overflow problems...
     char* sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
@@ -173,7 +173,7 @@ void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, char* fmt, .
     }
 }
 
-void MSG_info(char* fmt, ...)
+void MSG_info(const char* fmt, ...)
 {
     char s[256]; // take "enough" size here, not to get any overflow problems...
     char* sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
@@ -197,7 +197,7 @@ void MSG_info(char* fmt, ...)
     }
 }
 
-void MSG_warning(char* fmt, ...)
+void MSG_warning(const char* fmt, ...)
 {
     char s[256]; // take "enough" size here, not to get any overflow problems...
     char* sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
@@ -222,7 +222,7 @@ void MSG_warning(char* fmt, ...)
 }
 
 
-void MSG_error(char* fmt, ...)
+void MSG_error(const char* fmt, ...)
 {
     char s[256]; // take "enough" size here, not to get any overflow problems...
     char* sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
@@ -264,7 +264,7 @@ void MSG_error(char* fmt, ...)
 
 #ifdef ASSERT
 
-void AssertionFailure(char* exp, char* file, char* baseFile, int line)
+void AssertionFailure(const char* exp, const char* file, const char* baseFile, int line)
 {
     if (!strcmp(file, baseFile)) {
         if (msg_serial) {

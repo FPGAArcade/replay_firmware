@@ -58,25 +58,24 @@ uint32_t vidor_SPI_getFreq();
 
 static SPISettings settings;
 static uint8_t chip_select_asserted = 0;
-static const uint8_t chipSelectPin = PIN_SPI_SS;
 
 static void vidor_SPI_init()
 {
 }
 
-static void vidor_SPI_beginTransaction()
+static void vidor_SPI_beginTransaction(uint8_t cs)
 {
     if (!chip_select_asserted) {
         chip_select_asserted = 1;
         SPI.beginTransaction(settings);
     }
 
-    digitalWrite(chipSelectPin, LOW);
+    digitalWrite(cs, LOW);
 }
 
-static void vidor_SPI_endTransaction()
+static void vidor_SPI_endTransaction(uint8_t cs)
 {
-    digitalWrite(chipSelectPin, HIGH);
+    digitalWrite(cs, HIGH);
 
     if (chip_select_asserted) {
         chip_select_asserted = 0;
@@ -108,8 +107,14 @@ extern "C" {
 
 void SPI_Init(void)
 {
-    pinMode(chipSelectPin, OUTPUT);
-    digitalWrite(chipSelectPin, HIGH);
+    pinMode(PIN_CARD_CS_L,  OUTPUT);
+    pinMode(PIN_CONF_DIN,   OUTPUT);
+    pinMode(PIN_FPGA_CTRL1, OUTPUT);
+    pinMode(PIN_FPGA_CTRL0, OUTPUT);
+    digitalWrite(PIN_CARD_CS_L,  HIGH);
+    digitalWrite(PIN_CONF_DIN,   HIGH);
+    digitalWrite(PIN_FPGA_CTRL1, HIGH);
+    digitalWrite(PIN_FPGA_CTRL0, HIGH);
 
     SPI.begin();
     settings = SPISettings(250000, MSBFIRST, SPI_MODE0);
@@ -138,48 +143,47 @@ void SPI_Wait4XferEnd(void)
 
 void SPI_EnableCard(void)
 {
-    vidor_SPI_beginTransaction();
+    vidor_SPI_beginTransaction(PIN_CARD_CS_L);
 }
 
 void SPI_DisableCard(void)
 {
-    vidor_SPI_endTransaction();
+    vidor_SPI_endTransaction(PIN_CARD_CS_L);
 }
 
 void SPI_EnableFileIO(void)
 {
-    DEBUG(0, "%s", __FUNCTION__);
+    vidor_SPI_beginTransaction(PIN_FPGA_CTRL0);
 }
 
 void SPI_DisableFileIO(void)
 {
-    DEBUG(0, "%s", __FUNCTION__);
+    vidor_SPI_endTransaction(PIN_FPGA_CTRL0);
 }
 
 void SPI_EnableOsd(void)
 {
-    //    DEBUG(0, "%s", __FUNCTION__);
+    vidor_SPI_beginTransaction(PIN_FPGA_CTRL1);
 }
 
 void SPI_DisableOsd(void)
 {
-    //    DEBUG(0, "%s", __FUNCTION__);
+    vidor_SPI_beginTransaction(PIN_FPGA_CTRL1);
 }
 
 void SPI_EnableDirect(void)
 {
-    DEBUG(0, "%s", __FUNCTION__);
+    digitalWrite(PIN_CONF_DIN, LOW);
 }
 
 void SPI_DisableDirect(void)
 {
-    DEBUG(0, "%s", __FUNCTION__);
+    digitalWrite(PIN_CONF_DIN, HIGH);
 }
 
 unsigned char SPI_IsActive(void)
 {
-    DEBUG(0, "%s", __FUNCTION__);
-    return 0;
+    return chip_select_asserted != 0;
 }
 
 void SPI_SetFreq400kHz()

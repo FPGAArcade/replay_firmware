@@ -207,6 +207,11 @@
 #define PIN_ACT_LED             LED_BUILTIN
 #define PIN_MENU_BUTTON         (1<<0)   // dont we have a button?
 
+#define PIN_CARD_CS_L			(4u) // PIN_SPI_SS
+#define PIN_CONF_DIN			(5u)
+#define PIN_FPGA_CTRL1			(6u)
+#define PIN_FPGA_CTRL0			(7u)
+
 // use JTAG instead
 #define PIN_FPGA_INIT_L         (1<<1)
 #define PIN_FPGA_RST_L          (1<<2)

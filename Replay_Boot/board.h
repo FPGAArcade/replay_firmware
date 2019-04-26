@@ -225,7 +225,7 @@
 #define PIN_DRXD_Y2             0x1234
 
 #define FPGA_DISABLE_EMBEDDED_CORE 1
-#define BITSTREAM_LENGTH		510882	// bytes
+#define BITSTREAM_LENGTH		510856	// bytes
 
 #else // HOSTED
 

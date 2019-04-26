@@ -55,12 +55,16 @@ volatile int16_t USART_rxptr, USART_rdptr;
 static int read(void* buf, size_t count)
 {
     uint8_t* p = (uint8_t*)buf;
-    while(count--) {
-        if (!Serial1.available())
+
+    while (count--) {
+        if (!Serial1.available()) {
             break;
+        }
+
         *p++ = Serial1.read();
     }
-    return p-(uint8_t*)buf;
+
+    return p - (uint8_t*)buf;
 }
 
 extern "C" {

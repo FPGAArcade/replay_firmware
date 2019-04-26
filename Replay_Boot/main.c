@@ -111,8 +111,11 @@ int main(void)
 
 #if defined(ARDUINO_SAMD_MKRVIDOR4000)
     int exit = setjmp(exit_env);
-    if (exit)
+
+    if (exit) {
         return exit;
+    }
+
 #endif
 
     // initialise

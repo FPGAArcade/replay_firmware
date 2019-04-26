@@ -70,12 +70,14 @@ static void vidor_SPI_beginTransaction()
         chip_select_asserted = 1;
         SPI.beginTransaction(settings);
     }
+
     digitalWrite(chipSelectPin, LOW);
 }
 
 static void vidor_SPI_endTransaction()
 {
     digitalWrite(chipSelectPin, HIGH);
+
     if (chip_select_asserted) {
         chip_select_asserted = 0;
         SPI.endTransaction();
@@ -121,90 +123,88 @@ unsigned char rSPI(unsigned char outByte)
 
 void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
 {
-    printf("%s %p %08x -> %08x\r\n", __FUNCTION__, pBuffer, length);
+    DEBUG(0, "%s %p %08x -> %08x", __FUNCTION__, pBuffer, length);
 }
 
 void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 {
-    printf("%s %p %08x <- %08x\r\n", __FUNCTION__, pBuffer, length);
+    DEBUG(0, "%s %p %08x <- %08x", __FUNCTION__, pBuffer, length);
 }
 
 void SPI_Wait4XferEnd(void)
 {
-    printf("%s\r\n", __FUNCTION__);
+    DEBUG(0, "%s", __FUNCTION__);
 }
 
 void SPI_EnableCard(void)
 {
-//    printf("%s\r\n", __FUNCTION__);
     vidor_SPI_beginTransaction();
 }
 
 void SPI_DisableCard(void)
 {
-//    printf("%s\r\n", __FUNCTION__);
     vidor_SPI_endTransaction();
 }
 
 void SPI_EnableFileIO(void)
 {
-    printf("%s\r\n", __FUNCTION__);
+    DEBUG(0, "%s", __FUNCTION__);
 }
 
 void SPI_DisableFileIO(void)
 {
-    printf("%s\r\n", __FUNCTION__);
+    DEBUG(0, "%s", __FUNCTION__);
 }
 
 void SPI_EnableOsd(void)
 {
-//    printf("%s\r\n", __FUNCTION__);
+    //    DEBUG(0, "%s", __FUNCTION__);
 }
 
 void SPI_DisableOsd(void)
 {
-//    printf("%s\r\n", __FUNCTION__);
+    //    DEBUG(0, "%s", __FUNCTION__);
 }
 
 void SPI_EnableDirect(void)
 {
-    printf("%s\r\n", __FUNCTION__);
+    DEBUG(0, "%s", __FUNCTION__);
 }
 
 void SPI_DisableDirect(void)
 {
-    printf("%s\r\n", __FUNCTION__);
+    DEBUG(0, "%s", __FUNCTION__);
 }
 
 unsigned char SPI_IsActive(void)
 {
-    printf("%s\r\n", __FUNCTION__);
+    DEBUG(0, "%s", __FUNCTION__);
     return 0;
 }
 
 void SPI_SetFreq400kHz()
 {
-    vidor_SPI_setFreq(400*1000);
-    printf("%s -> %d\r\n", __FUNCTION__, vidor_SPI_getFreq());
+    vidor_SPI_setFreq(400 * 1000);
+    DEBUG(0, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
 }
 void SPI_SetFreq20MHz()
 {
-    vidor_SPI_setFreq(20*1000*1000);
-    printf("%s -> %d\r\n", __FUNCTION__, vidor_SPI_getFreq());
+    vidor_SPI_setFreq(20 * 1000 * 1000);
+    DEBUG(0, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
 }
 void SPI_SetFreq25MHz()
 {
-    vidor_SPI_setFreq(25*1000*1000);
-    printf("%s -> %d\r\n", __FUNCTION__, vidor_SPI_getFreq());
+    vidor_SPI_setFreq(25 * 1000 * 1000);
+    DEBUG(0, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
 }
 void SPI_SetFreqDivide(uint32_t freqDivide)
 {
-    printf("%s\r\n", __FUNCTION__);
+    DEBUG(0, "%s %d -> %d", __FUNCTION__, freqDivide, 48054857 / freqDivide);
     vidor_SPI_setFreq(48054857 / freqDivide);
 }
 uint32_t SPI_GetFreq()
 {
-    printf("%s\r\n", __FUNCTION__);
-    return vidor_SPI_getFreq();
+    DEBUG(0, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
+    return vidor_SPI_getFreq() / (1000 * 1000);
 }
 } // extern "C"

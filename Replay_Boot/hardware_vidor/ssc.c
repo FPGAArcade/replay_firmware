@@ -45,8 +45,12 @@
 */
 #include "../board.h"
 #include "../hardware/ssc.h"
+#include "jtag.h"
 
+extern uint8_t pin_fpga_done;
 static uint32_t written = 0;
+
+void core_test();
 
 // SSC
 void SSC_Configure_Boot(void)
@@ -55,19 +59,34 @@ void SSC_Configure_Boot(void)
 
 void SSC_EnableTxRx(void)
 {
+    pin_fpga_done = FALSE;
     written = 0;
+    JTAG_Init();
+    JTAG_Reset();
+    JTAG_StartBitstream();
 }
 
 void SSC_DisableTxRx(void)
 {
-    if (written > 746212 /* bit file length */) {
-        // done
+    if (JTAG_EndBitstream()) {
+        MSG_error("Failed to configure FPGA (%d bytes written)", written);
+        return;
     }
+
+    if (written < BITSTREAM_LENGTH) {
+        MSG_warning("Short bitstream (%d of %d bytes)", written, BITSTREAM_LENGTH);
+    }
+
+    DEBUG(0, "Successfully configured FPGA over JTAG");
+    pin_fpga_done = TRUE;
+    enableFpgaClock();
+
+    // run core test for embedded core
+    core_test();
 }
 
 void SSC_Write(uint32_t frame)
 {
-    written ++;
 }
 
 void SSC_WaitDMA(void)
@@ -76,5 +95,12 @@ void SSC_WaitDMA(void)
 
 void SSC_WriteBufferSingle(void* pBuffer, uint32_t length, uint32_t wait)
 {
+    if (length == 0) {
+        return;
+    }
+
     written += length;
+    bool done = written == BITSTREAM_LENGTH;
+
+    FPGA_WriteBitstream((uint8_t*)pBuffer, length, done);
 }

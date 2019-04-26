@@ -56,10 +56,12 @@ extern "C" {
 //
 void Hardware_Init(void)
 {
-	pinMode(PIN_ACT_LED, OUTPUT);
+    pinMode(PIN_ACT_LED, OUTPUT);
 
     IO_Init();
 }
+
+extern void enableFpgaClock(void);
 
 extern "C" {
 #include "../hardware_vidor/io.c"
@@ -70,3 +72,5 @@ extern "C" {
 }
 #include "../hardware_vidor/spi.cpp"
 #include "../hardware_vidor/usart.cpp"
+#include "../hardware_vidor/jtag.cpp"
+#include "../hardware_vidor/core_test.cpp"

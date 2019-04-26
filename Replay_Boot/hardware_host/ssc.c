@@ -70,7 +70,7 @@ void SSC_EnableTxRx(void)
 
 void SSC_DisableTxRx(void)
 {
-    if (written > 746212 /* bit file length */) {
+    if (written > BITSTREAM_LENGTH) {
         pin_fpga_done = TRUE;
     }
 }

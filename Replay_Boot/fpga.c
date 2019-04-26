@@ -148,7 +148,7 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
     uint32_t read_offset = 0;
     size_t size = gunzip(read_embedded_core, &read_offset, write_embedded_core, NULL);
     (void)size; // unused-variable warning/error
-    Assert(size == 746212);
+    Assert(size == BITSTREAM_LENGTH);
 
     // some extra clocks
     SSC_Write(0x00);
@@ -195,7 +195,7 @@ uint8_t FPGA_Config(FF_FILE* pFile) // assume file is open and at start
     static const uint8_t BIT_CREATE_DATE    = 0x63;
     static const uint8_t BIT_CREATE_TIME    = 0x64;
     static const uint8_t BIT_STREAM_LENGTH  = 0x65;
-    static const uint32_t FileLength        = 746212;
+    static const uint32_t FileLength        = BITSTREAM_LENGTH;
 
     DEBUG(2, "FPGA:Starting Configuration.");
 
@@ -1219,6 +1219,6 @@ void FPGA_WriteEmbeddedToFile(FF_FILE* file)
     uint32_t read_offset = 0;
     size_t size = gunzip(read_embedded_core, &read_offset, write_to_file, file);
     (void)size; // unused-variable warning/error
-    Assert(size == 746212);
+    Assert(size == BITSTREAM_LENGTH);
 #endif
 }

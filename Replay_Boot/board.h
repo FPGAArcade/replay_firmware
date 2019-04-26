@@ -200,6 +200,8 @@
 #define DBGU_TXD                AT91C_PA10_DTXD
 #define DBGU_RXD                AT91C_PA9_DRXD
 
+#define BITSTREAM_LENGTH		746212	// bytes
+
 #elif defined(ARDUINO_SAMD_MKRVIDOR4000)
 
 #define PIN_ACT_LED             LED_BUILTIN
@@ -223,6 +225,7 @@
 #define PIN_DRXD_Y2             0x1234
 
 #define FPGA_DISABLE_EMBEDDED_CORE 1
+#define BITSTREAM_LENGTH		510882	// bytes
 
 #else // HOSTED
 
@@ -260,6 +263,8 @@
 #define PIN_MENU_BUTTON         "PIN_MENU_BUTTON"
 #define DBGU_TXD                "DBGU_TXD"
 #define DBGU_RXD                "DBGU_RXD"
+
+#define BITSTREAM_LENGTH		746212	// bytes
 
 #endif // defined(AT91SAM7S256)
 

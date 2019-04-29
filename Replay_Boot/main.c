@@ -337,7 +337,7 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
 
 static __attribute__ ((noinline)) void load_embedded_core()
 {
-#ifdef FPGA_DISABLE_EMBEDDED_CORE
+#if defined(FPGA_DISABLE_EMBEDDED_CORE) && !defined(ARDUINO_SAMD_MKRVIDOR4000)
     MSG_fatal_error(9);
 #else
 
@@ -351,10 +351,12 @@ static __attribute__ ((noinline)) void load_embedded_core()
     if (!FPGA_Default()) {
         DEBUG(1, "FPGA default set.");
 
+#if !defined(ARDUINO_SAMD_MKRVIDOR4000)
         HARDWARE_TICK time = Timer_Get(0);
         FPGA_DecompressToDRAM(&_binary_build_replayhand_start, &_binary_build_replayhand_end - &_binary_build_replayhand_start, 0x00400000);
         time = Timer_Get(0) - time;
         DEBUG(0, "FPGA background image uploaded in %d ms.", Timer_Convert(time));
+#endif
 
         current_status.fpga_load_ok = EMBEDDED_CORE;
         current_status.twi_enabled = 1;

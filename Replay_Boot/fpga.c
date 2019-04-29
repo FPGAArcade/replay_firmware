@@ -116,6 +116,12 @@ const uint8_t kMemtest[128] = {
 uint8_t FPGA_Default(void) // embedded in FW, something to start with
 {
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+    extern void JTAG_StartEmbeddedCore();
+    JTAG_StartEmbeddedCore();
+    return 0;
+#endif
+
 #ifdef FPGA_DISABLE_EMBEDDED_CORE
     WARNING("FPGA:Embedded core not available!");
     return 1;

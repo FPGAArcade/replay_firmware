@@ -92,7 +92,7 @@
 
 #define  FLASH_PAGE_NB      AT91C_IFLASH_NB_OF_PAGES
 #define  FLASH_PAGE_SIZE    AT91C_IFLASH_PAGE_SIZE
-#elif defined(__SAMD21G18A__)
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
 // ..
 #else
 #define  FLASH_PAGE_NB      0

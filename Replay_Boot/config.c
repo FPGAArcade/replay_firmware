@@ -641,7 +641,7 @@ uint32_t CFG_get_free_mem(void)
 
 void CFG_dump_mem_stats(uint8_t only_check_stack)
 {
-#if !defined(HOSTED) && !defined(__SAMD21G18A__)
+#if !defined(HOSTED) && !defined(ARDUINO_SAMD_MKRVIDOR4000)
     uint32_t ram_bytes, static_bytes, heap_bytes, avail_bytes, unused_bytes;
     uint32_t current_stack, peak_stack;
 

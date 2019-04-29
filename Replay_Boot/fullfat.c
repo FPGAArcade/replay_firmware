@@ -1,4 +1,6 @@
-#if defined(__SAMD21G18A__)
+#include "board.h"
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
 
 #include "filesys/ff_blk.c"
 #include "filesys/ff_crc.c"

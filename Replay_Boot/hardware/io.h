@@ -83,7 +83,7 @@ static inline void IO_WaitVBL(void)
     }
 }
 
-#elif defined(__SAMD21G18A__)
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
 
 #define IO_DriveLow_OD(pin)     do { IO_DriveLow_OD_(pin, #pin); } while(0)
 #define IO_DriveHigh_OD(pin)    do { IO_DriveHigh_OD_(pin, #pin); } while(0)

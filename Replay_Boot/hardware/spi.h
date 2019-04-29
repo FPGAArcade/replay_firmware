@@ -126,7 +126,7 @@ static inline void _SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 #endif
 }
 
-#if defined(__SAMD21G18A__)
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
 
 void SPI_SetFreq400kHz();
 void SPI_SetFreq20MHz();

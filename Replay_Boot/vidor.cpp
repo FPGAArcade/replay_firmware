@@ -1,4 +1,6 @@
-#if defined(__SAMD21G18A__)
+#include "board.h"
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
 
 #include "hardware_vidor/embedded.cpp"
 #include "hardware_vidor/hardware.cpp"

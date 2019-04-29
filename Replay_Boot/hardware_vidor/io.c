@@ -58,15 +58,31 @@ uint8_t IO_Input_L_(uint32_t pin, const char* pin_name)  // returns true if pin 
 }
 
 void ISR_VerticalBlank();       // a bit hacky - just assume this is implemented _somewhere_
-static volatile uint32_t vbl_counter = 0;
-static void* ISR_io(void* param)
+extern volatile uint32_t vbl_counter;
+void IO_WaitVBL(void)
 {
-    (void)param;
-    return NULL;
+    uint32_t irq_old = LOW;
+    uint32_t irq = digitalRead(PIN_CONF_DOUT);
+    uint32_t vbl = vbl_counter;
+    HARDWARE_TICK timeout = Timer_Get(100);
+
+    while (!(!irq && irq_old) && vbl != vbl_counter) {
+        irq_old = irq;
+        irq = digitalRead(PIN_CONF_DOUT);
+
+        if (Timer_Check(timeout)) {
+            WARNING("IO_WaitVBL timeout");
+            break;
+        }
+    }
 }
 
 void IO_Init(void)
 {
+    pinMode(PIN_FPGA_RST_L, OUTPUT);
+    digitalWrite(PIN_FPGA_RST_L, HIGH);
+
+    attachInterrupt(PIN_CONF_DOUT, ISR_VerticalBlank, FALLING);
 }
 
 void IO_ClearOutputData_(uint32_t pins, const char* pin_names)
@@ -76,8 +92,4 @@ void IO_ClearOutputData_(uint32_t pins, const char* pin_names)
 void IO_SetOutputData_(uint32_t pins, const char* pin_names)
 {
     DEBUG(3, "%s : %08x (%s)", __FUNCTION__, pins, pin_names);
-}
-
-void IO_WaitVBL(void)
-{
 }

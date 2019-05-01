@@ -79,6 +79,8 @@ void IO_WaitVBL(void)
 
 void IO_Init(void)
 {
+    pinMode(PIN_ACT_LED, OUTPUT);
+
     pinMode(PIN_FPGA_RST_L, OUTPUT);
     digitalWrite(PIN_FPGA_RST_L, HIGH);
 

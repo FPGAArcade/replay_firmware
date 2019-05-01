@@ -56,8 +56,6 @@ extern "C" {
 //
 void Hardware_Init(void)
 {
-    pinMode(PIN_ACT_LED, OUTPUT);
-
     IO_Init();
 }
 

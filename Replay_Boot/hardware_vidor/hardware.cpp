@@ -74,3 +74,4 @@ extern "C" {
 #include "../hardware_vidor/usart.cpp"
 #include "../hardware_vidor/jtag.cpp"
 #include "../hardware_vidor/core_test.cpp"
+#include "../hardware_vidor/usbhid.cpp"

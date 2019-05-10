@@ -168,7 +168,7 @@ void SPI_EnableOsd(void)
 
 void SPI_DisableOsd(void)
 {
-    vidor_SPI_beginTransaction(PIN_FPGA_CTRL1);
+    vidor_SPI_endTransaction(PIN_FPGA_CTRL1);
 }
 
 void SPI_EnableDirect(void)

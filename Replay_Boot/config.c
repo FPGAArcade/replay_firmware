@@ -2112,6 +2112,9 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     uint32_t config_ver        = OSD_ConfigReadVer();
     uint32_t config_stat       = OSD_ConfigReadStatus();
 
+    DEBUG(1, "config_ver:  %08x", config_ver);
+    DEBUG(1, "config_stat: %08x", config_stat);
+
     uint32_t init_mem = CFG_get_free_mem();
     DEBUG(1, "Initial free MEM: %ld bytes", init_mem);
 

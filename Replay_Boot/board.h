@@ -211,8 +211,8 @@
 #define PIN_CONF_DIN			(5u)	// PB11
 #define PIN_FPGA_CTRL1			(6u)	// PA20
 #define PIN_FPGA_CTRL0			(7u)	// PA21
-#define PIN_CONF_DOUT			(31u)	// PA28
-#define PIN_FPGA_RST_L          (33u)	// PB09
+#define PIN_FPGA_RST_L          (31u)	// PA28
+#define PIN_CONF_DOUT			(33u)	// PB09
 
 // use JTAG instead
 #define PIN_FPGA_INIT_L         (1<<1)

@@ -81,7 +81,7 @@ class ReplayKeyboard : public KeyboardReportParser
         uint8_t ps2 = GetPS2(key);
 
         if (!ps2) {
-		    DEBUG(2, "[%s] OEM %02x Unknown", __FUNCTION__, key);
+            DEBUG(2, "[%s] OEM %02x Unknown", __FUNCTION__, key);
             return;
         }
 
@@ -95,7 +95,7 @@ class ReplayKeyboard : public KeyboardReportParser
         uint8_t ps2 = GetPS2(key);
 
         if (!ps2) {
-		    DEBUG(2, "[%s] OEM %02x Unknown", __FUNCTION__, key);
+            DEBUG(2, "[%s] OEM %02x Unknown", __FUNCTION__, key);
             return;
         }
 
@@ -165,6 +165,7 @@ static ReplayKeyboard keyboard(usb);
 
 extern "C" const char* USBHID_Update()
 {
+    return 0;
     usb.Task();
     return keyboard.PopKey();
 }

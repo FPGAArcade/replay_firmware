@@ -6,6 +6,7 @@
 #include "hardware_vidor/hardware.cpp"
 
 extern "C" {
+#include "hardware_vidor/board_driver_jtag.c"
 #include "usb/msc.c"
 }
 

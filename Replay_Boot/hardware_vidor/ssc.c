@@ -50,8 +50,6 @@
 extern uint8_t pin_fpga_done;
 static uint32_t written = 0;
 
-void core_test();
-
 // SSC
 void SSC_Configure_Boot(void)
 {
@@ -80,9 +78,6 @@ void SSC_DisableTxRx(void)
     DEBUG(0, "Successfully configured FPGA over JTAG");
     pin_fpga_done = TRUE;
     enableFpgaClock();
-
-    // run core test for embedded core
-    core_test();
 }
 
 void SSC_Write(uint32_t frame)

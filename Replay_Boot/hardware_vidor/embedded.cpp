@@ -3,7 +3,11 @@
 #include "replayhand.h"
 #include "replay_ini.h"
 
-#include "VidorUtils.h"
+#include "board_driver_jtag.h"
+
+extern "C" {
+#include "../messaging.h"
+}
 
 /*
 
@@ -12,25 +16,43 @@ $ go run make_composite_binary.go -i TEXT_Demo.ttf:1:512 -o loader.h > signature
 
 */
 
-__attribute__ ((used, section(".fpga_bitstream_signature")))
-const unsigned char signatures[4096] = {
+#define no_data    0xFF, 0xFF, 0xFF, 0xFF, \
+    0xFF, 0xFF, 0xFF, 0xFF, \
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, \
+    0xFF, 0xFF, 0xFF, 0xFF, \
+    0x00, 0x00, 0x00, 0x00  \
+
+#define NO_BOOTLOADER   no_data
+#define NO_APP        no_data
+#define NO_USER_DATA    no_data
+
+    __attribute__ ((used, section(".fpga_bitstream_signature")))
+    const unsigned char signatures[4096] = {
 #include "signature.h"
-};
-__attribute__ ((used, section(".fpga_bitstream")))
-const unsigned char bitstream[] = {
+    };
+    __attribute__ ((used, section(".fpga_bitstream")))
+    const unsigned char bitstream[] = {
 #include "loader.h"
-};
+    };
 
-extern "C" void core_test();
-extern "C" uint8_t pin_fpga_done;
+    extern "C" uint8_t pin_fpga_done;
+    extern void enableFpgaClock();
 
-extern "C" void JTAG_StartEmbeddedCore()
-{
-    VidorUtils utils;
-    utils.begin();
+    extern "C" void JTAG_StartEmbeddedCore()
+    {
+        enableFpgaClock();
 
-    delay(1000);	// TODO : figure out a proper way to determine that the core is running..
-    pin_fpga_done = true;
+        if (jtagInit() < 0) {
+            ERROR("JTAG init failed!");
+            return;
+        }
 
-    core_test();
-}
+        jtagBootApp();
+
+        delay(1000);
+
+        jtagDeinit();
+
+        DEBUG(1, "Embedded core started.");
+        pin_fpga_done = TRUE;
+    }

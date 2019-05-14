@@ -128,12 +128,20 @@ unsigned char rSPI(unsigned char outByte)
 
 void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
 {
-    DEBUG(0, "%s %p %08x -> %08x", __FUNCTION__, pBuffer, length);
+    uint8_t* p = (uint8_t*)pBuffer;
+
+    for (int i = 0; i < length; ++i) {
+        rSPI(*p++);
+    }
 }
 
 void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 {
-    DEBUG(0, "%s %p %08x <- %08x", __FUNCTION__, pBuffer, length);
+    uint8_t* p = (uint8_t*)pBuffer;
+
+    for (int i = 0; i < length; ++i) {
+        *p++ = rSPI(0x00);
+    }
 }
 
 void SPI_Wait4XferEnd(void)

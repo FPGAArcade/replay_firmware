@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "main.h"
+#include "hardware_vidor/usbblaster.h"
 
 void setup() {
 
@@ -12,6 +13,8 @@ void setup() {
   Serial1.println(buf);
   Serial1.println("=========================================================");
   Serial1.flush();
+
+  USBBlaster_Disable();
 }
 
 void loop() {

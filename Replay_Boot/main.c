@@ -77,6 +77,7 @@
 #endif
 
 #if defined(ARDUINO_SAMD_MKRVIDOR4000)
+#include "hardware_vidor/usbblaster.h"
 #include <setjmp.h>
 jmp_buf exit_env;
 #endif
@@ -280,6 +281,7 @@ int main(void)
 #if PTP_USB
             PTP_USB_Start();
 #endif
+            USBBlaster_EnableAndInit();
 
             INFO("Configured in %d ms", Timer_Convert(Timer_Get(0) - ts));
 
@@ -287,6 +289,8 @@ int main(void)
             while (current_status.fpga_load_ok != NO_CORE) {
                 main_update();
             }
+
+            USBBlaster_Disable();
 
             ts = Timer_Get(0);
         }
@@ -507,6 +511,8 @@ static __attribute__ ((noinline)) void main_update()
     // check RS232
     USART_update();
 
+    USBBlaster_Update();
+
     // check menu
     if (current_status.spi_osd_enabled) {
         if (MENU_handle_ui(key, &current_status)) {
@@ -579,9 +585,15 @@ static __attribute__ ((noinline)) void main_update()
         MSG_warning("FPGA has been deconfigured.");
 
         // assume this is the programmer and wait for it to be reconfigured
+        HARDWARE_TICK delay = 0;
+
         while (!IO_Input_H(PIN_FPGA_DONE)) {
-            MSG_warning("    waiting for reconfig....");
-            Timer_Wait(1000);
+            if (Timer_Check(delay)) {
+                MSG_warning("    waiting for reconfig....");
+                delay = Timer_Get(1000);
+            }
+
+            USBBlaster_Update();
         }
 
         OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase

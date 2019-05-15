@@ -418,7 +418,7 @@ uint8_t FPGA_DramTrain(void)
     addr = 0;
 
     for (i = 0; i < num_loops; i++) {
-        mBuf[BUFFERsize-1] = (uint8_t) i;
+        mBuf[BUFFERsize - 1] = (uint8_t) i;
         FileIO_MCh_BufToMem(mBuf, addr, BUFFERsize);
         addr = (0x100 << i);
     }
@@ -429,23 +429,23 @@ uint8_t FPGA_DramTrain(void)
 
         int retry = 0;
         const int num_retries = 5;
+
         for (; retry < num_retries; ++retry) {
             memset(mBuf, 0xAA, 512);
             FileIO_MCh_MemToBuf(mBuf, addr, BUFFERsize);
 
-            if (memcmp(mBuf, &kMemtest[0], BUFFERsize-1) || (mBuf[BUFFERsize-1] != (uint8_t) i) ) {
+            if (memcmp(mBuf, &kMemtest[0], BUFFERsize - 1) || (mBuf[BUFFERsize - 1] != (uint8_t) i) ) {
                 continue;   // retry
             }
 
             break;
         }
 
-        if (retry)
-        {
+        if (retry) {
             WARNING("!!Match fail Addr:%8X (%d)", addr, retry);
             DumpBuffer(mBuf, BUFFERsize);
             DEBUG(0, "Should be:");
-            DumpBuffer(&kMemtest[0], BUFFERsize-1);
+            DumpBuffer(&kMemtest[0], BUFFERsize - 1);
             error = 1;
         }
 

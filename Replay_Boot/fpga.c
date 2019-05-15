@@ -386,45 +386,73 @@ uint8_t FPGA_DramTrain(void)
     uint8_t mBuf[512];
     uint32_t i;
     uint32_t addr;
+    uint8_t error = 0;
     DEBUG(0, "FPGA:DRAM enabled, running test.");
+
+    const uint32_t TESTsize = 7; // 128 bytes = sizeof(kMemtest)
+
+#if defined(AT91SAM7S256) // Replay
     // 25..0  64MByte
     // 25 23        15        7
     // 00 0000 0000 0000 0000 0000 0000
+    const uint32_t DRAMsize = 26; // 64MB
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+    const uint32_t DRAMsize = 23; // 8MB
+#else
+    const uint32_t DRAMsize = TESTsize;
+#endif
+
+    const uint32_t num_loops = DRAMsize - TESTsize;
+
+    const uint32_t BUFFERsize = sizeof(kMemtest);
+    Assert((1 << TESTsize) <= BUFFERsize);
 
     //uint16_t key;
     //do {
-    memset(mBuf, 0, 512);
+    memset(mBuf, 0x00, sizeof(mBuf));
 
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < BUFFERsize; i++) {
         mBuf[i] = kMemtest[i];
     }
 
     addr = 0;
 
-    for (i = 0; i < 19; i++) {
-        mBuf[127] = (uint8_t) i;
-        FileIO_MCh_BufToMem(mBuf, addr, 128);
+    for (i = 0; i < num_loops; i++) {
+        mBuf[BUFFERsize-1] = (uint8_t) i;
+        FileIO_MCh_BufToMem(mBuf, addr, BUFFERsize);
         addr = (0x100 << i);
     }
 
     addr = 0;
 
-    for (i = 0; i < 19; i++) {
-        memset(mBuf, 0xAA, 512);
-        FileIO_MCh_MemToBuf(mBuf, addr, 128);
+    for (i = 0; i < num_loops; i++) {
 
-        if (memcmp(mBuf, &kMemtest[0], 127) || (mBuf[127] != (uint8_t) i) ) {
-            WARNING("!!Match fail Addr:%8X", addr);
-            DumpBuffer(mBuf, 128);
+        int retry = 0;
+        const int num_retries = 5;
+        for (; retry < num_retries; ++retry) {
+            memset(mBuf, 0xAA, 512);
+            FileIO_MCh_MemToBuf(mBuf, addr, BUFFERsize);
+
+            if (memcmp(mBuf, &kMemtest[0], BUFFERsize-1) || (mBuf[BUFFERsize-1] != (uint8_t) i) ) {
+                continue;   // retry
+            }
+
+            break;
+        }
+
+        if (retry)
+        {
+            WARNING("!!Match fail Addr:%8X (%d)", addr, retry);
+            DumpBuffer(mBuf, BUFFERsize);
             DEBUG(0, "Should be:");
-            DumpBuffer(&kMemtest[0], 128);
-            return 1;
+            DumpBuffer(&kMemtest[0], BUFFERsize-1);
+            error = 1;
         }
 
         addr = (0x100 << i);
     }
 
-    DEBUG(0, "FPGA:DRAM TEST passed.");
+    DEBUG(0, "FPGA:DRAM TEST %s.", error ? "failed" : "passed");
 
     //  key = OSD_GetKeyCode(NULL);
     //} while (key != KEY_MENU);

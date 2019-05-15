@@ -692,6 +692,29 @@ uint8_t CFG_configure_fpga(char* filename)
 {
     FF_FILE* fSource = NULL;
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+
+    // Vidor uses .rbf bitstreams; hijack the filename and change the extension
+
+    {
+        uint32_t len = strlen(filename);
+        uint32_t i = 0;
+
+        for (i = len - 1; i > 0; --i) {
+            if (filename[i] == '.') {
+                char* ext = ((char*) filename + i + 1);
+                strcpy(ext, "rbf");
+                break;
+            }
+
+            if ((filename[i] == '/') || (filename[i] == '\\')) {
+                break;
+            }
+        }
+    }
+
+#endif
+
     fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
 
     if (fSource) {

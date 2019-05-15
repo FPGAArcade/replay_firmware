@@ -244,7 +244,7 @@ int main(void)
 
         // at this point we must've free _all_ dynamically allocated memory!
         CFG_free_menu(&current_status);
-#ifndef HOSTED
+#if !defined(HOSTED) && !defined(ARDUINO_SAMD_MKRVIDOR4000)
         Assert(!mallinfo().uordblks);
 #endif
 

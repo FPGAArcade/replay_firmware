@@ -75,6 +75,19 @@ void USART_Init(unsigned long baudrate)
 {
     Serial1.end();
     Serial1.begin(baudrate);
+
+#if debuglevel > 0
+    SerialUSB.begin(9600);
+    HARDWARE_TICK delay = Timer_Get(0);
+    for (int i = 0; i < 15; ++i) {
+        while (!SerialUSB && !Timer_Check(delay))
+            ;
+        if (SerialUSB)
+            break;
+        Serial1.println("Waiting for SerialUSB...");
+        delay = Timer_Get(1000);
+    }
+#endif
 }
 
 void USART_update(void)
@@ -104,6 +117,9 @@ void USART_update(void)
 void USART_Putc(void*, char c)
 {
     Serial1.write(c);
+#if debuglevel > 0
+    SerialUSB.write(c);
+#endif
 }
 
 

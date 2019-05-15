@@ -224,6 +224,16 @@ extern "C" void USBBlaster_Disable()
 
     USBDevice.init();
     USBDevice.attach();
+
+    HARDWARE_TICK current = Timer_Get(0);
+
+    while (!USBDevice.configured()) {
+        if (Timer_Check(current)) {
+            Serial1.println("UnpluggableBlaster : waiting for usb config");
+            current = Timer_Get(1000);
+        }
+    }
+
 #endif
     Blaster_Enabled = false;
     //    Blaster_Inited = false;
@@ -254,6 +264,16 @@ extern "C" void USBBlaster_EnableAndInit()
 
         USBDevice.init();
         USBDevice.attach();
+
+        HARDWARE_TICK current = Timer_Get(0);
+
+        while (!USBDevice.configured()) {
+            if (Timer_Check(current)) {
+                Serial1.println("UnpluggableBlaster : waiting for usb config");
+                current = Timer_Get(1000);
+            }
+        }
+
 #endif
         Blaster_Enabled = true;
     }
@@ -274,6 +294,10 @@ extern "C" void USBBlaster_Update()
     extern uint8_t pin_fpga_done;
 
     if (!Blaster_Enabled || !Blaster_Inited) {
+        return;
+    }
+
+    if (!USBDevice.configured()) {
         return;
     }
 

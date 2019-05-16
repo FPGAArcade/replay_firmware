@@ -187,6 +187,24 @@ static void killUSB()
     usbd.reset();
 }
 
+static void waitForUSBConfig()
+{
+    HARDWARE_TICK current = Timer_Get(0);
+    int retry = 5;
+
+    while (!USBDevice.configured()) {
+        if (Timer_Check(current)) {
+            Serial1.println("UnpluggableBlaster : waiting for usb config");
+            current = Timer_Get(1000);
+
+            if (!retry--) {
+                Serial1.println("UnpluggableBlaster : giving up..");
+                break;
+            }
+        }
+    }
+}
+
 extern "C" void USBBlaster_Disable()
 {
     if (!Blaster_Enabled) {
@@ -224,15 +242,7 @@ extern "C" void USBBlaster_Disable()
 
     USBDevice.init();
     USBDevice.attach();
-
-    HARDWARE_TICK current = Timer_Get(0);
-
-    while (!USBDevice.configured()) {
-        if (Timer_Check(current)) {
-            Serial1.println("UnpluggableBlaster : waiting for usb config");
-            current = Timer_Get(1000);
-        }
-    }
+    waitForUSBConfig();
 
 #endif
     Blaster_Enabled = false;
@@ -264,15 +274,7 @@ extern "C" void USBBlaster_EnableAndInit()
 
         USBDevice.init();
         USBDevice.attach();
-
-        HARDWARE_TICK current = Timer_Get(0);
-
-        while (!USBDevice.configured()) {
-            if (Timer_Check(current)) {
-                Serial1.println("UnpluggableBlaster : waiting for usb config");
-                current = Timer_Get(1000);
-            }
-        }
+        waitForUSBConfig();
 
 #endif
         Blaster_Enabled = true;

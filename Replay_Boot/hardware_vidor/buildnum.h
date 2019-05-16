@@ -1,5 +1,5 @@
-// xxd -i build/buildnum > hardware_vidor/buildnum.h
-extern "C" const unsigned char _binary_buildnum_start[] = {
-  0x32, 0x30, 0x31, 0x39, 0x30, 0x33, 0x32, 0x34, 0x5f, 0x37, 0x30, 0x37,
-  0x00
-};
+#define INCBIN_PREFIX _binary_
+#define INCBIN_STYLE INCBIN_STYLE_SNAKE
+#include "../hardware_host/incbin.h"
+
+INCBIN(buildnum, "build/buildnum");

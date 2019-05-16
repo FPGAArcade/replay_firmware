@@ -1,6 +1,6 @@
 #include "board.h"
 
-#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+#if 0 // defined(ARDUINO_SAMD_MKRVIDOR4000)
 
 #include "filesys/ff_blk.c"
 #include "filesys/ff_crc.c"

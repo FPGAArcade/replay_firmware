@@ -10,6 +10,6 @@ extern "C" {
 #include "usb/msc.c"
 }
 
-#include "filesys/ff_format.c"
+//#include "filesys/ff_format.c"
 
 #endif

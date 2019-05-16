@@ -287,7 +287,9 @@ int main(void)
 #if PTP_USB
             PTP_USB_Start();
 #endif
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
             USBBlaster_EnableAndInit();
+#endif
 
             INFO("Configured in %d ms", Timer_Convert(Timer_Get(0) - ts));
 
@@ -296,7 +298,9 @@ int main(void)
                 main_update();
             }
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
             USBBlaster_Disable();
+#endif
 
             ts = Timer_Get(0);
         }
@@ -517,7 +521,9 @@ static __attribute__ ((noinline)) void main_update()
     // check RS232
     USART_update();
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
     USBBlaster_Update();
+#endif
 
     // check menu
     if (current_status.spi_osd_enabled) {
@@ -599,7 +605,9 @@ static __attribute__ ((noinline)) void main_update()
                 delay = Timer_Get(1000);
             }
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
             USBBlaster_Update();
+#endif
         }
 
         OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase

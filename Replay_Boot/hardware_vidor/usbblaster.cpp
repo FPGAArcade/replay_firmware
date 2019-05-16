@@ -2,6 +2,8 @@
 
 #if 1	// Enable USBBlaster!
 
+#define OFFICAL_API 0
+
 #include "Blaster.h"
 #include "USB/SAMD21_USBDevice.h"
 
@@ -211,7 +213,7 @@ extern "C" void USBBlaster_Disable()
         return;
     }
 
-#if 0
+#if OFFICAL_API
     USBDevice.detach();
 #else
 
@@ -255,8 +257,9 @@ extern "C" void USBBlaster_EnableAndInit()
 {
     if (!Blaster_Enabled) {
 
-#if 0
+#if OFFICAL_API
         USBDevice.attach();
+        waitForUSBConfig();
 #else
         UnpluggableUSB* unpluggable = (UnpluggableUSB*)&PluggableUSB();
 

@@ -61,6 +61,8 @@
 
 #include "messaging.h"
 
+#include <stdlib.h> // abs()
+
 #if !defined(HOSTED)
 #include <unistd.h> // sbrk()
 #include <malloc.h> // mallinfo()
@@ -292,6 +294,10 @@ void CFG_card_start(status_t* current_status)
         }
 
         switch (pIoman->pPartition->Type) {
+            case FF_T_FAT32+1:
+                MSG_info("SDCARD: exFAT formatted");
+                break;
+
             case FF_T_FAT32:
                 MSG_info("SDCARD: FAT32 formatted");
                 break;
@@ -305,7 +311,10 @@ void CFG_card_start(status_t* current_status)
             case FF_T_FAT12:
                 MSG_info("SDCARD: FAT12 formatted");
                 break;
-                //DEBUG(1,"FAT12 Formatted Drive"); break;
+
+            //DEBUG(1,"FAT12 Formatted Drive"); break;
+            default:
+                MSG_info("SDCARD: Unknown format %d", pIoman->pPartition->Type);
         }
 
         //DEBUG(1,"");
@@ -2668,6 +2677,7 @@ void CFG_save_all(status_t* currentStatus, const char* iniDir,
 
 void CFG_format_sdcard(status_t* currentStatus)
 {
+#if !defined(FF_DEFINED) || FF_USE_MKFS
     srand(Timer_Get(0) | (Timer_Get(0) << 16));
 
     FF_PartitionParameters_t params = {
@@ -2688,4 +2698,5 @@ void CFG_format_sdcard(status_t* currentStatus)
     MENU_handle_ui(0, currentStatus);
 
     FF_Format(pIoman, 0, 0, 0);
+#endif
 }

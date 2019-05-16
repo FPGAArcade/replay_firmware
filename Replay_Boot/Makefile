@@ -101,11 +101,12 @@ TARGET = main
 # use file-extension c for "c-only"-files
 SRC = common/syscalls.c
 SRC += $(wildcard *.c)
-SRC += $(wildcard filesys/*.c)
+SRC += $(wildcard fatfs/*.c)
 
 ifeq (,${HOSTED})
 SRC += $(wildcard hardware/*.c)
-SRC += $(wildcard usb/*.c)
+#SRC += $(wildcard usb/*.c) # mtp is not supported with fatfs
+SRC += usb/msc.c usb/usb_hardware.c
 SRC += common/Cstartup_SAM7.c
 else
 SRC += hardware_host/hardware.c usb/msc.c hardware_host/embedded.c
@@ -113,6 +114,7 @@ endif
 
 # tests
 SRC += tests/fullfat-test.c
+SRC += tests/exfat-test.c
 
 SRCBIN += ../../../hw/replay/cores/loader_embedded/sdcard/loader.bin
 SRCRAW += ../../../hw/replay/cores/loader_embedded/sdcard/replayhand.raw

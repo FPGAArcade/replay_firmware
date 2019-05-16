@@ -121,7 +121,7 @@ typedef struct {
 typedef struct {
     drv08_format_t format;
 
-    uint32_t file_size;
+    uint64_t file_size;
     uint16_t cylinders;
     uint16_t heads;
     uint16_t sectors;
@@ -216,8 +216,10 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
 
     HARDWARE_TICK time = Timer_Get(0);
 
-    FF_IOMAN*  pIoman = pDrive->fSource->pIoman;
-    uint32_t lba_byte = lba << 9;
+    FF_IOMAN*  pIoman;// = pDrive->fSource->pIoman;
+    (void)pIoman;
+
+    uint64_t lba_byte = (uint64_t)lba << 9;
 
     if (pDesc->format == HDF_NAKED) {
         if (DRV08_DEBUG) {
@@ -230,8 +232,11 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
         }
 
         lba -= pDesc->lba_offset;
-        lba_byte = lba << 9;
+        lba_byte = (uint64_t)lba << 9;
     }
+
+#if !defined(FF_DEFINED)    // Using FullFAT backend?
+    pIoman = pDrive->fSource->pIoman;
 
     // first check if we are moving to the same cluster
     FF_T_UINT32 nNewCluster = FF_getClusterChainNumber(pIoman, lba_byte, 1);
@@ -239,7 +244,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
     if ((nNewCluster < pDrive->fSource->CurrentCluster) || (nNewCluster > (pDrive->fSource->CurrentCluster + 1)) ) {
         // reposition using table
         uint16_t idx = lba >> (pDesc->index_size - 9); // 9 as lba is in 512 byte sectors
-        uint32_t pos = lba_byte & (-1 << pDesc->index_size);
+        uint32_t pos = (uint32_t)lba_byte & (-1 << pDesc->index_size);
 
         nNewCluster = FF_getClusterChainNumber(pIoman, pos, 1);
 
@@ -283,6 +288,63 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
 
         //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, nNewCluster, index_cluster);
     }
+
+#else   // defined(FF_DEFINED) == using FATFS backend
+    FIL* fp = (FIL*)pDrive->fSource;
+    FATFS* fs = fp->obj.fs;
+
+    uint32_t clusterSize = fs->csize * /*((fs)->ssize)*/ ((UINT)FF_MAX_SS);
+    uint32_t newCluster = lba_byte / clusterSize;
+    uint32_t currentCluster = fp->fptr / clusterSize;
+
+    if ((newCluster < currentCluster) || (newCluster > (currentCluster + 1)) ) {
+        // reposition using table
+        uint16_t idx = lba >> (pDesc->index_size - 9); // 9 as lba is in 512 byte sectors
+        uint64_t pos = lba_byte & (-1 << pDesc->index_size);
+
+        newCluster = pos / clusterSize;
+
+        Assert(idx < 1024);
+
+        // The current cluster index is not yet known;
+        //  *) find the first valid cluster,
+        //  *) step through all indices up to the current one,
+        //  *) and fill out the index cluster table
+        if (pDesc->index[idx] == 0xffffffff) {
+            // find the first and the last indices
+            uint16_t start = idx;
+
+            // step backwards until we find a valid cluster
+            for (; start ; --start)
+                if (pDesc->index[start] != 0xffffffff) {
+                    break;
+                }
+
+            uint64_t step = 1 << pDesc->index_size;
+            uint64_t filepos = start * step;
+
+            for (uint16_t i = start; i <= idx; ++i, filepos += step) {
+                if (pDesc->index[i] != 0xffffffff) {
+                    continue;
+                }
+
+                FF_Seek(pDrive->fSource, filepos, FF_SEEK_SET);
+                // DEBUG(1,"index %08x %08x %08x @ %08x", (int)filepos,  fp->clust, currentCluster, (int)i);
+                Assert(i < 1024);
+                pDesc->index[i] = fp->clust;
+            }
+        }
+
+        uint32_t index_cluster = pDesc->index[idx];
+        Assert(index_cluster != 0xffffffff);
+
+        fp->fptr        = pos;
+        fp->clust = index_cluster;
+
+        //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, nNewCluster, index_cluster);
+    }
+
+#endif
 
     FF_ERROR err = FF_Seek(pDrive->fSource, lba_byte, FF_SEEK_SET);
 
@@ -944,7 +1006,7 @@ uint8_t Drv08_GetHardfileType(fch_t* pDrive, drv08_desc_t* pDesc)
     }
 
     WARNING("Drv08:Unknown HDF format");
-    return (1);
+    return (0);
 }
 
 #define READ_BE_32B(x)  ((uint32_t) (( ((uint8_t*)&x)[0] << 24) | (((uint8_t*)&x)[1] << 16) | (((uint8_t*)&x)[2] << 8) | ((uint8_t*)&x)[3]))
@@ -1122,7 +1184,7 @@ void Drv08_GetHardfileGeometry(fch_t* pDrive, drv08_desc_t* pDesc)
     uint32_t cyl  = 0;
     uint32_t spt  = 0;
     uint32_t sptt[] = { 63, 127, 255, 0 };
-    uint32_t size = pDesc->file_size;
+    uint64_t size = pDesc->file_size;
 
     if (size == 0) {
         return;
@@ -1200,6 +1262,7 @@ void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
 
 #endif
     memset(pDesc->index, 0xff, sizeof(pDesc->index));
+
 }
 
 void Drv08_CreateRDB(drv08_desc_t* pDesc, uint8_t drive_number)
@@ -1356,7 +1419,7 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
     if (strnicmp(ext, "HDF", 3) == 0) {
         //
         pDesc->format    = (drv08_format_t)HDF;
-        pDesc->file_size =  pDrive->fSource->Filesize;
+        pDesc->file_size =  FF_Size(pDrive->fSource); //->Filesize;
 
     } else if (strnicmp(ext, "?MMC", 4) == 0) {
 
@@ -1383,7 +1446,7 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
         lba /= pDesc->heads;
         pDesc->cylinders = lba;
 
-        INFO("SIZE: %lu sectors (%lu MB)", pDesc->file_size, pDesc->file_size >> 11);
+        INFO("SIZE: %lu sectors (%lu MB)", (uint32_t)pDesc->file_size, (uint32_t)pDesc->file_size >> 11);
         INFO("CHS : %u.%u.%u --> %lu MB", pDesc->cylinders, pDesc->heads, pDesc->sectors,
              ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
 
@@ -1409,7 +1472,7 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
         Drv08_CreateRDB(pDesc, drive_number);
     }
 
-    INFO("SIZE: %lu (%lu MB)", pDesc->file_size, pDesc->file_size >> 20);
+    INFO("SIZE: %lu sectors (%lu MB)", (uint32_t)(pDesc->file_size / 512), (uint32_t)(pDesc->file_size >> 20));
     INFO("CHS : %u.%u.%u --> %lu MB", pDesc->cylinders, pDesc->heads, pDesc->sectors,
          ((((unsigned long) pDesc->cylinders) * pDesc->heads * pDesc->sectors) >> 11));
     INFO("Opened in %lu ms", Timer_Convert(time));

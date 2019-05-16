@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "filesys/ff_types.h"
-#include "filesys/ff_error.h"
+#include "../filesys/ff_types.h"
+#include "../filesys/ff_error.h"
 
 #include "ff.h"
 

@@ -2434,27 +2434,42 @@ void CFG_free_menu(status_t* currentStatus)
 {
     DEBUG(2, "--- FREE MENU (and backup) SPACE ---");
 
+    for (menu_t* menu = currentStatus->menu_top; menu; menu = menu->next) {
+        DEBUG(2, "MENU   [%08x] : '%s'", menu, menu->menu_title);
+
+        for (menuitem_t* item = menu->item_list; item; item = item->next) {
+            DEBUG(2, "ITEM   [%08x] :     '%s'", item, item->item_name);
+
+            for (itemoption_t* option = item->option_list; option; option = option->next) {
+                DEBUG(2, "OPTION [%08x] :         '%s'", option, option->option_name);
+            }
+        }
+    }
+
     currentStatus->menu_act = currentStatus->menu_top;
 
     while (currentStatus->menu_act) {
         void* p;
-        DEBUG(3, "T:%08lx >%08lx <%08lx ><%08lx", currentStatus->menu_act,
+        DEBUG(3, "T:%08lx >%08lx <%08lx ><%08lx [%s]", currentStatus->menu_act,
               currentStatus->menu_act->next, currentStatus->menu_act->last,
-              currentStatus->menu_act->next ? currentStatus->menu_act->next->last : 0);
+              currentStatus->menu_act->next ? currentStatus->menu_act->next->last : 0,
+              currentStatus->menu_act->menu_title);
         currentStatus->menu_item_act = currentStatus->menu_act->item_list;
 
         while (currentStatus->menu_item_act) {
-            DEBUG(3, "I:%08lx >%08lx <%08lx ><%08lx", currentStatus->menu_item_act,
+            DEBUG(3, "I:%08lx >%08lx <%08lx ><%08lx [%s]", currentStatus->menu_item_act,
                   currentStatus->menu_item_act->next,
                   currentStatus->menu_item_act->last,
-                  currentStatus->menu_item_act->next ? currentStatus->menu_item_act->next->last : 0);
+                  currentStatus->menu_item_act->next ? currentStatus->menu_item_act->next->last : 0,
+                  currentStatus->menu_item_act->item_name);
             currentStatus->item_opt_act = currentStatus->menu_item_act->option_list;
 
             while (currentStatus->item_opt_act) {
-                DEBUG(3, "O:%08lx >%08lx <%08lx ><%08lx",
+                DEBUG(3, "O:%08lx >%08lx <%08lx ><%08lx [%s]",
                       currentStatus->item_opt_act, currentStatus->item_opt_act->next,
                       currentStatus->item_opt_act->last,
-                      currentStatus->item_opt_act->next ? currentStatus->item_opt_act->next->last : 0);
+                      currentStatus->item_opt_act->next ? currentStatus->item_opt_act->next->last : 0,
+                      currentStatus->item_opt_act->option_name);
                 p = currentStatus->item_opt_act;
                 currentStatus->item_opt_act = currentStatus->item_opt_act->next;
                 free(p);

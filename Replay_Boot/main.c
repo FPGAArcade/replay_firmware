@@ -80,6 +80,7 @@
 #include "hardware_vidor/usbblaster.h"
 #include <setjmp.h>
 jmp_buf exit_env;
+static __attribute__ ((noinline)) void FPGA_WriteGeneratedImage(uint32_t base);
 #endif
 
 extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
@@ -365,12 +366,14 @@ static __attribute__ ((noinline)) void load_embedded_core()
     if (!FPGA_Default()) {
         DEBUG(1, "FPGA default set.");
 
-#if !defined(ARDUINO_SAMD_MKRVIDOR4000)
         HARDWARE_TICK time = Timer_Get(0);
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+        FPGA_WriteGeneratedImage(0x00400000);
+#else
         FPGA_DecompressToDRAM(&_binary_build_replayhand_start, &_binary_build_replayhand_end - &_binary_build_replayhand_start, 0x00400000);
+#endif
         time = Timer_Get(0) - time;
         DEBUG(0, "FPGA background image uploaded in %d ms.", Timer_Convert(time));
-#endif
 
         current_status.fpga_load_ok = EMBEDDED_CORE;
         current_status.twi_enabled = 1;
@@ -452,12 +455,16 @@ static __attribute__ ((noinline)) void init_core()
         OSD_ConfigSendUserS(0x00000000);
         OSD_ConfigSendUserD(0x00000000); // 60HZ progressive
         current_status.button = BUTTON_OFF;
-#ifndef FPGA_DISABLE_EMBEDDED_CORE
+#if !defined(FPGA_DISABLE_EMBEDDED_CORE) || defined(ARDUINO_SAMD_MKRVIDOR4000)
         int32_t status = ParseIniFromString(&_binary_replay_ini_start, &_binary_replay_ini_end - &_binary_replay_ini_start, _CFG_parse_handler, &current_status);
 
         if (status != 0 ) {
             ERROR("Error at INI line %d", status);
         }
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+        current_status.config_d &= 0x62;    // kludge for VIDOR/full loader core (to disable unused bits)
+#endif
 
         _MENU_update_bits(&current_status);
 #endif
@@ -692,6 +699,46 @@ static __attribute__ ((noinline)) void main_update()
     }
 
 }
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+static __attribute__ ((noinline)) void FPGA_WriteGeneratedImage(uint32_t base)
+{
+    SPI_SetFreq25MHz();
+    // Creates a nice R/G pattern ;)
+    uint8_t buffer[512];
+    uint32_t i = 0;
+    uint32_t write_offset = base;
+
+    for (int y = 0; y < 576; ++y) {
+        for (int x = 0; x < 720; ++x) {
+            uint8_t c, r, g, b;
+
+            r = x * 255 / 720;
+            g = y * 255 / 576;
+            b = 0;
+
+            c = (r & 0xe0) | ((g & 0xe0) >> 3) | ((b & 0xc0) >> 6);
+            buffer[i++] = c;
+
+            if (i == sizeof(buffer)) {
+                if ((write_offset >> 10) & 1) ACTLED_ON; else ACTLED_OFF;
+                if (FileIO_MCh_BufToMem((void*)buffer, write_offset, i) != 0) {
+                    WARNING("DRAM write failed!");
+                    return;
+                }
+                write_offset += i;
+                i = 0;
+            }
+        }
+    }
+
+    if (i) {
+        if (FileIO_MCh_BufToMem((void*)buffer, write_offset, i) != 0) {
+            WARNING("DRAM write failed!");
+        }
+    }
+}
+#endif
 
 static __attribute__ ((noinline)) void write_background(FF_FILE* file)
 {

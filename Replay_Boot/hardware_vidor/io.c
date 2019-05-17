@@ -9,16 +9,28 @@
 uint8_t pin_fpga_init_l = TRUE;
 uint8_t pin_fpga_done = FALSE;
 
+static void IO_Output_(uint32_t pin, uint32_t level)
+{
+    if (pin == PIN_FPGA_PROG_L) {
+        pin_fpga_init_l = TRUE;
+        pin_fpga_done = FALSE;
+        return;
+
+    } else {
+        return digitalWrite(pin, level);
+    }
+}
+
 void IO_DriveLow_OD_(uint32_t pin, const char* pin_name)
 {
     DEBUG(3, "%s  : %08x (%s)", __FUNCTION__, pin, pin_name);
-    digitalWrite(pin, LOW);
+    IO_Output_(pin, LOW);
 }
 
 void IO_DriveHigh_OD_(uint32_t pin, const char* pin_name)
 {
     DEBUG(3, "%s : %08x (%s)", __FUNCTION__, pin, pin_name);
-    digitalWrite(pin, HIGH);
+    IO_Output_(pin, HIGH);
 }
 
 static uint8_t IO_Input_(uint32_t pin)  // return pin state high == TRUE / low == FALSE

@@ -1,7 +1,9 @@
-// TODO autogenerate these..
-#include "buildnum.h"
-#include "replayhand.h"
-#include "replay_ini.h"
+#define INCBIN_PREFIX _binary_
+#define INCBIN_STYLE INCBIN_STYLE_SNAKE
+#include "../hardware_host/incbin.h"
+
+INCBIN(buildnum, "build/buildnum");
+INCBIN(replay_ini, "../../../hw/replay/cores/loader_embedded/sdcard/replay.ini");
 
 #include "board_driver_jtag.h"
 

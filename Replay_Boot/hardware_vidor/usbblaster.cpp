@@ -1,6 +1,6 @@
 #include "usbblaster.h"
 
-#if 1	// Enable USBBlaster!
+#if 0	// Enable USBBlaster!
 
 #define OFFICAL_API 0
 

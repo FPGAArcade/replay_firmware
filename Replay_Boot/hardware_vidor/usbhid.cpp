@@ -165,7 +165,6 @@ static ReplayKeyboard keyboard(usb);
 
 extern "C" const char* USBHID_Update()
 {
-    return 0;
     usb.Task();
     return keyboard.PopKey();
 }

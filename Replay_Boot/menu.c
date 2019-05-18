@@ -1765,7 +1765,7 @@ void MENU_set_state(status_t* current_status, tOSDMenuState state)
     *(tOSDMenuState*)(&current_status->menu_state) = state;
 
     // track memory usage, and detect heap/stack stomp
-    if (3 <= debuglevel) {
+    if (2 <= debuglevel) {
         CFG_dump_mem_stats(FALSE);
     }
 }

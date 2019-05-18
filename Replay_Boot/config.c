@@ -68,9 +68,19 @@
 #include <malloc.h> // mallinfo()
 #endif
 
-extern char __FIRST_IN_RAM[];
 extern char end[];
+
+#if defined (AT91SAM7S256)
+extern char __FIRST_IN_RAM[];
 extern char __TOP_STACK[];
+#define RAM_START __FIRST_IN_RAM
+#define RAM_END __TOP_STACK
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+extern char __data_start__[];
+extern char __StackTop[];
+#define RAM_START __data_start__
+#define RAM_END __StackTop
+#endif
 
 /** @brief extern link to sdcard i/o manager
 
@@ -650,16 +660,16 @@ uint32_t CFG_get_free_mem(void)
 
 void CFG_dump_mem_stats(uint8_t only_check_stack)
 {
-#if !defined(HOSTED) && !defined(ARDUINO_SAMD_MKRVIDOR4000)
+#if !defined(HOSTED)
     uint32_t ram_bytes, static_bytes, heap_bytes, avail_bytes, unused_bytes;
     uint32_t current_stack, peak_stack;
 
     uint8_t* p;
-    uint8_t* const RAMbeg  = (uint8_t*)__FIRST_IN_RAM;      // top of RAM
+    uint8_t* const RAMbeg  = (uint8_t*)RAM_START;           // top of RAM
     uint8_t* const heap    = (uint8_t*)end;                 // end of data/bss, and start of the heap
     uint8_t* const unused  = (uint8_t*)sbrk(0);             // address of next heap block
     uint8_t* const stack   = (uint8_t*)__builtin_frame_address(0); // current stack frame
-    uint8_t* const RAMend  = (uint8_t*)__TOP_STACK;         // end of RAM & first stack frame
+    uint8_t* const RAMend  = (uint8_t*)RAM_END;             // end of RAM & first stack frame
     const uint32_t sentinel = 0xFA57F00D;                   // See Cstartup.S
 
     ram_bytes = RAMend - RAMbeg;      // total amount of RAM

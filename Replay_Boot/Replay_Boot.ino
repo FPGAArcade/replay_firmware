@@ -1,10 +1,16 @@
 #include <Arduino.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include "main.h"
 #include "hardware_vidor/usbblaster.h"
+extern "C" {
+#include "hardware/irq.h"
+}
 
 void setup() {
+
+  Insert_SRAM_Sentinels();
 
   char buf[256];
   sprintf(buf, "FPGAArcade Replay VIDOR %s %s", __DATE__, __TIME__);
@@ -21,6 +27,25 @@ void setup() {
 
 void loop() {
   replay_main();
+}
+
+static __attribute__ ((noinline)) void Insert_SRAM_Sentinels()
+{
+  disableIRQ();
+
+  const void* heap_end = sbrk(0);
+  const void* stack_end = __builtin_frame_address(0);
+  const uint32_t sentinel = 0xFA57F00D;
+
+  uint32_t* start = (uint32_t*)((((intptr_t)heap_end)+3) & ~ 0x3);
+  uint32_t*   end = (uint32_t*)((((intptr_t)stack_end) ) & ~ 0x3);
+
+  while(start < end)
+  {
+    *start++ = sentinel;
+  }
+
+  enableIRQ();
 }
 
 __attribute__((naked)) void HardFault_Handler(void)

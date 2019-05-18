@@ -9,12 +9,18 @@ void IRQ_DisableAllInterrupts(void)
 {
 }
 
-unsigned disableIRQ(void)
+extern "C" unsigned disableIRQ(void)
 {
-    return 0;
+	uint32_t mask = __get_PRIMASK();
+	__disable_irq();
+    __DSB();		// completes all explicit memory accesses
+    return mask;
 }
 
-unsigned enableIRQ(void)
+extern "C" unsigned enableIRQ(void)
 {
-    return 0;
+	uint32_t mask = __get_PRIMASK();
+    __enable_irq();
+    __ISB();		// flushes the pipeline
+    return mask;
 }

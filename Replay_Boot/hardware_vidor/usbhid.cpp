@@ -7,6 +7,7 @@
 */
 
 #include <hidboot.h>
+#include <hidcomposite.h>   // << if you get an error here you're most likely not using the correct lib (see above) >>
 
 #define MAX_SCANCODES (1<<4)
 #define MAX_SCANCODE_LENGTH (15+1)

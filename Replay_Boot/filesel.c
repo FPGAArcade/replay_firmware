@@ -535,7 +535,10 @@ FF_DIRENT Filesel_GetEntry(tDirScan* dir_entries, uint8_t entry)
         }
     }
 
-    return dir_entries->dNull;
+    FF_DIRENT dNull;
+    memset(&dNull, 0x00, sizeof(dNull));
+
+    return dNull;
 }
 
 FF_DIRENT Filesel_GetLine(tDirScan* dir_entries, uint8_t pos)

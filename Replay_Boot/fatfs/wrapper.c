@@ -380,6 +380,10 @@ FF_FILE *FF_Open(FF_IOMAN *pIoman, const FF_T_INT8 *path, FF_T_UINT8 Mode, FF_ER
 	FRESULT result = f_open (fp, path, mode);
 	if (pError)
 		*pError = FF_OPEN| mapError(result);
+	if (result != FR_OK) {
+		ff_free(fp);
+		fp = NULL;
+	}
 	return (FF_FILE*)fp;
 }
 

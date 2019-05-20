@@ -2112,6 +2112,9 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     uint32_t config_ver        = OSD_ConfigReadVer();
     uint32_t config_stat       = OSD_ConfigReadStatus();
 
+    DEBUG(1, "config_ver:  %08x", config_ver);
+    DEBUG(1, "config_stat: %08x", config_stat);
+
     uint32_t init_mem = CFG_get_free_mem();
     DEBUG(1, "Initial free MEM: %ld bytes", init_mem);
 
@@ -2172,6 +2175,14 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     FileIO_FCh_UpdateDriveStatus(1);
     FileIO_FCh_SetDriver(1, currentStatus->fileio_chb_drv); // temp
 
+    // for OSD
+    sprintf(currentStatus->status[0], "ARM |FW:%s", version);
+    sprintf(currentStatus->status[1], "FPGA|FW:%04X STAT:%04x IO:%04X",
+            config_ver, config_stat, ((config_fileio_drv << 8) | config_fileio_ena));
+
+    // TODO: ini path may exceed length and crash system here!
+    sprintf(currentStatus->status[2], "INI |%s", iniFile);
+
     // PARSE INI FILE
     if (currentStatus->fs_mounted_ok) {
         FF_FILE* fIni = NULL;
@@ -2200,15 +2211,6 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     if (init_mem) {
         DEBUG(0, "Menu requires %ld bytes", init_mem);
     }
-
-    // for OSD
-    sprintf(currentStatus->status[0], "ARM |FW:%s", version);
-    sprintf(currentStatus->status[1], "FPGA|FW:%04X STAT:%04x IO:%04X",
-            config_ver, config_stat, ((config_fileio_drv << 8) | config_fileio_ena));
-
-    // TODO: ini path may exceed length and crash system here!
-    sprintf(currentStatus->status[2], "INI |%s", iniFile);
-
 
     // check all config bits
     _MENU_update_bits(currentStatus);
@@ -2408,27 +2410,42 @@ void CFG_free_menu(status_t* currentStatus)
 {
     DEBUG(2, "--- FREE MENU (and backup) SPACE ---");
 
+    for (menu_t* menu = currentStatus->menu_top; menu; menu = menu->next) {
+        DEBUG(2, "MENU   [%08x] : '%s'", menu, menu->menu_title);
+
+        for (menuitem_t* item = menu->item_list; item; item = item->next) {
+            DEBUG(2, "ITEM   [%08x] :     '%s'", item, item->item_name);
+
+            for (itemoption_t* option = item->option_list; option; option = option->next) {
+                DEBUG(2, "OPTION [%08x] :         '%s'", option, option->option_name);
+            }
+        }
+    }
+
     currentStatus->menu_act = currentStatus->menu_top;
 
     while (currentStatus->menu_act) {
         void* p;
-        DEBUG(3, "T:%08lx >%08lx <%08lx ><%08lx", currentStatus->menu_act,
+        DEBUG(3, "T:%08lx >%08lx <%08lx ><%08lx [%s]", currentStatus->menu_act,
               currentStatus->menu_act->next, currentStatus->menu_act->last,
-              currentStatus->menu_act->next ? currentStatus->menu_act->next->last : 0);
+              currentStatus->menu_act->next ? currentStatus->menu_act->next->last : 0,
+              currentStatus->menu_act->menu_title);
         currentStatus->menu_item_act = currentStatus->menu_act->item_list;
 
         while (currentStatus->menu_item_act) {
-            DEBUG(3, "I:%08lx >%08lx <%08lx ><%08lx", currentStatus->menu_item_act,
+            DEBUG(3, "I:%08lx >%08lx <%08lx ><%08lx [%s]", currentStatus->menu_item_act,
                   currentStatus->menu_item_act->next,
                   currentStatus->menu_item_act->last,
-                  currentStatus->menu_item_act->next ? currentStatus->menu_item_act->next->last : 0);
+                  currentStatus->menu_item_act->next ? currentStatus->menu_item_act->next->last : 0,
+                  currentStatus->menu_item_act->item_name);
             currentStatus->item_opt_act = currentStatus->menu_item_act->option_list;
 
             while (currentStatus->item_opt_act) {
-                DEBUG(3, "O:%08lx >%08lx <%08lx ><%08lx",
+                DEBUG(3, "O:%08lx >%08lx <%08lx ><%08lx [%s]",
                       currentStatus->item_opt_act, currentStatus->item_opt_act->next,
                       currentStatus->item_opt_act->last,
-                      currentStatus->item_opt_act->next ? currentStatus->item_opt_act->next->last : 0);
+                      currentStatus->item_opt_act->next ? currentStatus->item_opt_act->next->last : 0,
+                      currentStatus->item_opt_act->option_name);
                 p = currentStatus->item_opt_act;
                 currentStatus->item_opt_act = currentStatus->item_opt_act->next;
                 free(p);

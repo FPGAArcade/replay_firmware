@@ -2175,7 +2175,7 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     Timer_Wait(100);
 
     // initialize and check DDR RAM
-    if (/*config_ver & 0x8000*/ config_ver == 0x80A0 /*HACK only run test on the loader core*/) {
+    if (config_ver & 0x8000) {
         FPGA_DramTrain();
     }
 

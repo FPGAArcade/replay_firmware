@@ -424,7 +424,7 @@ static __attribute__ ((noinline)) void init_core()
         // post FPGA load ini file parse: video DAC, ROM files, etc.
         if (CFG_init(&current_status, full_filename)) {
             // THIS will set up DAC defaults if non found
-            CFG_free_menu(&current_status);
+            //CFG_free_menu(&current_status);
             /*CFG_free_bak(&current_status);*/
         }
 

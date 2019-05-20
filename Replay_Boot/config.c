@@ -2208,6 +2208,14 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     FileIO_FCh_UpdateDriveStatus(1);
     FileIO_FCh_SetDriver(1, currentStatus->fileio_chb_drv); // temp
 
+    // for OSD
+    sprintf(currentStatus->status[0], "ARM |FW:%s", version);
+    sprintf(currentStatus->status[1], "FPGA|FW:%04X STAT:%04x IO:%04X",
+            config_ver, config_stat, ((config_fileio_drv << 8) | config_fileio_ena));
+
+    // TODO: ini path may exceed length and crash system here!
+    sprintf(currentStatus->status[2], "INI |%s", iniFile);
+
     // PARSE INI FILE
     if (currentStatus->fs_mounted_ok) {
         FF_FILE* fIni = NULL;
@@ -2236,15 +2244,6 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     if (init_mem) {
         DEBUG(0, "Menu requires %ld bytes", init_mem);
     }
-
-    // for OSD
-    sprintf(currentStatus->status[0], "ARM |FW:%s", version);
-    sprintf(currentStatus->status[1], "FPGA|FW:%04X STAT:%04x IO:%04X",
-            config_ver, config_stat, ((config_fileio_drv << 8) | config_fileio_ena));
-
-    // TODO: ini path may exceed length and crash system here!
-    sprintf(currentStatus->status[2], "INI |%s", iniFile);
-
 
     // check all config bits
     _MENU_update_bits(currentStatus);

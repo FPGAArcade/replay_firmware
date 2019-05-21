@@ -3,6 +3,12 @@
 	Download the repo .zip and use the Arduino IDE 'Include Library' -> 'Add .ZIP Library' function
 	Until such time the Vidor SAMD is named 'samd' (instead of 'samd_beta') you will also need to patch the library.properties.
 
+    OR
+
+    $ pushd ~/Documents/Arduino/libraries
+    $ git clone --depth 1 --shallow-submodules https://github.com/gdsports/USB_Host_Library_SAMD
+    $ popd
+
 	Using the "builtin" USBHost, that comes with samd-beta-1.6.25.tar.bz2, works but is really flakey..
 */
 

@@ -17,8 +17,8 @@ extern "C" {
 
 /*
 
-$ quartus_cpf.exe -c TEXT_Demo.sof TEXT_Demo.ttf
-$ go run make_composite_binary.go -i TEXT_Demo.ttf:1:512 -o loader.h > signature.h
+$ quartus_cpf.exe -c loader.sof loader.ttf
+$ go run make_composite_binary.go -i loader.ttf:1:512 -o loader.h > signature.h
 
 */
 

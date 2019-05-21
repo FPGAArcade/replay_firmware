@@ -2,6 +2,10 @@
 #define INCBIN_STYLE INCBIN_STYLE_SNAKE
 #include "../hardware_host/incbin.h"
 
+// if the incbin's below fail, copy platform.local.txt to 
+// Windows : %USERPROFILE%\AppData\Local\Arduino15\packages\arduino\hardware\samd_beta\1.6.25
+// macOS   : $HOME/Library/Arduino15/packages/arduino/hardware/samd_beta/1.6.25
+
 INCBIN(buildnum, "build/buildnum");
 INCBIN(replay_ini, "../../../hw/replay/cores/loader_embedded/sdcard/replay.ini");
 

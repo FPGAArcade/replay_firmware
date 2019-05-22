@@ -653,7 +653,7 @@ uint8_t Filesel_Update(tDirScan* dir_entries, uint8_t opt)
                 current = (sel - dir_entries->offset);
 
                 if (current == 0) {
-                    current = MAXDIRENTRIES-1;
+                    current = MAXDIRENTRIES - 1;
                 }
 
                 dir_entries->offset = 128 - current;

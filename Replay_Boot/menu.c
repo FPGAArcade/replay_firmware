@@ -1293,8 +1293,10 @@ static uint8_t key_action_filebrowser_default(status_t* current_status, const ui
 
 static uint8_t key_action_showstatus_left(status_t* current_status, const uint16_t key)
 {
-    if (!current_status || !current_status->menu_act)
+    if (!current_status || !current_status->menu_act) {
         return 0;
+    }
+
     // go to first menu entry
     while (current_status->menu_act->next) {
         current_status->menu_act = current_status->menu_act->next;
@@ -1306,8 +1308,10 @@ static uint8_t key_action_showstatus_left(status_t* current_status, const uint16
 
 static uint8_t key_action_showstatus_right(status_t* current_status, const uint16_t key)
 {
-    if (!current_status || !current_status->menu_act)
+    if (!current_status || !current_status->menu_act) {
         return 0;
+    }
+
     // go to last menu entry
     while (current_status->menu_act->last) {
         current_status->menu_act = current_status->menu_act->last;

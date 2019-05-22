@@ -77,16 +77,16 @@ int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
         return 1;
     }
 
-    // parent dir first
-    if ((pDir1->Attrib & FF_FAT_ATTR_DIR) && !strcmp("..", pDir1->FileName)) {
+    rc = _stricmp_logical(pDir1->FileName, pDir2->FileName);
+
+    // parent dir first (at the same time making sure pDir1 != pDir2)
+    if ((pDir1->Attrib & FF_FAT_ATTR_DIR) && !strcmp("..", pDir1->FileName) && rc) {
         return -1;
     }
 
-    if ((pDir2->Attrib & FF_FAT_ATTR_DIR) && !strcmp("..", pDir2->FileName)) {
+    if ((pDir2->Attrib & FF_FAT_ATTR_DIR) && !strcmp("..", pDir2->FileName) && rc) {
         return  1;
     }
-
-    rc = _stricmp_logical(pDir1->FileName, pDir2->FileName);
 
     if (rc == 0) {
         // if strings are equal, compare case-sensitive
@@ -629,12 +629,14 @@ uint8_t Filesel_Update(tDirScan* dir_entries, uint8_t opt)
             if (Filesel_CheckIndex(dir_entries, sel)) {
                 dir_entries->dRef = Filesel_GetEntry(dir_entries, sel);
                 Filesel_ScanUpdate(dir_entries);
-                dir_entries->offset = 128;
-                dir_entries->sel = 128;
+                current = (sel - dir_entries->offset);
 
-                if (dir_entries->nextc != 0) {
-                    dir_entries->sel = 129;
+                if (current == MAXDIRENTRIES) {
+                    current = 1;
                 }
+
+                dir_entries->offset = 128 - current;
+                dir_entries->sel = 128;
 
                 return SCAN_OK;
             }
@@ -648,12 +650,14 @@ uint8_t Filesel_Update(tDirScan* dir_entries, uint8_t opt)
             if (Filesel_CheckIndex(dir_entries, sel)) {
                 dir_entries->dRef = Filesel_GetEntry(dir_entries, sel);
                 Filesel_ScanUpdate(dir_entries);
-                dir_entries->offset = 128 - MAXDIRENTRIES;
-                dir_entries->sel = 128;
+                current = (sel - dir_entries->offset);
 
-                if (dir_entries->prevc != 0) {
-                    dir_entries->sel = 127;
+                if (current == 0) {
+                    current = MAXDIRENTRIES-1;
                 }
+
+                dir_entries->offset = 128 - current;
+                dir_entries->sel = 128;
 
                 return SCAN_OK;
             }

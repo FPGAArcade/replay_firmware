@@ -408,36 +408,115 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
         return 1;
     }
 
-        FF_Seek(fSource, 0, FF_SEEK_SET);
+    FF_Seek(fSource, 0, FF_SEEK_SET);
 
-        if (format == 2) {
-            // CRT format, contains a header and embedded ROM images (for C64 core only!)
-            char varstr[33];
-            uint8_t var8;
-            uint16_t var16;
-            uint32_t var32;
-            varstr[32] = 0;
-            bytes_read = FF_Read(fSource, 16, 1, (uint8_t*)&varstr);
+    if (format == 2) {
+        // CRT format, contains a header and embedded ROM images (for C64 core only!)
+        char varstr[33];
+        uint8_t var8;
+        uint16_t var16;
+        uint32_t var32;
+        varstr[32] = 0;
+        bytes_read = FF_Read(fSource, 16, 1, (uint8_t*)&varstr);
 
-            if ((bytes_read != 16) || (strncmp(varstr, "C64 CARTRIDGE   ", 16))) {
+        if ((bytes_read != 16) || (strncmp(varstr, "C64 CARTRIDGE   ", 16))) {
+            FF_Close(fSource);
+            ERROR("Bad header text");
+            return 1;
+        }
+
+        bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&var32); // read will have wrong endian...
+
+        if ((bytes_read != 4) || ((var32 != 0x40000000) && (var32 != 0x20000000)) ) { // we allow a "bad" header size
+            FF_Close(fSource);
+            ERROR("Bad header size %04lx", var32);
+            return 1;
+        }
+
+        bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);
+
+        if ((bytes_read != 2) || (var16 != 0x0001)) {
+            FF_Close(fSource);
+            ERROR("Bad version %04x", var16);
+            return 1;
+        }
+
+        bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);
+
+        if ((bytes_read != 2) || (var16 != 0x0)) {
+            FF_Close(fSource);
+            ERROR("Only standard ROM CRT supported (%d)", var16);
+            return 1;
+        }
+
+        bytes_read = FF_Read(fSource, 1, 1, (uint8_t*)&var8); // EXROM state
+
+        if (bytes_read != 1) {
+            FF_Close(fSource);
+            ERROR("Unexpected EOF in header");
+            return 1;
+        }
+
+        (*sconf) &= 0xFFFFFFFE;
+
+        if (var8) {
+            (*sconf) |= 1;
+        }
+
+        bytes_read = FF_Read(fSource, 1, 1, (uint8_t*)&var8); // GAME state
+
+        if (bytes_read != 1) {
+            FF_Close(fSource);
+            ERROR("Unexpected EOF in header");
+            return 1;
+        }
+
+        (*sconf) &= 0xFFFFFFFD;
+
+        if (var8) {
+            (*sconf) |= 2;
+        }
+
+        bytes_read = FF_Read(fSource, 6, 1, (uint8_t*)&varstr);
+
+        if (bytes_read != 6) {
+            FF_Close(fSource);
+            ERROR("Unexpected EOF in header");
+            return 1;
+        }
+
+        bytes_read = FF_Read(fSource, 32, 1, (uint8_t*)&varstr);
+
+        if (bytes_read != 32) {
+            FF_Close(fSource);
+            ERROR("Bad CRT name");
+            return 1;
+        }
+
+        INFO("CRT: %s", varstr);
+        // now we load CHIP blocks
+        offset = 0x40;
+
+        while (1) {
+            FF_Seek(fSource, offset, FF_SEEK_SET);  // just in case, do a re-positioning
+
+            if (FF_BytesLeft(fSource) < 0x10) {
+                break;    // finished loading
+            }
+
+            bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&varstr);
+
+            if ((bytes_read != 4) || (strncmp(varstr, "CHIP", 4))) {
                 FF_Close(fSource);
-                ERROR("Bad header text");
+                ERROR("Bad block text");
                 return 1;
             }
 
-            bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&var32); // read will have wrong endian...
+            bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&var32);  // block size
 
-            if ((bytes_read != 4) || ((var32 != 0x40000000) && (var32 != 0x20000000)) ) { // we allow a "bad" header size
+            if ((bytes_read != 4) || ((var32 != 0x10400000) && (var32 != 0x10200000)) ) {
                 FF_Close(fSource);
-                ERROR("Bad header size %04lx", var32);
-                return 1;
-            }
-
-            bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);
-
-            if ((bytes_read != 2) || (var16 != 0x0001)) {
-                FF_Close(fSource);
-                ERROR("Bad version %04x", var16);
+                ERROR("Bad block size %04lx", var32);
                 return 1;
             }
 
@@ -445,149 +524,70 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
 
             if ((bytes_read != 2) || (var16 != 0x0)) {
                 FF_Close(fSource);
-                ERROR("Only standard ROM CRT supported (%d)", var16);
+                ERROR("Only ROM blocks supported (%d)", var16);
                 return 1;
             }
 
-            bytes_read = FF_Read(fSource, 1, 1, (uint8_t*)&var8); // EXROM state
+            bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);   // bank
 
-            if (bytes_read != 1) {
+            if (bytes_read != 2) {
                 FF_Close(fSource);
-                ERROR("Unexpected EOF in header");
+                ERROR("Unexpected EOF in block");
                 return 1;
             }
 
-            (*sconf) &= 0xFFFFFFFE;
+            INFO("  Bank: %d", var16);
+            bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16); // filebase to load
 
-            if (var8) {
-                (*sconf) |= 1;
-            }
-
-            bytes_read = FF_Read(fSource, 1, 1, (uint8_t*)&var8); // GAME state
-
-            if (bytes_read != 1) {
+            if (bytes_read != 2) {
                 FF_Close(fSource);
-                ERROR("Unexpected EOF in header");
+                ERROR("Unexpected EOF in block");
                 return 1;
             }
 
-            (*sconf) &= 0xFFFFFFFD;
+            filebase = ((var16 >> 8) & 0xff) + ((var16 & 0xff) << 8); // endian-correct
+            INFO("  Start: $%04X", filebase);
+            bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);   // size
 
-            if (var8) {
-                (*sconf) |= 2;
-            }
-
-            bytes_read = FF_Read(fSource, 6, 1, (uint8_t*)&varstr);
-
-            if (bytes_read != 6) {
+            if (bytes_read != 2) {
                 FF_Close(fSource);
-                ERROR("Unexpected EOF in header");
+                ERROR("Unexpected EOF in block");
                 return 1;
             }
 
-            bytes_read = FF_Read(fSource, 32, 1, (uint8_t*)&varstr);
-
-            if (bytes_read != 32) {
-                FF_Close(fSource);
-                ERROR("Bad CRT name");
-                return 1;
-            }
-
-            INFO("CRT: %s", varstr);
-            // now we load CHIP blocks
-            offset = 0x40;
-
-            while (1) {
-                FF_Seek(fSource, offset, FF_SEEK_SET);  // just in case, do a re-positioning
-
-                if (FF_BytesLeft(fSource) < 0x10) {
-                    break;    // finished loading
-                }
-
-                bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&varstr);
-
-                if ((bytes_read != 4) || (strncmp(varstr, "CHIP", 4))) {
-                    FF_Close(fSource);
-                    ERROR("Bad block text");
-                    return 1;
-                }
-
-                bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&var32);  // block size
-
-                if ((bytes_read != 4) || ((var32 != 0x10400000) && (var32 != 0x10200000)) ) {
-                    FF_Close(fSource);
-                    ERROR("Bad block size %04lx", var32);
-                    return 1;
-                }
-
-                bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);
-
-                if ((bytes_read != 2) || (var16 != 0x0)) {
-                    FF_Close(fSource);
-                    ERROR("Only ROM blocks supported (%d)", var16);
-                    return 1;
-                }
-
-                bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);   // bank
-
-                if (bytes_read != 2) {
-                    FF_Close(fSource);
-                    ERROR("Unexpected EOF in block");
-                    return 1;
-                }
-
-                INFO("  Bank: %d", var16);
-                bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16); // filebase to load
-
-                if (bytes_read != 2) {
-                    FF_Close(fSource);
-                    ERROR("Unexpected EOF in block");
-                    return 1;
-                }
-
-                filebase = ((var16 >> 8) & 0xff) + ((var16 & 0xff) << 8); // endian-correct
-                INFO("  Start: $%04X", filebase);
-                bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);   // size
-
-                if (bytes_read != 2) {
-                    FF_Close(fSource);
-                    ERROR("Unexpected EOF in block");
-                    return 1;
-                }
-
-                size = ((var16 >> 8) & 0xff) + ((var16 & 0xff) << 8); // endian-correct
-                INFO("  Size:  $%04X", size);
-                offset += 0x10;
-                DEBUG(1, "%s @0x%X (0x%X),S:%d", filename, base + filebase, offset, size);
-                FileIO_MCh_FileToMem(fSource, base + filebase, size, offset);
-                offset += ((var32 >> 8) & 0xFF00); // add endian-corrected block size to offset before starting over
-            }
-
-    } else if (format == 1) {
-                // PRG format, start address in first two bytes
-                bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&filebase);
-
-                if (bytes_read == 0) {
-                    FF_Close(fSource);
-                    ERROR("Unexpected EOF");
-                    return 1;
-                }
-
-                offset = 2;
-
-            if (!size) { // auto-size
-                size = FF_BytesLeft(fSource);
-            }
-
+            size = ((var16 >> 8) & 0xff) + ((var16 & 0xff) << 8); // endian-correct
+            INFO("  Size:  $%04X", size);
+            offset += 0x10;
             DEBUG(1, "%s @0x%X (0x%X),S:%d", filename, base + filebase, offset, size);
             FileIO_MCh_FileToMem(fSource, base + filebase, size, offset);
+            offset += ((var32 >> 8) & 0xFF00); // add endian-corrected block size to offset before starting over
+        }
 
-            if (verify) {
-                rc = FileIO_MCh_FileToMemVerify(fSource, base + filebase, size, offset);
+    } else if (format == 1) {
+        // PRG format, start address in first two bytes
+        bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&filebase);
 
-            } else {
-                rc = 0;
-            }
+        if (bytes_read == 0) {
+            FF_Close(fSource);
+            ERROR("Unexpected EOF");
+            return 1;
+        }
+
+        offset = 2;
+
+        if (!size) { // auto-size
+            size = FF_BytesLeft(fSource);
+        }
+
+        DEBUG(1, "%s @0x%X (0x%X),S:%d", filename, base + filebase, offset, size);
+        FileIO_MCh_FileToMem(fSource, base + filebase, size, offset);
+
+        if (verify) {
+            rc = FileIO_MCh_FileToMemVerify(fSource, base + filebase, size, offset);
+
+        } else {
+            rc = 0;
+        }
 
     } else {
         // plain binary
@@ -607,9 +607,9 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
             if (verify) {
                 rc = FileIO_MCh_FileToMemVerify(fSource, base + offset, upload_size, 0);
 
-    } else {
+            } else {
                 rc = 0;
-    }
+            }
 
             if (rc) {
                 break;
@@ -1648,8 +1648,9 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
         return 1;
     }
 
+    const char* filename = valueList[0].strval;
     char fullname[FF_MAX_PATH];
-    sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+    sprintf(fullname, "%s%s", pStatus->ini_dir, filename);
 
     uint32_t size = valueList[1].intval;
     uint32_t base = entries > 2 ? valueList[2].intval : pStatus->last_rom_adr;
@@ -1662,11 +1663,30 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
     DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
     DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)", base, size);
 
-    if (CFG_upload_rom(fullname, base, size,
-                       pStatus->verify_dl, format, &staticbits, &dynamicbits)) {
+    uint8_t file_exists = FALSE;
+    uint8_t name_valid = strpbrk(filename, "?<>") == NULL;
+
+    // if the name is valid - make sure it exists
+    if (name_valid) {
+        FF_FILE* file = FF_Open(pIoman, fullname, FF_MODE_READ, NULL);
+
+        if (file) {
+            file_exists = TRUE;
+            FF_Close(file);
+        }
+    }
+
+    // if file exists - try uploading it
+    if (file_exists && CFG_upload_rom(fullname, base, size,
+                                      pStatus->verify_dl, format, &staticbits, &dynamicbits)) {
         WARNING("ROM upload to FPGA failed");
         FreeList(valueList, entries);
         return 1;
+    }
+
+    // if the name is valid, but we failed to open it - emit a warning (but don't fail)
+    if (name_valid && !file_exists) {
+        WARNING("Could not open %s", filename);
     }
 
     DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
@@ -1676,55 +1696,66 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
     OSD_ConfigSendUserS(staticbits);
     //not used yet: OSD_ConfigSendUserD(dynamicbits);
 
-    /*
-    #define ROM_MENU_STRING "ROMs"
-        if (pStatus->menu_act == NULL || (pStatus->menu_act && strcmp(pStatus->menu_act->menu_title, ROM_MENU_STRING))) {
-            if (pStatus->menu_top) {   // add further entry
-                // prepare next level and set pointers correctly
-                pStatus->menu_act->next = malloc(sizeof(menu_t));
-                // link back
-                pStatus->menu_act->next->last = pStatus->menu_act;
-                // step in linked list
-                pStatus->menu_act = pStatus->menu_act->next;
+#define ROM_MENU_STRING "ROMs"
 
-            } else {                   // first top entry
-                // prepare top level
-                pStatus->menu_act = malloc(sizeof(menu_t));
-                pStatus->menu_act->last = NULL;
-                // set top level
-                pStatus->menu_top = pStatus->menu_act;
-            }
+    if (pStatus->menu_act == NULL || (pStatus->menu_act && strcmp(pStatus->menu_act->menu_title, ROM_MENU_STRING))) {
+        if (pStatus->menu_top) {   // add further entry
+            // prepare next level and set pointers correctly
+            pStatus->menu_act->next = malloc(sizeof(menu_t));
+            // link back
+            pStatus->menu_act->next->last = pStatus->menu_act;
+            // step in linked list
+            pStatus->menu_act = pStatus->menu_act->next;
 
-            pStatus->menu_act->next = NULL;
-            strcpy(pStatus->menu_act->menu_title, ROM_MENU_STRING);
-
-            pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
-            pStatus->menu_item_act = pStatus->menu_act->item_list;
-            pStatus->menu_item_act->next = NULL;
-            pStatus->menu_item_act->last = NULL;
-        } else {
-            pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-            pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-            pStatus->menu_item_act = pStatus->menu_item_act->next;
-            pStatus->menu_item_act->next = NULL;
+        } else {                   // first top entry
+            // prepare top level
+            pStatus->menu_act = malloc(sizeof(menu_t));
+            pStatus->menu_act->last = NULL;
+            // set top level
+            pStatus->menu_top = pStatus->menu_act;
         }
 
-        sprintf(pStatus->menu_item_act->item_name, "0x%08x", (unsigned int)base);
-        pStatus->menu_item_act->option_list = NULL;
-        pStatus->menu_item_act->selected_option = NULL;
-        pStatus->menu_item_act->conf_dynamic = format;
-        pStatus->menu_item_act->conf_mask = size;
-        pStatus->menu_item_act->action_value = base;
-        strcpy(pStatus->menu_item_act->action_name, "rom");
-        pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-        pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-        pStatus->item_opt_act->next = NULL;
-        pStatus->item_opt_act->last = NULL;
-        _strlcpy(pStatus->item_opt_act->option_name, valueList[0].strval, sizeof(pStatus->item_opt_act->option_name));
-        pStatus->menu_item_act->selected_option = pStatus->menu_item_act->option_list;
+        pStatus->menu_act->next = NULL;
+        strcpy(pStatus->menu_act->menu_title, ROM_MENU_STRING);
 
-    #undef ROM_MENU_STRING
-    */
+        pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
+        pStatus->menu_item_act = pStatus->menu_act->item_list;
+        pStatus->menu_item_act->next = NULL;
+        pStatus->menu_item_act->last = NULL;
+
+    } else {
+        pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+        pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+        pStatus->menu_item_act = pStatus->menu_item_act->next;
+        pStatus->menu_item_act->next = NULL;
+    }
+
+    char buf[16] = { 0 };
+    static const char prefixes[] = {' ', 'k', 'M', 'G', '\0'};
+
+    for (uint32_t i = 0, human_size = size; prefixes[i] != 0; human_size >>= 10, ++i) {
+        if (human_size < 1024) {
+            sprintf(buf, i == 0 ? "%dB" : "%d%cB", human_size, prefixes[i]);
+            break;
+        }
+    }
+
+    sprintf(pStatus->menu_item_act->item_name, size == 0 ? "%8X" : "%8X/%s", (unsigned int)base, buf);
+    pStatus->menu_item_act->option_list = NULL;
+    pStatus->menu_item_act->selected_option = NULL;
+    pStatus->menu_item_act->conf_dynamic = format;
+    pStatus->menu_item_act->conf_mask = size;
+    pStatus->menu_item_act->action_value = base;
+    strcpy(pStatus->menu_item_act->action_name, "rom");
+    pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
+    pStatus->item_opt_act = pStatus->menu_item_act->option_list;
+    pStatus->item_opt_act->next = NULL;
+    pStatus->item_opt_act->last = NULL;
+    _strlcpy(pStatus->item_opt_act->option_name, filename, sizeof(pStatus->item_opt_act->option_name));
+    pStatus->menu_item_act->selected_option = pStatus->menu_item_act->option_list;
+
+#undef ROM_MENU_STRING
+
     FreeList(valueList, entries);
     return 0;
 }
@@ -2432,6 +2463,32 @@ void CFG_add_default(status_t* currentStatus)
             pStatus->item_opt_act->last = NULL;
             strcpy(pStatus->item_opt_act->option_name, it->dir);
         }
+    }
+
+    // Find 'ROMs' and link it right before the Replay Menu
+    menu_t** rom_menu = NULL;
+    menu_t** replay_menu = NULL;
+
+    for (menu_t** menu = &currentStatus->menu_top; *menu; menu = &(*menu)->next) {
+        if (!strcmp((*menu)->menu_title, "ROMs")) {
+            rom_menu = menu;
+        }
+
+        if (!strcmp((*menu)->menu_title, "Replay Menu")) {
+            replay_menu = menu;
+        }
+    }
+
+    if (rom_menu && replay_menu) {
+        // unlink
+        menu_t* menu = *rom_menu;
+        *rom_menu = menu->next;
+        menu->next->last = menu->last;
+        // relink
+        menu->next = *replay_menu;
+        *replay_menu = menu;
+        menu->last = menu->next->last;
+        menu->next->last = menu;
     }
 }
 

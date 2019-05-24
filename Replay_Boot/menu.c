@@ -542,7 +542,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
 
         char full_filename[FF_MAX_PATH];
         sprintf(full_filename, "%s%s", current_status->act_dir, mydir.FileName);
-        INFO("ROM file = %s", full_filename);
+        INFO("ROM file = %s", mydir.FileName);
 
         _strlcpy(item->selected_option->option_name, mydir.FileName, sizeof(item->selected_option->option_name));
 
@@ -570,8 +570,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
         // send bits to FPGA
         OSD_ConfigSendUserS(staticbits);
 
-        OSD_Reset(OSDCMD_CTRL_RES);
-        Timer_Wait(100);
+        // Leave the core in halted/reset state for now..
 
         return 1;
     }

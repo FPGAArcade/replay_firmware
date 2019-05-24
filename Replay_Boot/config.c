@@ -403,7 +403,11 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
     uint16_t filebase = 0;
     uint32_t bytes_read;
 
-    if (fSource) {
+    if (!fSource) {
+        ERROR("Could not open %s", filename);
+        return 1;
+    }
+
         FF_Seek(fSource, 0, FF_SEEK_SET);
 
         if (format == 2) {
@@ -559,9 +563,7 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
                 offset += ((var32 >> 8) & 0xFF00); // add endian-corrected block size to offset before starting over
             }
 
-        } else {
-            // binary or PRG format
-            if (format == 1) {
+    } else if (format == 1) {
                 // PRG format, start address in first two bytes
                 bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&filebase);
 
@@ -572,7 +574,6 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
                 }
 
                 offset = 2;
-            }
 
             if (!size) { // auto-size
                 size = FF_BytesLeft(fSource);
@@ -588,13 +589,37 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
                 rc = 0;
             }
 
-            FF_Close(fSource);
+    } else {
+        // plain binary
+        uint32_t filesize = FF_Size(fSource);
+
+        if (!size) { // auto-size
+            size = FF_BytesLeft(fSource);
         }
 
+        // support splatting a smaller file over a larger memory region
+        while (offset < size) {
+            uint32_t upload_size = (size > filesize) ? filesize : size;
+
+            DEBUG(1, "%s @0x%X (0x%X),S:%d", filename, base + offset, 0, upload_size);
+            FileIO_MCh_FileToMem(fSource, base + offset, upload_size, 0);
+
+            if (verify) {
+                rc = FileIO_MCh_FileToMemVerify(fSource, base + offset, upload_size, 0);
+
     } else {
-        ERROR("Could not open %s", filename);
-        return 1;
+                rc = 0;
     }
+
+            if (rc) {
+                break;
+            }
+
+            offset += upload_size;
+        }
+    }
+
+    FF_Close(fSource);
 
     return rc;
 }

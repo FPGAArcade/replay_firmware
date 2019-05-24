@@ -82,6 +82,8 @@ static uint32_t fio_address = 0;
 static uint8_t fio_direction = 0;
 static uint16_t fio_read_size = 0;
 
+const uint32_t fio_blockram_mask = 0x80000000;
+static uint8_t bram[1 * 1024 * 1024];
 static uint8_t dram[64 * 1024 * 1024];
 
 #define     CMD0        0x40        /*Resets the multimedia card*/
@@ -722,14 +724,28 @@ unsigned char rSPI(unsigned char outByte)
 void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
 {
     printf("%s %p %08x -> %08x\n", __FUNCTION__, pBuffer, length, fio_address);
-    memcpy(&dram[fio_address], pBuffer, length);
+
+    if (fio_address & fio_blockram_mask) {
+        memcpy(&bram[fio_address & ~fio_blockram_mask], pBuffer, length);
+
+    } else {
+        memcpy(&dram[fio_address], pBuffer, length);
+    }
+
     fio_address += length;
 }
 
 void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 {
     printf("%s %p %08x <- %08x\n", __FUNCTION__, pBuffer, length, fio_address);
-    memcpy(pBuffer, &dram[fio_address], length);
+
+    if (fio_address & fio_blockram_mask) {
+        memcpy(pBuffer, &bram[fio_address & ~fio_blockram_mask], length);
+
+    } else {
+        memcpy(pBuffer, &dram[fio_address], length);
+    }
+
     fio_address += length;
 }
 

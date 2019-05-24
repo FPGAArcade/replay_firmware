@@ -127,8 +127,12 @@ static inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
         }
     }
 
-    // hidden files/directories stay hidden when filtering on file extension
-    hide_hidden_entries = !FilterExtension(dir_entries->file_exts, "*") && mydir->FileName[0] == '.';
+    // hidden files/directories stay hidden _always_
+    hide_hidden_entries = mydir->FileName[0] == '.' && mydir->FileName[1] != '\0' && mydir->FileName[2] != '\0';
+
+    if (hide_hidden_entries) {
+        return FALSE;
+    }
 
     if (mydir->Attrib & FF_FAT_ATTR_DIR) {
         // directories always come through here, except "."
@@ -141,15 +145,7 @@ static inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
             return (TRUE);
         }
 
-        if (hide_hidden_entries) {
-            return FALSE;
-        }
-
         return (TRUE);
-    }
-
-    if (hide_hidden_entries) {
-        return FALSE;
     }
 
     char* pFile_ext = GetExtension(mydir->FileName);

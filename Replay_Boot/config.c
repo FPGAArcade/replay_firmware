@@ -47,6 +47,10 @@
 
 #include "config.h"
 
+#include <stdio.h>
+#undef printf
+#undef sprintf
+
 #include "fileio.h"
 #include "fpga.h"
 #include "osd.h"
@@ -2180,8 +2184,8 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     sprintf(currentStatus->status[1], "FPGA|FW:%04X STAT:%04x IO:%04X",
             config_ver, config_stat, ((config_fileio_drv << 8) | config_fileio_ena));
 
-    // TODO: ini path may exceed length and crash system here!
-    sprintf(currentStatus->status[2], "INI |%s", iniFile);
+    snprintf(currentStatus->status[2], MAX_MENU_STRING, "INI |%s", iniFile);
+    currentStatus->status[2][MAX_MENU_STRING-1] = 0;
 
     // PARSE INI FILE
     if (currentStatus->fs_mounted_ok) {

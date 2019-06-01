@@ -552,7 +552,7 @@ static __attribute__ ((noinline)) void main_update()
     const uint8_t card_already_detected = current_status.card_detected;
     CFG_update_status(&current_status);
 
-    if (!(card_already_detected && !current_status.fs_mounted_ok)) {
+    if (!card_already_detected || (!current_status.fs_mounted_ok && !current_status.usb_mounted)) {
         CFG_card_start(&current_status);    // restart file system if card re-inserted
     }
 

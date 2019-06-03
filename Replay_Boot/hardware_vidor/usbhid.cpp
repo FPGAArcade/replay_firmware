@@ -12,8 +12,32 @@
 	Using the "builtin" USBHost, that comes with samd-beta-1.6.25.tar.bz2, works but is really flakey..
 */
 
+// ** To enable USBHost debug logging:
+// 1) Edit 'Usb.h' and add/change to 
+// #define USB_HOST_SERIAL SERIAL_PORT_HARDWARE
+// #define DEBUG_USB_HOST
+// 2) Then open confdescparser.h and add 
+/*
+    #include <stdarg.h>
+    #define printf(...) serial_printf(__VA_ARGS__)
+    static int serial_printf( const char * format, ... )
+    {
+        char buffer[256];
+        va_list args;
+        va_start (args, format);
+        vsnprintf (buffer,sizeof(buffer),format, args);
+        E_NotifyStr(buffer, 0x81);
+        va_end (args);
+    }
+    #define TRACE_USBHOST(x)    x
+*/
+// 3) Finally enable full debug output by setting UsbDEBUGlvl to a really high value (see USBHID_Init())
+
+#include <Usb.h>
 #include <hidboot.h>
-#include <hidcomposite.h>   // << if you get an error here you're most likely not using the correct lib (see above) >>
+
+//#include <hidcomposite.h>   // << if you get an error here you're most likely not using the correct lib (see above) >>
+// ok - seems the release of 1.8.1 means we use the USBHost that ships with the SDK.. oh well..
 
 #define MAX_SCANCODES (1<<4)
 #define MAX_SCANCODE_LENGTH (15+1)
@@ -167,12 +191,126 @@ class ReplayKeyboard : public KeyboardReportParser
     static const uint8_t OEMtoPS2meta[8];
 };
 
+class ReplayMouse : public MouseReportParser
+{
+public:
+    ReplayMouse(USBHost& usb):
+        hostMouse(&usb),
+        mouseX(0),
+        mouseY(0),
+        mouseZ(0),
+        mouseButtons(0),
+        updated(false)
+    {
+        hostMouse.SetReportParser(0, this);
+    }
+
+    void SendMouseUpdate()
+    {
+        if (!updated)
+            return;
+        DEBUG(2, "%s : %d/%d/%d ; %x", __FUNCTION__, mouseX, mouseY, mouseZ, mouseButtons);
+        SPI_EnableOsd();
+        rSPI(OSDCMD_SENDMOUSE);
+        rSPI(mouseX & 0xff);    // x low
+        rSPI(mouseX >> 8);      // x high
+        rSPI(mouseY & 0xff);    // y low
+        rSPI(mouseY >> 8);      // y high
+        rSPI(mouseZ & 0xff);    // z low
+        rSPI(mouseZ >> 8);      // z high
+        rSPI(mouseButtons);     // buttons
+        Timer_Wait(1);
+        SPI_DisableOsd();
+        updated = false;
+    }
+protected:
+    void OnMouseMove(MOUSEINFO *mi)
+    {
+        mouseX += mi->dX;
+        mouseY += mi->dY;
+        updated = true;
+    }
+    void OnMouseButtonChanged(MOUSEINFO *mi)
+    {
+        mouseButtons = 
+                        (mi->bmLeftButton    ? 1 << 0 : 0) |
+                        (mi->bmRightButton   ? 1 << 1 : 0) |
+                        (mi->bmMiddleButton  ? 1 << 2 : 0);
+        updated = true;
+    }
+    void OnLeftButtonUp(MOUSEINFO *mi)      { OnMouseButtonChanged(mi); }
+    void OnLeftButtonDown(MOUSEINFO *mi)    { OnMouseButtonChanged(mi); }
+    void OnRightButtonUp(MOUSEINFO *mi)     { OnMouseButtonChanged(mi); }
+    void OnRightButtonDown(MOUSEINFO *mi)   { OnMouseButtonChanged(mi); }
+    void OnMiddleButtonUp(MOUSEINFO *mi)    { OnMouseButtonChanged(mi); }
+    void OnMiddleButtonDown(MOUSEINFO *mi)  { OnMouseButtonChanged(mi); }
+
+private:
+    HIDBoot<HID_PROTOCOL_MOUSE>    hostMouse;
+    uint16_t    mouseX, mouseY, mouseZ;
+    uint8_t     mouseButtons;
+    bool        updated;        // $TODO make this a ring buffer instead
+};
+
+class ReplayComposite
+{
+public:
+    ReplayComposite(USBHost& usb, KeyboardReportParser& keyboard, MouseReportParser& mouse)
+    : hostComposite(&usb)
+    {
+        hostComposite.SetReportParser(0, &keyboard);
+        hostComposite.SetReportParser(1, &mouse);
+    }
+public:
+    HIDBoot<HID_PROTOCOL_KEYBOARD | HID_PROTOCOL_MOUSE>    hostComposite;
+
+};
+
 static USBHost usb;
+
+// This stuff is just broken - the first HIDBoot to initialize seemingly get all the action.
+// Reorder the statics below to choose USB HID type.. 
+
 static ReplayKeyboard keyboard(usb);
+static ReplayMouse mouse(usb);
+static ReplayComposite composite(usb, keyboard, mouse);
+
+extern "C" void USBHID_Init()
+{
+//    UsbDEBUGlvl = INT_MAX;    // all the gory details.. 
+
+    if (usb.Init())
+        WARNING("Failed to start USB host!");
+}
 
 extern "C" const char* USBHID_Update()
 {
     usb.Task();
+
+    static uint32_t previousUSBstate = 0;
+    uint32_t currentUSBstate = usb.getUsbTaskState();
+    if (previousUSBstate != currentUSBstate) {
+        DEBUG(0, "USB state changed: 0x%x -> 0x%x", previousUSBstate, currentUSBstate);
+        switch (currentUSBstate) {
+            case USB_STATE_DETACHED:                                INFO("USB Detached"); break;
+            case USB_DETACHED_SUBSTATE_INITIALIZE:                  INFO("USB Initializing..."); break;
+            case USB_DETACHED_SUBSTATE_WAIT_FOR_DEVICE:             INFO("USB Waiting for device..."); break;
+            case USB_DETACHED_SUBSTATE_ILLEGAL:                     INFO("USB Detached - illegal!"); break;
+            case USB_ATTACHED_SUBSTATE_SETTLE:                      INFO("USB Settling..."); break;
+            case USB_ATTACHED_SUBSTATE_RESET_DEVICE:                INFO("USB Resetting device"); break;
+            case USB_ATTACHED_SUBSTATE_WAIT_RESET_COMPLETE:         INFO("USB Reset complete"); break;
+            case USB_ATTACHED_SUBSTATE_WAIT_SOF:                    INFO("USB Wait SOF"); break;
+            case USB_ATTACHED_SUBSTATE_WAIT_RESET:                  INFO("USB Wait Reset"); break;
+            case USB_ATTACHED_SUBSTATE_GET_DEVICE_DESCRIPTOR_SIZE:  INFO("USB Getting Device Desc"); break;
+            case USB_STATE_ADDRESSING:                              INFO("USB Addressing..."); break;
+            case USB_STATE_CONFIGURING:                             INFO("USB Configuring..."); break;
+            case USB_STATE_RUNNING:                                 INFO("USB Running!"); break;
+            case USB_STATE_ERROR:                                   INFO("USB Error : %2x!", usb.getUsbErrorCode()); break;
+        }
+        previousUSBstate = currentUSBstate;
+    }
+
+    mouse.SendMouseUpdate();
     return keyboard.PopKey();
 }
 

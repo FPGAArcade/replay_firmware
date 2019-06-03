@@ -51,12 +51,16 @@ extern "C" {
 #include "../hardware.h"
 #include "../hardware/io.h"
 }
+
+#include "usbhid.h"
+
 //
 // General
 //
 void Hardware_Init(void)
 {
     IO_Init();
+    USBHID_Init();
 }
 
 extern void enableFpgaClock(void);

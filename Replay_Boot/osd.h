@@ -68,6 +68,7 @@
 
 #define OSDCMD_CONFIG     0x20
 #define OSDCMD_SENDPS2    0x30
+#define OSDCMD_SENDMOUSE  0x38
 #define OSDCMD_DISABLE    0x40
 #define OSDCMD_ENABLE     0x41
 #define OSDCMD_SETHOFF    0x50

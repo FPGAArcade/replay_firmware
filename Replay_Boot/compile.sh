@@ -1,11 +1,5 @@
 #!/bin/bash
 
-now=`date +%Y%m%d_%H-%M`
-fw_zip="Firmware_Replay1_${now}.zip"
-# Staging dir is not automatically removed just in case anything goes
-# wrong with pathing... It should be created in /tmp and go away on reboot.
-staging_path=`mktemp -d`
-
 function require {
   name=$1
 
@@ -18,6 +12,13 @@ function require {
 require cat
 require date
 require zip
+require mktemp
+
+now=`date +%Y%m%d_%H-%M`
+fw_zip="Firmware_Replay1_${now}.zip"
+# Staging dir is not automatically removed just in case anything goes
+# wrong with pathing... It should be created in /tmp and go away on reboot.
+staging_path=`mktemp -d`
 
 echo "Building firmware"
 make

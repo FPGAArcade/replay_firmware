@@ -33,7 +33,6 @@
 */
 // 3) Finally enable full debug output by setting UsbDEBUGlvl to a really high value (see USBHID_Init())
 
-#include <Usb.h>
 #include <hidboot.h>
 
 //#include <hidcomposite.h>   // << if you get an error here you're most likely not using the correct lib (see above) >>

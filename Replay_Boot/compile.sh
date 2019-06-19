@@ -9,10 +9,13 @@ function require {
   fi
 }
 
+# Sanity check build requirements just in case someone sets this up on Jenkins and forgets :)
 require cat
 require date
 require zip
 require mktemp
+require make
+require arm-none-eabi-gcc
 
 now=`date +%Y%m%d_%H-%M`
 fw_zip="Firmware_Replay1_${now}.zip"

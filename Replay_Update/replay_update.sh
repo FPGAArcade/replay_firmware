@@ -29,7 +29,7 @@ echo "Host system       = $HOST"
 echo "Usbdl application = $USBDL"
 echo
 
-pushd $(dirname $0)/FW > /dev/null
+cd FW/
 
 if [ ! -f $USBDL ]; then
     echo "ERROR : USBDL executable not found"
@@ -47,4 +47,3 @@ fi
 echo
 echo "Done"
 
-popd > /dev/null

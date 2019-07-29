@@ -414,36 +414,115 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
         return 1;
     }
 
-        FF_Seek(fSource, 0, FF_SEEK_SET);
+    FF_Seek(fSource, 0, FF_SEEK_SET);
 
-        if (format == 2) {
-            // CRT format, contains a header and embedded ROM images (for C64 core only!)
-            char varstr[33];
-            uint8_t var8;
-            uint16_t var16;
-            uint32_t var32;
-            varstr[32] = 0;
-            bytes_read = FF_Read(fSource, 16, 1, (uint8_t*)&varstr);
+    if (format == 2) {
+        // CRT format, contains a header and embedded ROM images (for C64 core only!)
+        char varstr[33];
+        uint8_t var8;
+        uint16_t var16;
+        uint32_t var32;
+        varstr[32] = 0;
+        bytes_read = FF_Read(fSource, 16, 1, (uint8_t*)&varstr);
 
-            if ((bytes_read != 16) || (strncmp(varstr, "C64 CARTRIDGE   ", 16))) {
+        if ((bytes_read != 16) || (strncmp(varstr, "C64 CARTRIDGE   ", 16))) {
+            FF_Close(fSource);
+            ERROR("Bad header text");
+            return 1;
+        }
+
+        bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&var32); // read will have wrong endian...
+
+        if ((bytes_read != 4) || ((var32 != 0x40000000) && (var32 != 0x20000000)) ) { // we allow a "bad" header size
+            FF_Close(fSource);
+            ERROR("Bad header size %04lx", var32);
+            return 1;
+        }
+
+        bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);
+
+        if ((bytes_read != 2) || (var16 != 0x0001)) {
+            FF_Close(fSource);
+            ERROR("Bad version %04x", var16);
+            return 1;
+        }
+
+        bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);
+
+        if ((bytes_read != 2) || (var16 != 0x0)) {
+            FF_Close(fSource);
+            ERROR("Only standard ROM CRT supported (%d)", var16);
+            return 1;
+        }
+
+        bytes_read = FF_Read(fSource, 1, 1, (uint8_t*)&var8); // EXROM state
+
+        if (bytes_read != 1) {
+            FF_Close(fSource);
+            ERROR("Unexpected EOF in header");
+            return 1;
+        }
+
+        (*sconf) &= 0xFFFFFFFE;
+
+        if (var8) {
+            (*sconf) |= 1;
+        }
+
+        bytes_read = FF_Read(fSource, 1, 1, (uint8_t*)&var8); // GAME state
+
+        if (bytes_read != 1) {
+            FF_Close(fSource);
+            ERROR("Unexpected EOF in header");
+            return 1;
+        }
+
+        (*sconf) &= 0xFFFFFFFD;
+
+        if (var8) {
+            (*sconf) |= 2;
+        }
+
+        bytes_read = FF_Read(fSource, 6, 1, (uint8_t*)&varstr);
+
+        if (bytes_read != 6) {
+            FF_Close(fSource);
+            ERROR("Unexpected EOF in header");
+            return 1;
+        }
+
+        bytes_read = FF_Read(fSource, 32, 1, (uint8_t*)&varstr);
+
+        if (bytes_read != 32) {
+            FF_Close(fSource);
+            ERROR("Bad CRT name");
+            return 1;
+        }
+
+        INFO("CRT: %s", varstr);
+        // now we load CHIP blocks
+        offset = 0x40;
+
+        while (1) {
+            FF_Seek(fSource, offset, FF_SEEK_SET);  // just in case, do a re-positioning
+
+            if (FF_BytesLeft(fSource) < 0x10) {
+                break;    // finished loading
+            }
+
+            bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&varstr);
+
+            if ((bytes_read != 4) || (strncmp(varstr, "CHIP", 4))) {
                 FF_Close(fSource);
-                ERROR("Bad header text");
+                ERROR("Bad block text");
                 return 1;
             }
 
-            bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&var32); // read will have wrong endian...
+            bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&var32);  // block size
 
-            if ((bytes_read != 4) || ((var32 != 0x40000000) && (var32 != 0x20000000)) ) { // we allow a "bad" header size
+            if ((bytes_read != 4) || ((var32 != 0x10400000) && (var32 != 0x10200000)) ) {
                 FF_Close(fSource);
-                ERROR("Bad header size %04lx", var32);
-                return 1;
-            }
-
-            bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);
-
-            if ((bytes_read != 2) || (var16 != 0x0001)) {
-                FF_Close(fSource);
-                ERROR("Bad version %04x", var16);
+                ERROR("Bad block size %04lx", var32);
                 return 1;
             }
 
@@ -451,149 +530,70 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
 
             if ((bytes_read != 2) || (var16 != 0x0)) {
                 FF_Close(fSource);
-                ERROR("Only standard ROM CRT supported (%d)", var16);
+                ERROR("Only ROM blocks supported (%d)", var16);
                 return 1;
             }
 
-            bytes_read = FF_Read(fSource, 1, 1, (uint8_t*)&var8); // EXROM state
+            bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);   // bank
 
-            if (bytes_read != 1) {
+            if (bytes_read != 2) {
                 FF_Close(fSource);
-                ERROR("Unexpected EOF in header");
+                ERROR("Unexpected EOF in block");
                 return 1;
             }
 
-            (*sconf) &= 0xFFFFFFFE;
+            INFO("  Bank: %d", var16);
+            bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16); // filebase to load
 
-            if (var8) {
-                (*sconf) |= 1;
-            }
-
-            bytes_read = FF_Read(fSource, 1, 1, (uint8_t*)&var8); // GAME state
-
-            if (bytes_read != 1) {
+            if (bytes_read != 2) {
                 FF_Close(fSource);
-                ERROR("Unexpected EOF in header");
+                ERROR("Unexpected EOF in block");
                 return 1;
             }
 
-            (*sconf) &= 0xFFFFFFFD;
+            filebase = ((var16 >> 8) & 0xff) + ((var16 & 0xff) << 8); // endian-correct
+            INFO("  Start: $%04X", filebase);
+            bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);   // size
 
-            if (var8) {
-                (*sconf) |= 2;
-            }
-
-            bytes_read = FF_Read(fSource, 6, 1, (uint8_t*)&varstr);
-
-            if (bytes_read != 6) {
+            if (bytes_read != 2) {
                 FF_Close(fSource);
-                ERROR("Unexpected EOF in header");
+                ERROR("Unexpected EOF in block");
                 return 1;
             }
 
-            bytes_read = FF_Read(fSource, 32, 1, (uint8_t*)&varstr);
-
-            if (bytes_read != 32) {
-                FF_Close(fSource);
-                ERROR("Bad CRT name");
-                return 1;
-            }
-
-            INFO("CRT: %s", varstr);
-            // now we load CHIP blocks
-            offset = 0x40;
-
-            while (1) {
-                FF_Seek(fSource, offset, FF_SEEK_SET);  // just in case, do a re-positioning
-
-                if (FF_BytesLeft(fSource) < 0x10) {
-                    break;    // finished loading
-                }
-
-                bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&varstr);
-
-                if ((bytes_read != 4) || (strncmp(varstr, "CHIP", 4))) {
-                    FF_Close(fSource);
-                    ERROR("Bad block text");
-                    return 1;
-                }
-
-                bytes_read = FF_Read(fSource, 4, 1, (uint8_t*)&var32);  // block size
-
-                if ((bytes_read != 4) || ((var32 != 0x10400000) && (var32 != 0x10200000)) ) {
-                    FF_Close(fSource);
-                    ERROR("Bad block size %04lx", var32);
-                    return 1;
-                }
-
-                bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);
-
-                if ((bytes_read != 2) || (var16 != 0x0)) {
-                    FF_Close(fSource);
-                    ERROR("Only ROM blocks supported (%d)", var16);
-                    return 1;
-                }
-
-                bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);   // bank
-
-                if (bytes_read != 2) {
-                    FF_Close(fSource);
-                    ERROR("Unexpected EOF in block");
-                    return 1;
-                }
-
-                INFO("  Bank: %d", var16);
-                bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16); // filebase to load
-
-                if (bytes_read != 2) {
-                    FF_Close(fSource);
-                    ERROR("Unexpected EOF in block");
-                    return 1;
-                }
-
-                filebase = ((var16 >> 8) & 0xff) + ((var16 & 0xff) << 8); // endian-correct
-                INFO("  Start: $%04X", filebase);
-                bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&var16);   // size
-
-                if (bytes_read != 2) {
-                    FF_Close(fSource);
-                    ERROR("Unexpected EOF in block");
-                    return 1;
-                }
-
-                size = ((var16 >> 8) & 0xff) + ((var16 & 0xff) << 8); // endian-correct
-                INFO("  Size:  $%04X", size);
-                offset += 0x10;
-                DEBUG(1, "%s @0x%X (0x%X),S:%d", filename, base + filebase, offset, size);
-                FileIO_MCh_FileToMem(fSource, base + filebase, size, offset);
-                offset += ((var32 >> 8) & 0xFF00); // add endian-corrected block size to offset before starting over
-            }
-
-    } else if (format == 1) {
-                // PRG format, start address in first two bytes
-                bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&filebase);
-
-                if (bytes_read == 0) {
-                    FF_Close(fSource);
-                    ERROR("Unexpected EOF");
-                    return 1;
-                }
-
-                offset = 2;
-
-            if (!size) { // auto-size
-                size = FF_BytesLeft(fSource);
-            }
-
+            size = ((var16 >> 8) & 0xff) + ((var16 & 0xff) << 8); // endian-correct
+            INFO("  Size:  $%04X", size);
+            offset += 0x10;
             DEBUG(1, "%s @0x%X (0x%X),S:%d", filename, base + filebase, offset, size);
             FileIO_MCh_FileToMem(fSource, base + filebase, size, offset);
+            offset += ((var32 >> 8) & 0xFF00); // add endian-corrected block size to offset before starting over
+        }
 
-            if (verify) {
-                rc = FileIO_MCh_FileToMemVerify(fSource, base + filebase, size, offset);
+    } else if (format == 1) {
+        // PRG format, start address in first two bytes
+        bytes_read = FF_Read(fSource, 2, 1, (uint8_t*)&filebase);
 
-            } else {
-                rc = 0;
-            }
+        if (bytes_read == 0) {
+            FF_Close(fSource);
+            ERROR("Unexpected EOF");
+            return 1;
+        }
+
+        offset = 2;
+
+        if (!size) { // auto-size
+            size = FF_BytesLeft(fSource);
+        }
+
+        DEBUG(1, "%s @0x%X (0x%X),S:%d", filename, base + filebase, offset, size);
+        FileIO_MCh_FileToMem(fSource, base + filebase, size, offset);
+
+        if (verify) {
+            rc = FileIO_MCh_FileToMemVerify(fSource, base + filebase, size, offset);
+
+        } else {
+            rc = 0;
+        }
 
     } else {
         // plain binary
@@ -613,9 +613,9 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
             if (verify) {
                 rc = FileIO_MCh_FileToMemVerify(fSource, base + offset, upload_size, 0);
 
-    } else {
+            } else {
                 rc = 0;
-    }
+            }
 
             if (rc) {
                 break;

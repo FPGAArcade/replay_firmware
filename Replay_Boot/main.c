@@ -721,11 +721,18 @@ static __attribute__ ((noinline)) void FPGA_WriteGeneratedImage(uint32_t base)
             buffer[i++] = c;
 
             if (i == sizeof(buffer)) {
-                if ((write_offset >> 10) & 1) ACTLED_ON; else ACTLED_OFF;
+                if ((write_offset >> 10) & 1) {
+                    ACTLED_ON;
+
+                } else {
+                    ACTLED_OFF;
+                }
+
                 if (FileIO_MCh_BufToMem((void*)buffer, write_offset, i) != 0) {
                     WARNING("DRAM write failed!");
                     return;
                 }
+
                 write_offset += i;
                 i = 0;
             }

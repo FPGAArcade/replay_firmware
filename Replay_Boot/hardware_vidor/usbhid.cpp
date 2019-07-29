@@ -1,46 +1,9 @@
-/*
-	This code somwhat depends on 'USB Host Library SAMD' ( https://github.com/gdsports/USB_Host_Library_SAMD )
-	Download the repo .zip and use the Arduino IDE 'Include Library' -> 'Add .ZIP Library' function
-	Until such time the Vidor SAMD is named 'samd' (instead of 'samd_beta') you will also need to patch the library.properties.
-
-    OR
-
-    $ pushd ~/Documents/Arduino/libraries
-    $ git clone --depth 1 --shallow-submodules https://github.com/gdsports/USB_Host_Library_SAMD
-    $ popd
-
-	Using the "builtin" USBHost, that comes with samd-beta-1.6.25.tar.bz2, works but is really flakey..
-*/
-
-// ** To enable USBHost debug logging:
-// 1) Edit 'Usb.h' and add/change to 
-// #define USB_HOST_SERIAL SERIAL_PORT_HARDWARE
-// #define DEBUG_USB_HOST
-// 2) Then open confdescparser.h and add 
-/*
-    #include <stdarg.h>
-    #define printf(...) serial_printf(__VA_ARGS__)
-    static int serial_printf( const char * format, ... )
-    {
-        char buffer[256];
-        va_list args;
-        va_start (args, format);
-        vsnprintf (buffer,sizeof(buffer),format, args);
-        E_NotifyStr(buffer, 0x81);
-        va_end (args);
-    }
-    #define TRACE_USBHOST(x)    x
-*/
-// 3) Finally enable full debug output by setting UsbDEBUGlvl to a really high value (see USBHID_Init())
-
-#include <hidboot.h>
-
-//#include <hidcomposite.h>   // << if you get an error here you're most likely not using the correct lib (see above) >>
-// ok - seems the release of 1.8.1 means we use the USBHost that ships with the SDK.. oh well..
+#include "usb_host/conf_usb_host.h"
 
 #define MAX_SCANCODES (1<<4)
 #define MAX_SCANCODE_LENGTH (15+1)
-class ReplayKeyboard : public KeyboardReportParser
+
+class ReplayKeyboard
 {
     enum Meta {
         Meta_None		= 0,
@@ -55,11 +18,9 @@ class ReplayKeyboard : public KeyboardReportParser
     };
 
   public:
-    ReplayKeyboard(USBHost& usb):
-        hostKeyboard(&usb),
+    ReplayKeyboard() :
         m_Put(0), m_Get(0)
     {
-        hostKeyboard.SetReportParser(0, this);
     };
 
     const char* PopKey()
@@ -71,8 +32,7 @@ class ReplayKeyboard : public KeyboardReportParser
         return m_ScanCodes[m_Get++ & (MAX_SCANCODES - 1)];
     }
 
-  protected:
-    virtual void OnControlKeysChanged(uint8_t before, uint8_t after)
+    void OnControlKeysChanged(uint8_t before, uint8_t after)
     {
         char buffer[8];
         uint8_t updated = before ^ after;
@@ -96,7 +56,7 @@ class ReplayKeyboard : public KeyboardReportParser
             DEBUG(2, "[%s] META [%02x => %02x => %02x] %02x => %02x %02x %02x", __FUNCTION__, before, after, updated, (1 << meta), buffer[0], buffer[1], buffer[2]);
         }
     }
-    virtual void OnKeyDown(uint8_t mod, uint8_t key)
+    void OnKeyDown(uint8_t mod, uint8_t key)
     {
         char buffer[8];
 
@@ -119,8 +79,9 @@ class ReplayKeyboard : public KeyboardReportParser
         PushKey(buffer);
         DEBUG(2, "[%s] OEM %02x => %02x %02x %02x", __FUNCTION__, key, buffer[0], buffer[1], buffer[2]);
     }
-    virtual void OnKeyUp(uint8_t mod, uint8_t key)
+    void OnKeyUp(uint8_t mod, uint8_t key)
     {
+        (void)mod;
         char buffer[8];
         uint8_t ps2 = GetPS2(key);
 
@@ -134,6 +95,7 @@ class ReplayKeyboard : public KeyboardReportParser
         DEBUG(2, "[%s] OEM %02x => %02x %02x %02x", __FUNCTION__, key, buffer[0], buffer[1], buffer[2]);
     }
 
+  protected:
     void PushKey(const char* scancode)
     {
         if (((m_Put - m_Get) & (MAX_SCANCODES - 1)) == 15) {
@@ -182,7 +144,6 @@ class ReplayKeyboard : public KeyboardReportParser
     }
 
   private:
-    HIDBoot<HID_PROTOCOL_KEYBOARD> hostKeyboard;
     uint32_t	m_Put, m_Get;
     char		m_ScanCodes[MAX_SCANCODES][MAX_SCANCODE_LENGTH];
 
@@ -190,127 +151,166 @@ class ReplayKeyboard : public KeyboardReportParser
     static const uint8_t OEMtoPS2meta[8];
 };
 
-class ReplayMouse : public MouseReportParser
+class ReplayMouse
 {
 public:
-    ReplayMouse(USBHost& usb):
-        hostMouse(&usb),
+    ReplayMouse() :
         mouseX(0),
         mouseY(0),
         mouseZ(0),
         mouseButtons(0),
         updated(false)
     {
-        hostMouse.SetReportParser(0, this);
     }
 
     void SendMouseUpdate()
     {
-        if (!updated)
+        disableIRQ();
+
+        uint16_t mX = mouseX;
+        uint16_t mY = mouseY;
+        uint16_t mZ = mouseZ;
+        uint8_t mButtons = mouseButtons; 
+        bool refresh = updated;
+        updated = false;
+
+        enableIRQ();
+
+        if (!refresh) {
             return;
+        }
+
         DEBUG(2, "%s : %d/%d/%d ; %x", __FUNCTION__, mouseX, mouseY, mouseZ, mouseButtons);
         SPI_EnableOsd();
         rSPI(OSDCMD_SENDMOUSE);
-        rSPI(mouseX & 0xff);    // x low
-        rSPI(mouseX >> 8);      // x high
-        rSPI(mouseY & 0xff);    // y low
-        rSPI(mouseY >> 8);      // y high
-        rSPI(mouseZ & 0xff);    // z low
-        rSPI(mouseZ >> 8);      // z high
-        rSPI(mouseButtons);     // buttons
+        rSPI(mX & 0xff);    // x low
+        rSPI(mX >> 8);      // x high
+        rSPI(mY & 0xff);    // y low
+        rSPI(mY >> 8);      // y high
+        rSPI(mZ & 0xff);    // z low
+        rSPI(mZ >> 8);      // z high
+        rSPI(mButtons);     // buttons
         Timer_Wait(1);
         SPI_DisableOsd();
-        updated = false;
     }
-protected:
-    void OnMouseMove(MOUSEINFO *mi)
+    void OnMouseMove(int8_t dX, int8_t dY, int8_t dZ)
     {
-        mouseX += mi->dX;
-        mouseY += mi->dY;
+        mouseX += dX;
+        mouseY += dY;
+        mouseZ += dZ;
         updated = true;
     }
-    void OnMouseButtonChanged(MOUSEINFO *mi)
+    void OnMouseButtonChanged(uint8_t button, uint8_t down)
     {
-        mouseButtons = 
-                        (mi->bmLeftButton    ? 1 << 0 : 0) |
-                        (mi->bmRightButton   ? 1 << 1 : 0) |
-                        (mi->bmMiddleButton  ? 1 << 2 : 0);
+        uint8_t mask = 1 << button;
+        if (down)
+            mouseButtons |= mask;
+        else
+            mouseButtons &= ~mask;
+
         updated = true;
     }
-    void OnLeftButtonUp(MOUSEINFO *mi)      { OnMouseButtonChanged(mi); }
-    void OnLeftButtonDown(MOUSEINFO *mi)    { OnMouseButtonChanged(mi); }
-    void OnRightButtonUp(MOUSEINFO *mi)     { OnMouseButtonChanged(mi); }
-    void OnRightButtonDown(MOUSEINFO *mi)   { OnMouseButtonChanged(mi); }
-    void OnMiddleButtonUp(MOUSEINFO *mi)    { OnMouseButtonChanged(mi); }
-    void OnMiddleButtonDown(MOUSEINFO *mi)  { OnMouseButtonChanged(mi); }
 
 private:
-    HIDBoot<HID_PROTOCOL_MOUSE>    hostMouse;
-    uint16_t    mouseX, mouseY, mouseZ;
-    uint8_t     mouseButtons;
-    bool        updated;        // $TODO make this a ring buffer instead
+    volatile uint16_t    mouseX, mouseY, mouseZ;
+    volatile uint8_t     mouseButtons;
+    volatile bool        updated;        // $TODO make this a ring buffer instead
 };
 
-class ReplayComposite
+static ReplayKeyboard keyboard;
+static ReplayMouse mouse;
+
+extern "C" {
+
+void USB_Connection_Event(uhc_device_t *dev, bool b_present)
 {
-public:
-    ReplayComposite(USBHost& usb, KeyboardReportParser& keyboard, MouseReportParser& mouse)
-    : hostComposite(&usb)
-    {
-        hostComposite.SetReportParser(0, &keyboard);
-        hostComposite.SetReportParser(1, &mouse);
+    (void)dev;
+    (void)b_present;
+    kprintf("%s\n\r", __FUNCTION__);
+}
+
+void USB_Enum_Event(uhc_device_t *dev, uhc_enum_status_t status)
+{
+    (void)dev;
+    if (status == UHC_ENUM_FAIL) {
+        if (dev->hub && dev->speed == UHD_SPEED_LOW) {
+            WARNING("LOW speed via HUB detected!");
+        } else {
+            WARNING("USB device failed enumeration");
+        }
+    } else if (status == UHC_ENUM_SUCCESS) {
+        INFO("USB VID/PID : %04x / %04x", dev->dev_desc.idVendor, dev->dev_desc.idProduct);
     }
-public:
-    HIDBoot<HID_PROTOCOL_KEYBOARD | HID_PROTOCOL_MOUSE>    hostComposite;
 
-};
+}
 
-static USBHost usb;
+void USB_Mouse_Change(uhc_device_t *dev, bool b_plug)
+{
+    (void)dev;
+    INFO("HID Device MOUSE %s", b_plug ? "attached" : "detached");
+}
 
-// This stuff is just broken - the first HIDBoot to initialize seemingly get all the action.
-// Reorder the statics below to choose USB HID type.. 
+void USB_Keyboard_Change(uhc_device_t *dev, bool b_plug)
+{
+    (void)dev;
+    INFO("HID Device KEYBOARD %s", b_plug ? "attached" : "detached");
+}
 
-static ReplayKeyboard keyboard(usb);
-static ReplayMouse mouse(usb);
-static ReplayComposite composite(usb, keyboard, mouse);
+void USB_Hub_Change(uhc_device_t *dev, bool b_plug)
+{
+    (void)dev;
+    INFO("USB Hub Device %s", b_plug ? "attached" : "detached");
+}
+
+void USB_Mouse_Button_Left(bool b_state)
+{
+    mouse.OnMouseButtonChanged(0, b_state);
+}
+
+void USB_Mouse_Button_Right(bool b_state)
+{
+    mouse.OnMouseButtonChanged(1, b_state);
+}
+
+void USB_Mouse_Button_Middle(bool b_state)
+{
+    mouse.OnMouseButtonChanged(2, b_state);
+}
+
+void USB_Mouse_Move(int8_t x, int8_t y, int8_t scroll)
+{
+    mouse.OnMouseMove(x, y, scroll);
+}
+
+
+void USB_Keyboard_Meta(uint8_t before, uint8_t after)
+{
+    keyboard.OnControlKeysChanged(before, after);
+}
+void USB_Keyboard_Key_Down(uint8_t meta, uint8_t key)
+{
+    keyboard.OnKeyDown(meta, key);
+}
+void USB_Keyboard_Key_Up(uint8_t meta, uint8_t key)
+{
+    keyboard.OnKeyUp(meta, key);
+}
+
+}
+
 
 extern "C" void USBHID_Init()
 {
-//    UsbDEBUGlvl = INT_MAX;    // all the gory details.. 
-
-    if (usb.Init())
-        WARNING("Failed to start USB host!");
+    uhc_start();
 }
 
 extern "C" const char* USBHID_Update()
 {
-    usb.Task();
-
-    static uint32_t previousUSBstate = 0;
-    uint32_t currentUSBstate = usb.getUsbTaskState();
-    if (previousUSBstate != currentUSBstate) {
-        DEBUG(0, "USB state changed: 0x%x -> 0x%x", previousUSBstate, currentUSBstate);
-        switch (currentUSBstate) {
-            case USB_STATE_DETACHED:                                INFO("USB Detached"); break;
-            case USB_DETACHED_SUBSTATE_INITIALIZE:                  INFO("USB Initializing..."); break;
-            case USB_DETACHED_SUBSTATE_WAIT_FOR_DEVICE:             INFO("USB Waiting for device..."); break;
-            case USB_DETACHED_SUBSTATE_ILLEGAL:                     INFO("USB Detached - illegal!"); break;
-            case USB_ATTACHED_SUBSTATE_SETTLE:                      INFO("USB Settling..."); break;
-            case USB_ATTACHED_SUBSTATE_RESET_DEVICE:                INFO("USB Resetting device"); break;
-            case USB_ATTACHED_SUBSTATE_WAIT_RESET_COMPLETE:         INFO("USB Reset complete"); break;
-            case USB_ATTACHED_SUBSTATE_WAIT_SOF:                    INFO("USB Wait SOF"); break;
-            case USB_ATTACHED_SUBSTATE_WAIT_RESET:                  INFO("USB Wait Reset"); break;
-            case USB_ATTACHED_SUBSTATE_GET_DEVICE_DESCRIPTOR_SIZE:  INFO("USB Getting Device Desc"); break;
-            case USB_STATE_ADDRESSING:                              INFO("USB Addressing..."); break;
-            case USB_STATE_CONFIGURING:                             INFO("USB Configuring..."); break;
-            case USB_STATE_RUNNING:                                 INFO("USB Running!"); break;
-            case USB_STATE_ERROR:                                   INFO("USB Error : %2x!", usb.getUsbErrorCode()); break;
-        }
-        previousUSBstate = currentUSBstate;
-    }
-
     mouse.SendMouseUpdate();
-    return keyboard.PopKey();
+    disableIRQ();
+    const char* key = keyboard.PopKey();
+    enableIRQ();
+    return key;
 }
 
 const uint8_t ReplayKeyboard::OEMtoPS2[0x74] = {

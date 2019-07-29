@@ -49,6 +49,7 @@
 #include "messaging.h"
 
 const uint8_t DRV00_DEBUG = 0;
+#define DRV00_DEBUG_STATS 0
 
 #define DRV00_STAT_REQ_ACK             0x01
 #define DRV00_STAT_TRANS_ACK_OK        0x02
@@ -57,6 +58,7 @@ const uint8_t DRV00_DEBUG = 0;
 #define DRV00_STAT_TRANS_ACK_ABORT_ERR 0x42
 
 #define DRV00_BUF_SIZE 512
+#define DRV00_BLK_SIZE 512
 
 typedef struct {
     uint32_t file_size;
@@ -77,6 +79,16 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
     uint32_t act_size = 0;
 
     uint8_t  goes = FILEIO_PROCESS_LIMIT; // limit number of requests.
+
+    // stats
+#if DRV00_DEBUG_STATS
+    uint32_t stats_bytes_processed = 0;
+    uint32_t stats_seek_ticks = 0;
+    uint32_t stats_read_ticks = 0;
+    uint32_t stats_send_ticks = 0;
+
+    HARDWARE_TICK stats_begin = Timer_Get(0);
+#endif
 
     do {
         dir          = (status >> 2) & 0x01; // high is write
@@ -116,11 +128,20 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
             DEBUG(1, "Drv00:warning large size request:%04X", size);
         }
 
+#if DRV00_DEBUG_STATS
+        HARDWARE_TICK stats_begin_seek = Timer_Get(0);
+#endif
+
         if (FF_Seek(pDrive->fSource, addr, FF_SEEK_SET)) {
             WARNING("Drv00:Seek error");
             FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_SEEK_ERR);
             return;
         }
+
+#if DRV00_DEBUG_STATS
+        stats_seek_ticks += (Timer_Get(0) - stats_begin_seek);
+        stats_bytes_processed += size;
+#endif
 
         while (size) {
             cur_size = size;
@@ -152,6 +173,12 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
                 }
             }
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+            const uint8_t burstable = 0;
+#else
+            const uint8_t burstable = (dir == 0) /* read */ & ((addr & 0x1FF) == 0) /* sector aligned */ && (cur_size >= DRV00_BLK_SIZE) /* at least one block*/;
+#endif
+
             if (dir) { // write
                 // request should not be asserted if data is not ready
                 // write will fail if read only
@@ -175,9 +202,44 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
                     return;
                 }
 
+            } else if (burstable) {
+                uint32_t block_count = size / DRV00_BLK_SIZE;
+                cur_size = block_count * DRV00_BLK_SIZE;
+
+                // on entry assumes file is in correct position
+                // no flow control check, FPGA must be able to sink entire transfer.
+                SPI_EnableFileIO();
+                rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_W));
+                SPI_EnableDirect();
+                SPI_DisableFileIO();
+
+#if DRV00_DEBUG_STATS
+                HARDWARE_TICK stats_begin_read = Timer_Get(0);
+#endif
+                act_size = FF_ReadDirect(pDrive->fSource, cur_size, 1);
+#if DRV00_DEBUG_STATS
+                stats_read_ticks += (Timer_Get(0) - stats_begin_read);
+#endif
+                SPI_DisableDirect();
+
+                if (DRV00_DEBUG) {
+                    DEBUG(1, "Drv00:bytes direct-read:%04X", act_size);
+                }
+
+                if (act_size != cur_size) {
+                    FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_TRUNC_ERR); // truncated
+                    return;
+                }
+
             } else {
                 // enough faffing, do the read
+#if DRV00_DEBUG_STATS
+                HARDWARE_TICK stats_begin_read = Timer_Get(0);
+#endif
                 act_size = FF_Read(pDrive->fSource, cur_size, 1, fbuf);
+#if DRV00_DEBUG_STATS
+                stats_read_ticks += (Timer_Get(0) - stats_begin_read);
+#endif
 
                 if (DRV00_DEBUG) {
                     DEBUG(1, "Drv00:bytes read:%04X", act_size);
@@ -185,10 +247,16 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
 
                 /*DumpBuffer(FDD_fBuf,cur_size);*/
 
+#if DRV00_DEBUG_STATS
+                HARDWARE_TICK stats_begin_send = Timer_Get(0);
+#endif
                 SPI_EnableFileIO();
                 rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_W));
                 SPI_WriteBufferSingle(fbuf, act_size);
                 SPI_DisableFileIO();
+#if DRV00_DEBUG_STATS
+                stats_send_ticks += (Timer_Get(0) - stats_begin_send);
+#endif
 
                 if (act_size != cur_size) {
                     FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_TRUNC_ERR); // truncated
@@ -224,6 +292,24 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
         status = FileIO_FCh_GetStat(ch);
         goes --;
     } while ((status & FILEIO_REQ_ACT) && goes);
+
+    // stats
+#if DRV00_DEBUG_STATS
+
+    if (!dir) {
+        uint32_t total_ticks = (Timer_Get(0) - stats_begin);
+        uint8_t reqs_processed = FILEIO_PROCESS_LIMIT - goes;
+        DEBUG(0, "Drv00: requests processed: %d", reqs_processed);
+        DEBUG(0, "Drv00: bytes processed: %d", stats_bytes_processed);
+        DEBUG(0, "Drv00: time spent: %d ms", Timer_Convert(total_ticks));
+        DEBUG(0, "Drv00: time spent in seek: %d ms", Timer_Convert(stats_seek_ticks));
+        DEBUG(0, "Drv00: time spent in read: %d ms", Timer_Convert(stats_read_ticks));
+        DEBUG(0, "Drv00: time spent in send: %d ms", Timer_Convert(stats_send_ticks));
+        DEBUG(0, "Drv00: average speed: %d bytes / ms", stats_bytes_processed / Timer_Convert(total_ticks));
+    }
+
+#endif
+
 }
 
 uint8_t FileIO_Drv00_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive, char* ext)

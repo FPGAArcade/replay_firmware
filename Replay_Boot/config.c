@@ -47,6 +47,10 @@
 
 #include "config.h"
 
+#include <stdio.h>
+#undef printf
+#undef sprintf
+
 #include "fileio.h"
 #include "fpga.h"
 #include "osd.h"
@@ -1677,8 +1681,9 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
         return 1;
     }
 
+    const char* filename = valueList[0].strval;
     char fullname[FF_MAX_PATH];
-    sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+    sprintf(fullname, "%s%s", pStatus->ini_dir, filename);
 
     uint32_t size = valueList[1].intval;
     uint32_t base = entries > 2 ? valueList[2].intval : pStatus->last_rom_adr;
@@ -1691,11 +1696,30 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
     DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
     DEBUG(2, "ROM upload @ 0x%08lX (%ld byte)", base, size);
 
-    if (CFG_upload_rom(fullname, base, size,
-                       pStatus->verify_dl, format, &staticbits, &dynamicbits)) {
+    uint8_t file_exists = FALSE;
+    uint8_t name_valid = strpbrk(filename, "?<>") == NULL;
+
+    // if the name is valid - make sure it exists
+    if (name_valid) {
+        FF_FILE* file = FF_Open(pIoman, fullname, FF_MODE_READ, NULL);
+
+        if (file) {
+            file_exists = TRUE;
+            FF_Close(file);
+        }
+    }
+
+    // if file exists - try uploading it
+    if (file_exists && CFG_upload_rom(fullname, base, size,
+                                      pStatus->verify_dl, format, &staticbits, &dynamicbits)) {
         WARNING("ROM upload to FPGA failed");
         FreeList(valueList, entries);
         return 1;
+    }
+
+    // if the name is valid, but we failed to open it - emit a warning (but don't fail)
+    if (name_valid && !file_exists) {
+        WARNING("Could not open %s", filename);
     }
 
     DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
@@ -1705,55 +1729,66 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
     OSD_ConfigSendUserS(staticbits);
     //not used yet: OSD_ConfigSendUserD(dynamicbits);
 
-    /*
-    #define ROM_MENU_STRING "ROMs"
-        if (pStatus->menu_act == NULL || (pStatus->menu_act && strcmp(pStatus->menu_act->menu_title, ROM_MENU_STRING))) {
-            if (pStatus->menu_top) {   // add further entry
-                // prepare next level and set pointers correctly
-                pStatus->menu_act->next = malloc(sizeof(menu_t));
-                // link back
-                pStatus->menu_act->next->last = pStatus->menu_act;
-                // step in linked list
-                pStatus->menu_act = pStatus->menu_act->next;
+#define ROM_MENU_STRING "ROMs"
 
-            } else {                   // first top entry
-                // prepare top level
-                pStatus->menu_act = malloc(sizeof(menu_t));
-                pStatus->menu_act->last = NULL;
-                // set top level
-                pStatus->menu_top = pStatus->menu_act;
-            }
+    if (pStatus->menu_act == NULL || (pStatus->menu_act && strcmp(pStatus->menu_act->menu_title, ROM_MENU_STRING))) {
+        if (pStatus->menu_top) {   // add further entry
+            // prepare next level and set pointers correctly
+            pStatus->menu_act->next = malloc(sizeof(menu_t));
+            // link back
+            pStatus->menu_act->next->last = pStatus->menu_act;
+            // step in linked list
+            pStatus->menu_act = pStatus->menu_act->next;
 
-            pStatus->menu_act->next = NULL;
-            strcpy(pStatus->menu_act->menu_title, ROM_MENU_STRING);
-
-            pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
-            pStatus->menu_item_act = pStatus->menu_act->item_list;
-            pStatus->menu_item_act->next = NULL;
-            pStatus->menu_item_act->last = NULL;
-        } else {
-            pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-            pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-            pStatus->menu_item_act = pStatus->menu_item_act->next;
-            pStatus->menu_item_act->next = NULL;
+        } else {                   // first top entry
+            // prepare top level
+            pStatus->menu_act = malloc(sizeof(menu_t));
+            pStatus->menu_act->last = NULL;
+            // set top level
+            pStatus->menu_top = pStatus->menu_act;
         }
 
-        sprintf(pStatus->menu_item_act->item_name, "0x%08x", (unsigned int)base);
-        pStatus->menu_item_act->option_list = NULL;
-        pStatus->menu_item_act->selected_option = NULL;
-        pStatus->menu_item_act->conf_dynamic = format;
-        pStatus->menu_item_act->conf_mask = size;
-        pStatus->menu_item_act->action_value = base;
-        strcpy(pStatus->menu_item_act->action_name, "rom");
-        pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-        pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-        pStatus->item_opt_act->next = NULL;
-        pStatus->item_opt_act->last = NULL;
-        _strlcpy(pStatus->item_opt_act->option_name, valueList[0].strval, sizeof(pStatus->item_opt_act->option_name));
-        pStatus->menu_item_act->selected_option = pStatus->menu_item_act->option_list;
+        pStatus->menu_act->next = NULL;
+        strcpy(pStatus->menu_act->menu_title, ROM_MENU_STRING);
 
-    #undef ROM_MENU_STRING
-    */
+        pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
+        pStatus->menu_item_act = pStatus->menu_act->item_list;
+        pStatus->menu_item_act->next = NULL;
+        pStatus->menu_item_act->last = NULL;
+
+    } else {
+        pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+        pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+        pStatus->menu_item_act = pStatus->menu_item_act->next;
+        pStatus->menu_item_act->next = NULL;
+    }
+
+    char buf[16] = { 0 };
+    static const char prefixes[] = {' ', 'k', 'M', 'G', '\0'};
+
+    for (uint32_t i = 0, human_size = size; prefixes[i] != 0; human_size >>= 10, ++i) {
+        if (human_size < 1024) {
+            sprintf(buf, i == 0 ? "%dB" : "%d%cB", human_size, prefixes[i]);
+            break;
+        }
+    }
+
+    sprintf(pStatus->menu_item_act->item_name, size == 0 ? "%8X" : "%8X/%s", (unsigned int)base, buf);
+    pStatus->menu_item_act->option_list = NULL;
+    pStatus->menu_item_act->selected_option = NULL;
+    pStatus->menu_item_act->conf_dynamic = format;
+    pStatus->menu_item_act->conf_mask = size;
+    pStatus->menu_item_act->action_value = base;
+    strcpy(pStatus->menu_item_act->action_name, "rom");
+    pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
+    pStatus->item_opt_act = pStatus->menu_item_act->option_list;
+    pStatus->item_opt_act->next = NULL;
+    pStatus->item_opt_act->last = NULL;
+    _strlcpy(pStatus->item_opt_act->option_name, filename, sizeof(pStatus->item_opt_act->option_name));
+    pStatus->menu_item_act->selected_option = pStatus->menu_item_act->option_list;
+
+#undef ROM_MENU_STRING
+
     FreeList(valueList, entries);
     return 0;
 }
@@ -2238,8 +2273,8 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     sprintf(currentStatus->status[1], "FPGA|FW:%04X STAT:%04x IO:%04X",
             config_ver, config_stat, ((config_fileio_drv << 8) | config_fileio_ena));
 
-    // TODO: ini path may exceed length and crash system here!
-    sprintf(currentStatus->status[2], "INI |%s", iniFile);
+    snprintf(currentStatus->status[2], MAX_MENU_STRING, "INI |%s", iniFile);
+    currentStatus->status[2][MAX_MENU_STRING - 1] = 0;
 
     // PARSE INI FILE
     if (currentStatus->fs_mounted_ok) {
@@ -2461,6 +2496,32 @@ void CFG_add_default(status_t* currentStatus)
             pStatus->item_opt_act->last = NULL;
             strcpy(pStatus->item_opt_act->option_name, it->dir);
         }
+    }
+
+    // Find 'ROMs' and link it right before the Replay Menu
+    menu_t** rom_menu = NULL;
+    menu_t** replay_menu = NULL;
+
+    for (menu_t** menu = &currentStatus->menu_top; *menu; menu = &(*menu)->next) {
+        if (!strcmp((*menu)->menu_title, "ROMs")) {
+            rom_menu = menu;
+        }
+
+        if (!strcmp((*menu)->menu_title, "Replay Menu")) {
+            replay_menu = menu;
+        }
+    }
+
+    if (rom_menu && replay_menu) {
+        // unlink
+        menu_t* menu = *rom_menu;
+        *rom_menu = menu->next;
+        menu->next->last = menu->last;
+        // relink
+        menu->next = *replay_menu;
+        *replay_menu = menu;
+        menu->last = menu->next->last;
+        menu->next->last = menu;
     }
 }
 

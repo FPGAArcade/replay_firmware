@@ -592,12 +592,13 @@ static __attribute__ ((noinline)) void main_update()
     const uint8_t card_already_detected = current_status.card_detected;
     CFG_update_status(&current_status);
 
-    if (!(card_already_detected && !current_status.fs_mounted_ok)) {
-        CFG_card_start(&current_status);    // restart file system if card re-inserted
-    }
-
     const uint8_t card_was_inserted = !card_already_detected && current_status.card_detected;
     const uint8_t card_was_removed = card_already_detected && !current_status.card_detected;
+    const uint8_t card_found_but_no_fs = current_status.card_detected && !current_status.fs_mounted_ok;
+
+    if (card_was_inserted || card_was_removed || card_found_but_no_fs) {
+        CFG_card_start(&current_status);    // restart file system if card was removed or (re-)inserted
+    }
 
     // we deconfigured externally!
     if ((!IO_Input_H(PIN_FPGA_DONE)) && (current_status.fpga_load_ok != NO_CORE)) {
@@ -678,11 +679,31 @@ static __attribute__ ((noinline)) void main_update()
             // current_status.format_sdcard = 1;
             // current_status.do_reboot = 0;
 
-        } else if (card_was_removed) {
-            MENU_set_state(&current_status, SHOW_STATUS);
-            current_status.update = 1;
-
         }
+    }
+
+    if (card_was_removed) {
+        INFO("SDCARD: removed!");
+
+        // we should do this somewhere else..
+        for (int ch = 0; ch < 2; ++ch) {
+            for (int drive = 0; drive < FCH_MAX_NUM; ++drive) {
+                DEBUG(1, "eject %d / %d..", ch, drive);
+
+                if (!FileIO_FCh_GetInserted(ch, drive)) {
+                    continue;
+                }
+
+                DEBUG(1, "Ejecting '%s'...", FileIO_FCh_GetName(ch, drive));
+                FileIO_FCh_Eject(ch, drive);
+            }
+        }
+
+        FileIO_FCh_Init();
+
+        MENU_set_state(&current_status, SHOW_STATUS);
+        current_status.update = 1;
+
     }
 
     // Handle virtual drives

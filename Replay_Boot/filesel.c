@@ -77,16 +77,16 @@ int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
         return 1;
     }
 
-    // parent dir first
-    if ((pDir1->Attrib & FF_FAT_ATTR_DIR) && !strcmp("..", pDir1->FileName)) {
+    rc = _stricmp_logical(pDir1->FileName, pDir2->FileName);
+
+    // parent dir first (at the same time making sure pDir1 != pDir2)
+    if ((pDir1->Attrib & FF_FAT_ATTR_DIR) && !strcmp("..", pDir1->FileName) && rc) {
         return -1;
     }
 
-    if ((pDir2->Attrib & FF_FAT_ATTR_DIR) && !strcmp("..", pDir2->FileName)) {
+    if ((pDir2->Attrib & FF_FAT_ATTR_DIR) && !strcmp("..", pDir2->FileName) && rc) {
         return  1;
     }
-
-    rc = _stricmp_logical(pDir1->FileName, pDir2->FileName);
 
     if (rc == 0) {
         // if strings are equal, compare case-sensitive
@@ -127,8 +127,12 @@ static inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
         }
     }
 
-    // hidden files/directories stay hidden when filtering on file extension
-    hide_hidden_entries = !FilterExtension(dir_entries->file_exts, "*") && mydir->FileName[0] == '.';
+    // hidden files/directories stay hidden _always_
+    hide_hidden_entries = mydir->FileName[0] == '.' && mydir->FileName[1] != '\0' && mydir->FileName[2] != '\0';
+
+    if (hide_hidden_entries) {
+        return FALSE;
+    }
 
     if (mydir->Attrib & FF_FAT_ATTR_DIR) {
         // directories always come through here, except "."
@@ -141,15 +145,7 @@ static inline uint8_t FilterFile(tDirScan* dir_entries, FF_DIRENT* mydir)
             return (TRUE);
         }
 
-        if (hide_hidden_entries) {
-            return FALSE;
-        }
-
         return (TRUE);
-    }
-
-    if (hide_hidden_entries) {
-        return FALSE;
     }
 
     char* pFile_ext = GetExtension(mydir->FileName);
@@ -629,12 +625,14 @@ uint8_t Filesel_Update(tDirScan* dir_entries, uint8_t opt)
             if (Filesel_CheckIndex(dir_entries, sel)) {
                 dir_entries->dRef = Filesel_GetEntry(dir_entries, sel);
                 Filesel_ScanUpdate(dir_entries);
-                dir_entries->offset = 128;
-                dir_entries->sel = 128;
+                current = (sel - dir_entries->offset);
 
-                if (dir_entries->nextc != 0) {
-                    dir_entries->sel = 129;
+                if (current == MAXDIRENTRIES) {
+                    current = 1;
                 }
+
+                dir_entries->offset = 128 - current;
+                dir_entries->sel = 128;
 
                 return SCAN_OK;
             }
@@ -648,12 +646,14 @@ uint8_t Filesel_Update(tDirScan* dir_entries, uint8_t opt)
             if (Filesel_CheckIndex(dir_entries, sel)) {
                 dir_entries->dRef = Filesel_GetEntry(dir_entries, sel);
                 Filesel_ScanUpdate(dir_entries);
-                dir_entries->offset = 128 - MAXDIRENTRIES;
-                dir_entries->sel = 128;
+                current = (sel - dir_entries->offset);
 
-                if (dir_entries->prevc != 0) {
-                    dir_entries->sel = 127;
+                if (current == 0) {
+                    current = MAXDIRENTRIES - 1;
                 }
+
+                dir_entries->offset = 128 - current;
+                dir_entries->sel = 128;
 
                 return SCAN_OK;
             }

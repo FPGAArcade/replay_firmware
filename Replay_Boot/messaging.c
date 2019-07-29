@@ -88,7 +88,7 @@ static void _MSG_to_osd(char* s, char t)
 {
     const uint8_t last_idx = msg_status->info_start_idx;
     // cut string to visible range
-    s[MAX_MENU_STRING - 2] = 0;
+    s[MAX_MENU_STRING - 3] = 0;
 
     // prevent duplicated/repeated messages
     if (!strcmp(msg_status->info[last_idx] + 2, s)) {

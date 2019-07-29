@@ -463,6 +463,8 @@ FF_T_SINT32 FF_ReadDirect(FF_FILE *pFile, FF_T_UINT32 ElementSize, FF_T_UINT32 C
 {
 	Assert((FF_Tell(pFile) % 512) == 0);
 	Assert(((ElementSize * Count) % 512) == 0);
+	Assert((FF_Size(pFile) - FF_Tell(pFile)) >= 512);
+	mapError(f_sync((FIL*)pFile));
 	return FF_Read(pFile, ElementSize, Count, NULL);
 }
 

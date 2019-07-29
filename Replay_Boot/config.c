@@ -2241,7 +2241,7 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
             config_ver, config_stat, ((config_fileio_drv << 8) | config_fileio_ena));
 
     snprintf(currentStatus->status[2], MAX_MENU_STRING, "INI |%s", iniFile);
-    currentStatus->status[2][MAX_MENU_STRING-1] = 0;
+    currentStatus->status[2][MAX_MENU_STRING - 1] = 0;
 
     // PARSE INI FILE
     if (currentStatus->fs_mounted_ok) {

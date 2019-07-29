@@ -131,11 +131,13 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
 #if DRV00_DEBUG_STATS
         HARDWARE_TICK stats_begin_seek = Timer_Get(0);
 #endif
+
         if (FF_Seek(pDrive->fSource, addr, FF_SEEK_SET)) {
             WARNING("Drv00:Seek error");
             FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_SEEK_ERR);
             return;
         }
+
 #if DRV00_DEBUG_STATS
         stats_seek_ticks += (Timer_Get(0) - stats_begin_seek);
         stats_bytes_processed += size;
@@ -224,6 +226,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
                     FileIO_FCh_WriteStat(ch, DRV00_STAT_TRANS_ACK_TRUNC_ERR); // truncated
                     return;
                 }
+
             } else {
                 // enough faffing, do the read
 #if DRV00_DEBUG_STATS
@@ -288,6 +291,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
 
     // stats
 #if DRV00_DEBUG_STATS
+
     if (!dir) {
         uint32_t total_ticks = (Timer_Get(0) - stats_begin);
         uint8_t reqs_processed = FILEIO_PROCESS_LIMIT - goes;
@@ -299,6 +303,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
         DEBUG(0, "Drv00: time spent in send: %d ms", Timer_Convert(stats_send_ticks));
         DEBUG(0, "Drv00: average speed: %d bytes / ms", stats_bytes_processed / Timer_Convert(total_ticks));
     }
+
 #endif
 
 }

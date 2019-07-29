@@ -143,6 +143,8 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
         stats_bytes_processed += size;
 #endif
 
+        const uint64_t file_size = FF_Size(pDrive->fSource);
+
         while (size) {
             cur_size = size;
 
@@ -173,11 +175,7 @@ void FileIO_Drv00_Process(uint8_t ch, fch_t handle[2][FCH_MAX_NUM], uint8_t stat
                 }
             }
 
-#if defined(ARDUINO_SAMD_MKRVIDOR4000)
-            const uint8_t burstable = 0;
-#else
-            const uint8_t burstable = (dir == 0) /* read */ & ((addr & 0x1FF) == 0) /* sector aligned */ && (cur_size >= DRV00_BLK_SIZE) /* at least one block*/;
-#endif
+            const uint8_t burstable = (dir == 0) /* read */ & ((addr & 0x1FF) == 0) /* sector aligned */ && (cur_size >= DRV00_BLK_SIZE) /* at least one block*/ && ((file_size - addr) >= DRV00_BLK_SIZE) /* not a truncated read */;
 
             if (dir) { // write
                 // request should not be asserted if data is not ready

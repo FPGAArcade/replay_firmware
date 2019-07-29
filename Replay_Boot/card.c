@@ -390,8 +390,15 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         (void) dma_end;
 
         // read sector bytes
-        for (uint32_t offset = 0; offset < 512; offset++) {
-            pBuffer[offset] = rSPI(0xff);
+        if (pBuffer) {
+            for (uint32_t offset = 0; offset < 512; offset++) {
+                pBuffer[offset] = rSPI(0xff);
+            }
+
+        } else {
+            for (uint32_t offset = 0; offset < 512; offset++) {
+                rSPI(0xff);
+            }
         }
 
 #endif

@@ -80,6 +80,10 @@ USE_THUMB_MODE = NO
 USE_NEWLIB = YES
 endif
 
+ifeq (1,${VIDOR}) 
+USE_NEWLIB = YES
+endif
+
 ## Create ROM-Image (final)
 RUN_MODE=ROM_RUN
 ## Create RAM-Image (debugging)
@@ -130,7 +134,7 @@ SRCARM = hardware/irq.c
 
 # List C++ source files here.
 # use file-extension cpp for C++-files (use extension .cpp)
-CPPSRC =
+CPPSRC = vidor.cpp
 
 # List C++ source files here which must be compiled in ARM-Mode.
 # use file-extension cpp for C++-files (use extension .cpp)
@@ -337,6 +341,30 @@ LDFLAGS = -lc -lpthread -lncurses
 
 endif
 
+ifeq (1,${VIDOR}) 
+OBJCOPY = arm-none-eabi-objcopy
+TCHAIN_PREFIX = .arduino/portable/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/bin/arm-none-eabi-
+CFLAGS_WARN = #-Wall -Wextra -Wno-expansion-to-defined
+CFLAGS_DEF  = -DF_CPU=48000000L -DARDUINO=10809 -DARDUINO_SAMD_MKRVIDOR4000 -DARDUINO_ARCH_SAMD -D__SAMD21G18A__
+CFLAGS_DEF += -DUSB_VID=0x2341 -DUSB_PID=0x8056 -DUSBCON "-DUSB_MANUFACTURER=\"Arduino LLC\"" "-DUSB_PRODUCT=\"Arduino MKR Vidor 4000\"" -DUSE_BQ24195L_PMIC
+CFLAGS_INC  = "-I.arduino/portable/packages/arduino/tools/CMSIS/4.5.0/CMSIS/Include/"
+CFLAGS_INC += "-I.arduino/portable/packages/arduino/tools/CMSIS-Atmel/1.2.0/CMSIS/Device/ATMEL/"
+CFLAGS_INC += "-I.arduino/portable/packages/arduino/hardware/samd/1.8.3/cores/arduino"
+CFLAGS_INC += "-I.arduino/portable/packages/arduino/hardware/samd/1.8.3/variants/mkrvidor4000"
+CFLAGS_INC += "-I.arduino/portable/packages/arduino/hardware/samd/1.8.3/libraries/SPI" 
+CFLAGS      = -c -g -Os $(CFLAGS_WARN) $(CFLAGS_DEF) $(CFLAGS_INC)
+CONLYFLAGS 	= -std=gnu11 -ffunction-sections -fdata-sections -nostdlib --param max-inline-insns-single=500
+CPPFLAGS    = -std=gnu++11 -ffunction-sections -fdata-sections -fno-threadsafe-statics -nostdlib --param max-inline-insns-single=500 -fno-rtti -fno-exceptions
+THUMB_IW    =
+MCU         = cortex-m0plus
+SUBMDL      = ARDUINO_ARCH_SAMD
+SRC         = $(wildcard *.c)
+SRC        += tests/fullfat-test.c
+SRC        += tests/exfat-test.c
+SRCARM      =
+ASRCARM     =
+endif
+
 # Define Messages
 # English
 MSG_ERRORS_NONE = Errors: none
@@ -405,10 +433,12 @@ $(BUILDDIR)isset: $(SRC)
 	mkdir -p $(addprefix $(BUILDDIR), $(sort $(filter-out .,$(^D))))
 	@echo ok > $(BUILDDIR)isset
 
-ifeq (,${HOSTED})
-build: elf hex bin s19 lss sym size
-else
+ifeq (1,${HOSTED})
 build: elf bin s19 sym size
+else ifeq (1,${VIDOR})
+build: lib
+else
+build: elf hex bin s19 lss sym size
 endif
 
 elf: $(BUILDDIR)$(TARGET).elf
@@ -417,6 +447,7 @@ bin: $(BUILDDIR)$(TARGET).bin
 s19: $(BUILDDIR)$(TARGET).s19
 lss: $(BUILDDIR)$(TARGET).lss
 sym: $(BUILDDIR)$(TARGET).sym
+lib: $(BUILDDIR)libreplay.a
 
 # Eye candy.
 begin:
@@ -491,6 +522,12 @@ $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) 
 	@$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
 endif
 
+# Archive: create a static archive
+$(BUILDDIR)libreplay.a : $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
+	@echo "Archiving and stripping:" $@
+	@$(TCHAIN_PREFIX)ar rcs $@ $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
+	@$(TCHAIN_PREFIX)strip --strip-debug $@
+
 # Compile: create object files from C source files. ARM/Thumb
 $(COBJ) : $(BUILDDIR)%.o : %.c | $(BUILDDIR)isset
 	@echo $(MSG_COMPILING) $<
@@ -503,9 +540,8 @@ $(COBJARM) : $(BUILDDIR)%.arm.o : %.c | $(BUILDDIR)isset
 
 # Compile: create object files from C++ source files. ARM/Thumb
 $(CPPOBJ) : $(BUILDDIR)%.o : %.cpp
-	@echo
 	@echo $(MSG_COMPILINGCPP) $<
-	$(CPP) -c $(THUMB) $(ALL_CFLAGS) $(CPPFLAGS) $< -o $@
+	@$(CPP) -c $(THUMB) $(ALL_CFLAGS) $(CPPFLAGS) $< -o $@
 
 # Compile: create object files from C++ source files. ARM-only
 $(CPPOBJARM) : $(BUILDDIR)%.o : %.cpp
@@ -527,6 +563,7 @@ $(TXTOBJ) : $(BUILDDIR)%.o : %.ini
 	@cd $(dir $<) && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(notdir $<) $(abspath $@)	
 
 hardware_host/embedded.c: $(BUILDDIR)buildnum $(EXTOBJ)
+vidor.cpp: $(BUILDDIR)buildnum $(EXTOBJ)
 
 $(BUILDDIR)buildnum:
 	@echo
@@ -585,8 +622,8 @@ clean_list : $(SRC)
 	$(REMOVE) $(SRC:.c=.d)
 	$(REMOVE) $(SRCARM:.c=.s)
 	$(REMOVE) $(SRCARM:.c=.d)
-	# $(REMOVE) $(CPPSRC:.cpp=.s)
-	# $(REMOVE) $(CPPSRC:.cpp=.d)
+	$(REMOVE) $(CPPSRC:.cpp=.s)
+	$(REMOVE) $(CPPSRC:.cpp=.d)
 	# $(REMOVE) $(CPPSRCARM:.cpp=.s)
 	# $(REMOVE) $(CPPSRCARM:.cpp=.d)
 	$(REMOVE) $(EXTOBJ)

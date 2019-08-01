@@ -82,7 +82,7 @@ uint8_t Timer_Check(HARDWARE_TICK offset)
     /*calculate difference*/
     offset -= systimer;
     /*check if <t> has passed*/
-    return (offset > (1 << 31));
+    return (offset > (HARDWARE_TICK)(1 << 31));
 }
 
 void Timer_Wait(uint32_t time_ms)

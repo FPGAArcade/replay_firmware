@@ -93,7 +93,7 @@ void USART_Init(unsigned long baudrate)
 void USART_update(void)
 {
     char data[RXBUFLEN];
-    size_t length = -1;
+    ssize_t length = -1;
 
     length = read(data, RXBUFLEN);
 

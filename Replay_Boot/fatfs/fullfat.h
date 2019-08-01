@@ -8,7 +8,7 @@
 
 #include "ff.h"
 
-#define FF_VERSION              "0.0.1 (" __DATE__ " : "__TIME__")"             // The official version number for this release.
+#define FF_VERSION              "0.0.1 (" __DATE__ " : " __TIME__ ")"             // The official version number for this release.
 #define FF_REVISION             "FullFAT-FatFS Wrapper   "                                                     // The official version control commit code for this release.
 
 #define FF_T_FAT12				0x0A

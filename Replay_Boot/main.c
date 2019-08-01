@@ -68,7 +68,7 @@
 #include "usb/ptp_usb.h"
 //#define PTP_USB 1
 
-#include "main.h"
+#include "replay.h"
 #include "usb.h"
 #include "tests/tests.h"
 

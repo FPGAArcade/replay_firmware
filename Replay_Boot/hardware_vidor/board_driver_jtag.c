@@ -46,7 +46,7 @@ int port_pin_get_input_level(int pin) {
   return inpin_get(pin);
 }
 
-int mbPinSet(void);
+void mbPinSet(void);
 
 /******************************************************************/
 /* Name:         DriveSignal                                      */
@@ -104,7 +104,7 @@ static void DriveSignal(int signal, int data, int clk)
 /*                                                                */
 /******************************************************************/
 
-static int ReadTDO(int bit_count, int data, int inst)
+static int ReadTDO(unsigned int bit_count, int data, int inst)
 {
   unsigned int record = 0;
   unsigned int i;
@@ -168,22 +168,20 @@ static int ReadTDO(int bit_count, int data, int inst)
 /*               length minus 1                                   */
 /*                                                                */
 /******************************************************************/
-static void ReadTDOBuf(int bit_count, const uint8_t* txbuf, uint8_t* rxbuf, int inst)
+static void ReadTDOBuf(unsigned int bit_count, const uint8_t* txbuf, uint8_t* rxbuf, int inst)
 {
-  unsigned int tdi = 0, tdo = 0, record = 0;
   unsigned int i;
   unsigned int charbit = 0;
   unsigned char indata, outdata;
   indata = 0;
   for (i = 0; i < bit_count; i++)
   {
-    unsigned int mask = 1;
-
-    if (charbit == 0)
+    if (charbit == 0) {
       if (txbuf)
         outdata = *txbuf++;
       else
         outdata = -1;
+    }
 
     indata = (indata >> 1) | (port_pin_get_input_level (TDO) << 7);
 
@@ -320,13 +318,10 @@ static void Js_Reset()
 /******************************************************************/
 static void Js_Runidle()
 {
-  int i = 0;
-
   /* If the current state is not UPDATE_DR or UPDATE_IR, reset the JSM and move to RUN/IDLE */
   if (jtag.state != JS_UPDATE_IR && jtag.state != JS_UPDATE_DR)
   {
-    for (i = 0; i < JSM_RESET_COUNT; i++)
-      AdvanceJSM(1);
+    Js_Reset();
   }
 
   AdvanceJSM(0);
@@ -352,7 +347,7 @@ static void Js_Runidle()
 /******************************************************************/
 static int LoadJI(int action)
 {
-  int i, record = 0, error = 0;
+  int record = 0, error = 0;
 
   /* Move Jtag State Machine (JSM) to RUN/IDLE */
   if (jtag.state != JS_RUNIDLE && jtag.state != JS_RESET)
@@ -401,7 +396,6 @@ static int LoadJI(int action)
 /******************************************************************/
 static void SetupChain(int action)
 {
-  int i, record = 0;
   /* Move Jtag State Machine (JSM) to RUN/IDLE */
   if (jtag.state != JS_RUNIDLE && jtag.state != JS_RESET)
     Js_Runidle();
@@ -413,7 +407,7 @@ static void SetupChain(int action)
   AdvanceJSM(0);
   AdvanceJSM(0);
 
-  record = ReadTDO(INST_LEN, action, 1);
+  ReadTDO(INST_LEN, action, 1);
 
   /* Move JSM to UPDATE_IR */
   AdvanceJSM(1);
@@ -633,7 +627,7 @@ int jtagReadBuffer(unsigned int address, uint8_t *data, size_t len)
 
 /**
  */
-int mbPinSet(void)
+void mbPinSet(void)
 {
 #ifdef MB_INT
   uint32_t rpc[1];
@@ -715,7 +709,6 @@ uint32_t jtagBitstreamVersion()
 void jtagBootApp()
 {
   uint32_t ptr[1];
-  uint32_t ver;
 
   ptr[0] = 0 | 3;
   mbCmdSend(ptr, 1);
@@ -752,7 +745,7 @@ void jtagFlashReadBlock(uint32_t offset, size_t len, uint8_t* buf)
   mbRead(2, &rpc[2], (len + 3) / 4 + 1);
 
   uint8_t* newbuf = (uint8_t*)&rpc[3];
-  for (int i = 0; i < len; i++) {
+  for (size_t i = 0; i < len; i++) {
     //buf[i] = reverse(newbuf[i]);
     buf[i] = newbuf[i];
   }

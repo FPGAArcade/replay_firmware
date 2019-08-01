@@ -82,6 +82,7 @@ void SSC_DisableTxRx(void)
 
 void SSC_Write(uint32_t frame)
 {
+    (void)frame;
 }
 
 void SSC_WaitDMA(void)
@@ -90,6 +91,8 @@ void SSC_WaitDMA(void)
 
 void SSC_WriteBufferSingle(void* pBuffer, uint32_t length, uint32_t wait)
 {
+    (void)wait; // no async support
+
     if (length == 0) {
         return;
     }

@@ -44,24 +44,10 @@
  Email support@fpgaarcade.com
 */
 #include "../board.h"
-/*
-void vidor_SPI_init();
-void vidor_SPI_beginTransaction();
-uint8_t vidor_SPI_transfer(uint8_t data);
-void vidor_SPI_endTransaction();
-
-void vidor_SPI_setFreq(uint32_t freq);
-uint32_t vidor_SPI_getFreq();
-*/
-
 #include "SPI.h"
 
 static SPISettings settings;
 static uint8_t chip_select_asserted = 0;
-
-static void vidor_SPI_init()
-{
-}
 
 static void vidor_SPI_beginTransaction(uint8_t cs)
 {
@@ -130,7 +116,7 @@ void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
 {
     uint8_t* p = (uint8_t*)pBuffer;
 
-    for (int i = 0; i < length; ++i) {
+    for (uint32_t i = 0; i < length; ++i) {
         rSPI(*p++);
     }
 }
@@ -139,7 +125,7 @@ void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 {
     uint8_t* p = (uint8_t*)pBuffer;
 
-    for (int i = 0; i < length; ++i) {
+    for (uint32_t i = 0; i < length; ++i) {
         *p++ = rSPI(0x00);
     }
 }

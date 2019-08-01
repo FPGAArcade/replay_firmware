@@ -2,11 +2,15 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
-#include "main.h"
-#include "hardware_vidor/usbblaster.h"
-extern "C" {
-#include "hardware/irq.h"
-}
+#include "SPI.h"
+#include "replay.h"
+
+// hardware/irq.h
+extern "C" unsigned disableIRQ(void);
+extern "C" unsigned enableIRQ(void);
+
+// hardware_vidor/usbblaster.h
+extern "C" void USBBlaster_Disable();
 
 void setup() {
 
@@ -89,8 +93,8 @@ extern "C" void PrintExceptionInfo(unsigned long* stack)
     const unsigned long ram_start = 0x20000000, ram_end = 0x20008000;
     unsigned long r = stack[i];
 
-    if (rom_start <= r && r < rom_end ||
-        ram_start <= r && r < ram_end)
+    if (((rom_start <= r) && (r < rom_end)) ||
+        ((ram_start <= r) && (r < ram_end)))
     {
       kprintf("* @ %3s :                                                             *\n\r", regs[i]);
       kprintmem((const uint8_t*)(r & ~0x3) - 32, 64);
@@ -115,7 +119,7 @@ extern "C" void PrintExceptionInfo(unsigned long* stack)
 }
 
 static char buffer[256];
-void kprintstr(const char* str)
+static void kprintstr(const char* str)
 {
   if (!str)
     return;
@@ -127,23 +131,42 @@ void kprintstr(const char* str)
 
 extern "C" int kprintf(const char * fmt, ...)
 {
+  disableIRQ();
+
   va_list args;
   va_start (args, fmt);
   int n = vsnprintf (buffer, sizeof(buffer)-1, fmt, args);
-  if (0 < n && n < sizeof(buffer))
+  if (0 < n && n < (int)sizeof(buffer))
   {
     buffer[n] = 0;
     kprintstr(buffer);
   }
   va_end (args);
+
+  enableIRQ();
+
+  return n;
 }
 
-void kprintmem(const uint8_t* pBuffer, uint32_t size)
+extern "C" void kprintmem(const uint8_t* memory, uint32_t size)
 {
   uint32_t i, j, len;
   char format[150];
   char alphas[27];
   strcpy(format, "* 0x%08X: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X ");
+
+  const unsigned long rom_start = 0x00000000, rom_end = 0x00040000;
+  const unsigned long ram_start = 0x20000000, ram_end = 0x20008000;
+
+  // Make sure we don't access invalid addresses, outside of ROM/RAM by cutting 
+  // size short 16 bytes from the end (because we will dereference 16 bytes later)
+  uintptr_t start = (uintptr_t)memory;
+  if ((signed)rom_start <= (signed)start && start+16 < rom_end)     // this is a ROM address
+    if ((start + size) > rom_end)
+      size = ((rom_end - start + 15) & ~15) - 16;
+  if (ram_start <= start && start+16 < ram_end)     // this is a RAM address
+    if ((start + size) > ram_end)
+      size = ((ram_end - start + 15) & ~15) - 16;
 
   for (i = 0; i < size; i += 16) {
     len = size - i;
@@ -171,7 +194,7 @@ void kprintmem(const uint8_t* pBuffer, uint32_t size)
 
         // create the ascii representation
     for (j = 0; j < len; ++j) {
-      alphas[j] = (isalnum(pBuffer[i + j]) ? pBuffer[i + j] : '.');
+      alphas[j] = (isalnum(memory[i + j]) ? memory[i + j] : '.');
     }
 
     for (; j < 16; ++j) {
@@ -183,9 +206,9 @@ void kprintmem(const uint8_t* pBuffer, uint32_t size)
     j = strlen(format);
     sprintf(format + j, "'%s'  *\n\r", alphas);
 
-    kprintf(format, i + (intptr_t)pBuffer,
-      pBuffer[i + 0], pBuffer[i + 1], pBuffer[i + 2], pBuffer[i + 3], pBuffer[i + 4], pBuffer[i + 5], pBuffer[i + 6], pBuffer[i + 7],
-      pBuffer[i + 8], pBuffer[i + 9], pBuffer[i + 10], pBuffer[i + 11], pBuffer[i + 12], pBuffer[i + 13], pBuffer[i + 14], pBuffer[i + 15]);
+    kprintf(format, i + (intptr_t)memory,
+      memory[i + 0], memory[i + 1], memory[i + 2], memory[i + 3], memory[i + 4], memory[i + 5], memory[i + 6], memory[i + 7],
+      memory[i + 8], memory[i + 9], memory[i + 10], memory[i + 11], memory[i + 12], memory[i + 13], memory[i + 14], memory[i + 15]);
 
     format[j] = '\0';
   }

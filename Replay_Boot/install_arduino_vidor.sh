@@ -40,7 +40,7 @@ fi
 
 # if not already cached, download and install arduino IDE
 if [ ! -f "$ARDUINO_PATH/arduino" ]; then
-  if [ "$OSTYPE" == "linux-gnu" ]; then
+  if [ "$OSTYPE" =~ "linux" ]; then
     echo -ne "${ORANGE}DOWNLOADING... \n${LCYAN}"
     curl -f -# http://downloads.arduino.cc/arduino-${ARDUINO_IDE_VERSION}-linux64.tar.xz -o arduino.tar.xz 2>&1
     RET=$?

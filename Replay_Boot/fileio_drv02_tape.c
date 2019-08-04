@@ -246,7 +246,7 @@ static ChunkInfo* GetChunkAtPosFile(FF_FILE* f, uint32_t* p_bit_pos)
     }
 
     uint32_t chunk_start = 0;
-    uint32_t chunk_bitlen;
+    uint32_t chunk_bitlen = 0;
 
     if (chunk->bit_offset_end != 0 && bit_pos >= chunk->bit_offset_end) {
         fseek(f, chunk->file_offset + chunk->length, FF_SEEK_SET);

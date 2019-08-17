@@ -190,6 +190,7 @@ int main(void)
     DEBUG(0, "Mike Johnson & Wolfgang Scherr");
     DEBUG(0, "");
     DEBUG(0, "ARM Firmware: %s", version);
+    DEBUG(0, "ARM Firmware Size: %d bytes", *(uint32_t*)0x102024);
     DEBUG(0, "");
 
     DEBUG(0, "Built upon work by Dennis van Weeren & Jakub Bednarski");

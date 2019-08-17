@@ -190,6 +190,7 @@ void CFG_call_bootloader(void)
     volatile uint32_t* dest = (volatile uint32_t*)0x00200000;
     volatile uint16_t* patch = (volatile uint16_t*)0x2001d2;
     volatile uint16_t* delay = (volatile uint16_t*)0x20027c;
+    volatile uint32_t* boot_param = (volatile uint32_t*)0x200008;
 
     // set PROG low to reset FPGA (open drain)
     IO_DriveLow_OD(PIN_FPGA_PROG_L);
@@ -211,6 +212,11 @@ void CFG_call_bootloader(void)
     // older bootroms use 10 loops (~5s) while newer use 20 loops (~10s)
     if ((*delay == 0x2b0a || *delay == 0x2b14) && 0) {
         *delay = 0x2b32;    // timeout = ~25s
+
+    // check for modern bootloader
+    if (*boot_param == 0xb007c0de) {
+        boot_param += sizeof(uint32_t)*2;    // 0xb007c0de + size of bootloader
+        *boot_param = 1;
     }
 
     // disable all interrupts - we don't want them triggered while we're rebooting/flashing

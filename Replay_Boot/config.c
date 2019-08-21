@@ -198,6 +198,9 @@ void CFG_call_bootloader(void)
     IO_DriveHigh_OD(PIN_FPGA_PROG_L);
     Timer_Wait(2);
 
+    // disable all interrupts - we don't want them triggered while we're rebooting/flashing
+    IRQ_DisableAllInterrupts();
+
     // copy bootloader to SRAM
     for (i = 0; i < 1024; i++) {
         *dest++ = *src++;
@@ -216,12 +219,13 @@ void CFG_call_bootloader(void)
 
     // check for modern bootloader
     if (*boot_param == 0xb007c0de) {
-        boot_param += sizeof(uint32_t)*2;    // 0xb007c0de + size of bootloader
-        *boot_param = 1;
+        *(boot_param+2) = 1;
+        DEBUG(0, "*boot_param+0 = %08x", *(boot_param+0));
+        DEBUG(0, "*boot_param+1 = %08x", *(boot_param+1));
+        DEBUG(0, "*boot_param+2 = %08x", *(boot_param+2));
+        DEBUG(0, "*boot_param+3 = %08x", *(boot_param+3));
+        DEBUG(0, "done.");
     }
-
-    // disable all interrupts - we don't want them triggered while we're rebooting/flashing
-    IRQ_DisableAllInterrupts();
 
     // launch bootloader in SRAM
 #if defined(__arm__)

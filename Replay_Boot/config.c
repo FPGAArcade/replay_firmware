@@ -212,6 +212,7 @@ void CFG_call_bootloader(void)
     // older bootroms use 10 loops (~5s) while newer use 20 loops (~10s)
     if ((*delay == 0x2b0a || *delay == 0x2b14) && 0) {
         *delay = 0x2b32;    // timeout = ~25s
+    }
 
     // check for modern bootloader
     if (*boot_param == 0xb007c0de) {

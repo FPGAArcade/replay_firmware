@@ -49,9 +49,6 @@
 # object, list, etc. directory
 OUTPUT_DIR = build
 
-# build number
-BUILD_NUM = $$(./buildnum)
-
 # MCU name and submodel
 MCU      = arm7tdmi
 SUBMDL   = AT91SAM7S256
@@ -176,8 +173,6 @@ endif
 
 CDEFS += -D__WinARM__
 ADEFS += -D__WinARM__
-
-CDEFS += -D__BUILDNUMBER__=\"$(BUILD_NUM)\"
 
 # Compiler flags.
 

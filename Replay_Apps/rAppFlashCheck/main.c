@@ -14,8 +14,6 @@
 // for sprintf
 #include "printf.h"
 
-const char version[] = {__BUILDNUMBER__};
-
 __attribute__ ((noreturn)) void _call_bootloader(void)
 {
   // set PROG low to reset FPGA (open drain)
@@ -23,6 +21,9 @@ __attribute__ ((noreturn)) void _call_bootloader(void)
   Timer_Wait(1);
   IO_DriveHigh_OD(PIN_FPGA_PROG_L);
   Timer_Wait(2);
+
+  AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
+  AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS;
 
   // perform a ARM reset
   asm("ldr r3, = 0x00000000\n");
@@ -40,7 +41,7 @@ void _init_osd(void)
   OSD_Clear();
   OSD_Write  (0,     "      ***              ***      ", 0);
   OSD_WriteRC(1, 0,  "                                ", 0, 0, 0x01);
-  OSD_WriteRC(14, 0, "                                ", 0, 0, 0x01);
+  OSD_WriteRC(14, 0, "         'X' to reset!          ", 0, 0xE, 0x01);
   OSD_WriteRC(0, 11,            "REPLAY APP", 0, 0xE, 0);
   OSD_Enable(DISABLE_KEYBOARD);
 }
@@ -51,12 +52,32 @@ void _show(char *s, int line)  {
   OSD_WriteRC(line, 0, s, 0, 0x0F, 0);   // 0x09=blue, 0x00=black, 0x0F=white
 }
 
+static unsigned int crc32(volatile void* address, uint32_t length)
+{
+    uint32_t crc = 0xffffffff;
+    uint8_t* data = (uint8_t*)address;
+
+    for (uint32_t i = 0; i < length; ++i) {
+        uint32_t byte = *data++;
+        crc = crc ^ byte;
+
+        for (int j = 7; j >= 0; j--) {    // Do eight times.
+            uint32_t mask = -(crc & 1);
+            crc = (crc >> 1) ^ (0xEDB88320 & mask);
+        }
+    }
+
+    return ~crc;
+}
+
 // Here we go!
 int main(void)
 {
   volatile uint32_t *boot   = (volatile uint32_t *)0x00100000;
   volatile uint32_t *loader = (volatile uint32_t *)0x00102000;
   volatile uint32_t *end    = (volatile uint32_t *)0x00140000;
+  const uint32_t boot_size = (*(uint32_t*)0x100208 == 0xb007c0de) ? *(uint32_t*)0x10020c : 0;
+  const uint32_t fw_size   = (*(uint32_t*)0x102020 == 0x600dc0de) ? *(uint32_t*)0x102024 : 0;
   char s[256];
   int osd_enabled=1;
 
@@ -71,22 +92,16 @@ int main(void)
   // ------------------------------------------------------------------------
   // start app code here!
 
-  OSD_WriteRC(4, 0, "Checksums:", 0, 0x00, 0);
+  OSD_WriteRC(4, 0, "CRC32 Checksums:", 0, 0x0B, 0);
 
-  // simple checksum of boot area
-  unsigned long blsum=0;
-  while(boot!=loader) {
-    blsum += *boot++;
-  }
+  // crc32 checksum of boot area
+  unsigned long blsum=crc32(boot, boot_size ? boot_size + 0x200 : loader - boot);
   sprintf(s,"Bootloader: 0x%08lx",blsum);
   _show(s,6);
 
-  // simple checksum of loader area
-  unsigned long ldsum=0;
-  while(loader!=end) {
-    ldsum += *loader++;
-  }
-  sprintf(s,"Replay Loader: 0x%08lx",ldsum);
+  // crc32 checksum of loader area
+  unsigned long ldsum=crc32(loader, fw_size ? fw_size : end - loader);
+  sprintf(s,"Replay Firmware: 0x%08lx",ldsum);
   _show(s,7);
 
   // show flash content

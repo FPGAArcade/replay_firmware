@@ -10,5 +10,8 @@ all: loaderline.exe
 loaderline.exe: loaderline.c 
 	gcc -o loaderline.exe loaderline.c $(LIBS)
 
+linux: loaderline.c 
+	gcc -o loaderline.elf loaderline.c
+
 clean:
-	rm loaderline.exe
+	rm -f loaderline.exe loaderline.elf

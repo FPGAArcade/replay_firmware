@@ -66,12 +66,12 @@ void usb_setup_endpoints(uint32_t* ep_types, uint32_t num_eps);
 // helpers
 //void usb_send_ep0(const uint8_t* packet, uint32_t packet_length, uint32_t wLength);
 #if 1
-inline void usb_send_ep0(const uint8_t* packet, uint32_t packet_length, uint32_t wLength)
+static inline void usb_send_ep0(const uint8_t* packet, uint32_t packet_length, uint32_t wLength)
 {
 	usb_send(/*ep = */ 0, /*wMaxPacketSize = */ 8, packet, packet_length, wLength);
 }
 #endif
-inline void usb_send_ep0_zlp()
+static inline void usb_send_ep0_zlp()
 {
 	usb_send(/*ep = */ 0, /*wMaxPacketSize = */ 8, /*packet = */ 0, /*packet_length = */ 0, /*wLength = */ 0);
 }

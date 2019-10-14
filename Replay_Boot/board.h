@@ -208,7 +208,7 @@
 #define PIN_MENU_BUTTON         (1<<0)   // dont we have a button?
 
 #define PIN_CARD_CS_L			(4u)	// PB10 / PIN_SPI_SS
-#define PIN_CONF_DIN			(5u)	// PB11
+#define PIN_CONF_DIN			(2u)	// PA10
 #define PIN_FPGA_CTRL1			(6u)	// PA20
 #define PIN_FPGA_CTRL0			(7u)	// PA21
 #define PIN_FPGA_RST_L          (31u)	// PA28

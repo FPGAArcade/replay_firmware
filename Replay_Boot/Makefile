@@ -342,6 +342,7 @@ LDFLAGS = -lc -lpthread -lncurses
 endif
 
 ifeq (1,${VIDOR}) 
+ARDUINO_BOARD_VERSION=1.8.4
 OBJCOPY = arm-none-eabi-objcopy
 TCHAIN_PREFIX = .arduino/portable/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/bin/arm-none-eabi-
 CFLAGS_WARN = #-Wall -Wextra -Wno-expansion-to-defined
@@ -349,9 +350,9 @@ CFLAGS_DEF  = -DF_CPU=48000000L -DARDUINO=10809 -DARDUINO_SAMD_MKRVIDOR4000 -DAR
 CFLAGS_DEF += -DUSB_VID=0x2341 -DUSB_PID=0x8056 -DUSBCON "-DUSB_MANUFACTURER=\"Arduino LLC\"" "-DUSB_PRODUCT=\"Arduino MKR Vidor 4000\"" -DUSE_BQ24195L_PMIC
 CFLAGS_INC  = "-I.arduino/portable/packages/arduino/tools/CMSIS/4.5.0/CMSIS/Include/"
 CFLAGS_INC += "-I.arduino/portable/packages/arduino/tools/CMSIS-Atmel/1.2.0/CMSIS/Device/ATMEL/"
-CFLAGS_INC += "-I.arduino/portable/packages/arduino/hardware/samd/1.8.3/cores/arduino"
-CFLAGS_INC += "-I.arduino/portable/packages/arduino/hardware/samd/1.8.3/variants/mkrvidor4000"
-CFLAGS_INC += "-I.arduino/portable/packages/arduino/hardware/samd/1.8.3/libraries/SPI" 
+CFLAGS_INC += "-I.arduino/portable/packages/arduino/hardware/samd/$(ARDUINO_BOARD_VERSION)/cores/arduino"
+CFLAGS_INC += "-I.arduino/portable/packages/arduino/hardware/samd/$(ARDUINO_BOARD_VERSION)/variants/mkrvidor4000"
+CFLAGS_INC += "-I.arduino/portable/packages/arduino/hardware/samd/$(ARDUINO_BOARD_VERSION)/libraries/SPI" 
 CFLAGS      = -c -g -Os $(CFLAGS_WARN) $(CFLAGS_DEF) $(CFLAGS_INC)
 CONLYFLAGS 	= -std=gnu11 -ffunction-sections -fdata-sections -nostdlib --param max-inline-insns-single=500
 CPPFLAGS    = -std=gnu++11 -ffunction-sections -fdata-sections -fno-threadsafe-statics -nostdlib --param max-inline-insns-single=500 -fno-rtti -fno-exceptions

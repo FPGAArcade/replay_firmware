@@ -1,4 +1,7 @@
+#if defined(__linux) || defined(__APPLE__)
+#else
 #include<Windows.h>
+#endif
 #include<stdio.h>
 #include<stdint.h>
 // Checksum Generator for Replay Apps / INI lines

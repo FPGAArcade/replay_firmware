@@ -425,7 +425,7 @@ all: begin $(BUILDDIR)isset gccversion build finished end
 install: all usbdl
 
 usbdl: $(BUILDDIR)$(TARGET).s19
-	../../bootloader/replay_loader_v1.2/$(USBDL) load $(BUILDDIR)$(TARGET).s19
+	../Replay_Update/FW/$(USBDL) load $(BUILDDIR)$(TARGET).s19
 
 # set up directory for output files, inluding subdirs for libs
 $(BUILDDIR)isset: $(SRC)

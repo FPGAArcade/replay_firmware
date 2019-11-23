@@ -92,7 +92,11 @@
       LDR     PC,DAbt_Addr     /* 0x10 Data Abort */
       NOP                      /* 0x14 reserved  */
       LDR     PC,IRQ_Addr      /* 0x18 IRQ */ 
-fiqvec:                        /* 0x1c FIQ */
+      b       FIQ_Handler_Entry/* 0x1c FIQ */ 
+
+  .word     0x600DC0DE         // ; tag
+  .word     binary_size        // ; firmware size
+
 /*------------------------------------------------------------------------------
 //*- Function             : FIQ_Handler_Entry
 //*- Treatments           : FIQ Controller Interrupt Handler.

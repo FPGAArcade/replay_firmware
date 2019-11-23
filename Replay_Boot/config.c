@@ -200,12 +200,16 @@ void CFG_call_bootloader(void)
     volatile uint32_t* dest = (volatile uint32_t*)0x00200000;
     volatile uint16_t* patch = (volatile uint16_t*)0x2001d2;
     volatile uint16_t* delay = (volatile uint16_t*)0x20027c;
+    volatile uint32_t* boot_param = (volatile uint32_t*)0x200008;
 
     // set PROG low to reset FPGA (open drain)
     IO_DriveLow_OD(PIN_FPGA_PROG_L);
     Timer_Wait(1);
     IO_DriveHigh_OD(PIN_FPGA_PROG_L);
     Timer_Wait(2);
+
+    // disable all interrupts - we don't want them triggered while we're rebooting/flashing
+    IRQ_DisableAllInterrupts();
 
     // copy bootloader to SRAM
     for (i = 0; i < 1024; i++) {
@@ -223,8 +227,15 @@ void CFG_call_bootloader(void)
         *delay = 0x2b32;    // timeout = ~25s
     }
 
-    // disable all interrupts - we don't want them triggered while we're rebooting/flashing
-    IRQ_DisableAllInterrupts();
+    // check for modern bootloader
+    if (*boot_param == 0xb007c0de) {
+        *(boot_param+2) = 1;
+        DEBUG(0, "*boot_param+0 = %08x", *(boot_param+0));
+        DEBUG(0, "*boot_param+1 = %08x", *(boot_param+1));
+        DEBUG(0, "*boot_param+2 = %08x", *(boot_param+2));
+        DEBUG(0, "*boot_param+3 = %08x", *(boot_param+3));
+        DEBUG(0, "done.");
+    }
 
     // launch bootloader in SRAM
 #if defined(__arm__)

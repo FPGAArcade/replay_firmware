@@ -25,7 +25,10 @@ fw_zip="Firmware_Replay1_${now}.zip"
 staging_path=`mktemp -d`
 
 echo "Building firmware"
-make
+make clean && make
+
+echo "Copying bootloader"
+cp ../Replay_Update/FW/bootrom.bin ../Replay_Apps/rAppFlashUpdater/sdcard
 
 echo "Copying firmware"
 cp build/main.bin ../Replay_Apps/rAppFlashUpdater/sdcard
@@ -33,6 +36,9 @@ cp build/main.s19 ../Replay_Update/FW/
 
 echo "Generating rApp Updater ini files"
 pushd ../Replay_Apps/rAppFlashUpdater > /dev/null
+
+# make sure genupd.elf is built
+make -C ../../../tools/genupd clean linux
 
 # Generate and append firmware crc to each available template ini
 for template in *_template_*.ini ; do

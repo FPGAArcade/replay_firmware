@@ -11,7 +11,7 @@ genupd.exe: genupd.c
 	gcc -o genupd.exe genupd.c $(LIBS)
 
 linux: genupd.c 
-	gcc -o genupd.elf genupd.c
+	gcc -std=c99 -o genupd.elf genupd.c
 
 clean:
 	rm -f genupd.exe genupd.elf

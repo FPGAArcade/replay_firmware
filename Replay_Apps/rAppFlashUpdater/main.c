@@ -22,6 +22,9 @@ __attribute__ ((noreturn)) void _call_bootloader(void)
   IO_DriveHigh_OD(PIN_FPGA_PROG_L);
   Timer_Wait(2);
 
+  AT91C_BASE_AIC->AIC_IDCR = AT91C_ALL_INT;
+  AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS;
+
   // perform a ARM reset
   asm("ldr r3, = 0x00000000\n");
   asm("bx  r3\n");
@@ -81,6 +84,75 @@ void _get_block(uint32_t base, void *buf)
   SPI_DisableFpga();
 }
 
+// reset with data = 0x00000000; length = 0xffffffff
+static unsigned int feed_crc32(uint32_t address, uint32_t length)
+{
+    static uint32_t crc;
+    uint8_t* data = (uint8_t*)address;
+
+    if (data == 0 && length == 0xffffffff) {
+        crc = length;
+        length = 0;
+    }
+
+    for (uint32_t i = 0; i < length; ++i) {
+        uint32_t byte = *data++;
+        crc = crc ^ byte;
+
+        for (int j = 7; j >= 0; j--) {    // Do eight times.
+            uint32_t mask = -(crc & 1);
+            crc = (crc >> 1) ^ (0xEDB88320 & mask);
+        }
+    }
+
+    return ~crc;
+}
+
+void flash(uint32_t base, uint32_t size)
+{
+  char s[256];
+  uint32_t i, j, l, length;
+  volatile uint32_t code;
+  length = size; l=0;
+  code   = base;
+  for(i=0;i<((length/512)+1);i++) {
+    uint32_t buf[128];
+    volatile uint32_t *p=0x0;
+    _get_block(code,buf);
+    // write first page from buffer
+    for(j=0;j<64;j++) {
+      p[j]=buf[j];
+    l+=4;
+    }
+    Timer_Wait(10); // we need this to delay, the following while is quite useless...?
+    while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
+    AT91C_BASE_MC->MC_FCR = (0x5A000000L) |
+                            (code&0x3FF00L) |
+                            AT91C_MC_FCMD_START_PROG;
+    Timer_Wait(10); // we need this to delay, the following while is quite useless...?
+    while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
+    code+=256;
+    // write second page from buffer
+    for(j=0;j<64;j++) {
+      p[j]=buf[j+64];
+      l+=4;
+    }
+    Timer_Wait(10); // we need this to delay, the following while is quite useless...?
+    while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
+    AT91C_BASE_MC->MC_FCR = (0x5A000000L) |
+                            (code&0x3FF00L) |
+                            AT91C_MC_FCMD_START_PROG;
+    Timer_Wait(10); // we need this to delay, the following while is quite useless...?
+    while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
+    code+=256;
+    // show something on OSD...
+    if ((l&0xfff)==0) {
+      sprintf(s,"@0x%08x (%lu%% written)",code,100*l/length);
+      OSD_WriteRC(12, 2, s, 0, 0xF, 0);
+    }
+  }
+}
+
 // Here we go!
 int main(void)
 {
@@ -118,7 +190,6 @@ int main(void)
 
   uint32_t i, j, l, length, bok, lok;
   volatile uint32_t code;  // set to base later
-  volatile uint32_t *fptr; // set to base later
 
   while (1) {
     // re-init OSD
@@ -142,16 +213,17 @@ int main(void)
 
     bok=1, lok=1;
     length=bootlength; l=0;
-    uint32_t bsum=0, bfsum=0;
+    feed_crc32(0x0,0xffffffff);
+    const uint32_t current_bootlength = (*(uint32_t*)0x100208 == 0xb007c0de) ? *(uint32_t*)0x10020c + 0x200: bootlength;
+    uint32_t bsum=0, bfsum=feed_crc32(bootbase,current_bootlength);
     code   = bootbase;
-    fptr = (volatile uint32_t *)bootbase;
+    feed_crc32(0x0,0xffffffff);
     for(i=0;i<((length/512)+1);i++) {
       uint32_t buf[128];
       _get_block(code,buf);
       for(j=0;j<128;j++) {
-        if (l<length) bsum+=buf[j];
+        if (l<length) bsum=feed_crc32((uint32_t)&buf[j],sizeof(buf[j]));
         else break;
-        bfsum+=*fptr++;
         l += 4;
       }
       code+=512;
@@ -165,29 +237,31 @@ int main(void)
     _show(s,8);
 
     length=loaderlength; l=0;
-    uint32_t lsum=0, lfsum=0;
+    feed_crc32(0x0,0xffffffff);
+    const uint32_t current_loaderlength = (*(uint32_t*)0x102020 == 0x600dc0de) ? *(uint32_t*)0x102024 : loaderlength;
+    uint32_t lsum=0, lfsum=feed_crc32(loaderbase,current_loaderlength);
     code   = loaderbase;
-    fptr = (volatile uint32_t *)loaderbase;
+    feed_crc32(0x0,0xffffffff);
     for(i=0;i<((length/512)+1);i++) {
       uint32_t buf[128];
       _get_block(code,buf);
       for(j=0;j<128;j++) {
-        if (l<length) lsum+=buf[j];
+        if (l<length) lsum=feed_crc32((uint32_t)&buf[j],sizeof(buf[j]));
         else break;
-        lfsum+=*fptr++;
         l += 4;
       }
       code+=512;
     }
     if (loadersum!=lsum) {
       sprintf(s," LOADER: BAD SDCARD DATA!");
+      printf("loadersum = %08x, lsum = %08x",loadersum,lsum);
     } else {
       sprintf(s," LOADER: 0x%08lx/0x%08lx %s",lfsum,lsum,lfsum==lsum?" ":"!");
       if (lfsum!=lsum) lok=0;
     }
     _show(s,9);
 
-    if (!lok) {    // we don't process bok for now until we know this works well!
+    if (!bok || !lok) {
       sprintf(s,"--PRESS 'F' TO START FLASHING!--");
       _show(s,11);
       sprintf(s,"--  (OR PRESS 'R' TO REBOOT)  --");
@@ -217,44 +291,15 @@ int main(void)
       AT91C_BASE_MC->MC_FMR = AT91C_MC_FWS_1FWS |
                               (48<<16);
 
+      // flash the boot loader
+      if (!bok) {
+        printf("flashing bootloader\r\n");
+        flash(bootbase, bootlength);
+      }
       // flash the main loader
-      length = loaderlength; l=0;
-      code   = loaderbase;
-      for(i=0;i<((length/512)+1);i++) {
-        uint32_t buf[128];
-        volatile uint32_t *p=0x0;
-        _get_block(code,buf);
-        // write first page from buffer
-        for(j=0;j<64;j++) {
-          p[j]=buf[j];
-        l+=4;
-        }
-        Timer_Wait(10); // we need this to delay, the following while is quite useless...?
-        while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
-        AT91C_BASE_MC->MC_FCR = (0x5A000000L) |
-                                (code&0x3FF00L) |
-                                AT91C_MC_FCMD_START_PROG;
-        Timer_Wait(10); // we need this to delay, the following while is quite useless...?
-        while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
-        code+=256;
-        // write second page from buffer
-        for(j=0;j<64;j++) {
-          p[j]=buf[j+64];
-          l+=4;
-        }
-        Timer_Wait(10); // we need this to delay, the following while is quite useless...?
-        while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
-        AT91C_BASE_MC->MC_FCR = (0x5A000000L) |
-                                (code&0x3FF00L) |
-                                AT91C_MC_FCMD_START_PROG;
-        Timer_Wait(10); // we need this to delay, the following while is quite useless...?
-        while(!((AT91C_BASE_MC->MC_FSR) & AT91C_MC_FRDY));
-        code+=256;
-        // show something on OSD...
-        if ((l&0xfff)==0) {
-          sprintf(s,"@0x%08x (%lu%% written)",code,100*l/length);
-          OSD_WriteRC(12, 2, s, 0, 0xF, 0);
-        }
+      if (!lok) {
+        printf("flashing firmware\r\n");
+        flash(loaderbase, loaderlength);
       }
     } else {
       // 

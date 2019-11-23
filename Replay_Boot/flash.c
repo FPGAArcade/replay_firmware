@@ -210,7 +210,7 @@ __attribute__( ( section(".data") ) ) __attribute__ ((noreturn)) __attribute__ (
     TIMER_WAIT(2);
 
     // perform a ARM reset
-    asm("ldr r3, = 0x00000000\n");
+    asm("movs r3, #0x00000000\n");
     asm("bx  r3\n");
 
     // we will never reach here

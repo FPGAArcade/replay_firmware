@@ -298,14 +298,32 @@ void USB_Keyboard_Key_Up(uint8_t meta, uint8_t key)
 
 }
 
+static uint8_t USBsense = 0;
 
 extern "C" void USBHID_Init()
 {
+    pinMode( PIN_USB_HOST_ENABLE, INPUT );
+    USBsense = digitalRead(PIN_USB_HOST_ENABLE);
+    if (USBsense) {
+        INFO("USB DEVICE mode");
+        return;
+    }
+    INFO("USB HOST mode");
     uhc_start();
 }
 
 extern "C" const char* USBHID_Update()
 {
+    if (USBsense != digitalRead(PIN_USB_HOST_ENABLE)) {
+        USBHID_Init();
+        if (USBsense) {
+            USBDevice.init();
+            USBDevice.attach();
+        }
+    }
+    if (USBsense) {
+        return 0;
+    }
     mouse.SendMouseUpdate();
     disableIRQ();
     const char* key = keyboard.PopKey();

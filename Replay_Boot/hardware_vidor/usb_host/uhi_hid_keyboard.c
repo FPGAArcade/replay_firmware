@@ -81,7 +81,7 @@ uhc_enum_status_t uhi_hid_keyboard_install(uhc_device_t* dev, usb_conf_desc_t* c
 				break;
 
 			uhi_hid_keyboard_dev.hid_report_size = le16_to_cpu(ptr_hid->wDescriptorLength);
-			Assert(uhi_hid_keyboard_dev.hid_report_size <= sizeof(uhi_hid_report_data.hid_report));
+			Assert(uhi_hid_keyboard_dev.hid_report_size <= sizeof(uhi_hid_report_buffer));
 
 			usb_printf("  -> uhi_hid_keyboard_dev.hid_report_size = %i bytes\n\r", uhi_hid_keyboard_dev.hid_report_size);
 
@@ -138,7 +138,7 @@ static void _uhi_hid_keyboard_get_hid_report(
 		return;
 	}
 
-	uint8_t report_id = get_report_id(uhi_hid_report_data.hid_report, uhi_hid_keyboard_dev.hid_report_size);
+	uint8_t report_id = parse_hid_report(uhi_hid_report_buffer, uhi_hid_keyboard_dev.hid_report_size, NULL);
 	(void)report_id;
 	usb_printf("report_id = %i\n\r", report_id);
 
@@ -165,7 +165,7 @@ void uhi_hid_keyboard_enable(uhc_device_t* dev)
 	req.wLength = uhi_hid_keyboard_dev.hid_report_size;
 	if (!uhd_setup_request(dev->address,
 		&req,
-		uhi_hid_report_data.hid_report, uhi_hid_keyboard_dev.hid_report_size,
+		uhi_hid_report_buffer, uhi_hid_keyboard_dev.hid_report_size,
 		NULL, _uhi_hid_keyboard_get_hid_report)) {
 		usb_printf(" ERROR failure to request HID report\n\r");
 	}

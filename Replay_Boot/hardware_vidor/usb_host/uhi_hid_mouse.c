@@ -73,6 +73,7 @@ typedef struct {
 	uint8_t report_btn_prev;
 	uint16_t hid_report_size;
 	COMPILER_WORD_ALIGNED uint8_t report[64];
+	uhi_hid_report_data_t hid_report_data;
 }uhi_hid_mouse_dev_t;
 
 static uhi_hid_mouse_dev_t uhi_hid_mouse_dev = {
@@ -147,7 +148,7 @@ uhc_enum_status_t uhi_hid_mouse_install(uhc_device_t* dev, usb_conf_desc_t* conf
 				break;
 
 			uhi_hid_mouse_dev.hid_report_size = le16_to_cpu(ptr_hid->wDescriptorLength);
-			Assert(uhi_hid_mouse_dev.hid_report_size <= sizeof(uhi_hid_report_data.hid_report));
+			Assert(uhi_hid_mouse_dev.hid_report_size <= sizeof(uhi_hid_report_buffer));
 
 			usb_printf("  -> uhi_hid_mouse_dev.hid_report_size = %i bytes\n\r", uhi_hid_mouse_dev.hid_report_size);
 
@@ -205,7 +206,7 @@ static void _uhi_hid_mouse_get_hid_report(
 		return;
 	}
 
-	uhi_hid_mouse_dev.report_id = get_report_id(uhi_hid_report_data.hid_report, uhi_hid_mouse_dev.hid_report_size);
+	uhi_hid_mouse_dev.report_id = parse_hid_report(uhi_hid_report_buffer, uhi_hid_mouse_dev.hid_report_size, &uhi_hid_mouse_dev.hid_report_data );
 
 	usb_printf("report_id = %i\n\r", uhi_hid_mouse_dev.report_id);
 
@@ -232,7 +233,7 @@ void uhi_hid_mouse_enable(uhc_device_t* dev)
 	req.wLength = uhi_hid_mouse_dev.hid_report_size;
 	if (!uhd_setup_request(dev->address,
 		&req,
-		uhi_hid_report_data.hid_report, uhi_hid_mouse_dev.hid_report_size,
+		uhi_hid_report_buffer, uhi_hid_mouse_dev.hid_report_size,
 		NULL, _uhi_hid_mouse_get_hid_report)) {
 		usb_printf(" ERROR failure to request HID report\n\r");
 	}
@@ -299,15 +300,42 @@ static void uhi_hid_mouse_report_reception(
 		if (uhi_hid_mouse_dev.report_id != *p) {
 			usb_printf("discarding report 0x%02x\n\r", *p);
 			uhi_hid_mouse_start_trans_report(add);
+			return;
 		}
 		if (nb_transfered < 5) {
 			usb_printf("discarding short report %i bytes\n\r", nb_transfered);
 			uhi_hid_mouse_start_trans_report(add);
+			return;
 		}
 		p++;
 	}
 
 	usb_printmem(uhi_hid_mouse_dev.report, nb_transfered);
+
+	uint8_t parsed[5] = {0};
+
+	uint32_t bit_count = 0;
+	for (int i = 0; i < uhi_hid_mouse_dev.hid_report_data.num_objects; ++i) {
+		const uhi_hid_report_object_t* object = &uhi_hid_mouse_dev.hid_report_data.objects[i];
+		uint32_t value = extract_report_object(p, bit_count, object->size);
+		bit_count += object->size;
+
+		if (object->usage < 0) {
+			uint8_t usage_page = -object->usage;
+			if (usage_page == USB_HID_REPORT_USAGE_PAGE_BUTTONS)
+				parsed[UHI_HID_MOUSE_BTN] = (int8_t)value;
+		} else if (object->usage > 0) {
+			if (object->usage == USB_HID_REPORT_USAGE_X)
+				parsed[UHI_HID_MOUSE_MOV_X] = value;
+			else if (object->usage == USB_HID_REPORT_USAGE_Y)
+				parsed[UHI_HID_MOUSE_MOV_Y] = value;
+			else if (object->usage == USB_HID_REPORT_USAGE_WHEEL)
+				parsed[UHI_HID_MOUSE_MOV_SCROLL] = value;
+		}
+	}
+
+	// Replace with parsed data, if available
+	p = uhi_hid_mouse_dev.hid_report_data.num_objects ? parsed : p;
 
 	// Decode buttons
 	state_prev = uhi_hid_mouse_dev.report_btn_prev;

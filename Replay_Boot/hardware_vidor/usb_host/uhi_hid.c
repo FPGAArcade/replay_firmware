@@ -4,17 +4,28 @@
 #include "usb_protocol_hid.h"
 #include "uhi_hid.h"
 
-uhi_hid_report_data_t uhi_hid_report_data;
+uint8_t uhi_hid_report_buffer[512];
 
-uint8_t get_report_id(uint8_t* hid_report, uint16_t hid_report_size)
+uint8_t parse_hid_report(uint8_t* hid_report, uint16_t hid_report_size, uhi_hid_report_data_t* report_data)
 {
-	// we do an half-assed attempt to parse the report here; we really only care if there is a report ID present or not.
+	uhi_hid_report_object_t* objects = NULL;
+	uint16_t max_objects = 0;
 
-	uint8_t usage = 0x00;
+	uint8_t num_usages = 0x00;
+	uint8_t usages[8];
 	uint8_t usage_page = 0x00;
 	uint8_t collection_stack[16];
 	uint8_t collection_index = 0;
 	uint8_t report_id = 0xff;
+	uint8_t	report_usage = 0;
+	uint8_t	report_size = 0;
+	uint8_t report_count = 0;
+	uint8_t	report_objects = 0;
+
+	if (report_data) {
+		objects = report_data->objects;
+		max_objects = sizeof(report_data->objects) / sizeof(report_data->objects[0]);
+	}
 
 	usb_printmem(hid_report, hid_report_size);
 
@@ -91,6 +102,39 @@ uint8_t get_report_id(uint8_t* hid_report, uint16_t hid_report_size)
 								usb_printf(", Bitfield");
 							usb_printf(")");
 						}
+
+						// If we have a valid report_usage (currently only mouse pointer),
+						// and we have somewhere to write the date, then we're good.
+						if (!report_usage || !objects)
+							break;
+
+						// If the bits are marked CONSTANT we treat them as pad bits (usage == 0)
+						if (bits.constant) {
+							num_usages = 0x00;
+							usage_page = 0x00;
+						}
+
+						if (usage_page == USB_HID_REPORT_USAGE_PAGE_GENERIC_DESKTOP) {
+							// Typically mouse axis/wheel data
+							Assert(report_count == num_usages);
+							for (uint32_t i = 0; i < num_usages; ++i) {
+								Assert(report_objects < max_objects );
+								uhi_hid_report_object_t* object = &objects[report_objects++];
+
+								uint8_t usage = usages[i];
+								object->usage = usage;
+								object->size = report_size;
+							}
+						} else {
+							// Typically mouse buttons
+							Assert(report_objects < max_objects );
+							uhi_hid_report_object_t* object = &objects[report_objects++];
+
+							object->usage = -usage_page;	// report usage page as a negative value
+							object->size = report_size * report_count;
+						}
+
+						num_usages = 0x00;	// reset usage count
 						break;
 					case USB_HID_REPORT_MAIN_OUTPUT:
 						usb_printf("    USB_HID_REPORT_MAIN_OUTPUT");
@@ -127,7 +171,17 @@ uint8_t get_report_id(uint8_t* hid_report, uint16_t hid_report_size)
 								usb_printf("(Reserved)");
 								break;
 						}
+						if (collection_index == 0 && data == USB_HID_REPORT_COLLETION_APPLICATION) {
+							// $TODO make this generic for any usage (keyboard, gamepad, etc)
+							if (num_usages = 1 && usages[0] == USB_HID_REPORT_USAGE_MOUSE && usage_page == USB_HID_REPORT_USAGE_PAGE_GENERIC_DESKTOP) {
+								report_usage = usages[0];
+								report_objects = 0x00;	// at least on Logitech mouse/keyboard combo keeps multiple report layouts. reset to use the last one.
+							} else {
+								report_usage = 0;	// reset usage for unsupported collections
+							}
+						}
 						collection_stack[collection_index++] = data;
+						num_usages = 0x00;
 						break;
 					case USB_HID_REPORT_MAIN_COLLECTION_END:
 						usb_printf("    End Collection");
@@ -188,6 +242,7 @@ uint8_t get_report_id(uint8_t* hid_report, uint16_t hid_report_size)
 								break;
 						}
 						usage_page = data;
+						num_usages = 0;
 						break;
 					case USB_HID_REPORT_GLOBAL_LOGICAL_MINIMUM:
 						usb_printf("    Logical Minimum (%i)", data_signed);
@@ -209,18 +264,21 @@ uint8_t get_report_id(uint8_t* hid_report, uint16_t hid_report_size)
 						break;
 					case USB_HID_REPORT_GLOBAL_REPORT_SIZE:
 						usb_printf("    Report Size (%i)", data);
+						if (report_usage) {
+							report_size = data;
+						}
 						break;
 					case USB_HID_REPORT_GLOBAL_REPORT_ID:
 						usb_printf("    Report ID (%i)", data);
-						if (usage == USB_HID_REPORT_USAGE_MOUSE &&
-							usage_page == USB_HID_REPORT_USAGE_PAGE_GENERIC_DESKTOP &&
-							collection_index > 0 && 
-							collection_stack[0] == USB_HID_REPORT_COLLETION_APPLICATION) {
+						if (report_usage) {
 							report_id = data;
 						}
 						break;
 					case USB_HID_REPORT_GLOBAL_REPORT_COUNT:
 						usb_printf("    Report Count (%i)", data);
+						if (report_usage) {
+							report_count = data;
+						}
 						break;
 					case USB_HID_REPORT_GLOBAL_PUSH:
 						usb_printf("    USB_HID_REPORT_GLOBAL_PUSH");
@@ -279,9 +337,8 @@ uint8_t get_report_id(uint8_t* hid_report, uint16_t hid_report_size)
 								usb_printf("(Unknown, %i)", data);
 								break;
 						}
-						if (collection_index == 0) {
-							usage = data;
-						}
+						Assert(num_usages < sizeof(usages));
+						usages[num_usages++] = data;
 						break;
 					case USB_HID_REPORT_LOCAL_USAGE_MINIMUM:
 						usb_printf("    Usage Minimum (%i)", data);
@@ -322,5 +379,47 @@ uint8_t get_report_id(uint8_t* hid_report, uint16_t hid_report_size)
 
 		usb_printf("  DATA = %08x\n\r", data);
 	}
+
+	// Fill out and validate the report data
+	if (report_data) {
+		report_data->report_id = report_id;
+		report_data->num_objects = report_objects;
+		uint32_t bit_count = 0;
+		for (int i = 0; i < report_objects; ++i) {
+			uhi_hid_report_object_t* object = &objects[i];
+			usb_printf("%03d [%d] len = %d\n\r", bit_count, object->usage, object->size);
+			bit_count += object->size;
+		}
+		Assert( (bit_count & 0x7) == 0);
+	}
+
 	return report_id;
+}
+
+uint32_t extract_report_object(const uint8_t* buffer, uint32_t bit_offset, uint32_t bit_size)
+{
+	uint32_t value = 0x0;
+	uint32_t byte_offset;
+
+	byte_offset = bit_offset >> 3;
+	bit_offset &= 0x7;
+
+	// Read first byte, shift into place and reverse bit_offset (for any additional bytes)
+	value |= buffer[byte_offset++] >> bit_offset;
+	bit_offset = (8-bit_offset);
+
+	// If bit_size is bigger than bit_offset (number of valid bits in value),
+	// then we need to read additional byte(s).
+	// Each new byte gives us another 8 bits (cap't obvious!) added to value,
+	// and we continue until bits_left is zero or negative.
+	for (int32_t bits_left = bit_size - bit_offset; bits_left > 0; bits_left -= 8) {
+		value |= buffer[byte_offset++] << bit_offset;
+		bit_offset += 8;
+	}
+
+	// Discard any additional bits we might have picked up
+	value &= (1 << bit_size) - 1;
+	// Sign extend the value ($TODO should probably detect if this is necessary..)
+	value |= 0 - (value & (1 << (bit_size-1)));
+	return value;
 }

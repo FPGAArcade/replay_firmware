@@ -19,8 +19,8 @@ typedef struct {
 	uint8_t report_size;
 	uint8_t leds;
 	uint16_t hid_report_size;
-	COMPILER_WORD_ALIGNED uint8_t report[8];
-	uint8_t	last_report[8];
+	COMPILER_WORD_ALIGNED uint8_t report[64];
+	uint8_t	last_report[64];
 }uhi_hid_keyboard_dev_t;
 
 static uhi_hid_keyboard_dev_t uhi_hid_keyboard_dev = {

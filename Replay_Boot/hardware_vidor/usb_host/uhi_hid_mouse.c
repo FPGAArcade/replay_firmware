@@ -72,7 +72,7 @@ typedef struct {
 	uint8_t report_size;
 	uint8_t report_btn_prev;
 	uint16_t hid_report_size;
-	COMPILER_WORD_ALIGNED uint8_t report[8];
+	COMPILER_WORD_ALIGNED uint8_t report[64];
 }uhi_hid_mouse_dev_t;
 
 static uhi_hid_mouse_dev_t uhi_hid_mouse_dev = {

@@ -202,7 +202,7 @@ void SPI_SetFreqDivide(uint32_t freqDivide)
 }
 uint32_t SPI_GetFreq()
 {
-    DEBUG(0, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
+    // DEBUG(0, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
     return vidor_SPI_getFreq() / (1000 * 1000);
 }
 } // extern "C"

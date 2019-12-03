@@ -46,20 +46,65 @@
 //
 #include "card.h"
 #include "hardware.h"
+#include "hardware/io.h"
 #include "hardware/spi.h"
 #include "hardware/timer.h"
 #include "messaging.h"
 
 /*variables*/
-uint8_t  crc;
-HARDWARE_TICK timeout;
-uint8_t  response;
-uint8_t  cardType;
+static uint8_t crc;
+static HARDWARE_TICK timeout;
+static uint8_t response;
+static uint8_t cardType;
+static uint8_t cardDetected = FALSE;
 
 // internal functions
 uint8_t MMC_Command(uint8_t cmd, uint32_t arg);
 uint8_t MMC_Command12(void);
 void    MMC_CRC(uint8_t c);
+
+uint8_t Card_Detect(void)
+{
+    const uint8_t CARD_DETECT_supported = !ARDUINO_SAMD_MKRVIDOR4000;
+
+    // CARD DETECT returns true only on boards that support it
+    if (IO_Input_L(PIN_CARD_DETECT))
+        return (cardDetected = TRUE);
+
+    // On boards that supports CARD DETECT we can trust FALSE to mean FALSE.
+    if (CARD_DETECT_supported)
+        return (cardDetected = FALSE);
+
+    // Already detected card presence manually?
+    if (cardDetected)   // already detected?
+        return TRUE;
+
+    // For boards that don't support CARD DETECT we need to manually detect SDCARD presence
+
+    if (SPI_GetFreq() >= 1)
+        SPI_SetFreq400kHz();
+
+    // Try to reset the card a few times;
+    // if all attempts are successful we probably have an SDCARD attached
+    const int num_attempts = 5;
+    uint8_t successful_resets = 0;
+    for (int i = 0; i < num_attempts; ++i) {
+        SPI_DisableCard();
+
+        for (int n = 0; n < 10; n++) {
+            rSPI(0xFF);
+        }
+
+        Timer_Wait(20);
+        SPI_EnableCard();
+        successful_resets += MMC_Command(CMD0, 0) == 0x01 ? 1 : 0;
+        SPI_DisableCard();
+    }
+
+    cardDetected = successful_resets == num_attempts;
+
+    return cardDetected;
+}
 
 uint8_t Card_TryInit(void)
 {

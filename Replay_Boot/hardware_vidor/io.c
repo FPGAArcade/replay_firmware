@@ -36,7 +36,7 @@ void IO_DriveHigh_OD_(uint32_t pin, const char* pin_name)
 static uint8_t IO_Input_(uint32_t pin)  // return pin state high == TRUE / low == FALSE
 {
     if (pin == PIN_CARD_DETECT) {
-        return FALSE;
+        return TRUE;
 
     } else if (pin == PIN_CODER_FITTED_L) {
         return TRUE;

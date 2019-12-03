@@ -247,7 +247,7 @@ void CFG_call_bootloader(void)
 void CFG_update_status(status_t* current_status)
 {
     current_status->coder_fitted       = IO_Input_L(PIN_CODER_FITTED_L);
-    current_status->card_detected      = IO_Input_L(PIN_CARD_DETECT);
+    current_status->card_detected      = Card_Detect();
     current_status->card_write_protect = IO_Input_H(PIN_WRITE_PROTECT);
 }
 

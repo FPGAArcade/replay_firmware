@@ -106,6 +106,58 @@ uint8_t Card_Detect(void)
     return cardDetected;
 }
 
+
+static uint8_t Card_TrySetHighSpeed()
+{
+    SPI_EnableCard();
+
+    if (MMC_Command(CMD6, 0x80fffff1) != 0x00) {
+        DEBUG(0, "SPI:CMD6 failed");
+        SPI_DisableCard();
+        return 0;
+    }
+
+    timeout = Timer_Get(250);      // timeout
+    while (rSPI(0xFF) != 0xFE) {
+        if (Timer_Check(timeout)) {
+            WARNING("SPI:CMD6 - no data token!");
+            SPI_DisableCard();
+            return 0;
+        }
+    }
+
+    // As a response to CMD6, the SD Memory Card will send R1 response on the CMD line
+    // and 512 bits of status on the DAT lines. From the SD bus transaction point of view,
+    // this is a standard single block read transaction and the time out value of this
+    // command is 100 ms, the same as in read command.
+
+    const uint32_t bitLength = 512;
+    const uint32_t blockLen = bitLength / 8;
+
+    uint8_t buffer[blockLen];
+
+    for (uint32_t offset = 0; offset < blockLen; offset++) {
+        buffer[offset] = rSPI(0xff);
+    }
+
+    rSPI(0xFF); // read CRC lo byte
+    rSPI(0xFF); // read CRC hi byte
+
+    // 379:376 The function which is result of the switch command in function group 1. 0xF shows function set error with the argument.                      4
+    uint8_t resultFunc1 = buffer[16] & 0x0F;    // [379:376]
+
+    DEBUG(1, "CMD6 ; Set Bus Speed Function result = %02X (%s)", resultFunc1, resultFunc1 == 0x01 ? "SUCCESS" : "FAILURE");
+
+    if (resultFunc1 == 0x01) {
+        // Function change timing: within 8 clocks
+        rSPI(0xFF);
+    }
+
+    SPI_DisableCard();
+
+    return resultFunc1 == 0x01;
+}
+
 uint8_t Card_TryInit(void)
 {
     uint8_t n;
@@ -240,6 +292,7 @@ uint8_t Card_TryInit(void)
         SPI_SetFreq20MHz();
 
     } else if (cardType == CARDTYPE_SD || cardType == CARDTYPE_SDHC) {
+        Card_TrySetHighSpeed(); // 50MHz ?
         SPI_SetFreq25MHz();
     }
 

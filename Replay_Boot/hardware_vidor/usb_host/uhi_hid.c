@@ -105,8 +105,10 @@ uint8_t parse_hid_report(uint8_t* hid_report, uint16_t hid_report_size, uhi_hid_
 
 						// If we have a valid report_usage (currently only mouse pointer),
 						// and we have somewhere to write the date, then we're good.
-						if (!report_usage || !objects)
+						if (!report_usage || !objects) {
+							num_usages = 0x00;	// make sure usage is reset
 							break;
+						}
 
 						// If the bits are marked CONSTANT we treat them as pad bits (usage == 0)
 						if (bits.constant) {

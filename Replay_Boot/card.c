@@ -65,7 +65,12 @@ void    MMC_CRC(uint8_t c);
 
 uint8_t Card_Detect(void)
 {
-    const uint8_t CARD_DETECT_supported = !ARDUINO_SAMD_MKRVIDOR4000;
+    const uint8_t CARD_DETECT_supported = 
+#if defined(AT91SAM7S256)
+        TRUE;
+#else
+        FALSE;
+#endif
 
     // CARD DETECT returns true only on boards that support it
     if (IO_Input_L(PIN_CARD_DETECT))

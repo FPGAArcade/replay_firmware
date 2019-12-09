@@ -47,10 +47,6 @@ uint8_t IO_Input_L(const char* pin)  // returns true if pin low
 {
     printf("%s : %s\n", __FUNCTION__, pin);
 
-    if (!strcmp(pin, "PIN_CARD_DETECT")) {
-        return TRUE;
-    }
-
     if (!strcmp(pin, "PIN_FPGA_INIT_L")) {
         return pin_fpga_init_l;
     }

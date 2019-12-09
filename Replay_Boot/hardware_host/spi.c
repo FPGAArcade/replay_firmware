@@ -275,7 +275,12 @@ unsigned char rSPI(unsigned char outByte)
                 printf("CMD0 [%02x,%02x,%02x,%02x] CRC = %02x\n", sdc_cmd.arg0, sdc_cmd.arg1, sdc_cmd.arg2, sdc_cmd.arg3, sdc_cmd.crc);
                 last_command = sdc_cmd.command;
                 sdc_result_length = 1;
-                sdc_result[0] = SPI_IDLE;
+                sdc_result[0] = 0;//SPI_IDLE;
+                int test = open(SDCARD_FILE, O_RDWR);
+                if (test >= 0) {
+                    sdc_result[0] = SPI_IDLE;
+                    close(test);
+                }
                 memset(sdc_cmd.buffer, 0x00, sizeof(sdc_cmd.buffer));
                 break;
 

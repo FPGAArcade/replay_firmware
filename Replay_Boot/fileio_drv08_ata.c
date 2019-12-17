@@ -744,6 +744,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             return;
         }
 
+        lba_naked = lba;
         while (sector_count) {
             block_count = sector_count;
 
@@ -779,17 +780,25 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
                 if (pDesc->format == MMC) {
                     Drv08_CardReadSendDirect(ch, lba_naked, i, fbuf);
-                    lba_naked += i;
 
-                } else if (lba < pDesc->lba_offset) {
-                    Drv08_BufferSend(ch, pDrive, pDesc->hdf_rdb.blocks[lba % 3].b);
+                } else if (lba_naked < pDesc->lba_offset) {
 
+                    if (i > pDesc->lba_offset - lba_naked) {
+                        i = pDesc->lba_offset - lba_naked;
+                    }
+
+                    for (int x = 0; x < i; ++x) {
+                        uint8_t* pBuffer = pDesc->hdf_rdb.blocks[(lba_naked + x) % 3].b;
+                        DEBUG(3, "Drv08_BufferSend(%08x, %lu, %lu)", pBuffer, lba_naked + x, 1);
+                        Drv08_BufferSend(ch, pDrive, pBuffer);
+                    }
                 } else {
                     Drv08_FileReadSendDirect(ch, pDrive, i); // read and send block(s)
                 }
 
                 sector_count -= i;
                 block_count -= i;
+                lba_naked += i;
             } // end block
 
         }  // end sector

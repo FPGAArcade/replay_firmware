@@ -57,6 +57,14 @@ HARDWARE_TICK timeout;
 uint8_t  response;
 uint8_t  cardType;
 
+static const int32_t dma_buffer[512/4] = 
+{
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+};
+
 // internal functions
 uint8_t MMC_Command(uint8_t cmd, uint32_t arg);
 uint8_t MMC_Command12(void);
@@ -187,6 +195,36 @@ uint8_t Card_TryInit(void)
         }
     }
 
+    SPI_DisableCard();
+
+    // Try to enable high-speed / 50MHz clock speeds.. 
+    SPI_EnableCard();
+    if (MMC_Command(CMD6, 0x80FF11F1) == 0x00) {
+
+        Timer_Wait(10);
+
+        timeout = Timer_Get(250);      // timeout
+
+        while (rSPI(0xFF) != 0xFE) {
+            if (Timer_Check(timeout)) {
+                WARNING("SPI:Card_TryInit - no data token! (CMD6)");
+                goto cmd6done;
+            }
+        }
+
+        uint8_t pBuffer[512/8];
+
+        for (uint32_t offset = 0; offset < sizeof(pBuffer); offset++) {
+            pBuffer[offset] = rSPI(0xff);
+        }
+
+        rSPI(0xFF); // read CRC lo byte
+        rSPI(0xFF); // read CRC hi byte
+
+        // DumpBuffer(pBuffer, sizeof(pBuffer));
+
+        cmd6done:;
+    }
     SPI_DisableCard();
 
     if (cardType == (CARDTYPE_NONE)) {
@@ -337,17 +375,24 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         }
 
 #if defined(AT91SAM7S256)
-        // set override (send '1's to card)
-        AT91C_BASE_PIOA->PIO_SODR = PIN_CARD_MOSI;  // set GPIO output register
-        AT91C_BASE_PIOA->PIO_OER  = PIN_CARD_MOSI;  // GPIO pin as output
-        AT91C_BASE_PIOA->PIO_PER  = PIN_CARD_MOSI;  // enable GPIO function
+        // set override (send '1's to card) - not used (see below)
+        // AT91C_BASE_PIOA->PIO_SODR = PIN_CARD_MOSI;  // set GPIO output register
+        // AT91C_BASE_PIOA->PIO_OER  = PIN_CARD_MOSI;  // GPIO pin as output
+        // AT91C_BASE_PIOA->PIO_PER  = PIN_CARD_MOSI;  // enable GPIO function
 
         // use SPI PDC (DMA transfer)
         // 0x00200000 is the start of SRAM. Yup, we are going to DMA random data, just to get the rx side to work.
         // the override above ensures the card sees all '1's
+
+        // Actually we don't -
+        // Turns out the ENDTX simply means the last byte is read from memory, not when it's clocked out.
+        // As a result there is a small risk of disabling the GPIO pin too early.
+        // Instead we use a const buffer with 0xFFs.. 
+
         Assert((AT91C_BASE_SPI->SPI_PTSR & (AT91C_PDC_TXTEN | AT91C_PDC_RXTEN)) == 0);
 
-        AT91C_BASE_SPI->SPI_TPR  = (uint32_t) 0x00200000;
+        // AT91C_BASE_SPI->SPI_TPR  = (uint32_t) 0x00200000;
+        AT91C_BASE_SPI->SPI_TPR  = (uint32_t) dma_buffer;
         AT91C_BASE_SPI->SPI_TCR  = 512;
         AT91C_BASE_SPI->SPI_TNCR = 0;
 
@@ -374,7 +419,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
                 WARNING("SPI:Card_ReadM DMA Timeout! (lba=%lu)", sector);
 
                 AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
-                AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
+                // AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
 
                 if (!pBuffer) {
                     SPI_DisableFileIO();
@@ -387,14 +432,20 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 
         AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
 
-        AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
+        // AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
 
 #else
         (void) dma_end;
 
         // read sector bytes
-        for (uint32_t offset = 0; offset < 512; offset++) {
-            pBuffer[offset] = rSPI(0xff);
+        if (pBuffer) {
+            for (uint32_t offset = 0; offset < 512; offset++) {
+                pBuffer[offset] = rSPI(0xff);
+            }
+        } else {
+            for (uint32_t offset = 0; offset < 512; offset++) {
+                rSPI(0xff);
+            }
         }
 
 #endif

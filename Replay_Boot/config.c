@@ -219,11 +219,11 @@ void CFG_call_bootloader(void)
 
     // check for modern bootloader
     if (*boot_param == 0xb007c0de) {
-        *(boot_param+2) = 1;
-        DEBUG(0, "*boot_param+0 = %08x", *(boot_param+0));
-        DEBUG(0, "*boot_param+1 = %08x", *(boot_param+1));
-        DEBUG(0, "*boot_param+2 = %08x", *(boot_param+2));
-        DEBUG(0, "*boot_param+3 = %08x", *(boot_param+3));
+        *(boot_param + 2) = 1;
+        DEBUG(0, "*boot_param+0 = %08x", *(boot_param + 0));
+        DEBUG(0, "*boot_param+1 = %08x", *(boot_param + 1));
+        DEBUG(0, "*boot_param+2 = %08x", *(boot_param + 2));
+        DEBUG(0, "*boot_param+3 = %08x", *(boot_param + 3));
         DEBUG(0, "done.");
     }
 

@@ -57,12 +57,11 @@ HARDWARE_TICK timeout;
 uint8_t  response;
 uint8_t  cardType;
 
-static const int32_t dma_buffer[512/4] = 
-{
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+static const int32_t dma_buffer[512 / 4] = {
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
 // internal functions
@@ -197,8 +196,9 @@ uint8_t Card_TryInit(void)
 
     SPI_DisableCard();
 
-    // Try to enable high-speed / 50MHz clock speeds.. 
+    // Try to enable high-speed / 50MHz clock speeds..
     SPI_EnableCard();
+
     if (MMC_Command(CMD6, 0x80FF11F1) == 0x00) {
 
         Timer_Wait(10);
@@ -212,7 +212,7 @@ uint8_t Card_TryInit(void)
             }
         }
 
-        uint8_t pBuffer[512/8];
+        uint8_t pBuffer[512 / 8];
 
         for (uint32_t offset = 0; offset < sizeof(pBuffer); offset++) {
             pBuffer[offset] = rSPI(0xff);
@@ -223,8 +223,10 @@ uint8_t Card_TryInit(void)
 
         // DumpBuffer(pBuffer, sizeof(pBuffer));
 
-        cmd6done:;
+cmd6done:
+        ;
     }
+
     SPI_DisableCard();
 
     if (cardType == (CARDTYPE_NONE)) {
@@ -387,7 +389,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         // Actually we don't -
         // Turns out the ENDTX simply means the last byte is read from memory, not when it's clocked out.
         // As a result there is a small risk of disabling the GPIO pin too early.
-        // Instead we use a const buffer with 0xFFs.. 
+        // Instead we use a const buffer with 0xFFs..
 
         Assert((AT91C_BASE_SPI->SPI_PTSR & (AT91C_PDC_TXTEN | AT91C_PDC_RXTEN)) == 0);
 
@@ -442,6 +444,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
             for (uint32_t offset = 0; offset < 512; offset++) {
                 pBuffer[offset] = rSPI(0xff);
             }
+
         } else {
             for (uint32_t offset = 0; offset < 512; offset++) {
                 rSPI(0xff);

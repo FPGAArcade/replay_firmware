@@ -701,7 +701,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             first = 0;
 
             if (pDesc->format == MMC) {
-                Drv08_CardReadSendDirect(ch, lba, 1, fbuf);
+                Drv08_CardReadSendDirect(ch, lba + pDesc->lba_offset, 1, fbuf);
 
             } else if (lba < pDesc->lba_offset) {
                 Drv08_BufferSend(ch, pDrive, pDesc->hdf_rdb.blocks[lba % 3].b);
@@ -745,6 +745,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         }
 
         lba_naked = lba;
+
         while (sector_count) {
             block_count = sector_count;
 
@@ -779,7 +780,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
                 FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM);
 
                 if (pDesc->format == MMC) {
-                    Drv08_CardReadSendDirect(ch, lba_naked, i, fbuf);
+                    Drv08_CardReadSendDirect(ch, lba_naked + pDesc->lba_offset, i, fbuf);
 
                 } else if (lba_naked < pDesc->lba_offset) {
 
@@ -792,6 +793,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
                         DEBUG(3, "Drv08_BufferSend(%08x, %lu, %lu)", pBuffer, lba_naked + x, 1);
                         Drv08_BufferSend(ch, pDrive, pBuffer);
                     }
+
                 } else {
                     Drv08_FileReadSendDirect(ch, pDrive, i); // read and send block(s)
                 }
@@ -834,8 +836,6 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         FileIO_FCh_WriteStat(ch, DRV08_STATUS_REQ); // pio out (class 2) command type
         Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
 
-        uint32_t lba_naked = lba < pDesc->lba_offset ? pDesc->lba_offset : lba;
-
         if (Drv08_HardFileSeek(pDrive, pDesc, lba) != FF_ERR_NONE) {
             WARNING("Drv08:Write to invalid LBA");
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
@@ -843,12 +843,14 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             return;
         }
 
-        if (lba == 0 && pDesc->format == MMC) {
+        if (lba == 0 && pDesc->format == MMC && pDesc->lba_offset == 0) {
             WARNING("Drv08:Write to MBR disabled");
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
             return;
         }
+
+        uint32_t lba_mmc = lba;
 
         while (sector_count) {
             FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_TO_ARM, FILEIO_REQ_OK_TO_ARM); // wait for data
@@ -880,7 +882,8 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             // optimal to put this after the status update, but then we cannot indicate write failure
             // write to file
             if (pDesc->format == MMC) {
-                Drv08_CardWrite(ch, lba_naked++, fbuf);
+                Drv08_CardWrite(ch, lba_mmc + pDesc->lba_offset, fbuf);
+                lba_mmc++;
 
             } else {
                 Drv08_FileWrite(ch, pDrive, fbuf);
@@ -913,8 +916,6 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
         Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
 
-        uint32_t lba_naked = lba < pDesc->lba_offset ? pDesc->lba_offset : lba;
-
         if (Drv08_HardFileSeek(pDrive, pDesc, lba) != FF_ERR_NONE) {
             WARNING("Drv08:Write Multiple bad LBA");
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
@@ -922,12 +923,14 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             return;
         }
 
-        if (lba == 0 && pDesc->format == MMC) {
+        if (lba == 0 && pDesc->format == MMC && pDesc->lba_offset == 0) {
             WARNING("Drv08:Write to MBR disabled");
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
             return;
         }
+
+        uint32_t lba_mmc = lba;
 
         while (sector_count) {
             block_count = sector_count;
@@ -948,7 +951,8 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
                 // write to file
                 if (pDesc->format == MMC) {
-                    Drv08_CardWrite(ch, lba_naked++, fbuf);
+                    Drv08_CardWrite(ch, lba_mmc + pDesc->lba_offset, fbuf);
+                    lba_mmc++;
 
                 } else {
                     Drv08_FileWrite(ch, pDrive, fbuf);
@@ -1431,10 +1435,67 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
         pDesc->file_size =  FF_Size(pDrive->fSource); //->Filesize;
 
     } else if (strnicmp(ext, "?MMC", 4) == 0) {
+        uint8_t partition = ext[4] == 0 ? 0 : ext[4] - '0';
+
+        if (partition > 3) {
+            partition = 0;
+        }
 
         pDesc->format    = (drv08_format_t)MMC;
 
+        pDesc->lba_offset = 0;
         uint64_t lba = Card_GetCapacity() / 512;
+
+        // Partition #0 is an alias for the entire card (incl MBR)
+        if (partition) {
+            uint32_t buffer[DRV08_BLK_SIZE / 4];
+            uint8_t* fbuf = (uint8_t*)buffer;
+            FF_ERROR err = Card_ReadM(fbuf, 0, 1, NULL);
+
+            if (err == FF_ERR_NONE) {
+                // DumpBuffer(fbuf, DRV08_BLK_SIZE);
+                typedef struct {
+                    uint8_t     status: 8;
+                    uint8_t     first_heads: 8;
+                    uint8_t     first_sectors: 6;
+                    uint16_t    first_cylinders: 10;
+
+                    uint8_t     type: 8;
+                    uint8_t     last_heads: 8;
+                    uint8_t     last_sectors: 6;
+                    uint16_t    last_cylinders: 10;
+
+                    uint32_t    lba_start;
+                    uint32_t    num_sectors;
+                } __attribute__ ((packed)) MBR_PartitionEntry;
+                Assert(sizeof(MBR_PartitionEntry) == 16);
+
+                // Last two bytes 0x55/0xAA signifies valid MBR
+                if (fbuf[0x1fe] == 0x55 && fbuf[0x1ff] == 0xaa) {
+                    // The partition table starts at 0x1BE
+                    MBR_PartitionEntry* entry = (MBR_PartitionEntry*)(void*)&fbuf[0x1be];
+                    entry = &entry[partition];
+
+                    // status == 0x00 means inactive / bit 7 is set for active/bootable
+                    // Both LBA and SIZE need to be valid / in range
+                    if ((entry->status == 0x00 || entry->status == 0x80) &&
+                            (0 < entry->lba_start && entry->lba_start < lba) &&
+                            (0 < entry->num_sectors && entry->num_sectors < lba)) {
+                        DEBUG(1, "MMC Partition Container #%d found", partition);
+                        DEBUG(1, " : status           = %02x", entry->status);
+                        DEBUG(1, " : type             = %02x", entry->type);
+                        DEBUG(1, " : lba_start        = %08x", entry->lba_start);
+                        DEBUG(1, " : num_sectors      = %08x", entry->num_sectors);
+                        pDesc->lba_offset = entry->lba_start;
+                        lba = entry->num_sectors;
+                        lba &= ~0xff;   // make it easier for the CHS calc below
+
+                    } else {
+                        WARNING("MMC Partition #%d not found!", partition);
+                    }
+                }
+            }
+        }
 
         DEBUG(1, "MMC LBA = %08x%08x", (uint32_t)(lba >> 32), (uint32_t)(lba & 0xffffffff));
 

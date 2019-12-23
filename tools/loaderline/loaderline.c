@@ -16,7 +16,7 @@
 // $id:$
 //
 
-main() {
+int main() {
     FILE *rAppFile;
     uint32_t sum=0;
     uint32_t len=0;
@@ -38,4 +38,5 @@ main() {
       printf("ROM = rApp_ARM.bin,0x%04lx,0x00000000\n",len);
       printf("LAUNCH = 0x00000000,0x%04lx,0x%08lx\n",len,sum);
     }
+    return 0;
 }

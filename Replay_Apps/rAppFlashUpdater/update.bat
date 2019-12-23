@@ -14,4 +14,3 @@ cd sdcard
 ..\..\..\..\tools\genupd\genupd.exe >> rApp_PAL_25FPS.ini
 ..\..\..\..\tools\genupd\genupd.exe >> rApp_PAL_50FPS.ini
 cd ..
-pause

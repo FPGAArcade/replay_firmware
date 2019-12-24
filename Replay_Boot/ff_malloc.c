@@ -4,7 +4,7 @@
 #include "messaging.h"
 #include "freelist.h"
 
-#define FF_HEAP_SIZE (1024*3)/4
+#define FF_HEAP_SIZE (1024*4)/4
 static uint32_t ff_heap[FF_HEAP_SIZE];
 
 static void* ff_sbrk(ptrdiff_t increment)

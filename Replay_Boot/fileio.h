@@ -96,6 +96,7 @@ uint8_t FileIO_MCh_MemToFile(FF_FILE* pFile, uint32_t base, uint32_t size, uint3
 
 uint8_t FileIO_MCh_BufToMem(uint8_t* pBuf, uint32_t base, uint32_t size);
 uint8_t FileIO_MCh_MemToBuf(uint8_t* pBuf, uint32_t base, uint32_t size);
+uint8_t FileIO_MCh_Randomize(uint32_t base, uint32_t size);
 
 // ch is 0 for 'A' and 1 for 'B'
 uint8_t FCH_CMD(uint8_t ch, uint8_t cmd);

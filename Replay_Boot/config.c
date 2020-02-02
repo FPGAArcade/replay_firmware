@@ -2215,6 +2215,17 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     // initialize and check DDR RAM
     if (config_ver & 0x8000) {
         FPGA_DramTrain();
+
+        // Randomize the first 1MB
+        HARDWARE_TICK ts = Timer_Get(0);
+        const uint32_t per_run = 1024 << 4;
+        const uint32_t upper_bound = 1 * 1024 * 1024;
+
+        for (int i = 0; i < upper_bound; i += per_run) {
+            FileIO_MCh_Randomize(i, per_run >> 4);
+        }
+
+        DEBUG(0, "FileIO_MCh_Randomize() took %d ms", Timer_Convert(Timer_Get(0) - ts));
     }
 
 

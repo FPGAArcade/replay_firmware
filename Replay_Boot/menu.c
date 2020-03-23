@@ -304,7 +304,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
                 Timer_Wait(1);
             }
 
-            sprintf(full_filename, "%s%s", current_status->act_dir, item->option_list->option_name);
+            pathcat(full_filename, current_status->act_dir, item->option_list->option_name);
 
             CFG_download_rom(full_filename, item->action_value, item->option_list->conf_value >> 1);
             MENU_set_state(current_status, NO_MENU);
@@ -420,7 +420,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
             item->selected_option = item->option_list;
 
             char file_path[FF_MAX_PATH] = "";
-            sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
+            pathcat(file_path, current_status->act_dir, mydir.FileName);
             FileIO_FCh_Insert(0, item->action_value, file_path);
 
             strncpy(item->option_list->option_name, FileIO_FCh_GetName(0, item->action_value), MAX_OPTION_STRING - 1);
@@ -437,7 +437,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
             item->selected_option = item->option_list;
 
             char file_path[FF_MAX_PATH] = "";
-            sprintf(file_path, "%s%s", current_status->act_dir, mydir.FileName);
+            pathcat(file_path, current_status->act_dir, mydir.FileName);
             FileIO_FCh_Insert(1, item->action_value, file_path);
 
             strncpy(item->option_list->option_name, FileIO_FCh_GetName(1, item->action_value), MAX_OPTION_STRING - 1);
@@ -483,7 +483,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
                 Timer_Wait(1);
             }
 
-            sprintf(full_filename, "%s%s", current_status->act_dir, mydir.FileName);
+            pathcat(full_filename, current_status->act_dir, mydir.FileName);
 
             uint32_t staticbits = current_status->config_s;
             uint32_t dynamicbits = current_status->config_d;
@@ -525,7 +525,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
             return 1;
         }
 
-        sprintf(current_status->act_dir, "%s%s", current_status->act_dir, mydir.FileName);
+        pathcat(current_status->act_dir, current_status->act_dir, mydir.FileName);
         INFO("Firmware file = %s", current_status->act_dir);
         INFO("Verifying file ...");
         current_status->verify_flash_fw = 1;
@@ -542,7 +542,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
         }
 
         char full_filename[FF_MAX_PATH];
-        sprintf(full_filename, "%s%s", current_status->act_dir, mydir.FileName);
+        pathcat(full_filename, current_status->act_dir, mydir.FileName);
         INFO("ROM file = %s", mydir.FileName);
 
         _strlcpy(item->selected_option->option_name, mydir.FileName, sizeof(item->selected_option->option_name));

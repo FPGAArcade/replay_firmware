@@ -1662,7 +1662,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
 
     const char* filename = valueList[0].strval;
     char fullname[FF_MAX_PATH];
-    sprintf(fullname, "%s%s", pStatus->ini_dir, filename);
+    pathcat(fullname, pStatus->ini_dir, filename);
 
     uint32_t size = valueList[1].intval;
     uint32_t base = entries > 2 ? valueList[2].intval : pStatus->last_rom_adr;
@@ -1789,7 +1789,7 @@ static uint8_t _CFG_handle_FILES_CHA_MOUNT(status_t* pStatus, const ini_symbols_
             if (strlen(valueList[0].strval)) {
                 char fullname[FF_MAX_PATH];
                 // prepare filename
-                sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+                pathcat(fullname, pStatus->ini_dir, valueList[0].strval);
                 FileIO_FCh_Insert(0, unit, fullname);
             };
 
@@ -1859,7 +1859,7 @@ static uint8_t _CFG_handle_FILES_CHB_MOUNT(status_t* pStatus, const ini_symbols_
             if (strlen(valueList[0].strval)) {
                 char fullname[FF_MAX_PATH];
                 // prepare filename
-                sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+                pathcat(fullname, pStatus->ini_dir, valueList[0].strval);
                 FileIO_FCh_Insert(1, unit, fullname);
             };
 

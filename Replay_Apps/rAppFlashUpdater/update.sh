@@ -21,10 +21,10 @@ for template in *_template_*.ini ; do
 done
 
 # Output changes (for verification)
-diff -rupN rApp_template_NTSC_30FPS.ini sdcard/rApp_NTSC_30FPS.ini
-diff -rupN rApp_template_NTSC_60FPS.ini sdcard/rApp_NTSC_60FPS.ini
-diff -rupN rApp_template_PAL_25FPS.ini sdcard/rApp_PAL_25FPS.ini
-diff -rupN rApp_template_PAL_50FPS.ini sdcard/rApp_PAL_50FPS.ini
+diff -rupN rApp_template_NTSC_30FPS.ini sdcard/rApp_NTSC_30FPS.ini | echo
+diff -rupN rApp_template_NTSC_60FPS.ini sdcard/rApp_NTSC_60FPS.ini | echo
+diff -rupN rApp_template_PAL_25FPS.ini sdcard/rApp_PAL_25FPS.ini | echo
+diff -rupN rApp_template_PAL_50FPS.ini sdcard/rApp_PAL_50FPS.ini | echo
 
 # Output CRC32 for binaries (for verification)
 echo

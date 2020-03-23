@@ -56,6 +56,7 @@
 #include "usb.h"
 #include "rdb.h"
 #include "flash.h"
+#include "printf.h"
 
 
 typedef enum {

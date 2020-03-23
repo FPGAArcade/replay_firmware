@@ -52,6 +52,8 @@
 #include "messaging.h"
 #include "fpga.h"
 #include "menu.h"
+#include "osd.h"
+#include "printf.h"
 
 /** @brief status pointer for messaging via OSD
 

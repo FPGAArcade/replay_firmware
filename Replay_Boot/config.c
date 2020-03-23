@@ -50,6 +50,7 @@
 #include <stdio.h>
 #undef printf
 #undef sprintf
+#include "printf.h"
 
 #include "fileio.h"
 #include "fpga.h"

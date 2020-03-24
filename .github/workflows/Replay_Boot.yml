@@ -1,6 +1,15 @@
 name: Replay_Boot
 
-on: [push, pull_request]
+on:
+  push:
+    paths:
+    - '.github/workflows/Replay_Boot.yml'
+    - 'sw/arm_sw/**'
+  pull_request:
+    branches: master
+    paths:
+    - '.github/workflows/Replay_Boot.yml'
+    - 'sw/arm_sw/**'
 
 jobs:
   Build_R1_Firmware:

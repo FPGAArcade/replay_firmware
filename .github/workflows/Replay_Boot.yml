@@ -1,6 +1,12 @@
 name: Replay_Boot
 
-on: [push, pull_request]
+on:
+  push:
+    paths:
+    - 'sw/arm_sw/**'
+  pull_request:
+    paths:
+    - 'sw/arm_sw/**'
 
 jobs:
   Build_R1_Firmware:

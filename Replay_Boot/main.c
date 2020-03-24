@@ -63,6 +63,7 @@
 #include "menu.h"
 #include "osd.h"
 #include "messaging.h"
+#include "printf.h"
 #include <unistd.h> // sbrk()
 
 #include "usb/ptp_usb.h"
@@ -292,7 +293,7 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
 {
     HARDWARE_TICK ts = Timer_Get(0);
     char full_filename[FF_MAX_PATH];
-    sprintf(full_filename, "%s%s", current_status.ini_dir, current_status.ini_file);
+    pathcat(full_filename, current_status.ini_dir, current_status.ini_file);
 
     // free any backup stuff
     //CFG_free_bak(&current_status);
@@ -307,7 +308,7 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
         int32_t status;
 
         // make it "absolute"
-        sprintf(full_filename, "%s%s", current_status.ini_dir, current_status.bin_file);
+        pathcat(full_filename, current_status.ini_dir, current_status.bin_file);
 
         current_status.fpga_load_ok = NO_CORE;
         status = CFG_configure_fpga(full_filename);
@@ -368,7 +369,7 @@ static __attribute__ ((noinline)) void init_core()
 {
     HARDWARE_TICK ts = Timer_Get(0);
     char full_filename[FF_MAX_PATH];
-    sprintf(full_filename, "%s%s", current_status.ini_dir, current_status.ini_file);
+    pathcat(full_filename, current_status.ini_dir, current_status.ini_file);
 
     if (current_status.fpga_load_ok == NO_CORE) {
         DEBUG(1, "FPGA has been configured by debugger.");

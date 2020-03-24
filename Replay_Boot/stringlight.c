@@ -45,6 +45,7 @@
 */
 
 #include "stringlight.h"
+#include "printf.h"
 #include <stdlib.h>
 
 static char null_string[] = "";
@@ -288,5 +289,38 @@ void FF_ExpandPath(char* acPath)
     }
 }
 
+static uint8_t IsPathRooted(const char* path)
+{
+    if (path == 0 || *path == 0) {
+        return 0;
+    }
 
+    char c = path[0];
 
+    if (c == '/' || c == '\\') {
+        return 1;
+    }
+
+    return 0;
+}
+
+void pathcat(char* dest, const char* path1, const char* path2)
+{
+    const char* format1 = "%s%s";
+    const char* format2 = "%s\\%s";
+    const char* format = format1;
+
+    if (IsPathRooted(path2)) {
+        strcpy(dest, path2);
+        return;
+    }
+
+    size_t len = strlen(path1);
+
+    if (len) {
+        char c = path1[len - 1];
+        format = (c == '/' || c == '\\') ? format1 : format2;
+    }
+
+    sprintf(dest, format, path1, path2);
+}

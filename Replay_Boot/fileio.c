@@ -50,6 +50,7 @@
 #include "hardware/spi.h"
 #include "hardware/timer.h"
 #include "messaging.h"
+#include "osd.h"
 
 #include "tests/exfat-test.h"
 

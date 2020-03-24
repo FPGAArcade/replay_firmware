@@ -83,5 +83,7 @@ char* strcasestr(const char*, const char*);			// __BSD_VISIBLE
 #define strnicmp(a,b,c) strncasecmp(a,b,c)			// int strnicmp(const char *, const char *, size_t);
 #endif
 
+void pathcat(char* dest, const char* path1, const char* path2);
+
 #endif
 

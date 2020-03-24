@@ -3,9 +3,12 @@ name: Replay_Boot
 on:
   push:
     paths:
+    - '.github/workflows/Replay_Boot.yml'
     - 'sw/arm_sw/**'
   pull_request:
+    branches: master
     paths:
+    - '.github/workflows/Replay_Boot.yml'
     - 'sw/arm_sw/**'
 
 jobs:

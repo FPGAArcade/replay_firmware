@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+set -e
 # Based on the 'Travis CI Arduino Init Script' https://github.com/adafruit/travis-ci-arduino
 
 # define colors
@@ -40,7 +41,7 @@ fi
 
 # if not already cached, download and install arduino IDE
 if [ ! -f "$ARDUINO_PATH/arduino" ]; then
-  if [ "$OSTYPE" =~ "linux" ]; then
+  if [[ "$OSTYPE" =~ "linux" ]]; then
     echo -ne "${ORANGE}DOWNLOADING... \n${LCYAN}"
     curl -f -# http://downloads.arduino.cc/arduino-${ARDUINO_IDE_VERSION}-linux64.tar.xz -o arduino.tar.xz 2>&1
     RET=$?
@@ -52,7 +53,7 @@ if [ ! -f "$ARDUINO_PATH/arduino" ]; then
     if [ $? -ne 0 ]; then echo -e "${FAIL_MSG}"; else echo -e "${PASS_MSG}"; fi
     touch "$ARDUINO_PATH/$ARDUINO_IDE_VERSION"
     if [ -f arduino.tar.xz ]; then rm arduino.tar.xz; fi
-  elif [ "$OSTYPE" == "msys" ]; then
+  elif [[ "$OSTYPE" == "msys" ]]; then
     echo -ne "${ORANGE}DOWNLOADING... \n${LCYAN}"
     curl -f -# http://downloads.arduino.cc/arduino-${ARDUINO_IDE_VERSION}-windows.zip -o arduino.zip 2>&1
     RET=$?
@@ -68,7 +69,7 @@ if [ ! -f "$ARDUINO_PATH/arduino" ]; then
     if [ -f arduino.zip ]; then rm arduino.zip; fi
   else
     echo -ne "${ORANGE}Unknown host system! "
-    echo -e "${FAIL_MSG}"
+    echo -e "${FAIL_MSG}${LGRAY}"
     exit 1
   fi
 else

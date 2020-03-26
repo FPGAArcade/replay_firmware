@@ -34,7 +34,7 @@ jobs:
         
     - uses: actions/upload-artifact@v1
       with:
-        name: Replay_Boot
+        name: R1_Firmware
         path: artifact
 
   Build_HOSTED:
@@ -66,3 +66,15 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/sw/arm_sw/Replay_Boot
         VIDOR=1 make
+
+    - name: Package
+      run: |
+        cd $GITHUB_WORKSPACE/sw/arm_sw
+        ./package_vidor.sh
+        mkdir -p $GITHUB_WORKSPACE/artifact
+        find . -maxdepth 1 -type f -name "*.zip" -exec mv {} $GITHUB_WORKSPACE/artifact \;
+        
+    - uses: actions/upload-artifact@v1
+      with:
+        name: replay_mkrvidor4000
+        path: artifact

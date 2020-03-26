@@ -25,7 +25,8 @@ LIBPATH="${staging_path}/replay_mkrvidor4000"
 mkdir -p "${LIBPATH}"
 
 BUILDNUM=`od -An -vtu4 Replay_Boot/buildfile.num | tr -d [:space:]`
-LIBZIP="replay_mkrvidor4000.zip"
+GITTAG=`git describe --always --dirty`
+LIBZIP="replay_mkrvidor4000_build${BUILDNUM}_${GITTAG}.zip"
 
 cat << EOF > "${LIBPATH}/README.md"
 # FPGAArcade Replay ARM firmware.

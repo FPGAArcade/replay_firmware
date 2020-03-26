@@ -38,6 +38,9 @@ if [ ! -f "$ARDUINO_PATH/$ARDUINO_IDE_VERSION" ] && [ -f "$ARDUINO_PATH/arduino"
   if [ $? -ne 0 ]; then echo -ne "${FAIL_MSG} "; else echo -ne "${PASS_MSG} "; fi
 fi
 
+# make the IDE portable
+mkdir -p "$ARDUINO_PATH/portable"
+
 # if not already cached, download and install arduino IDE
 if [ ! -f "$ARDUINO_PATH/arduino" ]; then
   if [[ "$OSTYPE" =~ "linux" ]]; then
@@ -66,6 +69,21 @@ if [ ! -f "$ARDUINO_PATH/arduino" ]; then
     rm -r .arduino/arduino-${ARDUINO_IDE_VERSION}
     touch "$ARDUINO_PATH/$ARDUINO_IDE_VERSION"
     if [ -f arduino.zip ]; then rm arduino.zip; fi
+  elif [[ "$OSTYPE" =~ "darwin" ]]; then
+    echo -ne "${ORANGE}DOWNLOADING... \n${LCYAN}"
+    curl -f -# http://downloads.arduino.cc/arduino-${ARDUINO_IDE_VERSION}-macosx.zip -o arduino.zip 2>&1
+    RET=$?
+    echo -ne "${ORANGE}                    DOWNLOADED "
+    if [ $RET -ne 0 ]; then echo -ne "${FAIL_MSG} "; else echo -ne "${PASS_MSG} "; fi
+    echo -ne "${ORANGE}UNPACKING... "
+    [ ! -d "$ARDUINO_PATH/" ] && mkdir "$ARDUINO_PATH"
+    unzip -q arduino.zip -d .arduino
+    if [ $? -ne 0 ]; then echo -e "${FAIL_MSG}"; else echo -e "${PASS_MSG}"; fi
+    touch "$ARDUINO_PATH/$ARDUINO_IDE_VERSION"
+    if [ -f arduino.zip ]; then rm arduino.zip; fi
+    echo "$ARDUINO_PATH/Arduino.app/Contents/MacOS/Arduino \$*" > "$ARDUINO_PATH/arduino"
+    chmod +x "$ARDUINO_PATH/arduino"
+    ln -s "$ARDUINO_PATH/portable" "$ARDUINO_PATH/Arduino.app/Contents/Java/portable"
   else
     echo -ne "${ORANGE}Unknown host system! "
     echo -e "${FAIL_MSG}${LGRAY}"
@@ -74,9 +92,6 @@ if [ ! -f "$ARDUINO_PATH/arduino" ]; then
 else
   echo -e "${ORANGE}CACHED ${PASS_MSG}"
 fi
-
-# make the IDE portable
-mkdir -p "$ARDUINO_PATH/portable"
 
 # add the IDE to the path
 export PATH="$ARDUINO_PATH:$PATH"

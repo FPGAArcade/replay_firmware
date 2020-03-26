@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -e
 # Based on the 'Travis CI Arduino Init Script' https://github.com/adafruit/travis-ci-arduino
 
 # define colors
@@ -10,7 +9,7 @@ FAIL_MSG="""$LRED""ERROR!"
 PASS_MSG="""$LGREEN""OK!"
 
 export ARDUINO_PATH="$PWD/.arduino"
-export ARDUINO_IDE_VERSION="1.8.10"
+export ARDUINO_IDE_VERSION="1.8.12"
 export ARDUINO_PACKAGE="arduino"
 export ARDUINO_PLATFORM="samd"
 export ARDUINO_BOARD="mkrvidor4000"

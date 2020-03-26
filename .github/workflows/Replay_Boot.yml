@@ -1,0 +1,52 @@
+name: Replay_Boot
+
+on:
+  push:
+    paths:
+    - '.github/workflows/Replay_Boot.yml'
+    - 'sw/arm_sw/**'
+  pull_request:
+    branches: master
+    paths:
+    - '.github/workflows/Replay_Boot.yml'
+    - 'sw/arm_sw/**'
+
+jobs:
+  Build_R1_Firmware:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install deps
+      run: sudo apt-get install gcc-arm-none-eabi libarchive-zip-perl
+      
+    - name: Build
+      run: |
+        cd $GITHUB_WORKSPACE/sw/arm_sw
+        ./compile.sh
+
+    - name: Package
+      run: |
+        cd $GITHUB_WORKSPACE/sw/arm_sw
+        ./package.sh
+        mkdir -p $GITHUB_WORKSPACE/artifact
+        find . -maxdepth 1 -type f -name "*.zip" -exec mv {} $GITHUB_WORKSPACE/artifact \;
+        
+    - uses: actions/upload-artifact@v1
+      with:
+        name: Replay_Boot
+        path: artifact
+
+  Build_HOST:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install deps
+      run: sudo apt-get install libncurses5-dev
+
+    - name: Build
+      run: |
+        cd $GITHUB_WORKSPACE/sw/arm_sw/Replay_Boot
+        HOSTED=1 make

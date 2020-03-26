@@ -52,6 +52,8 @@
 #include "messaging.h"
 #include "fpga.h"
 #include "menu.h"
+#include "osd.h"
+#include "printf.h"
 
 #if defined(ARDUINO_SAMD_MKRVIDOR4000)
 #include "Reset.h"

@@ -50,6 +50,7 @@
 #include "hardware/spi.h"
 #include "hardware/timer.h"
 #include "messaging.h"
+#include "osd.h"
 
 #include "tests/exfat-test.h"
 
@@ -463,6 +464,36 @@ uint8_t FileIO_MCh_MemToBuf(uint8_t* pBuf, uint32_t base, uint32_t size)
     FileIO_MCh_ReadBuffer(pBuf, buf_tx_size);
 
     return (0) ;// no error
+}
+
+uint8_t FileIO_MCh_Randomize(uint32_t base, uint32_t size)
+{
+    uint32_t buf_tx_size = size;
+
+    SPI_EnableFileIO();
+    rSPI(0x80); // set address
+    rSPI((uint8_t)(base));
+    rSPI((uint8_t)(base >> 8));
+    rSPI((uint8_t)(base >> 16));
+    rSPI((uint8_t)(base >> 24));
+    SPI_DisableFileIO();
+
+    SPI_EnableFileIO();
+    rSPI(0x81); // set direction
+    rSPI(0x40); // auto write
+    SPI_DisableFileIO();
+
+    SPI_EnableFileIO();
+    rSPI(0x84); // start randomization
+    rSPI((uint8_t)( buf_tx_size - 1)     );
+    rSPI((uint8_t)((buf_tx_size - 1) >> 8));
+    SPI_DisableFileIO();
+
+    if (FileIO_MCh_WaitStat(0x04, 0)) { // wait for it to finish
+        return (1);
+    }
+
+    return 0;
 }
 
 //

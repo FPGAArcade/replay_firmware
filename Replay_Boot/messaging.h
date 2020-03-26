@@ -49,9 +49,6 @@
 #define MESSAGING_H_INCLUDED
 
 #include "config.h"
-#include "osd.h"
-#include "iniparser.h"
-#include "printf.h"
 #include "stringlight.h"
 
 #define __FILENAME_BACKSLASH__ (__builtin_strrchr(__FILE__, '\\') ? __builtin_strrchr(__FILE__, '\\') + 1 : __FILE__)

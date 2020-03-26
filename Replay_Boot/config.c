@@ -50,6 +50,7 @@
 #include <stdio.h>
 #undef printf
 #undef sprintf
+#include "printf.h"
 
 #include "fileio.h"
 #include "fpga.h"
@@ -229,11 +230,11 @@ void CFG_call_bootloader(void)
 
     // check for modern bootloader
     if (*boot_param == 0xb007c0de) {
-        *(boot_param+2) = 1;
-        DEBUG(0, "*boot_param+0 = %08x", *(boot_param+0));
-        DEBUG(0, "*boot_param+1 = %08x", *(boot_param+1));
-        DEBUG(0, "*boot_param+2 = %08x", *(boot_param+2));
-        DEBUG(0, "*boot_param+3 = %08x", *(boot_param+3));
+        *(boot_param + 2) = 1;
+        DEBUG(0, "*boot_param+0 = %08x", *(boot_param + 0));
+        DEBUG(0, "*boot_param+1 = %08x", *(boot_param + 1));
+        DEBUG(0, "*boot_param+2 = %08x", *(boot_param + 2));
+        DEBUG(0, "*boot_param+3 = %08x", *(boot_param + 3));
         DEBUG(0, "done.");
     }
 
@@ -1694,7 +1695,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
 
     const char* filename = valueList[0].strval;
     char fullname[FF_MAX_PATH];
-    sprintf(fullname, "%s%s", pStatus->ini_dir, filename);
+    pathcat(fullname, pStatus->ini_dir, filename);
 
     uint32_t size = valueList[1].intval;
     uint32_t base = entries > 2 ? valueList[2].intval : pStatus->last_rom_adr;
@@ -1821,7 +1822,7 @@ static uint8_t _CFG_handle_FILES_CHA_MOUNT(status_t* pStatus, const ini_symbols_
             if (strlen(valueList[0].strval)) {
                 char fullname[FF_MAX_PATH];
                 // prepare filename
-                sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+                pathcat(fullname, pStatus->ini_dir, valueList[0].strval);
                 FileIO_FCh_Insert(0, unit, fullname);
             };
 
@@ -1891,7 +1892,7 @@ static uint8_t _CFG_handle_FILES_CHB_MOUNT(status_t* pStatus, const ini_symbols_
             if (strlen(valueList[0].strval)) {
                 char fullname[FF_MAX_PATH];
                 // prepare filename
-                sprintf(fullname, "%s%s", pStatus->ini_dir, valueList[0].strval);
+                pathcat(fullname, pStatus->ini_dir, valueList[0].strval);
                 FileIO_FCh_Insert(1, unit, fullname);
             };
 
@@ -2248,6 +2249,17 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     // initialize and check DDR RAM
     if (config_ver & 0x8000) {
         FPGA_DramTrain();
+
+        // Randomize the first 1MB
+        HARDWARE_TICK ts = Timer_Get(0);
+        const uint32_t per_run = 1024 << 4;
+        const uint32_t upper_bound = 1 * 1024 * 1024;
+
+        for (int i = 0; i < upper_bound; i += per_run) {
+            FileIO_MCh_Randomize(i, per_run >> 4);
+        }
+
+        DEBUG(0, "FileIO_MCh_Randomize() took %d ms", Timer_Convert(Timer_Get(0) - ts));
     }
 
 

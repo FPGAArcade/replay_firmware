@@ -11,6 +11,7 @@ when done we reboot the ARM
 */
 
 #include <stdint.h>
+#include "osd.h"
 
 #if defined(AT91SAM7S256)
 #include "common/AT91SAM7S256.h"

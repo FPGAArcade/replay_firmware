@@ -37,7 +37,7 @@ jobs:
         name: Replay_Boot
         path: artifact
 
-  Build_HOST:
+  Build_HOSTED:
     runs-on: ubuntu-latest
 
     steps:
@@ -50,3 +50,19 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/sw/arm_sw/Replay_Boot
         HOSTED=1 make
+
+  Build_VIDOR:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Retrieve Arduino IDE
+      run: |
+        cd $GITHUB_WORKSPACE/sw/arm_sw/Replay_Boot
+        ./install_arduino_vidor.sh
+
+    - name: Build
+      run: |
+        cd $GITHUB_WORKSPACE/sw/arm_sw/Replay_Boot
+        VIDOR=1 make

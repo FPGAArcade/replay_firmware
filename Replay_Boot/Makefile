@@ -343,7 +343,7 @@ endif
 
 ifeq (1,${VIDOR}) 
 ARDUINO_BOARD_VERSION=1.8.4
-OBJCOPY = arm-none-eabi-objcopy
+OBJCOPY = $(PWD)/$(TCHAIN_PREFIX)objcopy
 TCHAIN_PREFIX = .arduino/portable/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/bin/arm-none-eabi-
 CFLAGS_WARN = #-Wall -Wextra -Wno-expansion-to-defined
 CFLAGS_DEF  = -DF_CPU=48000000L -DARDUINO=10809 -DARDUINO_SAMD_MKRVIDOR4000 -DARDUINO_ARCH_SAMD -D__SAMD21G18A__

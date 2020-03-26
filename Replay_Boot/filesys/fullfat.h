@@ -44,7 +44,7 @@
 extern "C" {
 #endif
 
-#define FF_VERSION              "2.0.1 (" __DATE__ " : "__TIME__")"             // The official version number for this release.
+#define FF_VERSION              "2.0.1 (" __DATE__ " : " __TIME__ ")"             // The official version number for this release.
 #define FF_REVISION             "FullFAT-2.0.1"                                                     // The official version control commit code for this release.
 
 #include "ff_config.h"

@@ -69,11 +69,19 @@
 #include "usb/ptp_usb.h"
 //#define PTP_USB 1
 
+#include "replay.h"
 #include "usb.h"
 #include "tests/tests.h"
 
 #ifndef HOSTED
 #include <malloc.h>
+#endif
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+#include "hardware_vidor/usbblaster.h"
+#include <setjmp.h>
+jmp_buf exit_env;
+static __attribute__ ((noinline)) void FPGA_WriteGeneratedImage(uint32_t base);
 #endif
 
 extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
@@ -94,11 +102,24 @@ static void prepare_sdcard();
 FF_IOMAN* pIoman = NULL;  // file system handle
 const char* version = &_binary_buildnum_start; // actual build version
 
+#if defined(ARDUINO)   // sketches already have a main()
+int replay_main(void)
+#else
 int main(void)
+#endif
 {
     HARDWARE_TICK ts;
     // used by file system
     uint8_t fatBuf[FS_FATBUF_SIZE];
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+    int exit = setjmp(exit_env);
+
+    if (exit) {
+        return exit;
+    }
+
+#endif
 
     // initialise
     Hardware_Init(); // Initialise board hardware
@@ -234,7 +255,7 @@ int main(void)
 
         // at this point we must've free _all_ dynamically allocated memory!
         CFG_free_menu(&current_status);
-#ifndef HOSTED
+#if !defined(HOSTED) && !defined(ARDUINO_SAMD_MKRVIDOR4000)
         Assert(!mallinfo().uordblks);
 #endif
 
@@ -271,6 +292,9 @@ int main(void)
 #if PTP_USB
             PTP_USB_Start();
 #endif
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+            USBBlaster_EnableAndInit();
+#endif
 
             INFO("Configured in %d ms", Timer_Convert(Timer_Get(0) - ts));
 
@@ -278,6 +302,10 @@ int main(void)
             while (current_status.fpga_load_ok != NO_CORE) {
                 main_update();
             }
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+            USBBlaster_Disable();
+#endif
 
             ts = Timer_Get(0);
         }
@@ -328,7 +356,7 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
 
 static __attribute__ ((noinline)) void load_embedded_core()
 {
-#ifdef FPGA_DISABLE_EMBEDDED_CORE
+#if defined(FPGA_DISABLE_EMBEDDED_CORE) && !defined(ARDUINO_SAMD_MKRVIDOR4000)
     MSG_fatal_error(9);
 #else
 
@@ -343,7 +371,11 @@ static __attribute__ ((noinline)) void load_embedded_core()
         DEBUG(1, "FPGA default set.");
 
         HARDWARE_TICK time = Timer_Get(0);
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+        FPGA_WriteGeneratedImage(0x00400000);
+#else
         FPGA_DecompressToDRAM(&_binary_build_replayhand_start, &_binary_build_replayhand_end - &_binary_build_replayhand_start, 0x00400000);
+#endif
         time = Timer_Get(0) - time;
         DEBUG(0, "FPGA background image uploaded in %d ms.", Timer_Convert(time));
 
@@ -427,12 +459,16 @@ static __attribute__ ((noinline)) void init_core()
         OSD_ConfigSendUserS(0x00000000);
         OSD_ConfigSendUserD(0x00000000); // 60HZ progressive
         current_status.button = BUTTON_OFF;
-#ifndef FPGA_DISABLE_EMBEDDED_CORE
+#if !defined(FPGA_DISABLE_EMBEDDED_CORE) || defined(ARDUINO_SAMD_MKRVIDOR4000)
         int32_t status = ParseIniFromString(&_binary_replay_ini_start, &_binary_replay_ini_end - &_binary_replay_ini_start, _CFG_parse_handler, &current_status);
 
         if (status != 0 ) {
             ERROR("Error at INI line %d", status);
         }
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+        current_status.config_d &= 0x62;    // kludge for VIDOR/full loader core (to disable unused bits)
+#endif
 
         _MENU_update_bits(&current_status);
 #endif
@@ -495,6 +531,10 @@ static __attribute__ ((noinline)) void main_update()
 
     // check RS232
     USART_update();
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+    USBBlaster_Update();
+#endif
 
     // check menu
     if (current_status.spi_osd_enabled) {
@@ -569,9 +609,17 @@ static __attribute__ ((noinline)) void main_update()
         MSG_warning("FPGA has been deconfigured.");
 
         // assume this is the programmer and wait for it to be reconfigured
+        HARDWARE_TICK delay = 0;
+
         while (!IO_Input_H(PIN_FPGA_DONE)) {
-            MSG_warning("    waiting for reconfig....");
-            Timer_Wait(1000);
+            if (Timer_Check(delay)) {
+                MSG_warning("    waiting for reconfig....");
+                delay = Timer_Get(1000);
+            }
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+            USBBlaster_Update();
+#endif
         }
 
         OSD_ConfigSendCtrl((kDRAM_SEL << 8) | kDRAM_PHASE); // default phase
@@ -676,6 +724,53 @@ static __attribute__ ((noinline)) void main_update()
     }
 
 }
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+static __attribute__ ((noinline)) void FPGA_WriteGeneratedImage(uint32_t base)
+{
+    SPI_SetFreq25MHz();
+    // Creates a nice R/G pattern ;)
+    uint8_t buffer[512];
+    uint32_t i = 0;
+    uint32_t write_offset = base;
+
+    for (int y = 0; y < 576; ++y) {
+        for (int x = 0; x < 720; ++x) {
+            uint8_t c, r, g, b;
+
+            r = x * 255 / 720;
+            g = y * 255 / 576;
+            b = 0;
+
+            c = (r & 0xe0) | ((g & 0xe0) >> 3) | ((b & 0xc0) >> 6);
+            buffer[i++] = c;
+
+            if (i == sizeof(buffer)) {
+                if ((write_offset >> 10) & 1) {
+                    ACTLED_ON;
+
+                } else {
+                    ACTLED_OFF;
+                }
+
+                if (FileIO_MCh_BufToMem((void*)buffer, write_offset, i) != 0) {
+                    WARNING("DRAM write failed!");
+                    return;
+                }
+
+                write_offset += i;
+                i = 0;
+            }
+        }
+    }
+
+    if (i) {
+        if (FileIO_MCh_BufToMem((void*)buffer, write_offset, i) != 0) {
+            WARNING("DRAM write failed!");
+        }
+    }
+}
+#endif
 
 static __attribute__ ((noinline)) void write_background(FF_FILE* file)
 {

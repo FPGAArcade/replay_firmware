@@ -4,6 +4,8 @@
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/**",
+                "${env:HOME}/Library/Arduino15/packages/arduino/tools/**",
+                "${env:HOME}/Library/Arduino15/packages/arduino/hardware/samd_beta/1.6.25/**",
                 "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1",
                 "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../lib/clang/10.0.0/include",
                 "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include",
@@ -15,7 +17,10 @@
             "compilerPath": "/usr/local/bin/gcc-7",
             "cStandard": "c11",
             "cppStandard": "c++17",
-            "intelliSenseMode": "clang-x64"
+            "intelliSenseMode": "clang-x64",
+            "forcedInclude": [
+                "${env:HOME}/Library/Arduino15/packages/arduino/hardware/samd_beta/1.6.25/cores/arduino/Arduino.h"
+            ]
         }
     ],
     "version": 4

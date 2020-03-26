@@ -1,0 +1,2 @@
+compiler.c.extra_flags="-I{build.source.path}"
+compiler.cpp.extra_flags="-I{build.source.path}"

@@ -189,7 +189,7 @@ void ff_free(void *ptr);
 //---------- AUTOMATIC SETTINGS DO NOT EDIT -- These configure your options from above, and check sanity!
 
 #ifdef FF_LFN_SUPPORT
-#define FF_MAX_FILENAME         (260)
+#define FF_MAX_FILENAME         (260/3)
 #else
 #define FF_MAX_FILENAME         (13)
 #endif
@@ -203,7 +203,7 @@ void ff_free(void *ptr);
 #define FF_MAX_PATH     2600
 #endif
 #else
-#define FF_MAX_PATH     2600
+#define FF_MAX_PATH     (2600/8)
 #endif
 
 #ifndef FF_ALLOC_DOUBLE

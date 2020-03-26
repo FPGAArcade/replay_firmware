@@ -46,7 +46,7 @@
 #ifndef HARDWARE_IRQ_H_INCLUDED
 #define HARDWARE_IRQ_H_INCLUDED
 
-#include "board.h"
+#include "../board.h"
 
 unsigned disableIRQ(void);
 unsigned enableIRQ(void);

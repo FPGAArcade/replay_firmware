@@ -55,8 +55,10 @@
 #if !defined(WIN32) && !defined(__APPLE__) && !defined(__linux__)
 #if defined(AT91SAM7S256)
 #include "common/AT91SAM7S256.h"
+#elif defined(__SAMD21G18A__)
+#include <Arduino.h>
 #else
-#error "unknown atmel board"
+#error "Unknown board"
 #endif
 #endif
 
@@ -90,6 +92,8 @@
 
 #define  FLASH_PAGE_NB      AT91C_IFLASH_NB_OF_PAGES
 #define  FLASH_PAGE_SIZE    AT91C_IFLASH_PAGE_SIZE
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+// ..
 #else
 #define  FLASH_PAGE_NB      0
 #define  FLASH_PAGE_SIZE    0
@@ -196,7 +200,40 @@
 #define DBGU_TXD                AT91C_PA10_DTXD
 #define DBGU_RXD                AT91C_PA9_DRXD
 
-#else // defined(AT91SAM7S256)
+#define BITSTREAM_LENGTH		746212	// bytes
+
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+
+#define PIN_ACT_LED             LED_BUILTIN
+#define PIN_MENU_BUTTON         (1<<0)   // dont we have a button?
+
+#define PIN_CARD_CS_L			(4u)	// PB10 / PIN_SPI_SS
+#define PIN_CONF_DIN			(2u)	// PA10
+#define PIN_FPGA_CTRL1			(6u)	// PA20
+#define PIN_FPGA_CTRL0			(7u)	// PA21
+#define PIN_FPGA_RST_L          (31u)	// PA28
+#define PIN_CONF_DOUT			(33u)	// PB09
+
+// use JTAG instead
+#define PIN_FPGA_INIT_L         (1<<1)
+#define PIN_FPGA_PROG_L         (1<<3)
+#define PIN_FPGA_DONE           (1<<4)
+
+// unsupported
+#define PIN_CODER_FITTED_L      (1<<5)
+#define PIN_CARD_DETECT         (1<<6)
+#define PIN_WRITE_PROTECT       (1<<7)
+
+// coder
+#define PIN_CODER_NTSC_H        0x1234
+#define PIN_CODER_CE            0x1234
+#define PIN_DTXD_Y1             0x1234
+#define PIN_DRXD_Y2             0x1234
+
+#define FPGA_DISABLE_EMBEDDED_CORE 1
+#define BITSTREAM_LENGTH		510856	// bytes
+
+#else // HOSTED
 
 #define PIN_ACT_LED             "PIN_ACT_LED"
 #define PIN_CODER_NTSC_H        "PIN_CODER_NTSC_H"
@@ -232,6 +269,8 @@
 #define PIN_MENU_BUTTON         "PIN_MENU_BUTTON"
 #define DBGU_TXD                "DBGU_TXD"
 #define DBGU_RXD                "DBGU_RXD"
+
+#define BITSTREAM_LENGTH		746212	// bytes
 
 #endif // defined(AT91SAM7S256)
 

@@ -46,16 +46,17 @@
 //
 #include "card.h"
 #include "hardware.h"
-#include "hardware/irq.h"
+#include "hardware/io.h"
 #include "hardware/spi.h"
 #include "hardware/timer.h"
 #include "messaging.h"
 
 /*variables*/
-uint8_t  crc;
-HARDWARE_TICK timeout;
-uint8_t  response;
-uint8_t  cardType;
+static uint8_t crc;
+static HARDWARE_TICK timeout;
+static uint8_t response;
+static uint8_t cardType;
+static uint8_t cardDetected = FALSE;
 
 static const int32_t dma_buffer[512 / 4] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -68,6 +69,106 @@ static const int32_t dma_buffer[512 / 4] = {
 uint8_t MMC_Command(uint8_t cmd, uint32_t arg);
 uint8_t MMC_Command12(void);
 void    MMC_CRC(uint8_t c);
+
+uint8_t Card_Detect(void)
+{
+    const uint8_t CARD_DETECT_supported = 
+#if defined(AT91SAM7S256)
+        TRUE;
+#else
+        FALSE;
+#endif
+
+    // CARD DETECT returns true only on boards that support it
+    if (IO_Input_L(PIN_CARD_DETECT))
+        return (cardDetected = TRUE);
+
+    // On boards that supports CARD DETECT we can trust FALSE to mean FALSE.
+    if (CARD_DETECT_supported)
+        return (cardDetected = FALSE);
+
+    // Already detected card presence manually?
+    if (cardDetected)   // already detected?
+        return TRUE;
+
+    // For boards that don't support CARD DETECT we need to manually detect SDCARD presence
+
+    if (SPI_GetFreq() >= 1)
+        SPI_SetFreq400kHz();
+
+    // Try to reset the card a few times;
+    // if all attempts are successful we probably have an SDCARD attached
+    const int num_attempts = 5;
+    uint8_t successful_resets = 0;
+    for (int i = 0; i < num_attempts; ++i) {
+        SPI_DisableCard();
+
+        for (int n = 0; n < 10; n++) {
+            rSPI(0xFF);
+        }
+
+        Timer_Wait(20);
+        SPI_EnableCard();
+        successful_resets += MMC_Command(CMD0, 0) == 0x01 ? 1 : 0;
+        SPI_DisableCard();
+    }
+
+    cardDetected = successful_resets == num_attempts;
+
+    return cardDetected;
+}
+
+
+static uint8_t Card_TrySetHighSpeed()
+{
+    SPI_EnableCard();
+
+    if (MMC_Command(CMD6, 0x80fffff1) != 0x00) {
+        DEBUG(0, "SPI:CMD6 failed");
+        SPI_DisableCard();
+        return 0;
+    }
+
+    timeout = Timer_Get(250);      // timeout
+    while (rSPI(0xFF) != 0xFE) {
+        if (Timer_Check(timeout)) {
+            WARNING("SPI:CMD6 - no data token!");
+            SPI_DisableCard();
+            return 0;
+        }
+    }
+
+    // As a response to CMD6, the SD Memory Card will send R1 response on the CMD line
+    // and 512 bits of status on the DAT lines. From the SD bus transaction point of view,
+    // this is a standard single block read transaction and the time out value of this
+    // command is 100 ms, the same as in read command.
+
+    const uint32_t bitLength = 512;
+    const uint32_t blockLen = bitLength / 8;
+
+    uint8_t buffer[blockLen];
+
+    for (uint32_t offset = 0; offset < blockLen; offset++) {
+        buffer[offset] = rSPI(0xff);
+    }
+
+    rSPI(0xFF); // read CRC lo byte
+    rSPI(0xFF); // read CRC hi byte
+
+    // 379:376 The function which is result of the switch command in function group 1. 0xF shows function set error with the argument.                      4
+    uint8_t resultFunc1 = buffer[16] & 0x0F;    // [379:376]
+
+    DEBUG(1, "CMD6 ; Set Bus Speed Function result = %02X (%s)", resultFunc1, resultFunc1 == 0x01 ? "SUCCESS" : "FAILURE");
+
+    if (resultFunc1 == 0x01) {
+        // Function change timing: within 8 clocks
+        rSPI(0xFF);
+    }
+
+    SPI_DisableCard();
+
+    return resultFunc1 == 0x01;
+}
 
 uint8_t Card_TryInit(void)
 {
@@ -236,6 +337,7 @@ cmd6done:
         SPI_SetFreq20MHz();
 
     } else if (cardType == CARDTYPE_SD || cardType == CARDTYPE_SDHC) {
+        Card_TrySetHighSpeed(); // 50MHz ?
         SPI_SetFreq25MHz();
     }
 
@@ -248,9 +350,7 @@ uint8_t Card_Init(void)
 
     for (uint8_t i = 0; i < 3; i++) {
         DEBUG(1, "SPI:Card_Init:Attempt %d", i);
-        disableIRQ();
         card_type = Card_TryInit();
-        enableIRQ();
 
         if (card_type != (CARDTYPE_NONE)) {
             return card_type;

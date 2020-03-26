@@ -73,9 +73,19 @@
 #include <malloc.h> // mallinfo()
 #endif
 
-extern char __FIRST_IN_RAM[];
 extern char end[];
+
+#if defined (AT91SAM7S256)
+extern char __FIRST_IN_RAM[];
 extern char __TOP_STACK[];
+#define RAM_START __FIRST_IN_RAM
+#define RAM_END __TOP_STACK
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+extern char __data_start__[];
+extern char __StackTop[];
+#define RAM_START __data_start__
+#define RAM_END __StackTop
+#endif
 
 /** @brief extern link to sdcard i/o manager
 
@@ -238,7 +248,7 @@ void CFG_call_bootloader(void)
 void CFG_update_status(status_t* current_status)
 {
     current_status->coder_fitted       = IO_Input_L(PIN_CODER_FITTED_L);
-    current_status->card_detected      = IO_Input_L(PIN_CARD_DETECT);
+    current_status->card_detected      = Card_Detect();
     current_status->card_write_protect = IO_Input_H(PIN_WRITE_PROTECT);
 }
 
@@ -696,11 +706,11 @@ void CFG_dump_mem_stats(uint8_t only_check_stack)
     uint32_t current_stack, peak_stack;
 
     uint8_t* p;
-    uint8_t* const RAMbeg  = (uint8_t*)__FIRST_IN_RAM;      // top of RAM
+    uint8_t* const RAMbeg  = (uint8_t*)RAM_START;           // top of RAM
     uint8_t* const heap    = (uint8_t*)end;                 // end of data/bss, and start of the heap
     uint8_t* const unused  = (uint8_t*)sbrk(0);             // address of next heap block
     uint8_t* const stack   = (uint8_t*)__builtin_frame_address(0); // current stack frame
-    uint8_t* const RAMend  = (uint8_t*)__TOP_STACK;         // end of RAM & first stack frame
+    uint8_t* const RAMend  = (uint8_t*)RAM_END;             // end of RAM & first stack frame
     const uint32_t sentinel = 0xFA57F00D;                   // See Cstartup.S
 
     ram_bytes = RAMend - RAMbeg;      // total amount of RAM
@@ -741,6 +751,29 @@ void CFG_dump_mem_stats(uint8_t only_check_stack)
 uint8_t CFG_configure_fpga(char* filename)
 {
     FF_FILE* fSource = NULL;
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+
+    // Vidor uses .rbf bitstreams; hijack the filename and change the extension
+
+    {
+        uint32_t len = strlen(filename);
+        uint32_t i = 0;
+
+        for (i = len - 1; i > 0; --i) {
+            if (filename[i] == '.') {
+                char* ext = ((char*) filename + i + 1);
+                strcpy(ext, "rbf");
+                break;
+            }
+
+            if ((filename[i] == '/') || (filename[i] == '\\')) {
+                break;
+            }
+        }
+    }
+
+#endif
 
     fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
 

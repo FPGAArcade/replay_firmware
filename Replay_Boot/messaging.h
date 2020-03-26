@@ -51,6 +51,9 @@
 #include "config.h"
 #include "stringlight.h"
 
+#define __FILENAME_BACKSLASH__ (__builtin_strrchr(__FILE__, '\\') ? __builtin_strrchr(__FILE__, '\\') + 1 : __FILE__)
+#define __FILENAME__ (__builtin_strrchr(__FILENAME_BACKSLASH__, '/') ? __builtin_strrchr(__FILENAME_BACKSLASH__, '/') + 1 : __FILENAME_BACKSLASH__)
+
 /// DEBUGLEVEL: 0...off, 1...basic, 2...most, 3...gory details
 #define debuglevel 0
 
@@ -60,7 +63,7 @@
 /// OPTIONAL DEBUGGING MESSAGES
 //#define DEBUG(lvl, fmt...) if (lvl<=debuglevel) MSG_debug(lvl<=osdlevel,fmt);
 // dont display debug on OSD, only INFO
-#define DEBUG(lvl, ...) do { if (lvl<=debuglevel) MSG_debug(0, (const char*)__FILE__, (unsigned int)__LINE__, __VA_ARGS__); } while(0)
+#define DEBUG(lvl, ...) do { if (lvl<=debuglevel) MSG_debug(0, (const char*)__FILENAME__, (unsigned int)__LINE__, __VA_ARGS__); } while(0)
 
 /// INFO MESSAGES, can't be disabled
 #define INFO(...) MSG_info(__VA_ARGS__)

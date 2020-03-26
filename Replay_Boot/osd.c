@@ -53,6 +53,10 @@
 #include "messaging.h"
 #include "config.h"
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+#include "hardware_vidor/usbhid.h"
+#endif
+
 ////
 // Escape sequence definitions
 //
@@ -736,6 +740,32 @@ uint16_t OSD_GetKeyCode(status_t* current_status)
 
     // time out for flags
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+
+    // temporary fix - reset keypos if keybuf contains garbage
+    if (keypos >= 1 && keybuf[0] == 0xff) {
+        keypos = 0;
+    }
+
+    // USB keyboard input (vidor only)
+    // (Returns USB keycodes as PS/2 scancodes)
+    if (!keypos || keybuf[0] && !key_code) {       // only poll USB if we don't already have a key
+        const char* scan = USBHID_Update();
+
+        if (scan) {
+            while (*scan) {
+                uint8_t c = *scan++;
+                keybuf[keypos++] = c;
+
+                if (osd_enabled) {
+                    _OSD_SendKey(c);
+                }
+
+            }
+        }
+    }
+
+#endif
 
     // process key buffer
     // ---------------------------------------------------

@@ -3799,7 +3799,7 @@ FRESULT f_read (
 				continue;
 			}
 #if !FF_FS_TINY
-			if (fp->sect != sect) {			/* Load data sector if not in cache */
+			if (rbuff && fp->sect != sect) {			/* Load data sector if not in cache */
 #if !FF_FS_READONLY
 				if (fp->flag & FA_DIRTY) {		/* Write-back dirty sector cache */
 					if (disk_write(fs->pdrv, fp->buf, fp->sect, 1) != RES_OK) ABORT(fs, FR_DISK_ERR);
@@ -3820,6 +3820,8 @@ FRESULT f_read (
 		mem_cpy(rbuff, fp->buf + fp->fptr % SS(fs), rcnt);	/* Extract partial sector */
 #endif
 	}
+
+	if (!rbuff) fp->sect = 0; /* invalidate sector cache if direct reading */
 
 	LEAVE_FF(fs, FR_OK);
 }

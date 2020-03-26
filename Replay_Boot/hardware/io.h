@@ -46,10 +46,9 @@
 #ifndef HARDWARE_IO_H_INCLUDED
 #define HARDWARE_IO_H_INCLUDED
 
-#include "hardware/timer.h"
-
 #if defined(AT91SAM7S256)
 
+#include "hardware/timer.h"
 #include "messaging.h"	// ugly.. 
 
 void IO_DriveLow_OD(uint32_t pin);
@@ -83,6 +82,26 @@ static inline void IO_WaitVBL(void)
         }
     }
 }
+
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+
+#define IO_DriveLow_OD(pin)     do { IO_DriveLow_OD_(pin, #pin); } while(0)
+#define IO_DriveHigh_OD(pin)    do { IO_DriveHigh_OD_(pin, #pin); } while(0)
+#define IO_Input_H(pin)         IO_Input_H_(pin, #pin)
+#define IO_Input_L(pin)         IO_Input_L_(pin, #pin)
+
+#define IO_ClearOutputData(x) 	do { IO_ClearOutputData_(x, #x); } while(0)
+#define IO_SetOutputData(x)		do { IO_SetOutputData_(x, #x);   } while(0)
+
+void IO_DriveLow_OD_(uint32_t pin, const char* pin_name);
+void IO_DriveHigh_OD_(uint32_t pin, const char* pin_name);
+uint8_t IO_Input_H_(uint32_t pin, const char* pin_name);
+uint8_t IO_Input_L_(uint32_t pin, const char* pin_name);
+
+void IO_ClearOutputData_(uint32_t pins, const char* pin_names);
+void IO_SetOutputData_(uint32_t pins, const char* pin_names);
+
+void IO_WaitVBL(void);
 
 #else
 

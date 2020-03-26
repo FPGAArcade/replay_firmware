@@ -46,9 +46,8 @@
 #ifndef HARDWARE_SPI_H_INCLUDED
 #define HARDWARE_SPI_H_INCLUDED
 
-#include "board.h"
-
 #if defined(AT91SAM7S256)
+#include "board.h"
 #include "messaging.h"  // ugly.. 
 #endif
 
@@ -127,6 +126,16 @@ static inline void _SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 #endif
 }
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+
+void SPI_SetFreq400kHz();
+void SPI_SetFreq20MHz();
+void SPI_SetFreq25MHz();
+void SPI_SetFreqDivide(uint32_t freqDivide);
+uint32_t SPI_GetFreq();
+
+#else
+
 static inline void SPI_SetFreq400kHz()
 {
 #if defined(AT91SAM7S256)
@@ -162,5 +171,7 @@ static inline uint32_t SPI_GetFreq()
 #endif
     return spiFreq;
 }
+
+#endif
 
 #endif

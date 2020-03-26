@@ -49,6 +49,7 @@
 #include "board.h"
 #include "fullfat.h"
 
+uint8_t Card_Detect(void);
 uint8_t Card_Init(void);
 uint64_t Card_GetCapacity(void);
 FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam) __fastrun;

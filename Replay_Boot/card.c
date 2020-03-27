@@ -72,7 +72,7 @@ void    MMC_CRC(uint8_t c);
 
 uint8_t Card_Detect(void)
 {
-    const uint8_t CARD_DETECT_supported = 
+    const uint8_t CARD_DETECT_supported =
 #if defined(AT91SAM7S256)
         TRUE;
 #else
@@ -80,26 +80,31 @@ uint8_t Card_Detect(void)
 #endif
 
     // CARD DETECT returns true only on boards that support it
-    if (IO_Input_L(PIN_CARD_DETECT))
+    if (IO_Input_L(PIN_CARD_DETECT)) {
         return (cardDetected = TRUE);
+    }
 
     // On boards that supports CARD DETECT we can trust FALSE to mean FALSE.
-    if (CARD_DETECT_supported)
+    if (CARD_DETECT_supported) {
         return (cardDetected = FALSE);
+    }
 
     // Already detected card presence manually?
-    if (cardDetected)   // already detected?
+    if (cardDetected) { // already detected?
         return TRUE;
+    }
 
     // For boards that don't support CARD DETECT we need to manually detect SDCARD presence
 
-    if (SPI_GetFreq() >= 1)
+    if (SPI_GetFreq() >= 1) {
         SPI_SetFreq400kHz();
+    }
 
     // Try to reset the card a few times;
     // if all attempts are successful we probably have an SDCARD attached
     const int num_attempts = 5;
     uint8_t successful_resets = 0;
+
     for (int i = 0; i < num_attempts; ++i) {
         SPI_DisableCard();
 
@@ -130,6 +135,7 @@ static uint8_t Card_TrySetHighSpeed()
     }
 
     timeout = Timer_Get(250);      // timeout
+
     while (rSPI(0xFF) != 0xFE) {
         if (Timer_Check(timeout)) {
             WARNING("SPI:CMD6 - no data token!");

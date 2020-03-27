@@ -277,10 +277,12 @@ unsigned char rSPI(unsigned char outByte)
                 sdc_result_length = 1;
                 sdc_result[0] = 0;//SPI_IDLE;
                 int test = open(SDCARD_FILE, O_RDWR);
+
                 if (test >= 0) {
                     sdc_result[0] = SPI_IDLE;
                     close(test);
                 }
+
                 memset(sdc_cmd.buffer, 0x00, sizeof(sdc_cmd.buffer));
                 break;
 

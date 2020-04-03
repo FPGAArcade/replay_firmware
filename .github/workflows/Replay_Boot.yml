@@ -37,6 +37,37 @@ jobs:
         name: R1_Firmware
         path: artifact
 
+  Verify_MacOSX_Build:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+
+#    version 8-2018-q4-major
+#    brew install arm-none-eabi-gcc
+    - name: Install deps
+      run: |
+        brew tap ArmMbed/homebrew-formulae
+        brew install https://raw.githubusercontent.com/ARMmbed/homebrew-formulae/404948446fc686d76799f09dc5074d611ee6db72/arm-none-eabi-gcc.rb
+      
+    - name: Build
+      run: |
+        cd $GITHUB_WORKSPACE/sw/arm_sw
+        ./compile.sh
+
+  Verify_Windows_Build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install deps
+      run: choco install gcc-arm-embedded --version=7.2.1.20170904
+      
+    - name: Build
+      run: |
+        cd %GITHUB_WORKSPACE%\sw\arm_sw
+        compile.bat
+      shell: cmd
+
   Build_HOSTED:
     runs-on: ubuntu-latest
 

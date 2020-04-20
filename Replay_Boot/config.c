@@ -416,7 +416,7 @@ void CFG_set_coder(coder_t standard)
 }
 
 uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
-                       uint8_t verify, uint8_t format, uint32_t* sconf, uint32_t* dconf)
+                       uint8_t verify, uint8_t format, const char* swizzle, uint32_t* sconf, uint32_t* dconf)
 {
     FF_FILE* fSource = NULL;
     fSource = FF_Open(pIoman, filename, FF_MODE_READ, NULL);
@@ -609,6 +609,109 @@ uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
 
         } else {
             rc = 0;
+        }
+
+    } else if (swizzle) {
+
+        const char* read_tokens = "abcdefgh";
+        const size_t max_len = 8;
+        const size_t spec_len = strlen(swizzle);
+        const int rmw = strchr(swizzle, '_') ? 1 : 0;
+        uint32_t filesize = FF_Size(fSource);
+
+        rc = 0;
+
+        // do some sanity checks first
+        if ((spec_len % 2) || (spec_len > max_len)) {
+            ERROR("Unsupported swizzling spec length %d - must be even, max %d chars", spec_len, max_len);
+            rc = 1;
+        }
+
+        // calculate consumed number of bytes selected by swizzling spec
+        int consume = 0;
+
+        for (int idx = 0; idx < spec_len; idx++) {
+            consume += strchr(read_tokens, tolower(swizzle[idx])) ? 1 : 0;
+        }
+
+        if (filesize % consume) {
+            ERROR("Filesize must be multiple of selected bytes");
+            rc = 1;
+        }
+
+        if (rc == 0) {
+            uint8_t buf[spec_len];
+            uint8_t fbuf[consume];
+            size_t consumed = 0;
+            offset = 0;
+
+            while (consumed < filesize) {
+                // read chunk from file
+                if (consume != FF_Read(fSource, consume, 1, fbuf)) {
+                    ERROR("File read error");
+                    rc = 1;
+                }
+
+                // error occured in previous run?
+                if (rc) {
+                    break;
+                }
+
+                // need read-modify-write?
+                if (rmw) {
+                    FileIO_MCh_MemToBuf(buf, base + offset, spec_len);
+                }
+
+                // swizzle
+                for (int idx = 0; idx < spec_len; idx++) {
+                    uint8_t pos;
+                    const char token = tolower(swizzle[idx]);
+
+                    switch (token) {
+                        case '_':
+                            // do nothing
+                            break;
+
+                        case '0':
+                            // fill with all-0
+                            buf[idx] = 0x00;
+                            break;
+
+                        case '1':
+                            // fill with all-1
+                            buf[idx] = 0xff;
+                            break;
+
+                        default:
+                            if (strchr(read_tokens, token)) {
+                                // copy byte from file position indicated by token
+                                pos = token - 'a';
+
+                                if (pos < consume) {
+                                    buf[idx] = fbuf[pos];
+
+                                } else {
+                                    ERROR("Token '%c' out of range", swizzle[idx]);
+                                    rc = 1;
+                                }
+
+                            } else {
+                                ERROR("Unsupported token '%c'", swizzle[idx]);
+                                rc = 1;
+                            }
+
+                            break;
+                    }
+                }
+
+                // write swizzled payload (back) to memory
+                if (rc == 0) {
+                    FileIO_MCh_BufToMem(buf, base + offset, spec_len);
+                }
+
+                offset += spec_len;
+                consumed += consume;
+            }
         }
 
     } else {
@@ -1700,6 +1803,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
     uint32_t size = valueList[1].intval;
     uint32_t base = entries > 2 ? valueList[2].intval : pStatus->last_rom_adr;
     uint8_t format = entries > 3 ? valueList[3].intval : 0;
+    const char* swizzle = entries > 3 ? valueList[3].strval : NULL;
 
     pStatus->last_rom_adr = base + size;
 
@@ -1723,7 +1827,7 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
 
     // if file exists - try uploading it
     if (file_exists && CFG_upload_rom(fullname, base, size,
-                                      pStatus->verify_dl, format, &staticbits, &dynamicbits)) {
+                                      pStatus->verify_dl, format, swizzle, &staticbits, &dynamicbits)) {
         WARNING("ROM upload to FPGA failed");
         FreeList(valueList, entries);
         return 1;

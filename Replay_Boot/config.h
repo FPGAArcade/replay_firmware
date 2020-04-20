@@ -551,13 +551,14 @@ void CFG_card_start(status_t* currentStatus);
     @param size size of the datafile (when 0, do auto-sizing)
     @param verify if set to 1, verify uploaded content again
     @param format will allow selecting several file types: 0 is plain binary; 1 is 2 byte start address + plain binary; 2 is CRT format (normal ROM cartridges only)
+    @param swizzle will allow specifying a swizzling definition, eg "abcd"
     @param sconf refers to static configuration bits of core
     @param dconf refers to dynamic configuration bits of core
 
     @return 0 when transmission was successful, others indicate a failure
 */
 uint8_t CFG_upload_rom(char* filename, uint32_t base, uint32_t size,
-                       uint8_t verify, uint8_t format, uint32_t* sconf, uint32_t* dconf);
+                       uint8_t verify, uint8_t format, const char* swizzle, uint32_t* sconf, uint32_t* dconf);
 
 /* ========================================================================== */
 

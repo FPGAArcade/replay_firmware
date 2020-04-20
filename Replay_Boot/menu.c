@@ -488,7 +488,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
             uint32_t staticbits = current_status->config_s;
             uint32_t dynamicbits = current_status->config_d;
             DEBUG(1, "OLD config - S:%08lx D:%08lx", staticbits, dynamicbits);
-            CFG_upload_rom(full_filename, item->action_value, 0, item->option_list->conf_value & 1, (item->option_list->conf_value >> 3) & 255, &staticbits, &dynamicbits);
+            CFG_upload_rom(full_filename, item->action_value, 0, item->option_list->conf_value & 1, (item->option_list->conf_value >> 3) & 255, NULL, &staticbits, &dynamicbits);
             DEBUG(1, "NEW config - S:%08lx D:%08lx", staticbits, dynamicbits);
             current_status->config_s = staticbits;
             //not used yet: current_status->config_d = dynamicbits;
@@ -560,7 +560,7 @@ static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_
         Timer_Wait(100);
 
         if (CFG_upload_rom(full_filename, base, size,
-                           current_status->verify_dl, format, &staticbits, &dynamicbits)) {
+                           current_status->verify_dl, format, NULL, &staticbits, &dynamicbits)) {
             WARNING("ROM upload to FPGA failed");
             return 0;
         }

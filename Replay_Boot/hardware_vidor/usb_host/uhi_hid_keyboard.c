@@ -236,8 +236,13 @@ static void uhi_hid_keyboard_report_reception(
 		return; // HID keyboard transfer restart
 	}
 
-	if ((status != UHD_TRANS_NOERROR) || (nb_transfered < 4)) {
-		return; // HID keyboard transfer aborted
+	if (status != UHD_TRANS_NOERROR) {
+		return; // HID keyboard transfer error
+	}
+
+	if (nb_transfered < 4) {
+		uhi_hid_keyboard_start_trans_report(add);
+		return; // HID keyboard transfer short read
 	}
 
 	const uint8_t* report = uhi_hid_keyboard_dev.report;

@@ -410,6 +410,10 @@ uint16_t ParseList(const char* value, ini_list_t* valueList, const uint16_t maxl
             break;
         }
 
+        if ((*end == ';') || (*end == '#')) {
+            break; // terminate if comment follows
+        }
+
         DEBUG(3, "%d: %s %x", idx - 1, valueList[idx - 1].strval, valueList[idx - 1].intval); // details about values
     } while (*end++); // check for end otherwise "remove" comma and do again
 

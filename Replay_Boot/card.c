@@ -303,39 +303,6 @@ uint8_t Card_TryInit(void)
 
     SPI_DisableCard();
 
-    // Try to enable high-speed / 50MHz clock speeds..
-    SPI_EnableCard();
-
-    if (MMC_Command(CMD6, 0x80FF11F1) == 0x00) {
-
-        Timer_Wait(10);
-
-        timeout = Timer_Get(250);      // timeout
-
-        while (rSPI(0xFF) != 0xFE) {
-            if (Timer_Check(timeout)) {
-                WARNING("SPI:Card_TryInit - no data token! (CMD6)");
-                goto cmd6done;
-            }
-        }
-
-        uint8_t pBuffer[512 / 8];
-
-        for (uint32_t offset = 0; offset < sizeof(pBuffer); offset++) {
-            pBuffer[offset] = rSPI(0xff);
-        }
-
-        rSPI(0xFF); // read CRC lo byte
-        rSPI(0xFF); // read CRC hi byte
-
-        // DumpBuffer(pBuffer, sizeof(pBuffer));
-
-cmd6done:
-        ;
-    }
-
-    SPI_DisableCard();
-
     if (cardType == (CARDTYPE_NONE)) {
         WARNING("SPI:Card_Init No memory card detected!");
 

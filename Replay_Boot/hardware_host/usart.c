@@ -51,6 +51,20 @@
 #include <unistd.h>
 #include <string.h>
 
+// Run socat from a separate terminal:
+//
+// $ socat pty,raw,echo=0,link=/tmp/replay-usart -,raw,echo=0
+//
+// or telnet
+//
+// $ telnet localhost 1234
+
+// #define USART_TELNET_PORT 1234
+int TELNET_init(uint16_t port);
+bool TELNET_connected();
+size_t TELNET_recv(void* buffer, size_t size);
+void TELNET_send(void* buffer, size_t size);
+
 // for RX, we use a software ring buffer as we are interested in any character
 // as soon as it is received.
 #define RXBUFLEN 16
@@ -68,9 +82,9 @@ int fd = -1; // fake serial file descriptor
 
 void USART_Init(unsigned long baudrate)
 {
-    // socat -d -d pty,raw,echo=0 pty,raw,echo=0
-    // minicom -D /dev/ttys002
-    fd = open("/dev/ttys001", O_RDWR);
+#ifndef USART_TELNET_PORT
+
+    fd = open("/tmp/replay-usart", O_RDWR);
 
     if (fd == -1) {
         return;
@@ -78,6 +92,14 @@ void USART_Init(unsigned long baudrate)
 
     int saved_flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, saved_flags | O_NONBLOCK);
+
+#else
+
+    if (TELNET_init(USART_TELNET_PORT)) {
+        return;
+    }
+
+#endif
 
     USART_txptr = USART_wrptr = 0;
 }
@@ -87,11 +109,19 @@ void USART_update(void)
     char data[RXBUFLEN];
     ssize_t length = -1;
 
+#ifndef USART_TELNET_PORT
+
     if (fd == -1) {
         return;
     }
 
     length = read(fd, data, RXBUFLEN);
+
+#else
+
+    length = TELNET_recv(data, RXBUFLEN);
+
+#endif
 
     if (length == -1) {
         return;
@@ -112,15 +142,27 @@ void USART_update(void)
 
 void USART_Putc(void* p, char c)
 {
+#ifndef USART_TELNET_PORT
+
     if (fd == -1) {
         return;
     }
+
+#endif
 
     USART_txbuf[USART_wrptr] = c;
     USART_wrptr = (USART_wrptr + 1) & TXBUFMASK;
 
     if ((c == '\n') || (!USART_wrptr) || (USART_wrptr == USART_barrier) || 1) {
-        write(fd, (const char*) & (USART_txbuf[USART_txptr]), (TXBUFLEN + USART_wrptr - USART_txptr) & TXBUFMASK);
+        volatile uint8_t* ptr = & (USART_txbuf[USART_txptr]);
+        size_t len = (TXBUFLEN + USART_wrptr - USART_txptr) & TXBUFMASK;
+
+#ifndef USART_TELNET_PORT
+        write(fd, (const char*) ptr, len);
+#else
+        TELNET_send( (char*) ptr, len);
+#endif
+
         USART_barrier = USART_txptr;
         USART_txptr = USART_wrptr;
     }

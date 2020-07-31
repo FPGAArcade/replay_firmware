@@ -67,3 +67,4 @@ void Hardware_Init(void)
 #include "hardware_host/timer.c"
 #include "hardware_host/twi.c"
 #include "hardware_host/usart.c"
+#include "hardware_host/telnet_listen.c"

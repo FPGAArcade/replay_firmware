@@ -18,7 +18,9 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Install deps
-      run: sudo apt-get install gcc-arm-none-eabi libarchive-zip-perl
+      run: |
+        sudo apt-get install gcc-arm-none-eabi libarchive-zip-perl
+        arm-none-eabi-gcc -v
       
     - name: Build
       run: |
@@ -44,10 +46,14 @@ jobs:
 
 #    version 8-2018-q4-major
 #    brew install arm-none-eabi-gcc
+#    brew install https://raw.githubusercontent.com/ARMmbed/homebrew-formulae/404948446fc686d76799f09dc5074d611ee6db72/arm-none-eabi-gcc.rb
     - name: Install deps
       run: |
         brew tap ArmMbed/homebrew-formulae
-        brew install https://raw.githubusercontent.com/ARMmbed/homebrew-formulae/404948446fc686d76799f09dc5074d611ee6db72/arm-none-eabi-gcc.rb
+        brew tap-new $USER/armmbed
+        brew extract --version=8-2018-q4-major armmbed/homebrew-formulae/arm-none-eabi-gcc $USER/armmbed
+        brew install arm-none-eabi-gcc@8-2018-q4-major
+        arm-none-eabi-gcc -v
       
     - name: Build
       run: |
@@ -60,7 +66,9 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Install deps
-      run: choco install gcc-arm-embedded --version=7.2.1.20170904
+      run: |
+        choco install gcc-arm-embedded --version=7.2.1.20170904
+        arm-none-eabi-gcc -v
       
     - name: Build
       run: |

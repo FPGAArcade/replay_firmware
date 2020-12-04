@@ -1,3 +1,5 @@
+// Taken from https://github.com/arduino/ArduinoCore-samd/tree/master/bootloaders
+
 #include "board_driver_jtag.h"
 #include <string.h>
 

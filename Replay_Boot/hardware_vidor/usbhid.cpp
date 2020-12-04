@@ -1,3 +1,5 @@
+// ADD REPLAY LICENSE!
+
 #include "usb_host/conf_usb_host.h"
 
 #define MAX_SCANCODES (1<<4)

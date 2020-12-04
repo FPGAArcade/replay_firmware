@@ -1,3 +1,5 @@
+// Taken from https://github.com/arduino/ArduinoCore-samd/tree/master/bootloaders
+
 #include <sam.h>
 //#include "board_definitions.h"
 #include <stddef.h>

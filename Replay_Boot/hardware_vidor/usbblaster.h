@@ -1,3 +1,5 @@
+// ADD REPLAY LICENSE!
+
 #pragma once
 
 #ifdef	__cplusplus

@@ -1,3 +1,5 @@
+// ADD REPLAY LICENSE!
+
 #include "usbblaster.h"
 
 #if 0	// Enable USBBlaster!

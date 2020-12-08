@@ -120,9 +120,9 @@ endif
 SRC += tests/fullfat-test.c
 SRC += tests/exfat-test.c
 
-SRCBIN += ../../../hw/replay/cores/loader_embedded/sdcard/loader.bin
-SRCRAW += ../../../hw/replay/cores/loader_embedded/sdcard/replayhand.raw
-SRCTXT += ../../../hw/replay/cores/loader_embedded/sdcard/replay.ini
+SRCBIN += ../loader_embedded/loader.bin
+SRCRAW += ../loader_embedded/replayhand.raw
+SRCTXT += ../loader_embedded/replay.ini
 
 ifeq ($(USE_NEWLIB),NO)
 SRC += $(wildcard libc/*.c) $(wildcard libc/stdlib/*.c) $(wildcard libc/string/*.c)
@@ -634,13 +634,13 @@ clean_list : $(SRC)
 	git clean -fd build/ .dep/
 
 astyle :
-	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "*.h" "*.c"
-	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware/*.c" "hardware/*.h" 
-	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware_host/*.c"
-	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware_vidor/*.c" # "hardware_vidor/*.h" "hardware_vidor/*.cpp"
-	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "libc/*"
-	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "tests/*.c" "tests/*.h"
-#	../../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "usb/*.c" "usb/*.h"
+	../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "*.h" "*.c"
+	../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware/*.c" "hardware/*.h" 
+	../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware_host/*.c"
+	../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "hardware_vidor/*.c" # "hardware_vidor/*.h" "hardware_vidor/*.cpp"
+	../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "libc/*"
+	../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "tests/*.c" "tests/*.h"
+#	../tools/AStyle/bin/$(ASTYLE) --options=../astyle.opt -n "usb/*.c" "usb/*.h"
 
 # Include the dependency files.
 -include $(shell mkdir .dep 2>/dev/null) $(wildcard .dep/*)

@@ -55,7 +55,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-// hdiutil create sdcard.dmg -volname "REPLAY" -fs FAT32 -size 256m -format UDRW -srcfolder ../../../hw/replay/cores/amiga_68060/sdcard/
+// hdiutil create sdcard.dmg -volname "REPLAY" -fs FAT32 -size 256m -format UDRW -srcfolder ../loader_embedded/
 // mv sdcard.dmg sdcard.bin
 #define SDCARD_FILE "sdcard.bin"
 

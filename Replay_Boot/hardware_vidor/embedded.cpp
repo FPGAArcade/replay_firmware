@@ -9,7 +9,7 @@
 // macOS   : $HOME/Library/Arduino15/packages/arduino/hardware/samd_beta/1.6.25
 
 INCBIN(buildnum, "build/buildnum");
-INCBIN(replay_ini, "../../../hw/replay/cores/loader_embedded/sdcard/replay.ini");
+INCBIN(replay_ini, "../loader_embedded/replay.ini");
 
 #include "board_driver_jtag.h"
 

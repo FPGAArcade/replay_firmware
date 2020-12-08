@@ -5,6 +5,6 @@
 INCBIN(buildnum, "build/buildnum");
 INCBIN(build_loader, "build/loader");
 INCBIN(build_replayhand, "build/replayhand");
-INCBIN(replay_ini, "../../../hw/replay/cores/loader_embedded/sdcard/replay.ini");
+INCBIN(replay_ini, "../loader_embedded/replay.ini");
 
 char* end = 0;

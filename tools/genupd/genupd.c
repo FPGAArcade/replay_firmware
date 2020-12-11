@@ -1,20 +1,27 @@
+/*--------------------------------------------------------------------
+ *                            genupd
+ *                      www.fpgaarcade.com
+ *                     All rights reserved.
+ *
+ *                     admin@fpgaarcade.com
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *--------------------------------------------------------------------
+ *
+ * Checksum/Data INI-Line Generator for Replay Flash Updater
+ * 
+ * Copyright (c) 2020, W. Scherr, ws_arcade <at> pin4.at (www.pin4.at)
+ *
+ */
+
 #if defined(__linux) || defined(__APPLE__)
 #else
 #include<Windows.h>
 #endif
 #include<stdio.h>
 #include<stdint.h>
-// Checksum/Data INI-Line Generator for Replay Flash Updater
-//
-// $Id$
-//
-// (c) W. Scherr ws_arcade <at> pin4.at
-// www.pin4.at
-//
-// Use at your own risk, all rights reserved
-//
-// $id:$
-//
 
 // reset with data = 0x00000000; length = 0xffffffff
 static unsigned int feed_crc32(uint8_t* data, uint32_t length)

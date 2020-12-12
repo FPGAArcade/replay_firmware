@@ -159,7 +159,7 @@ void ISR_VerticalBlank()
 void OSD_Write(uint8_t row, const char* s, uint8_t invert)
 {
     // clears until end of line
-    OSD_WriteBase(row, 0 , s, 0, invert, 0xF, 0, 1);
+    OSD_WriteBase(row, 0, s, 0, invert, 0xF, 0, 1);
 }
 
 void OSD_WriteRC(uint8_t row, uint8_t col, const char* s, uint8_t invert, tOSDColor fg_col, tOSDColor bg_col )
@@ -1042,41 +1042,41 @@ static struct {
     const char* string;
     uint16_t keycode;
 } StringToKeycode [] = {
-    { "GUI"   , KF_GUI    },
-    { "CTRL"  , KF_CTRL   },
-    { "SHIFT" , KF_SHIFT  },
-    { "ALT"   , KF_ALT    },
-    { "HOME"  , KEY_HOME  },
-    { "PGUP"  , KEY_PGUP  },
-    { "PGDN"  , KEY_PGDN  },
-    { "END"   , KEY_END   },
-    { "UP"    , KEY_UP    },
-    { "DOWN"  , KEY_DOWN  },
-    { "LEFT"  , KEY_LEFT  },
-    { "RIGHT" , KEY_RIGHT },
-    { "DEL"   , KEY_DEL   },
-    { "INS"   , KEY_INS   },
-    { "F1"    , KEY_F1    },
-    { "F2"    , KEY_F2    },
-    { "F3"    , KEY_F3    },
-    { "F4"    , KEY_F4    },
-    { "F5"    , KEY_F5    },
-    { "F6"    , KEY_F6    },
-    { "F7"    , KEY_F7    },
-    { "F8"    , KEY_F8    },
-    { "F9"    , KEY_F9    },
-    { "F10"   , KEY_F10   },
-    { "F11"   , KEY_F11   },
-    { "F12"   , KEY_F12   },
-    { "MENU"  , KEY_MENU  },
-    { "ESC"   , KEY_ESC   },
-    { "ENTER" , KEY_ENTER },
-    { "BACK"  , KEY_BACK  },
-    { "TAB"   , KEY_TAB   },
-    { "SPACE" , KEY_SPACE },
-    { "PAUSE" , KEY_PAUSE },
-    { "SYSRQ" , KEY_SYSRQ },
-    { 0       , 0         } // end-of-table
+    { "GUI",    KF_GUI    },
+    { "CTRL",   KF_CTRL   },
+    { "SHIFT",  KF_SHIFT  },
+    { "ALT",    KF_ALT    },
+    { "HOME",   KEY_HOME  },
+    { "PGUP",   KEY_PGUP  },
+    { "PGDN",   KEY_PGDN  },
+    { "END",    KEY_END   },
+    { "UP",     KEY_UP    },
+    { "DOWN",   KEY_DOWN  },
+    { "LEFT",   KEY_LEFT  },
+    { "RIGHT",  KEY_RIGHT },
+    { "DEL",    KEY_DEL   },
+    { "INS",    KEY_INS   },
+    { "F1",     KEY_F1    },
+    { "F2",     KEY_F2    },
+    { "F3",     KEY_F3    },
+    { "F4",     KEY_F4    },
+    { "F5",     KEY_F5    },
+    { "F6",     KEY_F6    },
+    { "F7",     KEY_F7    },
+    { "F8",     KEY_F8    },
+    { "F9",     KEY_F9    },
+    { "F10",    KEY_F10   },
+    { "F11",    KEY_F11   },
+    { "F12",    KEY_F12   },
+    { "MENU",   KEY_MENU  },
+    { "ESC",    KEY_ESC   },
+    { "ENTER",  KEY_ENTER },
+    { "BACK",   KEY_BACK  },
+    { "TAB",    KEY_TAB   },
+    { "SPACE",  KEY_SPACE },
+    { "PAUSE",  KEY_PAUSE },
+    { "SYSRQ",  KEY_SYSRQ },
+    { 0,        0         } // end-of-table
 };
 
 uint16_t OSD_GetKeyCodeFromString(const char* string)

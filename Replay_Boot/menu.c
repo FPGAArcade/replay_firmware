@@ -826,7 +826,7 @@ void _MENU_show_file_browser(status_t* current_status)
         memcpy(s + 1, current_status->dir_scan->file_filter, len);
         s[len + 1] = '*';
         s[len + 2] = 0;
-        OSD_WriteRC(1, 0, s , 0, WHITE, DARK_BLUE);
+        OSD_WriteRC(1, 0, s, 0, WHITE, DARK_BLUE);
     }
 
     // show file/directory list

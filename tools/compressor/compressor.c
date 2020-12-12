@@ -1,3 +1,18 @@
+/*--------------------------------------------------------------------
+ *                       File compressor
+ *                      www.fpgaarcade.com
+ *                     All rights reserved.
+ *
+ *                     admin@fpgaarcade.com
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *--------------------------------------------------------------------
+ *
+ * Copyright (c) 2020, W. Scherr, ws_arcade <at> pin4.at (www.pin4.at)
+ *
+ */
 
 #ifdef WIN32
 #include<Windows.h>
@@ -7,15 +22,6 @@
 
 #include"miniz.c"
 
-// File compressor
-//
-// (c) W. Scherr ws_arcade <at> pin4.at
-// www.pin4.at
-//
-// Use at your own risk, all rights reserved
-//
-// $id:$
-//
 #include "stdint.h"
 
 int main(int argc, char *argv[]) {

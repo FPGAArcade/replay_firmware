@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------
- *                       Replay Firmware
+ *               Replay Firmware Application (rApp)
  *                      www.fpgaarcade.com
  *                     All rights reserved.
  *

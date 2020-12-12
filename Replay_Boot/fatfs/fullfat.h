@@ -65,9 +65,9 @@ void ff_free(void* ptr);
 #define FF_T_FAT32             0x0C
 
 #define FF_MODE_READ           0x01
-#define    FF_MODE_WRITE       0x02
+#define FF_MODE_WRITE          0x02
 #define FF_MODE_APPEND         0x04
-#define    FF_MODE_CREATE      0x08
+#define FF_MODE_CREATE         0x08
 #define FF_MODE_TRUNCATE       0x10
 #define FF_MODE_DIR            0x80
 

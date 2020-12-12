@@ -1,48 +1,18 @@
-/*
- WWW.FPGAArcade.COM
-
- REPLAY Retro Gaming Platform
- No Emulation No Compromise
-
- All rights reserved
- Mike Johnson Wolfgang Scherr
-
- SVN: $Id:
-
---------------------------------------------------------------------
-
- Redistribution and use in source and synthezised forms, with or without
- modification, are permitted provided that the following conditions are met:
-
- Redistributions of source code must retain the above copyright notice,
- this list of conditions and the following disclaimer.
-
- Redistributions in synthesized form must reproduce the above copyright
- notice, this list of conditions and the following disclaimer in the
- documentation and/or other materials provided with the distribution.
-
- Neither the name of the author nor the names of other contributors may
- be used to endorse or promote products derived from this software without
- specific prior written permission.
-
- THIS CODE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
- LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- POSSIBILITY OF SUCH DAMAGE.
-
- You are responsible for any legal issues arising from your use of this code.
-
- The latest version of this file can be found at: www.FPGAArcade.com
-
- Email support@fpgaarcade.com
-*/
+/*--------------------------------------------------------------------
+ *                       Replay Firmware
+ *                      www.fpgaarcade.com
+ *                     All rights reserved.
+ *
+ *                     admin@fpgaarcade.com
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *--------------------------------------------------------------------
+ *
+ * Copyright (c) 2020, The FPGAArcade community (see AUTHORS.txt)
+ *
+ */
 
 #include "stringlight.h"
 #include "printf.h"
@@ -222,71 +192,6 @@ char* GetExtension(char* filename)
     }
 
     return pResult;
-}
-
-
-// maybe not the best place for this - from FF demo
-void FF_ExpandPath(char* acPath)
-{
-
-    char*        pRel           = 0;
-    char*        pRelStart      = 0;
-    char*        pRelEnd        = 0;
-
-    int         charRef         = 0;
-    int         lenPath         = 0;
-    int         lenRel          = 0;
-    int         i                       = 0;
-    int         remain          = 0;
-
-
-    lenPath = strlen(acPath);
-    pRel = strstr(acPath, "..");
-
-    while (pRel) {      // Loop removal of Relativity
-        charRef = pRel - acPath;
-
-        /*
-            We have found some relativity in the Path,
-        */
-
-        // Where it ends:
-
-        if (pRel[2] == '\\' || pRel[2] == '/') {
-            pRelEnd = pRel + 3;
-
-        } else {
-            pRelEnd = pRel + 2;
-        }
-
-        // Where it Starts:
-
-        if (charRef == 1) {     // Relative Path comes after the root /
-            return;     // Fixed, returns false appropriately, as in the TODO: above!
-
-        } else {
-            for (i = (charRef - 2); i >= 0; i--) {
-                if (acPath[i] == '\\' || acPath[i] == '/') {
-                    pRelStart = (acPath + (i + 1));
-                    break;
-                }
-            }
-        }
-
-        // The length of the relativity
-        lenRel = pRelEnd - pRelStart;
-
-        remain = lenPath - (pRelEnd - acPath);  // Remaining Chars on the end of the path
-
-        if (lenRel) {
-
-            strncpy(pRelStart, pRelEnd, remain);
-            pRelStart[remain] = '\0';
-        }
-
-        lenPath -= lenRel;
-        pRel = strstr(acPath, "..");
-    }
 }
 
 static uint8_t IsPathRooted(const char* path)

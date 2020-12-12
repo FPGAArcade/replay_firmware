@@ -6,7 +6,7 @@ cp ../../Replay_Update/FW/bootrom.bin sdcard/bootrom.bin
 cp ../../Replay_Boot/build/main.bin sdcard/main.bin
 
 # Make sure genupd.elf is built
-make -C ../../../tools/genupd clean linux
+make -C ../../tools/genupd clean linux
 
 # Generate and append firmware crc to each available template ini
 for template in *_template_*.ini ; do
@@ -16,7 +16,7 @@ for template in *_template_*.ini ; do
 
   # genupd expects firmware to be in current dir
   cd sdcard
-  ../../../../tools/genupd/genupd.elf >> ${new_ini}
+  ../../../tools/genupd/genupd.elf >> ${new_ini}
   cd ..
 done
 

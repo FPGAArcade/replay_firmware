@@ -1,7 +1,5 @@
 # Hey Emacs, this is a -*- makefile -*-
 #
-# $Id$
-#
 # WinARM template makefile
 # by Martin Thomas, Kaiserslautern, Germany
 # <eversmith@heizung-thomas.de>

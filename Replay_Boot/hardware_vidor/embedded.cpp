@@ -1,3 +1,19 @@
+/*--------------------------------------------------------------------
+ *                       Replay Firmware
+ *                      www.fpgaarcade.com
+ *                     All rights reserved.
+ *
+ *                     admin@fpgaarcade.com
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *--------------------------------------------------------------------
+ *
+ * Copyright (c) 2020, The FPGAArcade community (see AUTHORS.txt)
+ *
+ */
+
 #define INCBIN_PREFIX _binary_
 #define INCBIN_STYLE INCBIN_STYLE_SNAKE
 #include "../hardware_host/incbin.h"
@@ -7,7 +23,7 @@
 // macOS   : $HOME/Library/Arduino15/packages/arduino/hardware/samd_beta/1.6.25
 
 INCBIN(buildnum, "build/buildnum");
-INCBIN(replay_ini, "../../../hw/replay/cores/loader_embedded/sdcard/replay.ini");
+INCBIN(replay_ini, "../loader_embedded/replay.ini");
 
 #include "board_driver_jtag.h"
 

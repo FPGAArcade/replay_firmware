@@ -1,48 +1,19 @@
-/*
- WWW.FPGAArcade.COM
+/*--------------------------------------------------------------------
+ *                       Replay Firmware
+ *                      www.fpgaarcade.com
+ *                     All rights reserved.
+ *
+ *                     admin@fpgaarcade.com
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *--------------------------------------------------------------------
+ *
+ * Copyright (c) 2020, The FPGAArcade community (see AUTHORS.txt)
+ *
+ */
 
- REPLAY Retro Gaming Platform
- No Emulation No Compromise
-
- All rights reserved
- Mike Johnson Wolfgang Scherr
-
- SVN: $Id:
-
---------------------------------------------------------------------
-
- Redistribution and use in source and synthezised forms, with or without
- modification, are permitted provided that the following conditions are met:
-
- Redistributions of source code must retain the above copyright notice,
- this list of conditions and the following disclaimer.
-
- Redistributions in synthesized form must reproduce the above copyright
- notice, this list of conditions and the following disclaimer in the
- documentation and/or other materials provided with the distribution.
-
- Neither the name of the author nor the names of other contributors may
- be used to endorse or promote products derived from this software without
- specific prior written permission.
-
- THIS CODE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
- LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- POSSIBILITY OF SUCH DAMAGE.
-
- You are responsible for any legal issues arising from your use of this code.
-
- The latest version of this file can be found at: www.FPGAArcade.com
-
- Email support@fpgaarcade.com
-*/
 
 #include "osd.h"
 #include "hardware.h"
@@ -188,7 +159,7 @@ void ISR_VerticalBlank()
 void OSD_Write(uint8_t row, const char* s, uint8_t invert)
 {
     // clears until end of line
-    OSD_WriteBase(row, 0 , s, 0, invert, 0xF, 0, 1);
+    OSD_WriteBase(row, 0, s, 0, invert, 0xF, 0, 1);
 }
 
 void OSD_WriteRC(uint8_t row, uint8_t col, const char* s, uint8_t invert, tOSDColor fg_col, tOSDColor bg_col )
@@ -1071,41 +1042,41 @@ static struct {
     const char* string;
     uint16_t keycode;
 } StringToKeycode [] = {
-    { "GUI"   , KF_GUI    },
-    { "CTRL"  , KF_CTRL   },
-    { "SHIFT" , KF_SHIFT  },
-    { "ALT"   , KF_ALT    },
-    { "HOME"  , KEY_HOME  },
-    { "PGUP"  , KEY_PGUP  },
-    { "PGDN"  , KEY_PGDN  },
-    { "END"   , KEY_END   },
-    { "UP"    , KEY_UP    },
-    { "DOWN"  , KEY_DOWN  },
-    { "LEFT"  , KEY_LEFT  },
-    { "RIGHT" , KEY_RIGHT },
-    { "DEL"   , KEY_DEL   },
-    { "INS"   , KEY_INS   },
-    { "F1"    , KEY_F1    },
-    { "F2"    , KEY_F2    },
-    { "F3"    , KEY_F3    },
-    { "F4"    , KEY_F4    },
-    { "F5"    , KEY_F5    },
-    { "F6"    , KEY_F6    },
-    { "F7"    , KEY_F7    },
-    { "F8"    , KEY_F8    },
-    { "F9"    , KEY_F9    },
-    { "F10"   , KEY_F10   },
-    { "F11"   , KEY_F11   },
-    { "F12"   , KEY_F12   },
-    { "MENU"  , KEY_MENU  },
-    { "ESC"   , KEY_ESC   },
-    { "ENTER" , KEY_ENTER },
-    { "BACK"  , KEY_BACK  },
-    { "TAB"   , KEY_TAB   },
-    { "SPACE" , KEY_SPACE },
-    { "PAUSE" , KEY_PAUSE },
-    { "SYSRQ" , KEY_SYSRQ },
-    { 0       , 0         } // end-of-table
+    { "GUI",    KF_GUI    },
+    { "CTRL",   KF_CTRL   },
+    { "SHIFT",  KF_SHIFT  },
+    { "ALT",    KF_ALT    },
+    { "HOME",   KEY_HOME  },
+    { "PGUP",   KEY_PGUP  },
+    { "PGDN",   KEY_PGDN  },
+    { "END",    KEY_END   },
+    { "UP",     KEY_UP    },
+    { "DOWN",   KEY_DOWN  },
+    { "LEFT",   KEY_LEFT  },
+    { "RIGHT",  KEY_RIGHT },
+    { "DEL",    KEY_DEL   },
+    { "INS",    KEY_INS   },
+    { "F1",     KEY_F1    },
+    { "F2",     KEY_F2    },
+    { "F3",     KEY_F3    },
+    { "F4",     KEY_F4    },
+    { "F5",     KEY_F5    },
+    { "F6",     KEY_F6    },
+    { "F7",     KEY_F7    },
+    { "F8",     KEY_F8    },
+    { "F9",     KEY_F9    },
+    { "F10",    KEY_F10   },
+    { "F11",    KEY_F11   },
+    { "F12",    KEY_F12   },
+    { "MENU",   KEY_MENU  },
+    { "ESC",    KEY_ESC   },
+    { "ENTER",  KEY_ENTER },
+    { "BACK",   KEY_BACK  },
+    { "TAB",    KEY_TAB   },
+    { "SPACE",  KEY_SPACE },
+    { "PAUSE",  KEY_PAUSE },
+    { "SYSRQ",  KEY_SYSRQ },
+    { 0,        0         } // end-of-table
 };
 
 uint16_t OSD_GetKeyCodeFromString(const char* string)

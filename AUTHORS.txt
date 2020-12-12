@@ -1,0 +1,13 @@
+# This is the official list of project authors for copyright purposes. 
+# 
+# Names should be added to this file as: 
+# Name or Organization <email address> 
+
+Arnim Läuger <devsaurus@users.noreply.github.com>
+Erik Hemming <eriquesnk@gmail.com>
+Gary Preston <gary@mups.co.uk>
+Johan Svensson <johan.svensson@git-migration.fpgareplay.com>
+Kevin Kimber <kimberkevin@hotmail.com>
+Mike J <mikej@fpgaarcade.com>
+Mr Origo <mrorigo@git-migration.fpgareplay.com>
+Wolfgang Scherr <ws_arcade@pin4.at>

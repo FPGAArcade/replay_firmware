@@ -4,12 +4,12 @@ on:
   push:
     paths:
     - '.github/workflows/Replay_Boot.yml'
-    - 'sw/arm_sw/**'
+    - '**'
   pull_request:
     branches: master
     paths:
     - '.github/workflows/Replay_Boot.yml'
-    - 'sw/arm_sw/**'
+    - '**'
 
 jobs:
   Build_R1_Firmware:
@@ -24,12 +24,12 @@ jobs:
       
     - name: Build
       run: |
-        cd $GITHUB_WORKSPACE/sw/arm_sw
+        cd $GITHUB_WORKSPACE
         ./compile.sh
 
     - name: Package
       run: |
-        cd $GITHUB_WORKSPACE/sw/arm_sw
+        cd $GITHUB_WORKSPACE
         ./package.sh
         mkdir -p $GITHUB_WORKSPACE/artifact
         find . -maxdepth 1 -type f -name "*.zip" -exec mv {} $GITHUB_WORKSPACE/artifact \;
@@ -57,7 +57,7 @@ jobs:
       
     - name: Build
       run: |
-        cd $GITHUB_WORKSPACE/sw/arm_sw
+        cd $GITHUB_WORKSPACE
         ./compile.sh
 
   Verify_Windows_Build:
@@ -87,7 +87,7 @@ jobs:
 
     - name: Build
       run: |
-        cd $GITHUB_WORKSPACE/sw/arm_sw/Replay_Boot
+        cd $GITHUB_WORKSPACE/Replay_Boot
         HOSTED=1 make
 
   Build_VIDOR:
@@ -98,17 +98,17 @@ jobs:
 
     - name: Retrieve Arduino IDE
       run: |
-        cd $GITHUB_WORKSPACE/sw/arm_sw/Replay_Boot
+        cd $GITHUB_WORKSPACE/Replay_Boot
         ./install_arduino_vidor.sh
 
     - name: Build
       run: |
-        cd $GITHUB_WORKSPACE/sw/arm_sw/Replay_Boot
+        cd $GITHUB_WORKSPACE/Replay_Boot
         VIDOR=1 make
 
     - name: Package
       run: |
-        cd $GITHUB_WORKSPACE/sw/arm_sw
+        cd $GITHUB_WORKSPACE
         ./package_vidor.sh
         mkdir -p $GITHUB_WORKSPACE/artifact
         find . -maxdepth 1 -type f -name "*.zip" -exec mv {} $GITHUB_WORKSPACE/artifact \;

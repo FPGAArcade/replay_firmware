@@ -46,8 +46,6 @@ unsigned int _htoi (const char* ptr);
 void FileDisplayName(char* name, uint16_t name_len, char* path);
 char* GetExtension(char* filename);
 
-void FF_ExpandPath(char* acPath);
-
 #if __GNUC__ >= 5 || __clang__ || __GNUC__ == 4 && __GNUC_MINOR__ >= 8
 char* strcasestr(const char*, const char*);			// __BSD_VISIBLE
 #define stricmp(a,b) strcasecmp(a,b) 				// int stricmp(const char *, const char *);

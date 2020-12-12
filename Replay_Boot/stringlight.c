@@ -14,7 +14,6 @@
  *
  */
 
-
 #include "stringlight.h"
 #include "printf.h"
 #include <stdlib.h>
@@ -193,71 +192,6 @@ char* GetExtension(char* filename)
     }
 
     return pResult;
-}
-
-
-// maybe not the best place for this - from FF demo
-void FF_ExpandPath(char* acPath)
-{
-
-    char*        pRel           = 0;
-    char*        pRelStart      = 0;
-    char*        pRelEnd        = 0;
-
-    int         charRef         = 0;
-    int         lenPath         = 0;
-    int         lenRel          = 0;
-    int         i                       = 0;
-    int         remain          = 0;
-
-
-    lenPath = strlen(acPath);
-    pRel = strstr(acPath, "..");
-
-    while (pRel) {      // Loop removal of Relativity
-        charRef = pRel - acPath;
-
-        /*
-            We have found some relativity in the Path,
-        */
-
-        // Where it ends:
-
-        if (pRel[2] == '\\' || pRel[2] == '/') {
-            pRelEnd = pRel + 3;
-
-        } else {
-            pRelEnd = pRel + 2;
-        }
-
-        // Where it Starts:
-
-        if (charRef == 1) {     // Relative Path comes after the root /
-            return;     // Fixed, returns false appropriately, as in the TODO: above!
-
-        } else {
-            for (i = (charRef - 2); i >= 0; i--) {
-                if (acPath[i] == '\\' || acPath[i] == '/') {
-                    pRelStart = (acPath + (i + 1));
-                    break;
-                }
-            }
-        }
-
-        // The length of the relativity
-        lenRel = pRelEnd - pRelStart;
-
-        remain = lenPath - (pRelEnd - acPath);  // Remaining Chars on the end of the path
-
-        if (lenRel) {
-
-            strncpy(pRelStart, pRelEnd, remain);
-            pRelStart[remain] = '\0';
-        }
-
-        lenPath -= lenRel;
-        pRel = strstr(acPath, "..");
-    }
 }
 
 static uint8_t IsPathRooted(const char* path)

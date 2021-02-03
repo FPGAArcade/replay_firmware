@@ -42,6 +42,10 @@ static void vidor_SPI_endTransaction(uint8_t cs)
 
 static void vidor_SPI_setFreq(uint32_t freq)
 {
+    const uint32_t max_freq = F_CPU / SPI_MIN_CLOCK_DIVIDER;
+    if (freq > max_freq)
+        freq = max_freq;
+
     settings = SPISettings(freq, MSBFIRST, SPI_MODE0);
 }
 

@@ -342,7 +342,7 @@ LDFLAGS = -lc -lpthread -lncurses
 endif
 
 ifeq (1,${VIDOR}) 
-ARDUINO_BOARD_VERSION=1.8.4
+ARDUINO_BOARD_VERSION=1.8.11
 OBJCOPY = $(PWD)/$(TCHAIN_PREFIX)objcopy
 TCHAIN_PREFIX = .arduino/portable/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/bin/arm-none-eabi-
 CFLAGS_WARN = #-Wall -Wextra -Wno-expansion-to-defined

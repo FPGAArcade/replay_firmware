@@ -9,13 +9,13 @@ FAIL_MSG="""$LRED""ERROR!"
 PASS_MSG="""$LGREEN""OK!"
 
 export ARDUINO_PATH="$PWD/.arduino"
-export ARDUINO_IDE_VERSION="1.8.12"
+export ARDUINO_IDE_VERSION="1.8.13"
 export ARDUINO_PACKAGE="arduino"
 export ARDUINO_PLATFORM="samd"
 export ARDUINO_BOARD="mkrvidor4000"
 export ARDUINO_BOARD_URL="http://downloads.arduino.cc/packages/package_staging_index.json"
 export ARDUINO_BOARD_FULL="${ARDUINO_PACKAGE}:${ARDUINO_PLATFORM}:${ARDUINO_BOARD}"
-export ARDUINO_BOARD_VERSION="1.8.4"
+export ARDUINO_BOARD_VERSION="1.8.11"
 export ARDUINO_PACKAGE_NAME="${ARDUINO_PACKAGE}:${ARDUINO_PLATFORM}:${ARDUINO_BOARD_VERSION}"
 
 echo -e "${LGRAY}\n########################################################################";

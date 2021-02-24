@@ -244,8 +244,8 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
 
     // loadselect ----------------------------------
     else if MATCH(item->action_name, "loadselect") {
-        if ((item->option_list) && (item->option_list->option_name[0] = '*')
-                && (item->option_list->option_name[1] = '.') && (item->option_list->option_name[2])) {
+        if ((item->option_list) && (item->option_list->option_name[0] == '*')
+                && (item->option_list->option_name[1] == '.') && (item->option_list->option_name[2])) {
             DEBUG(1, "LOAD from: %s ext: %s", current_status->act_dir, (item->option_list->option_name) + 2);
             // allocate dir_scan structure
             MENU_set_state(current_status, FILE_BROWSER);
@@ -263,7 +263,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
 
     // storeselect ----------------------------------
     else if MATCH(item->action_name, "storeselect") {
-        if ((item->option_list) && !(item->option_list->option_name[0])) {
+        if ((item->option_list) && item->option_list->option_name[0]) {
             char full_filename[FF_MAX_PATH];
             DEBUG(1, "STORE to: %s file: %s", current_status->act_dir, (item->option_list->option_name));
 

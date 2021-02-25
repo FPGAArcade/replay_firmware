@@ -189,7 +189,7 @@ uint8_t parse_hid_report(uint8_t* hid_report, uint16_t hid_report_size, uhi_hid_
 						}
 						if (collection_index == 0 && data == USB_HID_REPORT_COLLETION_APPLICATION) {
 							// $TODO make this generic for any usage (keyboard, gamepad, etc)
-							if (num_usages = 1 && usages[0] == USB_HID_REPORT_USAGE_MOUSE && usage_page == USB_HID_REPORT_USAGE_PAGE_GENERIC_DESKTOP) {
+							if (num_usages == 1 && usages[0] == USB_HID_REPORT_USAGE_MOUSE && usage_page == USB_HID_REPORT_USAGE_PAGE_GENERIC_DESKTOP) {
 								report_usage = usages[0];
 								report_objects = 0x00;	// at least on Logitech mouse/keyboard combo keeps multiple report layouts. reset to use the last one.
 							} else {

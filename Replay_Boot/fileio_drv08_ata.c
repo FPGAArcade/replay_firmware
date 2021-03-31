@@ -87,7 +87,9 @@ typedef struct {
         };
         drv08_block_t               blocks[3];
     };
-} __attribute__ ((packed)) drv08_rdb_t;
+} drv08_rdb_t;
+
+STATIC_ASSERT(sizeof(drv08_rdb_t) == sizeof(drv08_block_t)*3);
 
 typedef struct {
     drv08_format_t format;

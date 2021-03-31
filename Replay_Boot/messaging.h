@@ -114,6 +114,7 @@ void AssertionFailure(const char* exp, const char* file, const char* baseFile, i
 #define Assert(exp)
 #endif
 
+#define STATIC_ASSERT(COND) typedef char static_assertion[(COND)?1:-1]
 
 //
 // Debug

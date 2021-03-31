@@ -1,0 +1,143 @@
+Tested with Ubuntu 20.10
+
+* Cloning the repo (assuming ssh keys are installed)
+$ sudo apt install git
+$ git clone https://github.com/FPGAArcade/replay_firmware.git
+
+* Building the source
+$ sudo apt install make gcc g++ libncurses-dev
+$ cd replay_firmware/Replay_Boot/
+$ HOSTED=1 make
+$ ./build/main.elf
+
+    ┌────────────────────────────────┐
+    │***   F P G A  A R C A D E   ***│
+    │                                │
+    │ARM |FW:20210331_655 (0kB f152Hz│
+    │FPGA|NO VALID SETUP ON SDCARD!  │
+    │                                │
+    │                                │
+    │                                │
+    │                                │
+    │                                │
+    │                                │
+    │                                │
+    │                                │
+    │W Using hardcoded fallback!     │
+    │I Configured in 224 ms          │
+    │                                │
+    │      LEFT/RIGHT - F12/ESC      │
+    └────────────────────────────────┘
+
+* Creating an sdcard image
+$ ./create_sdcard.sh 
++ dd if=/dev/zero of=sdcard.bin bs=32768 count=4096
++ mkfs.fat -F 32 sdcard.bin
++ mcopy -i sdcard.bin ../loader_embedded/* ::/
++ mdir -i sdcard.bin
+
+ Volume in drive : has no label
+ Volume Serial Number is 7088-E312
+Directory for ::/
+
+BACKGR~1 RAW    414720 2021-03-31  22:26  background.raw
+loader   bin    746212 2021-03-31  22:26 
+replay   ini      2518 2021-03-31  22:26 
+REPLAY~1 GIF     12554 2021-03-31  22:26  replayhand.gif
+REPLAY~1 RAW    414720 2021-03-31  22:26  replayhand.raw
+        5 files           1 590 724 bytes
+                        130 544 128 bytes free
+
+
+./build/main.elf will now show
+
+
+    ┌────────────────────────────────┐
+    │***   F P G A  A R C A D E   ***│
+    │                                │
+    │ARM |FW:20210331_655       109Hz│
+    │FPGA|FW:3412 STAT:3412 IO:813F  │
+    │INI |\replay.ini                │
+    │                                │
+    │                                │
+    │                                │
+    │                                │
+    │                                │
+    │                                │
+    │I SDCARD: FAT32 formatted       │
+    │I SDCARD: 512B/0kB x 1/126MB    │
+    │I Configured in 3522 ms         │
+    │                                │
+    │      LEFT/RIGHT - F12/ESC      │
+    └────────────────────────────────┘
+
+* Attaching USART
+From another terminal run
+$ sudo apt install socat
+$ socat pty,raw,echo=0,link=/tmp/replay-usart -,raw,echo=0
+
+Rerun ./build/main.elf:
+
+0.004: [main.c:181]
+0.004: [main.c:182] == FPGAArcade Replay Board ==
+0.004: [main.c:183] Mike Johnson & Wolfgang Scherr
+0.005: [main.c:184]
+0.005: [main.c:185] ARM Firmware: 20210331_655
+0.005: [main.c:189]
+0.005: [main.c:191] Built upon work by Dennis van Weeren & Jakub Bednarski
+0.006: [main.c:195]
+0.007: [main.c:211] Firmware startup in 7 ms
+0.091: [card.c:103] SPI:CMD6 failed
+INFO: SDCARD: FAT32 formatted
+INFO: SDCARD: 512B/0kB x 1/126MB
+0.094: [config.c:345] CFG_card_start() took 25 ms
+0.099: [config.c:1137] No coder fitted!
+0.102: [twi.c:285] PLL clock outputs :
+0.102: [twi.c:315]  0 : ~ 114545 KHz
+0.102: [twi.c:315]  1 : ~  14318 KHz
+0.103: [twi.c:315]  2 : ~  49152 KHz
+0.103: [twi.c:312]  3 :      OFF
+0.103: [twi.c:315]  4 : ~  27000 KHz
+0.104: [twi.c:312]  5 :      OFF
+2.110: [fpga.c:344] FPGA configured in 2005 ms.
+2.110: [main.c:325] load_core_from_sdcard() took 2016 ms
+2.118: [main.c:387] SPI clock: 10 MHz
+3.753: [main.c:466] init_core() took 1643 ms
+INFO: Configured in 3746 ms
+
+
+* Running valgrind
+$ sudo apt install valgrind
+$ valgrind --log-file=valgrind.txt ./build/main.elf 
+$ cat valgrind.txt 
+
+==4583== Memcheck, a memory error detector
+==4583== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==4583== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==4583== Command: ./build/main.elf
+==4583== Parent PID: 25099
+==4583== 
+==4583== 
+==4583== HEAP SUMMARY:
+==4583==     in use at exit: 189,157 bytes in 475 blocks
+==4583==   total heap usage: 531 allocs, 56 frees, 209,213 bytes allocated
+==4583== 
+==4583== LEAK SUMMARY:
+==4583==    definitely lost: 92 bytes in 1 blocks
+==4583==    indirectly lost: 0 bytes in 0 blocks
+==4583==      possibly lost: 272 bytes in 1 blocks
+==4583==    still reachable: 188,793 bytes in 473 blocks
+==4583==         suppressed: 0 bytes in 0 blocks
+==4583== Rerun with --leak-check=full to see details of leaked memory
+==4583== 
+==4583== For counts of detected and suppressed errors, rerun with: -v
+==4583== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+
+* Debugging with valgrind
+
+$ valgrind --log-file=valgrind.txt --vgdb=yes --vgdb-error=0 ./build/main.elf
+
+From another terminal
+
+$ gdb ./build/main.elf -ex "target remote | vgdb"
+

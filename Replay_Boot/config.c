@@ -42,6 +42,8 @@
 #if !defined(HOSTED)
 #include <unistd.h> // sbrk()
 #include <malloc.h> // mallinfo()
+#else
+#include <signal.h> // raise()
 #endif
 
 extern char end[];
@@ -166,6 +168,10 @@ const vidconfig_t   default_vid_config_hd = { // >65MHz
 // (we assume there is no collision with the actual stack)
 void CFG_call_bootloader(void)
 {
+#if defined(HOSTED)
+    raise(SIGINT);
+    return;
+#endif
     int i;
 
     volatile uint32_t* src = (volatile uint32_t*)0x200;

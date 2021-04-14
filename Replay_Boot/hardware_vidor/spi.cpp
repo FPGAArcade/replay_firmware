@@ -46,7 +46,7 @@ static void vidor_SPI_setFreq(uint32_t freq)
     if (freq > max_freq)
         freq = max_freq;
 
-    settings = SPISettings(freq, MSBFIRST, SPI_MODE0);
+    settings = SPISettings(freq, MSBFIRST, SPI_MODE3);
 }
 
 static uint32_t vidor_SPI_getFreq()
@@ -78,7 +78,7 @@ void SPI_Init(void)
     digitalWrite(PIN_FPGA_CTRL0, HIGH);
 
     SPI.begin();
-    settings = SPISettings(250000, MSBFIRST, SPI_MODE0);
+    settings = SPISettings(250000, MSBFIRST, SPI_MODE3);
 }
 
 

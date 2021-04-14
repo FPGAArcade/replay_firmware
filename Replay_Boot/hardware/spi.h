@@ -71,6 +71,14 @@ static inline uint8_t _rSPI(uint8_t outByte)
     while (!(AT91C_BASE_SPI->SPI_SR & AT91C_SPI_RDRF));
 
     return ((uint8_t)AT91C_BASE_SPI->SPI_RDR);
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+#define rSPI _rSPI
+    Sercom* sercom = SERCOM1;
+    sercom->SPI.DATA.bit.DATA = outByte;
+
+    while ( sercom->SPI.INTFLAG.bit.RXC == 0 );
+
+    return sercom->SPI.DATA.bit.DATA;
 #else
     return rSPI(outByte);
 #endif

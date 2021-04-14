@@ -82,11 +82,6 @@ void SPI_Init(void)
 }
 
 
-unsigned char rSPI(unsigned char outByte)
-{
-    return SPI.transfer(outByte);
-}
-
 void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
 {
     uint8_t* p = (uint8_t*)pBuffer;

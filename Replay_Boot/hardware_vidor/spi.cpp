@@ -81,6 +81,87 @@ void SPI_Init(void)
     settings = SPISettings(250000, MSBFIRST, SPI_MODE3);
 }
 
+static DmacDescriptor dmaDesc[2] __attribute__ ((aligned (16))) = { 0 };
+static DmacDescriptor wbDesc[2]  __attribute__ ((aligned (16))) = { 0 };
+
+static uint32_t StartDMA(void* mem, uint16_t size, uint8_t dir /* high is write/tx/mosi */)
+{
+    // MISO has higher prio than MOSI; thus channel 0 is for RX
+    const int channel = dir == 1 ? 0x01 : 0x00;
+
+    const volatile void* spi = &SERCOM1->SPI.DATA.reg;
+    DmacDescriptor* desc = &dmaDesc[channel];
+
+    DMAC->CHID.bit.ID = channel;
+    DMAC->CHCTRLA.bit.SWRST = 1;
+
+    desc->BTCTRL.bit.VALID = 1;
+    desc->BTCNT.bit.BTCNT = size;
+
+    DMAC->CHCTRLB.bit.TRIGACT = DMAC_CHCTRLB_TRIGACT_BEAT_Val;
+
+    if (dir) { // write
+        // source is memory; destination is peripheral
+        desc->BTCTRL.bit.SRCINC = 1;
+        desc->SRCADDR.bit.SRCADDR = (uint32_t)mem + size;
+        desc->DSTADDR.bit.DSTADDR = (uint32_t)spi;
+
+        // trigger on TX ready
+        DMAC->CHCTRLB.bit.TRIGSRC = SERCOM1_DMAC_ID_TX;
+
+    } else {
+        // source is peripheral; destination is memory
+        desc->BTCTRL.bit.DSTINC = 1;
+        desc->SRCADDR.bit.SRCADDR = (uint32_t)spi;
+        desc->DSTADDR.bit.DSTADDR = (uint32_t)mem + size;
+
+        // trigger on RX done
+        DMAC->CHCTRLB.bit.TRIGSRC = SERCOM1_DMAC_ID_RX;
+
+    }
+
+    // enable IRQ signaling and DMA channel
+    DMAC->CHINTENSET.bit.TCMPL = 1;
+    DMAC->CHCTRLA.bit.ENABLE = 1;
+
+    return (1 << channel);
+}
+
+void SPI_DMA(const void* out, void* in, uint16_t length)
+{
+    PM->AHBMASK.bit.DMAC_ = 1;
+    PM->APBBMASK.bit.DMAC_ = 1;
+
+    DMAC->CTRL.bit.SWRST = 1;
+    DMAC->CTRL.reg = DMAC_CTRL_LVLEN(0xF);
+
+    DMAC->BASEADDR.bit.BASEADDR = (uint32_t)dmaDesc;
+    DMAC->WRBADDR.bit.WRBADDR   = (uint32_t)wbDesc;
+
+    uint32_t irqMask = 0;
+
+    if (in) {
+        irqMask |= StartDMA(in, length, 0);
+    }
+
+    irqMask |= StartDMA((void*)out, length, 1);
+
+    DMAC->CTRL.bit.DMAENABLE = 1;
+
+    HARDWARE_TICK timeout = Timer_Get(100);      // 100 ms timeout
+
+    while ((DMAC->INTSTATUS.reg & irqMask) != irqMask) {
+        if (Timer_Check(timeout)) {
+            DEBUG(1, "SPI:DMA Timeout!");
+
+            break;
+        }
+    }
+
+    DMAC->CTRL.bit.DMAENABLE = 0;
+    PM->APBBMASK.bit.DMAC_ = 0;
+    PM->AHBMASK.bit.DMAC_ = 0;
+}
 
 void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
 {
@@ -89,20 +170,26 @@ void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
     for (uint32_t i = 0; i < length; ++i) {
         rSPI(*p++);
     }
+
+    // Send buffer, and ignore incoming (DISABLED - core cannot keep up?)
+    // SPI_DMA(pBuffer, 0, length);
 }
 
 void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
 {
     uint8_t* p = (uint8_t*)pBuffer;
 
-    for (uint32_t i = 0; i < length; ++i) {
-        *p++ = rSPI(0x00);
-    }
+    // for (uint32_t i = 0; i < length; ++i) {
+    //     *p++ = rSPI(0x00);
+    // }
+
+    // Send bogus (old) contents, and store incoming stream
+    SPI_DMA(pBuffer, pBuffer, length);
 }
 
 void SPI_Wait4XferEnd(void)
 {
-    DEBUG(0, "%s", __FUNCTION__);
+    DEBUG(0, "%s NOT IMPLEMENTED!", __FUNCTION__);
 }
 
 void SPI_EnableCard(void)

@@ -480,6 +480,12 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 
         // AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
 
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+
+        void SPI_DMA(const void* out, void* in, uint16_t length);
+
+        SPI_DMA(dma_buffer, pBuffer, 512);
+
 #else
         (void) dma_end;
 

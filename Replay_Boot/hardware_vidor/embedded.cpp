@@ -18,9 +18,11 @@
 #define INCBIN_STYLE INCBIN_STYLE_SNAKE
 #include "../hardware_host/incbin.h"
 
-// if the incbin's below fail, copy platform.local.txt to 
-// Windows : %USERPROFILE%\AppData\Local\Arduino15\packages\arduino\hardware\samd_beta\1.6.25
-// macOS   : $HOME/Library/Arduino15/packages/arduino/hardware/samd_beta/1.6.25
+// If the incbin's below fail, copy platform.local.txt
+// (from <root>/Replay_Boot/platform.local.txt)
+// to: (may need to adjust "1.8.11" to match future versions)
+// Windows : %USERPROFILE%\AppData\Local\Arduino15\packages\arduino\hardware\samd\1.8.11
+// macOS   : $HOME/Library/Arduino15/packages/arduino/hardware/samd/1.8.11
 
 INCBIN(buildnum, "build/buildnum");
 INCBIN(replay_ini, "../loader_embedded/replay.ini");

@@ -83,6 +83,7 @@ void SPI_Init(void)
 
 static DmacDescriptor dmaDesc[2] __attribute__ ((aligned (16))) = { 0 };
 static DmacDescriptor wbDesc[2]  __attribute__ ((aligned (16))) = { 0 };
+static uint32_t dmaDummy __attribute__ ((aligned (16))) = 0;
 
 static uint32_t StartDMA(void* mem, uint16_t size, uint8_t dir /* high is write/tx/mosi */)
 {
@@ -91,6 +92,18 @@ static uint32_t StartDMA(void* mem, uint16_t size, uint8_t dir /* high is write/
 
     const volatile void* spi = &SERCOM1->SPI.DATA.reg;
     DmacDescriptor* desc = &dmaDesc[channel];
+
+    // "When address incrementation is configured, SRCADDR/DSTADDR must be set to
+    //  the address of the last beat transfer in the block transfer."
+    // ( 19.6.2.7 'Addressing' / Atmel-42181G–SAM-D21_Datasheet–09/2015 )
+    uint32_t addr = (uint32_t)mem + size;
+    uint32_t incr = 1;
+
+    // if no buffer was provided, let's just dummy source/sink the transfer
+    if (!mem) {
+        addr = (uint32_t)&dmaDummy;
+        incr = 0;
+    }
 
     DMAC->CHID.bit.ID = channel;
     DMAC->CHCTRLA.bit.SWRST = 1;
@@ -102,8 +115,8 @@ static uint32_t StartDMA(void* mem, uint16_t size, uint8_t dir /* high is write/
 
     if (dir) { // write
         // source is memory; destination is peripheral
-        desc->BTCTRL.bit.SRCINC = 1;
-        desc->SRCADDR.bit.SRCADDR = (uint32_t)mem + size;
+        desc->BTCTRL.bit.SRCINC = incr;
+        desc->SRCADDR.bit.SRCADDR = addr;
         desc->DSTADDR.bit.DSTADDR = (uint32_t)spi;
 
         // trigger on TX ready
@@ -111,9 +124,9 @@ static uint32_t StartDMA(void* mem, uint16_t size, uint8_t dir /* high is write/
 
     } else {
         // source is peripheral; destination is memory
-        desc->BTCTRL.bit.DSTINC = 1;
+        desc->BTCTRL.bit.DSTINC = incr;
         desc->SRCADDR.bit.SRCADDR = (uint32_t)spi;
-        desc->DSTADDR.bit.DSTADDR = (uint32_t)mem + size;
+        desc->DSTADDR.bit.DSTADDR = addr;
 
         // trigger on RX done
         DMAC->CHCTRLB.bit.TRIGSRC = SERCOM1_DMAC_ID_RX;
@@ -140,10 +153,7 @@ void SPI_DMA(const void* out, void* in, uint16_t length)
 
     uint32_t irqMask = 0;
 
-    if (in) {
-        irqMask |= StartDMA(in, length, 0);
-    }
-
+    irqMask |= StartDMA(in, length, 0);
     irqMask |= StartDMA((void*)out, length, 1);
 
     DMAC->CTRL.bit.DMAENABLE = 1;
@@ -167,12 +177,12 @@ void SPI_WriteBufferSingle(void* pBuffer, uint32_t length)
 {
     uint8_t* p = (uint8_t*)pBuffer;
 
-    for (uint32_t i = 0; i < length; ++i) {
-        rSPI(*p++);
-    }
+    // for (uint32_t i = 0; i < length; ++i) {
+    //     rSPI(*p++);
+    // }
 
-    // Send buffer, and ignore incoming (DISABLED - core cannot keep up?)
-    // SPI_DMA(pBuffer, 0, length);
+    // Send buffer, and ignore incoming
+    SPI_DMA(pBuffer, 0, length);
 }
 
 void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
@@ -183,8 +193,8 @@ void SPI_ReadBufferSingle(void* pBuffer, uint32_t length)
     //     *p++ = rSPI(0x00);
     // }
 
-    // Send bogus (old) contents, and store incoming stream
-    SPI_DMA(pBuffer, pBuffer, length);
+    // Send bogus contents, and store incoming stream
+    SPI_DMA(0, pBuffer, length);
 }
 
 void SPI_Wait4XferEnd(void)

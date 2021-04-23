@@ -171,6 +171,15 @@ void CFG_call_bootloader(void)
 #if defined(HOSTED)
     raise(SIGINT);
     return;
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+    // starve the watchdog.. woof!
+    WDT->CONFIG.reg = 0;
+    WDT->EWCTRL.reg = 0;
+    WDT->CTRL.bit.ENABLE = 1;
+    WDT->CLEAR.reg = 0xff;
+    while(1)
+        Timer_Wait(200);
+
 #endif
     int i;
 

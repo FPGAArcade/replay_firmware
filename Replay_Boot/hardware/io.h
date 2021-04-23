@@ -61,6 +61,7 @@ static inline void IO_WaitVBL(void)
 #define IO_Input_H(pin)         IO_Input_H_(pin, #pin)
 #define IO_Input_L(pin)         IO_Input_L_(pin, #pin)
 
+// NB! We do not support bitfields here (R1 does; only used for CODER setup)
 #define IO_ClearOutputData(x) 	do { IO_ClearOutputData_(x, #x); } while(0)
 #define IO_SetOutputData(x)		do { IO_SetOutputData_(x, #x);   } while(0)
 

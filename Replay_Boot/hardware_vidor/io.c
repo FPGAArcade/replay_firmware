@@ -117,8 +117,10 @@ void IO_Init(void)
 void IO_ClearOutputData_(uint32_t pins, const char* pin_names)
 {
     DEBUG(3, "%s : %08x (%s)", __FUNCTION__, pins, pin_names);
+    digitalWrite(pins, LOW);
 }
 void IO_SetOutputData_(uint32_t pins, const char* pin_names)
 {
     DEBUG(3, "%s : %08x (%s)", __FUNCTION__, pins, pin_names);
+    digitalWrite(pins, HIGH);
 }

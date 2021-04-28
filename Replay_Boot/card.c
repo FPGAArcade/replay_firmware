@@ -553,10 +553,18 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
         rSPI(0xFF); // one byte gap
         rSPI(0xFE); // send Data Token
 
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+
+        void SPI_DMA(const void* out, void* in, uint16_t length);
+
+        SPI_DMA(pBuffer, NULL, 512);
+
+#else
         // send sector bytes TO DO -- DMA
         for (offset = 0; offset < 512; offset++) {
             rSPI(*(pBuffer++));
         }
+#endif
 
         // calc CRC????
         rSPI(0xFF); // send CRC lo byte

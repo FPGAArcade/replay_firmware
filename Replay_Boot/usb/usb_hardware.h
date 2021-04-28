@@ -74,7 +74,7 @@ uint8_t usb_poll();
 void usb_disconnect();
 
 void usb_send(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32_t packet_length, uint32_t wLength);
-void usb_send_async(uint8_t ep, usb_func _send, uint32_t length);
+void usb_send_async(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32_t packet_length, uint32_t wLength, uint8_t wait_done);
 
 void usb_send_ep0_stall(void);
 void usb_send_stall(uint8_t ep);

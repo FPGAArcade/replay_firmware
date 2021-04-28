@@ -62,6 +62,10 @@ void msc_send(uint8_t* packet, uint32_t length)
 {
 	usb_send(1, 64, packet, length, length);
 }
+void msc_send_async(uint8_t* packet, uint32_t length, uint8_t wait_done)
+{
+    usb_send_async(1, 64, packet, length, length, wait_done);
+}
 void msc_read(uint8_t* packet, uint32_t length)
 {
     uint32_t read = usb_recv(2, packet, length);
@@ -946,6 +950,7 @@ static uint8_t process_transfer_mode()
 }
 
 static uint8_t OneSector[512] __attribute__((aligned(16)));
+static uint8_t TwoSectors[2][512] __attribute__((aligned(16)));
 
 static CSWStatus process_command()
 {
@@ -1003,11 +1008,12 @@ static CSWStatus process_command()
             uint32_t numSectors = s_ProcessState.deviceLength / 512;
             INFO("USB: Read(10) (%08x, %d)", sectorOffset, numSectors);
             for (int i = 0; i < numSectors; ++i) {
-                // usb_send_async(2, sizeof(OneSector), usb_func ReadCallback);
+                uint8_t buf = i&1;
+                uint8_t last = ((i+1) == numSectors);
                 ACTLED_ON;
-                Card_ReadM(OneSector, sectorOffset+i, 1, NULL);
+                Card_ReadM(TwoSectors[buf], sectorOffset+i, 1, NULL);
                 ACTLED_OFF;
-                msc_send(OneSector, sizeof(OneSector));
+                msc_send_async(TwoSectors[buf], sizeof(TwoSectors[buf]), last);
             }
             return CommandPassed;
         }

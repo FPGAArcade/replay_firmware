@@ -76,7 +76,7 @@ class MSCHardware : public PluggableUSBModule
         return 1;
     }
 
-    void send(uint8_t ep, const uint8_t* packet, uint32_t packet_length, uint32_t wLength)
+    void send(uint8_t ep, const uint8_t* packet, uint32_t packet_length, uint32_t wLength, bool async)
     {
         if (!recv_func) {
             return;
@@ -95,6 +95,18 @@ class MSCHardware : public PluggableUSBModule
                 packet = buffer;
             }
 
+            if (async) {
+                HARDWARE_TICK timeout = Timer_Get(100);
+
+                while (usbd.epBank1IsReady(ep)) {
+                    if (Timer_Check(timeout)) {
+                        WARNING("USB:TX Async Timeout!");
+
+                        break;
+                    }
+                }
+            }
+
             ep_t ep = USB_EP_BULK_IN;
 
             usbd.epBank1SetAddress(ep, (void*)packet);
@@ -107,11 +119,13 @@ class MSCHardware : public PluggableUSBModule
 
             HARDWARE_TICK timeout = Timer_Get(100);
 
-            while (usbd.epBank1IsReady(ep)) {
-                if (Timer_Check(timeout)) {
-                    WARNING("USB:TX Timeout!");
+            if (!async) {
+                while (usbd.epBank1IsReady(ep)) {
+                    if (Timer_Check(timeout)) {
+                        WARNING("USB:TX Timeout!");
 
-                    break;
+                        break;
+                    }
                 }
             }
 
@@ -256,7 +270,11 @@ extern "C" uint8_t usb_poll()
 
 extern "C" void usb_send(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32_t packet_length, uint32_t wLength)
 {
-    usbhw.send(ep, packet, packet_length, wLength);
+    usbhw.send(ep, packet, packet_length, wLength, false);
+}
+extern "C" void usb_send_async(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32_t packet_length, uint32_t wLength, uint8_t wait_done)
+{
+    usbhw.send(ep, packet, packet_length, wLength, wait_done ? false : true);
 }
 
 extern "C" uint32_t usb_recv(uint8_t ep, uint8_t* packet, uint32_t length)
@@ -275,10 +293,6 @@ extern "C" void usb_send_stall(uint8_t ep)
 }
 
 // Unsupported
-extern "C" void usb_send_async(uint8_t ep, usb_func _send, uint32_t length)
-{
-    WARNING(__FUNCTION__);
-}
 extern "C" void usb_setup_faddr(uint16_t wValue)
 {
     WARNING(__FUNCTION__);

@@ -114,13 +114,26 @@ void IO_Init(void)
     attachInterrupt(PIN_CONF_DOUT, ISR_VerticalBlank, FALLING);
 }
 
+unsigned int PINCOUNT_fn();
 void IO_ClearOutputData_(uint32_t pins, const char* pin_names)
 {
-    DEBUG(3, "%s : %08x (%s)", __FUNCTION__, pins, pin_names);
-    digitalWrite(pins, LOW);
+    if (pins < PINCOUNT_fn())
+    {
+        digitalWrite(pins, LOW);
+    }
+    else
+    {
+        DEBUG(0, "UNSUPPORTED! %s(%s)", __FUNCTION__, pin_names);
+    }
 }
 void IO_SetOutputData_(uint32_t pins, const char* pin_names)
 {
-    DEBUG(3, "%s : %08x (%s)", __FUNCTION__, pins, pin_names);
-    digitalWrite(pins, HIGH);
+    if (pins < PINCOUNT_fn())
+    {
+        digitalWrite(pins, HIGH);
+    }
+    else
+    {
+        DEBUG(0, "UNSUPPORTED! %s(%s)", __FUNCTION__, pin_names);
+    }
 }

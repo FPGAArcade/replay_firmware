@@ -46,5 +46,6 @@ extern "C" {
 #include "../hardware_vidor/spi.cpp"
 #include "../hardware_vidor/usart.cpp"
 #include "../hardware_vidor/jtag.cpp"
+#include "../hardware_vidor/msc_hardware.cpp"
 #include "../hardware_vidor/usbhid.cpp"
 #include "../hardware_vidor/usbblaster.cpp"

@@ -19,6 +19,7 @@
 #include "msc_descriptor.h"
 #include "usb_hardware.h"
 #include "messaging.h"
+#include "hardware/io.h"
 
 #include "card.h"
 
@@ -955,7 +956,9 @@ static CSWStatus process_command()
             INFO("USB: Read(10) (%08x, %d)", sectorOffset, numSectors);
             for (int i = 0; i < numSectors; ++i) {
                 // usb_send_async(2, sizeof(OneSector), usb_func ReadCallback);
+                ACTLED_ON;
                 Card_ReadM(OneSector, sectorOffset+i, 1, NULL);
+                ACTLED_OFF;
                 msc_send(OneSector, sizeof(OneSector));
             }
             return CommandPassed;
@@ -967,7 +970,9 @@ static CSWStatus process_command()
             for (int i = 0; i < numSectors; ++i) {
                 // usb_recv_async(2, sizeof(OneSector), usb_func WriteCallback);
                 msc_read(OneSector, sizeof(OneSector));
+                ACTLED_ON;
                 Card_WriteM(OneSector, sectorOffset+i, 1, NULL);
+                ACTLED_OFF;
             }
             return CommandPassed;
         }

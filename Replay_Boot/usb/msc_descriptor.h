@@ -17,7 +17,7 @@
 #pragma once
 #include <stdint.h>
 
-static const uint8_t DeviceDescriptor[] = {
+static const uint8_t DeviceDescriptorR1[] = {
     0x12,                       // Descriptor length (18 bytes)
     0x01,                       // Descriptor type (Device)
     0x10, 0x01,                 // Complies with USB Spec. Release 2.0

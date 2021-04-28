@@ -16,8 +16,6 @@
 
 #include "msc.h"
 
-#if defined(AT91SAM7S256)
-
 #include "msc_descriptor.h"
 #include "usb_hardware.h"
 #include "messaging.h"
@@ -104,8 +102,8 @@ static void HandleRxdSetupData(UsbSetupPacket* data)
             DEBUG(1,"\tUSB_REQUEST_GET_DESCRIPTOR");
             if((usd.wValue >> 8) == USB_DESCRIPTOR_TYPE_DEVICE) {
                 DEBUG(1,"\t\tUSB_DESCRIPTOR_TYPE_DEVICE");
-                usb_send_ep0((uint8_t *)&DeviceDescriptor,
-                    sizeof(DeviceDescriptor), usd.wLength);
+                usb_send_ep0((uint8_t *)&DeviceDescriptorR1,
+                    sizeof(DeviceDescriptorR1), usd.wLength);
             } else if((usd.wValue >> 8) == USB_DESCRIPTOR_TYPE_CONFIGURATION) {
                 DEBUG(1,"\t\tUSB_DESCRIPTOR_TYPE_CONFIGURATION");
                 usb_send_ep0((uint8_t *)&ConfigurationDescriptor,
@@ -150,6 +148,7 @@ static void HandleRxdSetupData(UsbSetupPacket* data)
         }
         case USB_REQUEST_SET_CONFIGURATION:
             DEBUG(1,"\tUSB_REQUEST_SET_CONFIGURATION");
+#if defined(AT91SAM7S256)
             CurrentConfiguration = usd.wValue;
             uint32_t eps[2] = { EPTYPE_BULK_IN, EPTYPE_BULK_OUT };
             if(CurrentConfiguration) {
@@ -158,6 +157,7 @@ static void HandleRxdSetupData(UsbSetupPacket* data)
                 usb_setup_endpoints(NULL, 0);
             }
             usb_send_ep0_zlp();
+#endif
             break;
 
         case USB_REQUEST_GET_INTERFACE: {
@@ -206,10 +206,12 @@ static void HandleRxdSetupData(UsbSetupPacket* data)
             break;
         }
         case USB_REQUEST_GET_MAX_LUN:
+        {
             DEBUG(1,"\tUSB_REQUEST_GET_MAX_LUN");
             uint16_t w = 0x00;
             usb_send_ep0((uint8_t *)&w, sizeof(w), usd.wLength);
             break;
+        }
         default:
             WARNING("USB: USB_REQUEST_UNKNOWN!!");
             usb_send_ep0_stall();
@@ -302,8 +304,8 @@ typedef enum {
 
 
 static struct {
-    CommandBlockWrapper         cbw;
-    CommandStatusWrapper        csw;
+    CommandBlockWrapper         cbw __attribute__((aligned(8)));
+    CommandStatusWrapper        csw __attribute__((aligned(8)));
     uint32_t                    hostLength;
     uint32_t                    deviceLength;
     HostDeviceDataTransferMode  transferMode;
@@ -847,7 +849,7 @@ static uint8_t process_transfer_mode()
             WARNING("USB: Unknown opcode = %02x", cdb->OPERATIONCODE);
             s_ProcessState.hostLength = hostLength;
             s_ProcessState.deviceLength = 0;
-            s_ProcessState.transferMode = NoTransfer;
+            s_ProcessState.transferMode = Illegal;
             return FALSE;
     }
 
@@ -898,7 +900,7 @@ static uint8_t process_transfer_mode()
     return TRUE;
 }
 
-static uint8_t OneSector[512];
+static uint8_t OneSector[512] __attribute__((aligned(16)));
 
 static CSWStatus process_command()
 {
@@ -1096,21 +1098,3 @@ uint8_t MSC_PreventMediaRemoval()
     return s_PreventMediaRemoval;
 }
 
-#else // defined(AT91SAM7S256)
-
-void MSC_Start(void)
-{
-}
-void MSC_Stop(void)
-{
-}
-uint8_t MSC_Poll(void)
-{
-    return 0;
-}
-uint8_t MSC_PreventMediaRemoval()
-{
-    return 0;
-}
-
-#endif

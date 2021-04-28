@@ -582,6 +582,22 @@ typedef struct {
 } __attribute__ ((packed)) MODE_SENSE_6;
 #define OPERATIONCODE_MODE_SENSE_6 0x1a
 
+
+typedef struct {
+    uint8_t     OPERATIONCODE;
+    uint8_t     Reserved0:3;
+    uint8_t     DBD:1;
+    uint8_t     Reserved1:4;
+    uint8_t     PAGECODE:6;
+    uint8_t     PC:2;
+    uint8_t     SUBPAGECODE;
+    uint8_t     Reserved2[3];
+    uint8_t     ALLOCATIONLENGTH[2];
+    uint8_t     CONTROL;
+} __attribute__ ((packed)) MODE_SENSE_10;
+#define OPERATIONCODE_MODE_SENSE_10 0x5a
+
+
 static const struct {
     uint8_t     MODEDATALENGTH;
     uint8_t     MEDIUMTYPE;
@@ -631,6 +647,21 @@ typedef struct {
 } __attribute__ ((packed)) REQUEST_SENSE;
 #define OPERATIONCODE_REQUEST_SENSE 0x03
 
+typedef struct {
+    uint8_t     OPERATIONCODE;
+    uint8_t     IMMED:1;
+    uint8_t     Reserved:7;
+    uint8_t     Reserved1;
+    uint8_t     POWERCONDITIONMODIFER:4;
+    uint8_t     Reserved2:4;
+    uint8_t     START:1;
+    uint8_t     LOEJ:1;
+    uint8_t     NO_FLUSH:1;
+    uint8_t     Reserved3:1;
+    uint8_t     POWERCONDITION;
+    uint8_t     CONTROL;
+} __attribute__ ((packed)) START_STOP_UNIT;
+#define OPERATIONCODE_START_STOP_UNIT 0x1b
 
 typedef enum {
     NOSENSE = 0x00,             // Indicates that there is no specific sense key information to be reported.
@@ -767,9 +798,11 @@ typedef union {
     READ_CAPACITY   readCapacity;
     READ_FORMAT_CAPACITY    readFormatCapacity;
     MODE_SENSE_6    modeSense6;
+    MODE_SENSE_10   modeSense10;
     READ_WRITE_10   readWrite10;
     PREVENT_ALLOW_REMOVAL   preventAllowRemoval;
     REQUEST_SENSE   requestSense;
+    START_STOP_UNIT startStopUnit;
 } CommandDescriptorBlock;
 
 
@@ -831,6 +864,14 @@ static uint8_t process_transfer_mode()
             if (cdb->modeSense6.PAGECODE != 0x3f)
                 WARNING("USB: Unknown pagecode = %02x", cdb->modeSense6.PAGECODE);
             break;
+        case OPERATIONCODE_MODE_SENSE_10:
+            deviceLength = READ_BE_16B(cdb->modeSense10.ALLOCATIONLENGTH);
+            if (deviceLength >= sizeof(s_MODE_PARAMETER_HEADERdata))
+                deviceLength = sizeof(s_MODE_PARAMETER_HEADERdata);
+            deviceTransferType = DeviceToHost;
+            if (cdb->modeSense10.PAGECODE != 0x3f)
+                WARNING("USB: Unknown pagecode = %02x", cdb->modeSense10.PAGECODE);
+            break;
         case OPERATIONCODE_READ_10:
             deviceLength = READ_BE_16B(cdb->readWrite10.TRANSFERLENGTH) * 512;
             deviceTransferType = DeviceToHost;
@@ -845,6 +886,9 @@ static uint8_t process_transfer_mode()
         case OPERATIONCODE_REQUEST_SENSE:
             deviceLength = cdb->requestSense.ALLOCATIONLENGTH;
             deviceTransferType = DeviceToHost;
+            break;
+        case OPERATIONCODE_START_STOP_UNIT:
+            deviceTransferType = NoTransfer;
             break;
         default:
             WARNING("USB: Unknown opcode = %02x", cdb->OPERATIONCODE);
@@ -950,6 +994,10 @@ static CSWStatus process_command()
             INFO("USB: Mode Sense(6)");
             msc_send((uint8_t*)&s_MODE_PARAMETER_HEADERdata, s_ProcessState.deviceLength);
             return CommandPassed;
+        case OPERATIONCODE_MODE_SENSE_10:
+            INFO("USB: Mode Sense(10)");
+            msc_send((uint8_t*)&s_MODE_PARAMETER_HEADERdata, s_ProcessState.deviceLength);
+            return CommandPassed;
         case OPERATIONCODE_READ_10: {
             uint32_t sectorOffset = READ_BE_32B(cdb->readWrite10.LBA);
             uint32_t numSectors = s_ProcessState.deviceLength / 512;
@@ -984,6 +1032,9 @@ static CSWStatus process_command()
         case OPERATIONCODE_REQUEST_SENSE:
             INFO("USB: Request Sense");
             msc_send((uint8_t*)&s_REQUEST_SENSEdata, s_ProcessState.deviceLength);
+            return CommandPassed;
+        case OPERATIONCODE_START_STOP_UNIT:
+            INFO("USB: START STOP UNIT");
             return CommandPassed;
         default:
             return Unsupported;

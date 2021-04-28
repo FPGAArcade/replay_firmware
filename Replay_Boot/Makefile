@@ -113,7 +113,7 @@ SRC += $(wildcard hardware/*.c)
 SRC += usb/msc.c usb/usb_hardware.c
 SRC += common/Cstartup_SAM7.c
 else
-SRC += hardware_host/hardware.c usb/msc.c hardware_host/embedded.c
+SRC += hardware_host/hardware.c usb/msc.c usb/usb_hardware.c hardware_host/embedded.c
 endif
 
 # tests

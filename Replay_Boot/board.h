@@ -174,25 +174,66 @@
 
 #elif defined(ARDUINO_SAMD_MKRVIDOR4000)
 
-#define PIN_ACT_LED             LED_BUILTIN
-#define PIN_MENU_BUTTON         (1<<0)   // dont we have a button?
+#define PIN_ACT_LED             (32u)	// PB08 / LED_RED_BUILTIN
 
-#define PIN_CARD_CS_L			(4u)	// PB10 / PIN_SPI_SS
-#define PIN_CONF_DIN			(2u)	// PA10
-#define PIN_FPGA_CTRL1			(6u)	// PA20
-#define PIN_FPGA_CTRL0			(7u)	// PA21
+#define PIN_NINA_TX             (0u)    // D0 / PA22
+#define PIN_NINA_RX             (1u)    // D1 / PA23
+#define PIN_CONF_DIN            (2u)	// D2 / PA10
+#define PIN_NOT_USED_PA11       (3u)	// D3 / PA11
+#define PIN_CARD_CS_L           (4u)	// D4 / PB10 / PIN_SPI_SS
+#define PIN_EEPROM_CS_L         (5u)	// D5 / PB11
+#define PIN_FPGA_CTRL1          (6u)	// D6 / PA20
+#define PIN_FPGA_CTRL0          (7u)	// D7 / PA21
+
 #define PIN_FPGA_RST_L          (31u)	// PA28
-#define PIN_CONF_DOUT			(33u)	// PB09
+#define PIN_CONF_DOUT           (33u)	// PB09
+
+#define PIN_CARD_MOSI           (8u)	// D8  / PA16
+#define PIN_CARD_CLK            (9u)	// D9  / PA17
+#define PIN_CARD_MISO           (10u)	// D10 / PA18
+
+#define PIN_SDA                 (11u)	// D11 / PA08
+#define PIN_SCL                 (12u)	// D12 / PA09
+#define PIN_TXD                 (13u)	// D13 / PB22
+#define PIN_RXD                 (14u)	// D14 / PB23
+
+#define PIN_NINA_GPIO0          (15u)   // A0 / PA02
+#define PIN_NINA_RDY_L          (16u)   // A1 / PB02
+#define PIN_NINA_RST_L          (17u)   // A2 / PB03
+#define PIN_NOT_USED_PA04       (18u)	// A3 / PA04
+
+#define PIN_I2S_DIN             (19u)	// A4 / PA05 / SD
+#define PIN_I2S_BCLK            (20u)	// A5 / PA06 / SCK
+#define PIN_I2S_LRCIN           (21u)	// A6 / PA07 / WS
+
+#define PIN_USB_N               (22u)	// PA24
+#define PIN_USB_P               (23u)	// PA25
+#define PIN_USB_ID              (24u)	// PA18
+
+#define PIN_NOT_USED_PA03       (25u)	// AREF / PA03
+
+#define PIN_JTAG_TDI            (26u)	// PA12 / PIN_SPI1_MOSI
+#define PIN_JTAG_TCK            (27u)	// PA13 / PIN_SPI1_SCK
+#define PIN_JTAG_TMS            (28u)	// PA14 / PIN_SPI1_SS
+#define PIN_JTAG_TDO            (29u)	// PA15 / PIN_SPI1_MISO
+
+// NINA
+#define PIN_LED_G_NINA          (26u)    // NINA GPIO_17 -- ESP-32 GPIO 26
+#define PIN_LED_B_NINA          (25u)    // NINA GPIO_16 -- ESP-32 GPIO 25
+#define PAD_NINA_TX             (UART_TX_PAD_0)
+#define PAD_NINA_RX             (SERCOM_RX_PAD_1)
+
+#define PIN_MENU_BUTTON         (1<<(8+0))   // dont we have a button?
 
 // use JTAG instead
-#define PIN_FPGA_INIT_L         (1<<1)
-#define PIN_FPGA_PROG_L         (1<<3)
-#define PIN_FPGA_DONE           (1<<4)
+#define PIN_FPGA_INIT_L         (1<<(8+1))
+#define PIN_FPGA_PROG_L         (1<<(8+3))
+#define PIN_FPGA_DONE           (1<<(8+4))
 
 // unsupported
-#define PIN_CODER_FITTED_L      (1<<5)
-#define PIN_CARD_DETECT         (1<<6)
-#define PIN_WRITE_PROTECT       (1<<7)
+#define PIN_CODER_FITTED_L      (1<<(8+5))
+#define PIN_CARD_DETECT         (1<<(8+6))
+#define PIN_WRITE_PROTECT       (1<<(8+7))
 
 // coder
 #define PIN_CODER_NTSC_H        0x1234
@@ -201,7 +242,7 @@
 #define PIN_DRXD_Y2             0x1234
 
 #define FPGA_DISABLE_EMBEDDED_CORE 1
-#define BITSTREAM_LENGTH		510856	// bytes
+#define BITSTREAM_LENGTH        510856	// bytes
 
 #else // HOSTED
 

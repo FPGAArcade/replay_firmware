@@ -112,6 +112,26 @@ void IO_Init(void)
     digitalWrite(PIN_FPGA_RST_L, HIGH);
 
     attachInterrupt(PIN_CONF_DOUT, ISR_VerticalBlank, FALLING);
+
+// NINA
+
+    pinMode(PIN_NINA_GPIO0, INPUT);
+    pinMode(PIN_NINA_RDY_L, INPUT);
+    pinMode(PIN_NINA_RST_L, OUTPUT);
+    digitalWrite(PIN_NINA_RST_L, HIGH);
+
+    pinMode(PIN_FPGA_CTRL1, OUTPUT);
+    pinMode(PIN_FPGA_CTRL0, OUTPUT);
+
+    // PIN_NINA_CS_L == PIN_FPGA_CTRL0 + PIN_FPGA_CTRL1
+    // NINA CS high during reset == WIFI mode
+    // NINA CS high during reset == BT mode
+    digitalWrite(PIN_FPGA_CTRL1, HIGH);
+    digitalWrite(PIN_FPGA_CTRL0, HIGH);
+
+    digitalWrite(PIN_NINA_RST_L, LOW);
+    delay(10);
+    digitalWrite(PIN_NINA_RST_L, HIGH);
 }
 
 unsigned int PINCOUNT_fn();

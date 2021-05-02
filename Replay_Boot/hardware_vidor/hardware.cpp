@@ -49,3 +49,4 @@ extern "C" {
 #include "../hardware_vidor/msc_hardware.cpp"
 #include "../hardware_vidor/usbhid.cpp"
 #include "../hardware_vidor/usbblaster.cpp"
+#include "../hardware_vidor/wifinina.cpp"

@@ -49,6 +49,7 @@
 #endif
 
 #if defined(ARDUINO_SAMD_MKRVIDOR4000)
+void NINA_Update();
 #include "hardware_vidor/usbblaster.h"
 #include <setjmp.h>
 jmp_buf exit_env;
@@ -505,6 +506,7 @@ static __attribute__ ((noinline)) void main_update()
 
 #if defined(ARDUINO_SAMD_MKRVIDOR4000)
     USBBlaster_Update();
+    NINA_Update();
 #endif
 
     // check menu

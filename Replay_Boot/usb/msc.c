@@ -27,7 +27,7 @@ void UsbPacketReceived(uint8_t *data, int len);
 
 // The buffer used to store packets received over USB while we are in the
 // process of receiving them.
-static uint8_t UsbBuffer[512] __attribute__((aligned(8)));
+static uint8_t UsbBuffer[64] __attribute__((aligned(8)));
 
 // The number of characters received in the USB buffer so far.
 static int  UsbSoFarCount;
@@ -949,8 +949,8 @@ static uint8_t process_transfer_mode()
     return TRUE;
 }
 
-static uint8_t OneSector[512] __attribute__((aligned(16)));
 static uint8_t TwoSectors[2][512] __attribute__((aligned(16)));
+#define OneSector TwoSectors[0]
 
 static CSWStatus process_command()
 {

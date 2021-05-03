@@ -62,7 +62,7 @@ static bool Wait(uint8_t c)
     return true;
 }
 
-static uint8_t response[512];
+static uint8_t response[32];
 
 static const uint8_t* SPI_NINA(uint8_t* cmd, size_t length)
 {
@@ -108,14 +108,24 @@ static const uint8_t* SPI_NINA(uint8_t* cmd, size_t length)
 
         if (rSPI(0xff) == (op | 0x80)) {
             uint8_t num_params = rSPI(0xff);
+            uint8_t* p = &response[0];
+            size_t left = sizeof(response);
 
             while (num_params--) {
                 uint8_t len = rSPI(0xff);
-                uint8_t* p = &response[0];
 
-                while (len--) {
+                // only copy what we have space for.. 
+                uint8_t copy = min(len, left);
+                len -= copy;
+                left -= copy;
+
+                while (copy--) {
                     *p++ = rSPI(0xff);
                 }
+
+                // .. and sink the rest
+                if (len)
+                    SPI_DMA(0, 0, len);
             }
 
             if (rSPI(0xff) != NINA_END) {

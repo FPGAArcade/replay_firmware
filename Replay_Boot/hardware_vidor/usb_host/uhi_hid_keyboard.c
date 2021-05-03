@@ -261,7 +261,7 @@ static void uhi_hid_keyboard_report_reception(
 
 	const uint8_t* report = uhi_hid_keyboard_dev.report;
 	uint8_t* last_report = uhi_hid_keyboard_dev.last_report;
-	const uint8_t length = sizeof(uhi_hid_keyboard_dev.report);
+	const uint8_t length = nb_transfered;
 
 	usb_printmem(report, nb_transfered);
 

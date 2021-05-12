@@ -700,7 +700,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
         AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
 
 #else
-        for (offset = 0; offset < 512; offset++) {
+        for (uint32_t offset = 0; offset < 512; offset++) {
             rSPI(pBuffer[offset]);
         }
 

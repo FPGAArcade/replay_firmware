@@ -416,7 +416,7 @@ static uint8_t Card_GetStatus()
 // In short - when repeatedly issuing consecutive WRITE+READ (i.e. a verified write)
 // for a prolonged time (say 100s of MBs), without any interruptions, the card
 // will sooner or later 'give up' and never return from its busy state.
-// 
+//
 // Repro steps:
 //   1) WRITE 16 blocks @ LBA+00
 //   2) WRITE  2 blocks @ LBA+16
@@ -641,10 +641,46 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
         rSPI(0xFF); // one byte gap
         rSPI(0xFE); // send Data Token
 
-        // send sector bytes TO DO -- DMA
+#if defined(AT91SAM7S256)
+
+        Assert((AT91C_BASE_SPI->SPI_PTSR & (AT91C_PDC_TXTEN | AT91C_PDC_RXTEN)) == 0);
+
+        AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
+        AT91C_BASE_SPI->SPI_TCR  = 512;
+        AT91C_BASE_SPI->SPI_TNCR = 0;
+
+        AT91C_BASE_SPI->SPI_RPR  = (uint32_t) 0x00102000;   // just sink the data into the .text (ROM)
+        AT91C_BASE_SPI->SPI_RCR  = 512;
+        AT91C_BASE_SPI->SPI_RNCR = 0;
+        AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN; // start DMA transfer
+        uint32_t dma_end         = AT91C_SPI_ENDTX | AT91C_SPI_ENDRX;
+
+        // wait for tranfer end
+        timeout = Timer_Get(100);      // 100 ms timeout
+
+        while ( (AT91C_BASE_SPI->SPI_SR & dma_end) != dma_end) {
+
+            if (Timer_Check(timeout)) {
+                WARNING("SPI:Card_WriteM DMA Timeout! (lba=%lu)", sector);
+
+                AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
+                // AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
+
+                SPI_DisableCard();
+                return FF_ERR_DEVICE_DRIVER_FAILED;
+            }
+        };
+
+        AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
+
+#else
         for (offset = 0; offset < 512; offset++) {
-            rSPI(*(pBuffer++));
+            rSPI(pBuffer[offset]);
         }
+
+#endif
+
+        pBuffer += 512;    // point to next sector
 
         // calc CRC????
         rSPI(0xFF); // send CRC lo byte

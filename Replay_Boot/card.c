@@ -186,6 +186,11 @@ uint8_t Card_TryInit(void)
                         // CMD55 must precede any ACMD command
                         if (MMC_Command(CMD41, 1 << 30) == 0x00) { // ACMD41 with HCS bit
                             // initialization completed
+                            //
+                            if (MMC_Command(CMD55, 0) == 0x00 && MMC_Command(CMD42, 0) == 0x00) {
+                                DEBUG(1, "CARD:Internal pull-up disabled");
+                            }
+
                             if (MMC_Command(CMD58, 0) == 0x00) {
                                 // check CCS (Card Capacity Status) bit in the OCR
                                 for (n = 0; n < 4; n++) {

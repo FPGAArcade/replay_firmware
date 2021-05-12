@@ -616,29 +616,56 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
 
     DEBUG(3, "SPI:Card_WriteM(%08x, %lu, %lu, %08x)", pBuffer, sector, numSectors, pParam);
 
-    const uint32_t sectorEnd = sector + numSectors;
-    uint32_t offset;
+    uint32_t sectorCount = numSectors;
+
     SPI_EnableCard();
 
-    // to do : optimise for multi-block write
+    if (!Card_WaitXfer()) {
+        WARNING("SPI:Card_WriteM - WaitXfer timeout! (lba=%lu, %ld sectors)", sector, numSectors);
+        SPI_DisableCard();
+        return FF_ERR_DEVICE_DRIVER_FAILED;
+    }
 
-    for (; sector < sectorEnd; ++sector) {
 
-        if (cardType != CARDTYPE_SDHC) { // SDHC cards are addressed in sectors not bytes
-            offset = sector << 9;    // calculate byte address
+    if (cardType != CARDTYPE_SDHC) { // SDHC cards are addressed in sectors not bytes
+        sector = sector << 9;    // calculate byte address
 
-        } else {
-            offset = sector;
-        }
+    }
 
-        if (MMC_Command(CMD24, offset)) {
+    if (numSectors == 1) {
+        // single sector
+        if (MMC_Command(CMD24, sector)) {
             WARNING("SPI:Card_WriteM CMD24 - invalid response 0x%02X (lba=%lu)", response, sector);
             SPI_DisableCard();
-            return (FF_ERR_DEVICE_DRIVER_FAILED);
+            return FF_ERR_DEVICE_DRIVER_FAILED;
         }
 
+    } else {
+        // multiple sectors
+        if ( cardType != CARDTYPE_MMC) {
+            if (MMC_Command(CMD55, 0)) {
+                WARNING("SPI:Card_WriteM CMD55 - invalid response 0x%02X", response);
+                SPI_DisableCard();
+                return FF_ERR_DEVICE_DRIVER_FAILED;
+            }
+        }
+
+        if (MMC_Command(CMD23, numSectors)) {
+            WARNING("SPI:Card_WriteM CMD23 - invalid response 0x%02X (numSectors=%lu)", response, numSectors);
+            SPI_DisableCard();
+            return FF_ERR_DEVICE_DRIVER_FAILED;
+        }
+
+        if (MMC_Command(CMD25, sector)) {
+            WARNING("SPI:Card_WriteM CMD25 - invalid response 0x%02X (lba=%lu)", response, sector);
+            SPI_DisableCard();
+            return FF_ERR_DEVICE_DRIVER_FAILED;
+        }
+    }
+
+    while (sectorCount--) {
         rSPI(0xFF); // one byte gap
-        rSPI(0xFE); // send Data Token
+        rSPI(numSectors == 1 ? 0xFE : 0xFC); // send Data Token
 
 #if defined(AT91SAM7S256)
 
@@ -698,17 +725,22 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
             return (FF_ERR_DEVICE_DRIVER_FAILED);
         }
 
-        timeout = Timer_Get(500);      // timeout
-
-        while (rSPI(0xFF) == 0x00) {
-            if (Timer_Check(timeout)) {
-                WARNING("SPI:Card_WriteM - busy write timeout! (lba=%lu)", sector);
-                SPI_DisableCard();
-                return (FF_ERR_DEVICE_DRIVER_FAILED);
-            }
+        if (!Card_WaitXfer()) {
+            WARNING("SPI:Card_WriteM - Loop timeout! (lba=%lu, %ld sectors)", sector, numSectors);
+            SPI_DisableCard();
+            return FF_ERR_DEVICE_DRIVER_FAILED;
         }
 
         // sector loop
+    }
+
+    rSPI(numSectors == 1 ? 0xFF : 0xFD); // send Data Stop Token
+    rSPI(0xFF); // one byte gap
+
+    if (!Card_WaitXfer()) {
+        WARNING("SPI:Card_WriteM - Done timeout! (lba=%lu, %ld sectors)", sector, numSectors);
+        SPI_DisableCard();
+        return FF_ERR_DEVICE_DRIVER_FAILED;
     }
 
     if (!Card_GetStatus()) {

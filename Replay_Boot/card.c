@@ -433,7 +433,7 @@ static uint8_t Card_GetStatus()
 // So, after experimenting with a few different techniques I eventually settled on
 // simply issuing a dummy read of block 0, every time we move from a READ state to
 // a WRITE state, and vice versa.
-// It hurts performance a little bit, but mostly for the WRITE states (it seems).
+// It hurts performance a little bit, but really only for READ/WRITE operations (copy/format).
 
 static void Card_TriggerFillRead(void)
 {
@@ -610,9 +610,8 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam)
 {
     if (!writeStateActive) {
-        writeStateActive = TRUE;
-
         Card_TriggerFillRead();
+        writeStateActive = TRUE;
     }
 
     DEBUG(3, "SPI:Card_WriteM(%08x, %lu, %lu, %08x)", pBuffer, sector, numSectors, pParam);

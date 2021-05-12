@@ -28,6 +28,7 @@ static HARDWARE_TICK timeout;
 static uint8_t response;
 static uint8_t cardType;
 static uint8_t cardDetected = FALSE;
+static uint8_t writeStateActive = FALSE;
 
 static const int32_t dma_buffer[512 / 4] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -376,9 +377,79 @@ uint64_t Card_GetCapacity(void)
     return capacity;
 }
 
+static uint8_t Card_WaitXfer()
+{
+    timeout = Timer_Get(500);      // timeout
+
+    while (rSPI(0xFF) == 0x00) {
+        if (Timer_Check(timeout)) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static uint8_t Card_GetStatus()
+{
+    if (MMC_Command(CMD13, 0)) {
+        WARNING("SPI:Card_CMD13 - invalid response 0x%02X", response);
+        return FALSE;
+    }
+
+    // R2 response
+    uint8_t byte1 = response;   // R1
+    uint8_t byte2 = rSPI(0xff);
+
+    if (byte2 != 0x00) {
+        WARNING("SPI:Card_CMD13 - Error %02x.%02x", byte1, byte2);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+// Ok, this is a bit of a nuclear option; bear with me:
+// After hours of debugging I've finally managed to isolate repro steps to
+// completely crash the SDCARD (So far only repro'ed with SDXC type cards).
+//
+// In short - when repeatedly issuing consecutive WRITE+READ (i.e. a verified write)
+// for a prolonged time (say 100s of MBs), without any interruptions, the card
+// will sooner or later 'give up' and never return from its busy state.
+// 
+// Repro steps:
+//   1) WRITE 16 blocks @ LBA+00
+//   2) WRITE  2 blocks @ LBA+16
+//   3)  READ  7 blocks @ LBA+00
+//   4)  READ  7 blocks @ LBA+07
+//   5)  READ  2 blocks @ LBA+14
+//   6)  READ  2 blocks @ LBA+16
+//   7)   LBA = LBA + 18
+//   8) GOTO 1
+//
+// The READs are important; only writing will not trigger this.
+// And seemingly reading back the blocks just written causes this behavior.
+//
+// So, after experimenting with a few different techniques I eventually settled on
+// simply issuing a dummy read of block 0, every time we move from a READ state to
+// a WRITE state, and vice versa.
+// It hurts performance a little bit, but mostly for the WRITE states (it seems).
+
+static void Card_TriggerFillRead(void)
+{
+    uint8_t dummy[512];
+    Card_ReadM(dummy, 0, 1, NULL);
+}
+
 
 FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam)
 {
+    if (writeStateActive) {
+        writeStateActive = FALSE;
+
+        Card_TriggerFillRead();
+    }
+
     // if pReadBuffer is NULL then use direct to the FPGA transfer mode (FPGA2 asserted)
 
     uint32_t sectorCount = numSectors;
@@ -387,6 +458,12 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
     DEBUG(3, "SPI:Card_ReadM(%08x, %lu, %lu, %08x)", pBuffer, sector, numSectors, pParam);
 
     SPI_EnableCard();
+
+    if (!Card_WaitXfer()) {
+        WARNING("SPI:Card_ReadM - WaitXfer timeout! (lba=%lu, %ld sectors)", sector, numSectors);
+        SPI_DisableCard();
+        return FF_ERR_DEVICE_DRIVER_FAILED;
+    }
 
     if (cardType != CARDTYPE_SDHC) { // SDHC cards are addressed in sectors not bytes
         sector = sector << 9;    // calculate byte address
@@ -520,12 +597,24 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         MMC_Command12(); // stop multi block transmission
     }
 
+    if (!Card_GetStatus()) {
+        WARNING("SPI:Card_ReadM - SEND_STATUS error! (lba=%lu, %ld sectors)", sector, numSectors);
+        SPI_DisableCard();
+        return FF_ERR_DEVICE_DRIVER_FAILED;
+    }
+
     SPI_DisableCard();
     return (FF_ERR_NONE);
 }
 
 FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam)
 {
+    if (!writeStateActive) {
+        writeStateActive = TRUE;
+
+        Card_TriggerFillRead();
+    }
+
     DEBUG(3, "SPI:Card_WriteM(%08x, %lu, %lu, %08x)", pBuffer, sector, numSectors, pParam);
 
     const uint32_t sectorEnd = sector + numSectors;
@@ -585,6 +674,12 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
         }
 
         // sector loop
+    }
+
+    if (!Card_GetStatus()) {
+        WARNING("SPI:Card_WriteM - SEND_STATUS error! (lba=%lu, %ld sectors)", sector, numSectors);
+        SPI_DisableCard();
+        return FF_ERR_DEVICE_DRIVER_FAILED;
     }
 
     SPI_DisableCard();

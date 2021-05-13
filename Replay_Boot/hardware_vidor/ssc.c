@@ -38,12 +38,12 @@ void SSC_EnableTxRx(void)
 void SSC_DisableTxRx(void)
 {
     if (JTAG_EndBitstream()) {
-        MSG_error("Failed to configure FPGA (%d bytes written)", written);
+        ERROR("Failed to configure FPGA (%d bytes written)", written);
         return;
     }
 
     if (written < BITSTREAM_LENGTH) {
-        MSG_warning("Short bitstream (%d of %d bytes)", written, BITSTREAM_LENGTH);
+        WARNING("Short bitstream (%d of %d bytes)", written, BITSTREAM_LENGTH);
     }
 
     DEBUG(0, "Successfully configured FPGA over JTAG");

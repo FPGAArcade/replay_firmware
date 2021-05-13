@@ -577,14 +577,14 @@ static __attribute__ ((noinline)) void main_update()
 
     // we deconfigured externally!
     if ((!IO_Input_H(PIN_FPGA_DONE)) && (current_status.fpga_load_ok != NO_CORE)) {
-        MSG_warning("FPGA has been deconfigured.");
+        WARNING("FPGA has been deconfigured.");
 
         // assume this is the programmer and wait for it to be reconfigured
         HARDWARE_TICK delay = 0;
 
         while (!IO_Input_H(PIN_FPGA_DONE)) {
             if (Timer_Check(delay)) {
-                MSG_warning("    waiting for reconfig....");
+                WARNING("    waiting for reconfig....");
                 delay = Timer_Get(1000);
             }
 

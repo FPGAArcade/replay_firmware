@@ -66,7 +66,7 @@ typedef enum {
 } drv08_format_t;
 
 typedef struct {
-    uint8_t b[DRV08_BUF_SIZE];
+    uint8_t b[DRV08_BLK_SIZE];
 } drv08_block_t;
 
 typedef struct {
@@ -74,15 +74,15 @@ typedef struct {
         struct {
             union {
                 tRigidDiskBlock     rdsk;
-                uint8_t             block0[DRV08_BUF_SIZE];
+                uint8_t             block0[DRV08_BLK_SIZE];
             };
             union {
                 tPartitionBlock     part;
-                uint8_t             block1[DRV08_BUF_SIZE];
+                uint8_t             block1[DRV08_BLK_SIZE];
             };
             union {
                 tFileSysHeaderBlock fshd;
-                uint8_t             block2[DRV08_BUF_SIZE];
+                uint8_t             block2[DRV08_BLK_SIZE];
             };
         };
         drv08_block_t               blocks[3];

@@ -199,6 +199,7 @@ DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff)
         return RES_OK;
     }
 
+    WARNING("Unknown IOCTL : 0x%02x", cmd);
     int* p = 0;
     *p = 3;
     return RES_PARERR;

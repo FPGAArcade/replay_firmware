@@ -60,8 +60,6 @@ void ff_free(void* ptr);
 #define FF_ERR_IOMAN_DRIVER_FATAL_ERROR          0x0000000b
 #define FF_ERR_IOMAN_DRIVER_BUSY                 0x0000000a
 #define FF_ERR_FILE_NOT_FOUND                    0x0000001f
-#define FF_ERR_FILE_NOT_FOUND                    0x0000001f
-#define FF_ERR_FILE_IS_READ_ONLY                 0x00000021
 #define FF_ERR_FILE_IS_READ_ONLY                 0x00000021
 #define FF_ERR_FILE_INVALID_PATH                 0x00000022
 #define FF_ERR_FILE_DESTINATION_EXISTS           0x00000026
@@ -70,7 +68,7 @@ void ff_free(void* ptr);
 #define FF_ERR_FILE_ALREADY_OPEN                 0x0000001e
 #define FF_ERR_DRIVER_FATAL_ERROR                0x8d0d000b
 #define FF_ERR_DIR_END_OF_DIR                    0x00000034
-#define FF_ERR_DEVICE_DRIVER_FAILED              0x00000004
+#define FF_ERR_DEVICE_DRIVER_FAILED              0x80000004
 
 #include "ff.h"
 

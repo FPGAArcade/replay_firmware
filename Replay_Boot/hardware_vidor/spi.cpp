@@ -204,12 +204,14 @@ void SPI_Wait4XferEnd(void)
 
 void SPI_EnableCard(void)
 {
+    ACTLED_ON;
     vidor_SPI_beginTransaction(PIN_CARD_CS_L);
 }
 
 void SPI_DisableCard(void)
 {
     vidor_SPI_endTransaction(PIN_CARD_CS_L);
+    ACTLED_OFF;
 }
 
 void SPI_EnableFileIO(void)

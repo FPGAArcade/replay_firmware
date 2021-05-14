@@ -91,7 +91,7 @@ typedef struct {
     };
 } drv08_rdb_t;
 
-STATIC_ASSERT(sizeof(drv08_rdb_t) == sizeof(drv08_block_t)*3);
+STATIC_ASSERT(sizeof(drv08_rdb_t) == sizeof(drv08_block_t) * 3);
 
 typedef struct {
     drv08_format_t format;

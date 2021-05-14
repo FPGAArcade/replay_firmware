@@ -328,12 +328,12 @@ void CFG_card_start(status_t* current_status)
         //DEBUG(1,"");
 
         INFO("SDCARD: %dB/%dkB x %d/%luMB",
-                 pIoman->pPartition->BlkSize,
-                 (pIoman->pPartition->BlkSize *
-                  pIoman->pPartition->SectorsPerCluster) >> 10,
-                 pIoman->pPartition->BlkFactor,
-                 FF_GetVolumeSize(pIoman)
-                );
+             pIoman->pPartition->BlkSize,
+             (pIoman->pPartition->BlkSize *
+              pIoman->pPartition->SectorsPerCluster) >> 10,
+             pIoman->pPartition->BlkFactor,
+             FF_GetVolumeSize(pIoman)
+            );
 
     }  else { // no card, maybe removed
         current_status->card_init_ok = FALSE;
@@ -2317,6 +2317,7 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
         // Allow any INI setting "as-is" for dram phase
         OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (currentStatus->dram_phase)); // phase from INI
 #if 0
+
         if (abs(currentStatus->dram_phase) < 21) {
             INFO("DRAM phase fix: %d -> %d", kDRAM_PHASE, kDRAM_PHASE + currentStatus->dram_phase);
             OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (kDRAM_PHASE + currentStatus->dram_phase)); // phase from INI
@@ -2324,6 +2325,7 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
         } else {
             WARNING("DRAM phase value bad, ignored!");
         }
+
 #endif
     }
 

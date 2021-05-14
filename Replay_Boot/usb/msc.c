@@ -1010,9 +1010,7 @@ static CSWStatus process_command()
             for (int i = 0; i < numSectors; ++i) {
                 uint8_t buf = i&1;
                 uint8_t last = ((i+1) == numSectors);
-                ACTLED_ON;
                 Card_ReadM(TwoSectors[buf], sectorOffset+i, 1, NULL);
-                ACTLED_OFF;
                 msc_send_async(TwoSectors[buf], sizeof(TwoSectors[buf]), last);
             }
             return CommandPassed;
@@ -1027,9 +1025,7 @@ static CSWStatus process_command()
                 if (n > (numSectors-i))
                     n = (numSectors-i);
                 msc_read(TwoSectors[0], n * sizeof(OneSector));
-                ACTLED_ON;
                 Card_WriteM(TwoSectors[0], sectorOffset+i, n, NULL);
-                ACTLED_OFF;
                 i += n;
             }
             return CommandPassed;

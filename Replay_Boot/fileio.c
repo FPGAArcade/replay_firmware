@@ -546,8 +546,6 @@ void FileIO_FCh_Process(uint8_t ch)
     uint8_t status = FileIO_FCh_GetStat(ch);
 
     if (status & FILEIO_REQ_ACT) {
-        ACTLED_ON;
-
         // do stuff
         // note, the array is just a pointer passed ...
         switch (fch_driver[ch]) {
@@ -570,8 +568,6 @@ void FileIO_FCh_Process(uint8_t ch)
             default :
                 MSG_warning("FCh:Unknown driver");
         }
-
-        ACTLED_OFF;
     }
 }
 
@@ -626,7 +622,7 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char* path)
             pDrive->fSource = FF_Open(pIoman, path, FF_MODE_READ, NULL);
 
             if (!pDrive->fSource) {
-                MSG_warning("FCh:Could not open file."); // give up
+                WARNING("FCh:Could not open file."); // give up
                 return;
             }
         }
@@ -658,7 +654,7 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char* path)
 
         default :
             fail = 1;
-            MSG_warning("FCh:Unknown driver");
+            WARNING("FCh:Unknown driver");
     }
 
     if (fail) {

@@ -177,8 +177,10 @@ void CFG_call_bootloader(void)
     WDT->EWCTRL.reg = 0;
     WDT->CTRL.bit.ENABLE = 1;
     WDT->CLEAR.reg = 0xff;
-    while(1)
+
+    while (1) {
         Timer_Wait(200);
+    }
 
 #endif
     int i;
@@ -2326,6 +2328,7 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
         // Allow any INI setting "as-is" for dram phase
         OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (currentStatus->dram_phase)); // phase from INI
 #if 0
+
         if (abs(currentStatus->dram_phase) < 21) {
             INFO("DRAM phase fix: %d -> %d", kDRAM_PHASE, kDRAM_PHASE + currentStatus->dram_phase);
             OSD_ConfigSendCtrl((kDRAM_SEL << 8) | (kDRAM_PHASE + currentStatus->dram_phase)); // phase from INI
@@ -2333,6 +2336,7 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
         } else {
             WARNING("DRAM phase value bad, ignored!");
         }
+
 #endif
     }
 

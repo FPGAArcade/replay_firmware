@@ -560,10 +560,12 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
         SPI_DMA(pBuffer, NULL, 512);
 
 #else
+
         // send sector bytes TO DO -- DMA
         for (offset = 0; offset < 512; offset++) {
             rSPI(*(pBuffer++));
         }
+
 #endif
 
         // calc CRC????

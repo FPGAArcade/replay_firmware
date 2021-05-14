@@ -113,7 +113,7 @@ void IO_Init(void)
 
     attachInterrupt(PIN_CONF_DOUT, ISR_VerticalBlank, FALLING);
 
-// NINA
+    // NINA
 
     pinMode(PIN_NINA_GPIO0, INPUT);
     pinMode(PIN_NINA_RDY_L, INPUT);
@@ -137,23 +137,19 @@ void IO_Init(void)
 unsigned int PINCOUNT_fn();
 void IO_ClearOutputData_(uint32_t pins, const char* pin_names)
 {
-    if (pins < PINCOUNT_fn())
-    {
+    if (pins < PINCOUNT_fn()) {
         digitalWrite(pins, LOW);
-    }
-    else
-    {
+
+    } else {
         DEBUG(0, "UNSUPPORTED! %s(%s)", __FUNCTION__, pin_names);
     }
 }
 void IO_SetOutputData_(uint32_t pins, const char* pin_names)
 {
-    if (pins < PINCOUNT_fn())
-    {
+    if (pins < PINCOUNT_fn()) {
         digitalWrite(pins, HIGH);
-    }
-    else
-    {
+
+    } else {
         DEBUG(0, "UNSUPPORTED! %s(%s)", __FUNCTION__, pin_names);
     }
 }

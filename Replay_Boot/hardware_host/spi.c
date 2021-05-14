@@ -265,6 +265,15 @@ unsigned char rSPI(unsigned char outByte)
                 memset(sdc_cmd.buffer, 0x00, sizeof(sdc_cmd.buffer));
                 break;
 
+            case CMD13:
+                printf("CMD12 [%02x,%02x,%02x,%02x] CRC = %02x\n", sdc_cmd.arg0, sdc_cmd.arg1, sdc_cmd.arg2, sdc_cmd.arg3, sdc_cmd.crc);
+                last_command = sdc_cmd.command;
+                sdc_result_length = 2;
+                sdc_result[0] = 0x00;
+                sdc_result[1] = 0x00;
+                memset(sdc_cmd.buffer, 0x00, sizeof(sdc_cmd.buffer));
+                break;
+
             case CMD8:
                 printf("CMD8 [%02x,%02x,%02x,%02x] CRC = %02x\n", sdc_cmd.arg0, sdc_cmd.arg1, sdc_cmd.arg2, sdc_cmd.arg3, sdc_cmd.crc);
                 last_command = sdc_cmd.command;

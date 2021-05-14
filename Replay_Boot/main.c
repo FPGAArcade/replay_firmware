@@ -327,7 +327,7 @@ static __attribute__ ((noinline)) void load_core_from_sdcard()
 
 static __attribute__ ((noinline)) void load_embedded_core()
 {
-#if defined(FPGA_DISABLE_EMBEDDED_CORE) && !defined(ARDUINO_SAMD_MKRVIDOR4000)
+#if defined(FPGA_DISABLE_EMBEDDED_CORE) && defined(AT91SAM7S256)
     MSG_fatal_error(9);
 #else
 

@@ -1021,12 +1021,16 @@ static CSWStatus process_command()
             uint32_t sectorOffset = READ_BE_32B(cdb->readWrite10.LBA);
             uint32_t numSectors = s_ProcessState.deviceLength / 512;
             INFO("USB: Write(10) (%08x, %d)", sectorOffset, numSectors);
-            for (int i = 0; i < numSectors; ++i) {
+            for (int i = 0; i < numSectors; ) {
                 // usb_recv_async(2, sizeof(OneSector), usb_func WriteCallback);
-                msc_read(OneSector, sizeof(OneSector));
+                uint32_t n = 2; /* blocks */
+                if (n > (numSectors-i))
+                    n = (numSectors-i);
+                msc_read(TwoSectors[0], n * sizeof(OneSector));
                 ACTLED_ON;
-                Card_WriteM(OneSector, sectorOffset+i, 1, NULL);
+                Card_WriteM(TwoSectors[0], sectorOffset+i, n, NULL);
                 ACTLED_OFF;
+                i += n;
             }
             return CommandPassed;
         }

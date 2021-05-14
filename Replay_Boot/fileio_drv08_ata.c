@@ -25,6 +25,7 @@
 
 const uint8_t DRV08_DEBUG = 0;
 /*#define DRV08_PARAM_DEBUG 1;*/
+#define DRV08_DEBUG_STATS 0
 
 #define DRV08_MAX_NUM_BLOCKS 4
 #define DRV08_BUF_SIZE ( 512 * DRV08_MAX_NUM_BLOCKS ) // THIS must be = or > than BLK SIZE
@@ -661,6 +662,12 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
     } else if (tfr[7] == DRV08_CMD_READ_SECTORS) {
         //
+#if DRV08_DEBUG_STATS
+        static HARDWARE_TICK accu_ticks = 0;
+        static uint32_t accu_blocks = 0;
+        HARDWARE_TICK time = Timer_Get(0);
+#endif
+
         if (DRV08_DEBUG) {
             DEBUG(1, "Drv08:Read Sectors");
         }
@@ -676,6 +683,10 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
             return;
         }
+
+#if DRV08_DEBUG_STATS
+        accu_blocks += sector_count;
+#endif
 
         while (sector_count) {
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_RDY); // pio in (class 1) command type
@@ -705,9 +716,25 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         }
 
         //
+#if DRV08_DEBUG_STATS
+        accu_ticks += (Timer_Get(0) - time);
+
+        if (accu_blocks >= 1 * 1024 * 1024 / 512) {
+            DEBUG(1, "DRV08/READ: %lu ms per 2048 blocks.", Timer_Convert(accu_ticks));
+            accu_ticks = 0;
+            accu_blocks = 0;
+        }
+
+#endif
 
     } else if (tfr[7] == DRV08_CMD_READ_MULTIPLE) { // Read Multiple Sectors (multiple sector transfer per IRQ)
         //
+#if DRV08_DEBUG_STATS
+        static HARDWARE_TICK accu_ticks = 0;
+        static uint32_t accu_blocks = 0;
+        HARDWARE_TICK time = Timer_Get(0);
+#endif
+
         if (DRV08_DEBUG) {
             DEBUG(1, "Drv08:Read Sectors Multiple");
         }
@@ -734,6 +761,9 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         }
 
         lba_naked = lba;
+#if DRV08_DEBUG_STATS
+        accu_blocks += sector_count;
+#endif
 
         while (sector_count) {
             block_count = sector_count;
@@ -794,6 +824,17 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
         }  // end sector
 
+#if DRV08_DEBUG_STATS
+        accu_ticks += (Timer_Get(0) - time);
+
+        if (accu_blocks >= 1 * 1024 * 1024 / 512) {
+            DEBUG(1, "DRV08/READM: %lu ms per 2048 blocks.", Timer_Convert(accu_ticks));
+            accu_ticks = 0;
+            accu_blocks = 0;
+        }
+
+#endif
+
         //
 
     } else if (tfr[7] == DRV08_CMD_READ_VERIFY) { // Read verify
@@ -809,6 +850,12 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
 
     } else if (tfr[7] == DRV08_CMD_WRITE_SECTORS) {  // write sectors
         //
+#if DRV08_DEBUG_STATS
+        static HARDWARE_TICK accu_ticks = 0;
+        static uint32_t accu_blocks = 0;
+        HARDWARE_TICK time = Timer_Get(0);
+#endif
+
         if (DRV08_DEBUG) {
             DEBUG(1, "Drv08:Write Sectors");
         }
@@ -840,6 +887,9 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         }
 
         uint32_t lba_mmc = lba;
+#if DRV08_DEBUG_STATS
+        accu_blocks += sector_count;
+#endif
 
         while (sector_count) {
             FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_TO_ARM, FILEIO_REQ_OK_TO_ARM); // wait for data
@@ -879,8 +929,25 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             }
         }
 
+#if DRV08_DEBUG_STATS
+        accu_ticks += (Timer_Get(0) - time);
+
+        if (accu_blocks >= 1 * 1024 * 1024 / 512) {
+            DEBUG(1, "DRV08/WRITE: %lu ms per 2048 blocks.", Timer_Convert(accu_ticks));
+            accu_ticks = 0;
+            accu_blocks = 0;
+        }
+
+#endif
+
     } else if (tfr[7] == DRV08_CMD_WRITE_MULTIPLE) { // write sectors
         //
+#if DRV08_DEBUG_STATS
+        static HARDWARE_TICK accu_ticks = 0;
+        static uint32_t accu_blocks = 0;
+        HARDWARE_TICK time = Timer_Get(0);
+#endif
+
         if (DRV08_DEBUG) {
             DEBUG(1, "Drv08:Write Sectors Multiple");
         }
@@ -920,6 +987,9 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         }
 
         uint32_t lba_mmc = lba;
+#if DRV08_DEBUG_STATS
+        accu_blocks += sector_count;
+#endif
 
         while (sector_count) {
             block_count = sector_count;
@@ -981,6 +1051,17 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             }
 
         } // end sector
+
+#if DRV08_DEBUG_STATS
+        accu_ticks += (Timer_Get(0) - time);
+
+        if (accu_blocks >= 1 * 1024 * 1024 / 512) {
+            DEBUG(1, "DRV08/WRITEM: %lu ms per 2048 blocks.", Timer_Convert(accu_ticks));
+            accu_ticks = 0;
+            accu_blocks = 0;
+        }
+
+#endif
 
         //
 

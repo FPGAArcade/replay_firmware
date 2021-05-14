@@ -148,6 +148,89 @@ static uint8_t Card_TrySetHighSpeed()
     return resultFunc1 == 0x01;
 }
 
+
+// Helper functions to extract contents from the SDCARD status register bitstreams
+#define GET_VAL(     array, start, end) extractValueFromBitstream(      array, sizeof(array)*8, start, end)
+#define GET_STR(buf, array, start, end) extractStringFromBitstream(buf, array, sizeof(array)*8, start, end)
+
+static uint32_t extractValueFromBitstream(const uint8_t* buffer, uint32_t buffer_length, uint32_t bit_start, uint32_t bit_end)
+{
+    Assert(buffer_length >= bit_start);
+    Assert(buffer_length >= bit_end);
+    Assert(bit_start >= bit_end);
+
+    uint32_t value = 0x0;
+    uint32_t bit_length = bit_start - bit_end + 1;
+
+    uint32_t byte_offset = (buffer_length - bit_end - 1) >> 3;
+    bit_end &= 0x7;
+
+    value |= buffer[byte_offset--] >> bit_end;
+    bit_end = (8 - bit_end);
+
+    for (int32_t bits_left = bit_length - bit_end; bits_left > 0; bits_left -= 8) {
+        value |= buffer[byte_offset--] << bit_end;
+        bit_end += 8;
+    }
+
+    value &= (1 << bit_length) - 1;
+    return value;
+}
+
+static const char* extractStringFromBitstream(char* out, const uint8_t* buffer, uint32_t buffer_length, uint32_t bit_start, uint32_t bit_end)
+{
+    const uint32_t str_bits = bit_start - bit_end + 1;
+
+    Assert((str_bits & 0x7) == 0x00);
+
+    for (uint32_t i = 0; i < str_bits; i += 8) {
+        uint32_t start = bit_start - i;
+        uint32_t end = start - 7;
+        out[i >> 3] = extractValueFromBitstream(buffer, buffer_length, start, end );
+    }
+
+    out[str_bits >> 3] = 0;
+    return out;
+}
+
+static void ReadCID()
+{
+    SPI_EnableCard();
+
+    if (MMC_Command(CMD10, 0)) {
+        WARNING("SPI:Card_Init CMD10 (SEND_CID) failed!");
+        SPI_DisableCard();
+        return;
+    }
+
+    timeout = Timer_Get(250);      // timeout
+
+    while (rSPI(0xFF) != 0xFE) {
+        if (Timer_Check(timeout)) {
+            WARNING("SPI:Card_CMD10 - no data token!");
+            SPI_DisableCard();
+            return;
+        }
+    }
+
+    uint8_t cid[128 / 8];
+    char buf[8];
+
+    for (int i = 0; i < sizeof(cid); ++i) {
+        cid[i] = rSPI(0xff);
+    }
+
+    DEBUG(1, "CID:MID = %02x",         GET_VAL(     cid, 127, 120));
+    DEBUG(1, "CID:OID = %s",           GET_STR(buf, cid, 119, 104));
+    DEBUG(1, "CID:PNM = %s",           GET_STR(buf, cid, 103,  64));
+    DEBUG(1, "CID:PRV = %02x",         GET_VAL(     cid,  63,  56));
+    DEBUG(1, "CID:PSN = %08x",         GET_VAL(     cid,  55,  24));
+    DEBUG(1, "CID:MDT = %d-%d", 2000 + GET_VAL(     cid,  19,  12), GET_VAL(cid, 11, 8));
+    DEBUG(1, "CID:CRC = %02x",         GET_VAL(     cid,   7,   1));
+
+    SPI_DisableCard();
+}
+
 uint8_t Card_TryInit(void)
 {
     uint8_t n;
@@ -303,6 +386,7 @@ uint8_t Card_Init(void)
         card_type = Card_TryInit();
 
         if (card_type != (CARDTYPE_NONE)) {
+            ReadCID();
             return card_type;
         }
 

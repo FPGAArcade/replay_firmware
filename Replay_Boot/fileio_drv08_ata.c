@@ -102,6 +102,10 @@ typedef struct {
     uint32_t index[1024];
     uint32_t index_size;
 
+    // most recently used seek point
+    uint32_t mru_lba;
+    uint32_t mru_cluster;
+
     drv08_rdb_t hdf_rdb;
     uint32_t hdf_dostype;
     uint32_t lba_offset;
@@ -266,18 +270,25 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
     FIL* fp = (FIL*)pDrive->fSource;
     FATFS* fs = fp->obj.fs;
 
+    // if we just visited this block, we know the file offset and cluster
+    if (lba == pDesc->mru_lba) {
+        fp->fptr = pDesc->mru_lba << 9;
+        fp->clust = pDesc->mru_cluster;
+
+    }
+
     uint32_t clusterSize = fs->csize * /*((fs)->ssize)*/ ((UINT)FF_MAX_SS);
     uint32_t newCluster = lba_byte / clusterSize;
     uint32_t currentCluster = fp->fptr / clusterSize;
+    uint16_t idx = lba >> (pDesc->index_size - 9); // 9 as lba is in 512 byte sectors
 
-    if ((newCluster < currentCluster) || (newCluster > (currentCluster + 1)) ) {
+    Assert(idx < 1024);
+
+    if ((newCluster < currentCluster) || (newCluster > (currentCluster + 1)) || pDesc->index[idx] == 0xffffffff ) {
         // reposition using table
-        uint16_t idx = lba >> (pDesc->index_size - 9); // 9 as lba is in 512 byte sectors
         uint64_t pos = lba_byte & (-1 << pDesc->index_size);
 
         newCluster = pos / clusterSize;
-
-        Assert(idx < 1024);
 
         // The current cluster index is not yet known;
         //  *) find the first valid cluster,
@@ -302,7 +313,7 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
                 }
 
                 FF_Seek(pDrive->fSource, filepos, FF_SEEK_SET);
-                // DEBUG(1,"index %08x %08x %08x @ %08x", (int)filepos,  fp->clust, currentCluster, (int)i);
+                // DEBUG(1, "index LBA %08x CL %08x CURCL %08x @ %08x", (int)(filepos >> 9),  fp->clust, currentCluster, (int)i);
                 Assert(i < 1024);
                 pDesc->index[i] = fp->clust;
             }
@@ -314,17 +325,21 @@ FF_ERROR Drv08_HardFileSeek(fch_t* pDrive, drv08_desc_t* pDesc, uint32_t lba)
         fp->fptr        = pos;
         fp->clust = index_cluster;
 
-        //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, nNewCluster, index_cluster);
+        //DEBUG(1,"seek JUMP lba*512 %08X, pos %08x, idx %d, newcluster %08X index_cluster %08X", lba_byte, pos, idx, newCluster, index_cluster);
     }
 
 #endif
 
     FF_ERROR err = FF_Seek(pDrive->fSource, lba_byte, FF_SEEK_SET);
 
+    // replace the most-recently-used position
+    pDesc->mru_lba = fp->fptr >> 9;
+    pDesc->mru_cluster = fp->clust;
+
     time = Timer_Get(0) - time;
 
     if (Timer_Convert(time) > 100) {
-        DEBUG(1, "Long seek time %lu ms.", Timer_Convert(time));
+        DEBUG(1, "Long seek time %lu ms to LBA %08x.", Timer_Convert(time), lba);
     }
 
     return err;
@@ -655,7 +670,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         uint32_t lba_naked = lba < pDesc->lba_offset ? pDesc->lba_offset : lba;
 
         if (Drv08_HardFileSeek(pDrive, pDesc, lba_naked) != FF_ERR_NONE) {
-            WARNING("Drv08:Read from invalid LBA");
+            WARNING("Drv08:Read from invalid LBA (%lu)", lba_naked);
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
             return;
@@ -711,7 +726,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         uint32_t lba_naked = lba < pDesc->lba_offset ? pDesc->lba_offset : lba;
 
         if (Drv08_HardFileSeek(pDrive, pDesc, lba_naked) != FF_ERR_NONE) {
-            WARNING("Drv08:Read Multiple bad LBA");
+            WARNING("Drv08:Read Multiple bad LBA (%lu)", lba_naked);
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
             return;
@@ -810,7 +825,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
 
         if (Drv08_HardFileSeek(pDrive, pDesc, lba) != FF_ERR_NONE) {
-            WARNING("Drv08:Write to invalid LBA");
+            WARNING("Drv08:Write to invalid LBA (%lu)", lba);
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
             return;
@@ -890,7 +905,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
         Drv08_GetParams(tfr, pDesc, &sector, &cylinder, &head, &sector_count, &lba, &lba_mode);
 
         if (Drv08_HardFileSeek(pDrive, pDesc, lba) != FF_ERR_NONE) {
-            WARNING("Drv08:Write Multiple bad LBA");
+            WARNING("Drv08:Write Multiple bad LBA (%lu)", lba);
             Drv08_WriteTaskFile (ch, DRV08_ERROR_ABRT, tfr[2], tfr[3], tfr[4], tfr[5], tfr[6]);
             FileIO_FCh_WriteStat(ch, DRV08_STATUS_END | DRV08_STATUS_IRQ | DRV08_STATUS_ERR);
             return;
@@ -1248,6 +1263,7 @@ void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
 
 #endif
     memset(pDesc->index, 0xff, sizeof(pDesc->index));
+    pDesc->mru_lba = 0xffffffff;
 
 }
 

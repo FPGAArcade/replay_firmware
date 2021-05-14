@@ -26,7 +26,8 @@
 const uint8_t DRV08_DEBUG = 0;
 /*#define DRV08_PARAM_DEBUG 1;*/
 
-#define DRV08_BUF_SIZE 512 // THIS must be = or > than BLK SIZE
+#define DRV08_MAX_NUM_BLOCKS 4
+#define DRV08_BUF_SIZE ( 512 * DRV08_MAX_NUM_BLOCKS ) // THIS must be = or > than BLK SIZE
 #define DRV08_BLK_SIZE 512
 #define DRV08_MAX_READ_BURST 7 // number of sectors FIFO can hold from AF de-asserted (could have <1 sector in FIFO still)
 /*#define DRV08_MAX_READ_BURST 1 // number of sectors FIFO can hold from AF de-asserted (could have <1 sector in FIFO still)*/
@@ -392,12 +393,12 @@ void Drv08_FileReadSendDirect(uint8_t ch, fch_t* pDrive, uint8_t sector_count)
 
 }
 
-void Drv08_FileWrite(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer)
+void Drv08_FileWrite(uint8_t ch, fch_t* pDrive, uint8_t* pBuffer, uint8_t sector_count)
 {
     // fix error handling
-    uint32_t bytes_w = FF_Write(pDrive->fSource, DRV08_BLK_SIZE, 1, pBuffer);
+    uint32_t bytes_w = FF_Write(pDrive->fSource, DRV08_BLK_SIZE, sector_count, pBuffer);
 
-    if (bytes_w != DRV08_BLK_SIZE) {
+    if (bytes_w != DRV08_BLK_SIZE * sector_count) {
         DEBUG(1, "Drv08:!! Write Fail!!");
     }
 }
@@ -427,7 +428,7 @@ void Drv08_CardReadSend(uint8_t ch, uint32_t lba, uint32_t numblocks, uint8_t* p
     }
 }
 
-void Drv08_CardReadSendDirect(uint8_t ch, uint32_t lba, uint32_t numblocks, uint8_t* pBuffer)
+void Drv08_CardReadSendDirect(uint8_t ch, uint32_t lba, uint32_t numblocks)
 {
     SPI_EnableFileIO();
     rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_W));
@@ -444,9 +445,9 @@ void Drv08_CardReadSendDirect(uint8_t ch, uint32_t lba, uint32_t numblocks, uint
     }
 }
 
-void Drv08_CardWrite(uint8_t ch, uint32_t lba, uint8_t* pBuffer)
+void Drv08_CardWrite(uint8_t ch, uint32_t lba, uint8_t* pBuffer, uint32_t numblocks)
 {
-    FF_ERROR err = Card_WriteM(pBuffer, lba, 1, NULL);
+    FF_ERROR err = Card_WriteM(pBuffer, lba, numblocks, NULL);
     FF_FlushCache(pIoman);
 
     if (err != FF_ERR_NONE) {
@@ -689,7 +690,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             first = 0;
 
             if (pDesc->format == MMC) {
-                Drv08_CardReadSendDirect(ch, lba + pDesc->lba_offset, 1, fbuf);
+                Drv08_CardReadSendDirect(ch, lba + pDesc->lba_offset, 1);
 
             } else if (lba < pDesc->lba_offset) {
                 Drv08_BufferSend(ch, pDrive, pDesc->hdf_rdb.blocks[lba % 3].b);
@@ -768,7 +769,7 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
                 FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_FM_ARM, FILEIO_REQ_OK_FM_ARM);
 
                 if (pDesc->format == MMC) {
-                    Drv08_CardReadSendDirect(ch, lba_naked + pDesc->lba_offset, i, fbuf);
+                    Drv08_CardReadSendDirect(ch, lba_naked + pDesc->lba_offset, i);
 
                 } else if (lba_naked < pDesc->lba_offset) {
 
@@ -870,11 +871,11 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             // optimal to put this after the status update, but then we cannot indicate write failure
             // write to file
             if (pDesc->format == MMC) {
-                Drv08_CardWrite(ch, lba_mmc + pDesc->lba_offset, fbuf);
+                Drv08_CardWrite(ch, lba_mmc + pDesc->lba_offset, fbuf, 1);
                 lba_mmc++;
 
             } else {
-                Drv08_FileWrite(ch, pDrive, fbuf);
+                Drv08_FileWrite(ch, pDrive, fbuf, 1);
             }
         }
 
@@ -928,32 +929,45 @@ void Drv08_ATA_Handle(uint8_t ch, fch_t handle[2][FCH_MAX_NUM])
             }
 
             while (block_count) {
+                i = block_count;
 
-                FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_TO_ARM, FILEIO_REQ_OK_TO_ARM); // wait for data
+                if (i > DRV08_MAX_NUM_BLOCKS) {
+                    i = DRV08_MAX_NUM_BLOCKS;
+                }
 
-                // fetch
-                SPI_EnableFileIO();
-                rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_R));
-                SPI_ReadBufferSingle(fbuf, DRV08_BLK_SIZE);
-                SPI_DisableFileIO();
+                drv08_block_t* p = (drv08_block_t*)&fbuf[0];
 
-                // write to file
+                // fetch N blocks
+                for (int x = 0; x < i; ++x) {
+                    FileIO_FCh_WaitStat (ch, FILEIO_REQ_OK_TO_ARM, FILEIO_REQ_OK_TO_ARM); // wait for data
+
+                    // fetch
+                    SPI_EnableFileIO();
+                    rSPI(FCH_CMD(ch, FILEIO_FCH_CMD_FIFO_R));
+                    SPI_ReadBufferSingle(&p[x], DRV08_BLK_SIZE);
+                    SPI_DisableFileIO();
+                }
+
+                // write N blocks to file/disk
                 if (pDesc->format == MMC) {
-                    Drv08_CardWrite(ch, lba_mmc + pDesc->lba_offset, fbuf);
-                    lba_mmc++;
+                    Drv08_CardWrite(ch, lba_mmc + pDesc->lba_offset, p->b, i);
+                    lba_mmc += i;
 
                 } else {
-                    Drv08_FileWrite(ch, pDrive, fbuf);
+                    Drv08_FileWrite(ch, pDrive, p->b, i);
                 }
 
-                if (!first) {
-                    Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
+                // update N blocks
+                for (int x = 0; x < i; ++x) {
+                    if (!first) {
+                        Drv08_IncParams(pDesc, &sector, &cylinder, &head, &lba);
+                    }
+
+                    first = 0;
                 }
 
-                first = 0;
-
-                block_count--;
-                sector_count--; // decrease sector count
+                block_count -= i;
+                sector_count -= i;
             }
 
             Drv08_UpdateParams(ch, tfr, sector, cylinder,  head, lba, lba_mode);
@@ -1263,6 +1277,7 @@ void Drv08_BuildHardfileIndex(fch_t* pDrive, drv08_desc_t* pDesc)
 
 #endif
     memset(pDesc->index, 0xff, sizeof(pDesc->index));
+
     pDesc->mru_lba = 0xffffffff;
 
 }

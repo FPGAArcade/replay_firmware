@@ -37,10 +37,74 @@ static const int32_t dma_buffer[512 / 4] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
+#if (debuglevel > 0)
+
+typedef struct {
+    HARDWARE_TICK time;
+    uint32_t arg;
+    uint8_t cmd;
+    uint8_t param;
+} CmdHistory_t;
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+static CmdHistory_t s_CmdHistory[16] = { { 0, 0, 0, 0} };
+#else
+static CmdHistory_t s_CmdHistory[128] = { { 0, 0, 0, 0} };
+#endif
+static uint32_t s_CmdHistoryPos = 0;
+static void SaveCommandHistory(uint8_t cmd, uint32_t arg)
+{
+    const int historyLen = sizeof(s_CmdHistory) / sizeof(s_CmdHistory[0]);
+
+    CmdHistory_t* p = &s_CmdHistory[s_CmdHistoryPos];
+    p->time = Timer_Get(0);
+    p->arg = arg;
+    p->cmd = cmd;
+    p->param = 0;
+
+    s_CmdHistoryPos = (s_CmdHistoryPos + 1) & (historyLen - 1);
+}
+static void AddParamToPreviousCommand(uint8_t param)
+{
+    const int historyLen = sizeof(s_CmdHistory) / sizeof(s_CmdHistory[0]);
+    uint32_t prev = (s_CmdHistoryPos - 1) & (historyLen - 1);
+    CmdHistory_t* p = &s_CmdHistory[prev];
+    p->param = param;
+}
+
+static void PrintCommandHistory()
+{
+    const int historyLen = sizeof(s_CmdHistory) / sizeof(s_CmdHistory[0]);
+
+    DEBUG(1, "****************************");
+
+    for (int i = 0; i < historyLen; ++i) {
+        uint32_t index = (s_CmdHistoryPos + i) & (historyLen - 1);
+        CmdHistory_t* p = &s_CmdHistory[index];
+
+        if (p->time == 0) {
+            continue;
+        }
+
+        uint32_t timestamp = Timer_Convert(p->time);
+        uint32_t timestamp_s = timestamp / 1000;
+        uint32_t timestamp_fraction = timestamp - timestamp_s * 1000;
+
+        DEBUG(1, "#%02ld : %d.%03d : CMD%d (%02x) (%08lx, %02x)", (historyLen - 1) - i, timestamp_s, timestamp_fraction, (p->cmd & ~0x40), p->cmd, p->arg, p->param);
+    }
+
+    DEBUG(1, "****************************");
+}
+#else
+static void SaveCommandHistory(uint8_t cmd, uint32_t arg) {}
+static void AddParamToPreviousCommand(uint8_t param) {}
+static void PrintCommandHistory() {}
+#endif
+
 // internal functions
-uint8_t MMC_Command(uint8_t cmd, uint32_t arg);
-uint8_t MMC_Command12(void);
-void    MMC_CRC(uint8_t c);
+static uint8_t MMC_Command(uint8_t cmd, uint32_t arg);
+static uint8_t MMC_Command12(void);
+static void    MMC_CRC(uint8_t c);
 
 uint8_t Card_Detect(void)
 {
@@ -525,6 +589,12 @@ static void Card_TriggerFillRead(void)
     Card_ReadM(dummy, 0, 1, NULL);
 }
 
+static FF_T_SINT32 SignalError(FF_T_SINT32 err)
+{
+    // IO_ClearOutputData(PIN_CARD_DAT1);
+    PrintCommandHistory();
+    return err;
+}
 
 FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam)
 {
@@ -546,7 +616,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
     if (!Card_WaitXfer()) {
         WARNING("SPI:Card_ReadM - WaitXfer timeout! (lba=%lu, %ld sectors)", sector, numSectors);
         SPI_DisableCard();
-        return FF_ERR_DEVICE_DRIVER_FAILED;
+        return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
     }
 
     if (cardType != CARDTYPE_SDHC) { // SDHC cards are addressed in sectors not bytes
@@ -558,7 +628,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         if (MMC_Command(CMD17, sector)) {
             WARNING("SPI:Card_ReadM CMD17 - invalid response 0x%02X (lba=%lu)", response, sector);
             SPI_DisableCard();
-            return (FF_ERR_DEVICE_DRIVER_FAILED);
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
 
     } else {
@@ -566,9 +636,11 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         if (MMC_Command(CMD18, sector)) {
             WARNING("SPI:Card_ReadM CMD18 - invalid response 0x%02X (lba=%lu)", response, sector);
             SPI_DisableCard();
-            return (FF_ERR_DEVICE_DRIVER_FAILED);
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
     }
+
+    AddParamToPreviousCommand(numSectors);
 
     while (sectorCount--) {
 
@@ -578,7 +650,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
             if (Timer_Check(timeout)) {
                 WARNING("SPI:Card_ReadM - no data token! (lba=%lu)", sector);
                 SPI_DisableCard();
-                return (FF_ERR_DEVICE_DRIVER_FAILED);
+                return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
             }
         }
 
@@ -638,7 +710,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
                 }
 
                 SPI_DisableCard();
-                return (FF_ERR_DEVICE_DRIVER_FAILED);
+                return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
             }
         };
 
@@ -684,7 +756,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
     if (!Card_GetStatus()) {
         WARNING("SPI:Card_ReadM - SEND_STATUS error! (lba=%lu, %ld sectors)", sector, numSectors);
         SPI_DisableCard();
-        return FF_ERR_DEVICE_DRIVER_FAILED;
+        return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
     }
 
     SPI_DisableCard();
@@ -707,7 +779,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
     if (!Card_WaitXfer()) {
         WARNING("SPI:Card_WriteM - WaitXfer timeout! (lba=%lu, %ld sectors)", sector, numSectors);
         SPI_DisableCard();
-        return FF_ERR_DEVICE_DRIVER_FAILED;
+        return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
     }
 
 
@@ -721,7 +793,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
         if (MMC_Command(CMD24, sector)) {
             WARNING("SPI:Card_WriteM CMD24 - invalid response 0x%02X (lba=%lu)", response, sector);
             SPI_DisableCard();
-            return FF_ERR_DEVICE_DRIVER_FAILED;
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
 
     } else {
@@ -730,22 +802,24 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
             if (MMC_Command(CMD55, 0)) {
                 WARNING("SPI:Card_WriteM CMD55 - invalid response 0x%02X", response);
                 SPI_DisableCard();
-                return FF_ERR_DEVICE_DRIVER_FAILED;
+                return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
             }
         }
 
         if (MMC_Command(CMD23, numSectors)) {
             WARNING("SPI:Card_WriteM CMD23 - invalid response 0x%02X (numSectors=%lu)", response, numSectors);
             SPI_DisableCard();
-            return FF_ERR_DEVICE_DRIVER_FAILED;
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
 
         if (MMC_Command(CMD25, sector)) {
             WARNING("SPI:Card_WriteM CMD25 - invalid response 0x%02X (lba=%lu)", response, sector);
             SPI_DisableCard();
-            return FF_ERR_DEVICE_DRIVER_FAILED;
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
     }
+
+    AddParamToPreviousCommand(numSectors);
 
     while (sectorCount--) {
         rSPI(0xFF); // one byte gap
@@ -777,7 +851,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
                 // AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
 
                 SPI_DisableCard();
-                return FF_ERR_DEVICE_DRIVER_FAILED;
+                return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
             }
         };
 
@@ -806,13 +880,13 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
         if (response != 0x05) {
             WARNING("SPI:Card_WriteM - invalid status 0x%02X (lba=%lu)", response, sector);
             SPI_DisableCard();
-            return (FF_ERR_DEVICE_DRIVER_FAILED);
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
 
         if (!Card_WaitXfer()) {
             WARNING("SPI:Card_WriteM - Loop timeout! (lba=%lu, %ld sectors)", sector, numSectors);
             SPI_DisableCard();
-            return FF_ERR_DEVICE_DRIVER_FAILED;
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
 
         // sector loop
@@ -824,13 +898,13 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
     if (!Card_WaitXfer()) {
         WARNING("SPI:Card_WriteM - Done timeout! (lba=%lu, %ld sectors)", sector, numSectors);
         SPI_DisableCard();
-        return FF_ERR_DEVICE_DRIVER_FAILED;
+        return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
     }
 
     if (!Card_GetStatus()) {
         WARNING("SPI:Card_WriteM - SEND_STATUS error! (lba=%lu, %ld sectors)", sector, numSectors);
         SPI_DisableCard();
-        return FF_ERR_DEVICE_DRIVER_FAILED;
+        return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
     }
 
     SPI_DisableCard();
@@ -842,6 +916,8 @@ uint8_t MMC_Command(uint8_t cmd, uint32_t arg)
     uint8_t c;
     /*flush SPI-bus*/
     uint8_t attempts = 100;
+
+    SaveCommandHistory(cmd, arg);
 
     do {
         response = rSPI(0xFF); // get response
@@ -878,7 +954,7 @@ uint8_t MMC_Command(uint8_t cmd, uint32_t arg)
     return response;
 }
 
-uint8_t MMC_Command12(void)
+static uint8_t MMC_Command12(void)
 {
     // WORKAROUND for no compliance card (Atmel Internal ref. !MMC7 !SD19):
     // The errors on this command must be ignored
@@ -892,7 +968,6 @@ uint8_t MMC_Command12(void)
     while (rSPI(0xFF) != 0xFF) {// wait until the card is not busy
         if (Timer_Check(timeout)) {
             WARNING("SPI:Card_CMD12 (STOP) timeout!");
-            SPI_DisableCard();
             return (0);
         }
     }

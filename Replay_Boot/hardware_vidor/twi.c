@@ -20,8 +20,8 @@
 #include "../hardware/timer.h"
 #include "../messaging.h"
 
-static uint8_t offset = 0;
-static uint8_t memory[256];
+static uint8_t twi_offset = 0;
+static uint8_t twi_memory[256];
 
 void TWI_Configure(void)
 {
@@ -35,13 +35,13 @@ void TWI_Stop(void)
 uint8_t TWI_ReadByte(void)
 {
     printf("%s - ", __FUNCTION__);
-    return memory[offset];
+    return twi_memory[twi_offset];
 }
 
 void TWI_WriteByte(uint8_t byte)
 {
     printf("%s %02X - ", __FUNCTION__, byte);
-    memory[offset] = byte;
+    twi_memory[twi_offset] = byte;
 }
 
 uint8_t TWI_ByteReceived(void)
@@ -72,10 +72,10 @@ void TWI_StartWrite(uint8_t DevAddr, uint8_t IntAddrSize, uint16_t IntAddr, uint
     printf("%s %02x %02x %04x %02x - ", __FUNCTION__, DevAddr, IntAddrSize, IntAddr, WriteData);
 
     if (IntAddr) {
-        offset = IntAddr;
-        memory[offset] = WriteData;
+        twi_offset = IntAddr;
+        twi_memory[twi_offset] = WriteData;
 
     } else {
-        offset = WriteData;
+        twi_offset = WriteData;
     }
 }

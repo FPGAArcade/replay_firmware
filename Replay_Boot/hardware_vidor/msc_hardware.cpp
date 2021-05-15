@@ -31,7 +31,7 @@ extern "C" {
 #define FIXED_EP_BULK_OUT (2)
 
 extern USBDevice_SAMD21G18x usbd;
-static uint8_t buffer[EPX_SIZE] __attribute__((aligned(16)));     // 64 bytes == max endpoint size with USB 2.0 full-speed
+static uint8_t ep_buffer[EPX_SIZE] __attribute__((aligned(16)));     // 64 bytes == max endpoint size with USB 2.0 full-speed
 
 class MSCHardware : public PluggableUSBModule
 {
@@ -71,8 +71,8 @@ class MSCHardware : public PluggableUSBModule
         uint32_t ep0size = USBDevice.available(EP0);
 
         if (ep0size) {
-            USBDevice.recv(EP0, buffer, ep0size);
-            recv_func(FIXED_EP_CTRL, buffer, ep0size);
+            USBDevice.recv(EP0, ep_buffer, ep0size);
+            recv_func(FIXED_EP_CTRL, ep_buffer, ep0size);
         }
 
         uint32_t bytecnt = USBDevice.available(USB_EP_BULK_OUT);
@@ -81,13 +81,13 @@ class MSCHardware : public PluggableUSBModule
             return 0;
         }
 
-        if (bytecnt > sizeof(buffer)) {
+        if (bytecnt > sizeof(ep_buffer)) {
             ERROR("USB:EP too big!");
             return 0;
         }
 
-        USBDevice.recv(USB_EP_BULK_OUT, buffer, bytecnt);
-        recv_func(FIXED_EP_BULK_OUT, buffer, bytecnt);
+        USBDevice.recv(USB_EP_BULK_OUT, ep_buffer, bytecnt);
+        recv_func(FIXED_EP_BULK_OUT, ep_buffer, bytecnt);
 
         return 1;
     }
@@ -106,9 +106,9 @@ class MSCHardware : public PluggableUSBModule
 
             // if packet is not aligned, or resides in ROM, we copy it
             if ((size_t)packet & 0xf || ((size_t)packet & 0xff000000) == 0 ) {
-                Assert(packet_length <= sizeof(buffer));
-                memcpy(buffer, packet, min(packet_length, sizeof(buffer)));
-                packet = buffer;
+                Assert(packet_length <= sizeof(ep_buffer));
+                memcpy(ep_buffer, packet, min(packet_length, sizeof(ep_buffer)));
+                packet = ep_buffer;
             }
 
             if (async) {

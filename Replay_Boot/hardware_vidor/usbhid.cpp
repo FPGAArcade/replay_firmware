@@ -169,7 +169,7 @@ class ReplayKeyboard
 
 class ReplayMouse
 {
-public:
+  public:
     ReplayMouse() :
         mouseX(0),
         mouseY(0),
@@ -186,7 +186,7 @@ public:
         uint16_t mX = mouseX;
         uint16_t mY = mouseY;
         uint16_t mZ = mouseZ;
-        uint8_t mButtons = mouseButtons; 
+        uint8_t mButtons = mouseButtons;
         bool refresh = updated;
         updated = false;
 
@@ -219,15 +219,18 @@ public:
     void OnMouseButtonChanged(uint8_t button, uint8_t down)
     {
         uint8_t mask = 1 << button;
-        if (down)
+
+        if (down) {
             mouseButtons |= mask;
-        else
+
+        } else {
             mouseButtons &= ~mask;
+        }
 
         updated = true;
     }
 
-private:
+  private:
     volatile uint16_t    mouseX, mouseY, mouseZ;
     volatile uint8_t     mouseButtons;
     volatile bool        updated;        // $TODO make this a ring buffer instead
@@ -248,12 +251,15 @@ void USB_Connection_Event(uhc_device_t *dev, bool b_present)
 void USB_Enum_Event(uhc_device_t *dev, uhc_enum_status_t status)
 {
     (void)dev;
+
     if (status == UHC_ENUM_FAIL) {
         if (dev->hub && dev->speed == UHD_SPEED_LOW) {
             WARNING("LOW speed via HUB detected!");
+
         } else {
             WARNING("USB device failed enumeration");
         }
+
     } else if (status == UHC_ENUM_SUCCESS) {
         INFO("USB VID/PID : %04x / %04x", dev->dev_desc.idVendor, dev->dev_desc.idProduct);
     }
@@ -320,10 +326,12 @@ extern "C" void USBHID_Init()
 {
     pinMode( PIN_USB_HOST_ENABLE, INPUT );
     USBsense = digitalRead(PIN_USB_HOST_ENABLE);
+
     if (USBsense) {
         INFO("USB DEVICE mode");
         return;
     }
+
     INFO("USB HOST mode");
     uhc_start();
 }
@@ -332,14 +340,17 @@ extern "C" const char* USBHID_Update()
 {
     if (USBsense != digitalRead(PIN_USB_HOST_ENABLE)) {
         USBHID_Init();
+
         if (USBsense) {
             USBDevice.init();
             USBDevice.attach();
         }
     }
+
     if (USBsense) {
         return 0;
     }
+
     mouse.SendMouseUpdate();
     disableIRQ();
     const char* key = keyboard.PopKey();

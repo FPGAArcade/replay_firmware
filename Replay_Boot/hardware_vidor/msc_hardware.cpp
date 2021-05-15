@@ -1,9 +1,25 @@
+/*--------------------------------------------------------------------
+ *                       Replay Firmware
+ *                      www.fpgaarcade.com
+ *                     All rights reserved.
+ *
+ *                     admin@fpgaarcade.com
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *--------------------------------------------------------------------
+ *
+ * Copyright (c) 2021, The FPGAArcade community (see AUTHORS.txt)
+ *
+ */
+
 #include "USB/SAMD21_USBDevice.h"
 
 #define USB_NUM_ENDPOINTS (2)
 #define USB_NUM_INTERFACE (1)
-#define USB_EP_BULK_IN   (this->pluggedEndpoint)
-#define USB_EP_BULK_OUT    (this->pluggedEndpoint+1)
+#define USB_EP_BULK_IN    (this->pluggedEndpoint)
+#define USB_EP_BULK_OUT   (this->pluggedEndpoint+1)
 
 extern "C" {
 #include "usb/usb_hardware.h"

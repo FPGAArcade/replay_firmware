@@ -1,3 +1,19 @@
+/*--------------------------------------------------------------------
+ *                       Replay Firmware
+ *                      www.fpgaarcade.com
+ *                     All rights reserved.
+ *
+ *                     admin@fpgaarcade.com
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *--------------------------------------------------------------------
+ *
+ * Copyright (c) 2021, The FPGAArcade community (see AUTHORS.txt)
+ *
+ */
+
 #include "SPI.h"
 #include <wiring_private.h>
 
@@ -114,7 +130,7 @@ static const uint8_t* SPI_NINA(uint8_t* cmd, size_t length)
             while (num_params--) {
                 uint8_t len = rSPI(0xff);
 
-                // only copy what we have space for.. 
+                // only copy what we have space for..
                 uint8_t copy = min(len, left);
                 len -= copy;
                 left -= copy;
@@ -124,8 +140,9 @@ static const uint8_t* SPI_NINA(uint8_t* cmd, size_t length)
                 }
 
                 // .. and sink the rest
-                if (len)
+                if (len) {
                     SPI_DMA(0, 0, len);
+                }
             }
 
             if (rSPI(0xff) != NINA_END) {
@@ -217,7 +234,7 @@ extern "C" void NINA_Update()
         SerialUSB.begin(115200);
 
         INFO("NINA: %s\n", nina::getVersion());
-        nina::setDebug(debuglevel>=1);
+        nina::setDebug(debuglevel >= 1);
 
         nina::pinMode(PIN_LED_G_NINA, OUTPUT);
         nina::pinMode(PIN_LED_B_NINA, OUTPUT);

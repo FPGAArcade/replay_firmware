@@ -174,8 +174,6 @@
 
 #elif defined(ARDUINO_SAMD_MKRVIDOR4000)
 
-#define PIN_ACT_LED             (32u)	// PB08 / LED_RED_BUILTIN
-
 #define PIN_NINA_TX             (0u)    // D0 / PA22
 #define PIN_NINA_RX             (1u)    // D1 / PA23
 #define PIN_CONF_DIN            (2u)	// D2 / PA10
@@ -184,9 +182,6 @@
 #define PIN_EEPROM_CS_L         (5u)	// D5 / PB11
 #define PIN_FPGA_CTRL1          (6u)	// D6 / PA20
 #define PIN_FPGA_CTRL0          (7u)	// D7 / PA21
-
-#define PIN_FPGA_RST_L          (31u)	// PA28
-#define PIN_CONF_DOUT           (33u)	// PB09
 
 #define PIN_CARD_MOSI           (8u)	// D8  / PA16
 #define PIN_CARD_CLK            (9u)	// D9  / PA17
@@ -197,9 +192,9 @@
 #define PIN_TXD                 (13u)	// D13 / PB22
 #define PIN_RXD                 (14u)	// D14 / PB23
 
-#define PIN_NINA_GPIO0          (15u)   // A0 / PA02
-#define PIN_NINA_RDY_L          (16u)   // A1 / PB02
-#define PIN_NINA_RST_L          (17u)   // A2 / PB03
+#define PIN_NINA_GPIO0          (15u)	// A0 / PA02
+#define PIN_NINA_RDY_L          (16u)	// A1 / PB02
+#define PIN_NINA_RST_L          (17u)	// A2 / PB03
 #define PIN_NOT_USED_PA04       (18u)	// A3 / PA04
 
 #define PIN_I2S_DIN             (19u)	// A4 / PA05 / SD
@@ -217,9 +212,13 @@
 #define PIN_JTAG_TMS            (28u)	// PA14 / PIN_SPI1_SS
 #define PIN_JTAG_TDO            (29u)	// PA15 / PIN_SPI1_MISO
 
+#define PIN_FPGA_RST_L          (31u)	// PA28
+#define PIN_ACT_LED             (32u)	// PB08 / LED_RED_BUILTIN
+#define PIN_CONF_DOUT           (33u)	// PB09
+
 // NINA
-#define PIN_LED_G_NINA          (26u)    // NINA GPIO_17 -- ESP-32 GPIO 26
-#define PIN_LED_B_NINA          (25u)    // NINA GPIO_16 -- ESP-32 GPIO 25
+#define PIN_LED_G_NINA          (26u)	// NINA GPIO_17 -- ESP-32 GPIO 26
+#define PIN_LED_B_NINA          (25u)	// NINA GPIO_16 -- ESP-32 GPIO 25
 #define PAD_NINA_TX             (UART_TX_PAD_0)
 #define PAD_NINA_RX             (SERCOM_RX_PAD_1)
 

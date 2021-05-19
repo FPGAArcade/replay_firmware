@@ -949,11 +949,12 @@ static uint8_t process_transfer_mode()
     return TRUE;
 }
 
-static uint8_t TwoSectors[2][512] __attribute__((aligned(16)));
-#define OneSector TwoSectors[0]
 
 static CSWStatus process_command()
 {
+    uint8_t TwoSectors[2][512] __attribute__((aligned(16)));
+    Assert(( ((uint32_t)&TwoSectors[0][0]) & 0xf ) == 0);
+
     CommandBlockWrapper* cbw = &s_ProcessState.cbw;
 //    CommandStatusWrapper* csw = &s_ProcessState.csw;
 
@@ -1024,7 +1025,7 @@ static CSWStatus process_command()
                 uint32_t n = 2; /* blocks */
                 if (n > (numSectors-i))
                     n = (numSectors-i);
-                msc_read(TwoSectors[0], n * sizeof(OneSector));
+                msc_read(TwoSectors[0], n * sizeof(TwoSectors[0]));
                 Card_WriteM(TwoSectors[0], sectorOffset+i, n, NULL);
                 i += n;
             }

@@ -558,6 +558,7 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
         void SPI_DMA(const void* out, void* in, uint16_t length);
 
         SPI_DMA(pBuffer, NULL, 512);
+        pBuffer+=512;
 
 #else
 

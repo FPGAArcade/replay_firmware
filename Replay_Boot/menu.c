@@ -1312,7 +1312,6 @@ static uint8_t key_action_popup_enter(status_t* current_status, const uint16_t k
 
     current_status->do_reboot = 0;
     current_status->toggle_usb = 0;
-    current_status->usb_mounted = 0;
     current_status->sync_rdb = 0;
     current_status->flash_fw = 0;
     current_status->verify_flash_fw = 0;

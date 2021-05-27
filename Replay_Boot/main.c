@@ -571,7 +571,7 @@ static __attribute__ ((noinline)) void main_update()
 
     const uint8_t card_was_inserted = !card_already_detected && current_status.card_detected;
     const uint8_t card_was_removed = card_already_detected && !current_status.card_detected;
-    const uint8_t card_found_but_no_fs = current_status.card_detected && !current_status.fs_mounted_ok;
+    const uint8_t card_found_but_no_fs = current_status.card_detected && card_was_inserted && !current_status.fs_mounted_ok;
 
     if (card_was_inserted || card_was_removed || card_found_but_no_fs) {
         CFG_card_start(&current_status);    // restart file system if card was removed or (re-)inserted

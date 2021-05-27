@@ -122,6 +122,9 @@ typedef struct _uhc_device_t{
 	// USB speed
 	uhd_speed_t speed;
 
+	//! USB current configuration descriptor
+	usb_conf_desc_t *conf_desc;
+
 	// From usb_conf_desc_t
 	uint8_t bmAttributes;
 	uint8_t bMaxPower;

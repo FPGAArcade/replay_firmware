@@ -36,7 +36,7 @@ char* GetExtension(char* filename)
 }
 */
 
-int CompareDirEntries(FF_DIRENT* pDir1, FF_DIRENT* pDir2)
+int CompareDirEntries(FILEENTRY* pDir1, FILEENTRY* pDir2)
 {
     int rc = 0;
 
@@ -155,7 +155,8 @@ void PrintSummary(tDirScan* dir_entries)
 
 void Filesel_ScanUpdate(tDirScan* dir_entries)
 {
-    FF_DIRENT mydir;
+    FF_DIRENT direntry;
+    FILEENTRY mydir;
     int comp_result, comp_result2 = 0;
     FF_ERROR tester = 0;
     uint32_t i, j = 0;
@@ -166,10 +167,15 @@ void Filesel_ScanUpdate(tDirScan* dir_entries)
     dir_entries->refc  = 1;
     dir_entries->nextc = 0;
 
-    tester = FF_FindFirst(pIoman, &mydir, dir_entries->pPath); // Find first Object.
+    tester = FF_FindFirst(pIoman, &direntry, dir_entries->pPath); // Find first Object.
 
     while (tester == 0) {
-        if (FilterFile(dir_entries, &mydir)) {
+        if (FilterFile(dir_entries, &direntry)) {
+
+            // Copy info from general representation (FF_DIRENT) to size-minimized (FILENTRY)
+            mydir.Attrib = direntry.Attrib;
+            strncpy(mydir.FileName, direntry.FileName, sizeof(mydir.FileName));
+
             //DEBUG(1,"File %s", mydir.FileName);
             //
             // first check file against our reference
@@ -262,7 +268,7 @@ void Filesel_ScanUpdate(tDirScan* dir_entries)
             }
         } // next file
 
-        tester = FF_FindNext(pIoman, &mydir);
+        tester = FF_FindNext(pIoman, &direntry);
     }
 
     //PrintSummary(dir_entries);
@@ -275,7 +281,8 @@ void Filesel_ScanFirst(tDirScan* dir_entries)
 
     // mode 0 find first entry *
 
-    FF_DIRENT mydir;
+    FF_DIRENT direntry;
+    FILEENTRY mydir;
     int comp_result = 0;
     FF_ERROR tester = 0;
     uint32_t i, j, total = 0;
@@ -288,10 +295,15 @@ void Filesel_ScanFirst(tDirScan* dir_entries)
     dir_entries->offset = 128;
     dir_entries->sel = 129;
 
-    tester = FF_FindFirst(pIoman, &mydir, dir_entries->pPath); // Find first Object.
+    tester = FF_FindFirst(pIoman, &direntry, dir_entries->pPath); // Find first Object.
 
     while (tester == 0) {
-        if (FilterFile(dir_entries, &mydir)) {
+        if (FilterFile(dir_entries, &direntry)) {
+
+            // Copy info from general representation (FF_DIRENT) to size-minimized (FILENTRY)
+            mydir.Attrib = direntry.Attrib;
+            strncpy(mydir.FileName, direntry.FileName, sizeof(mydir.FileName));
+
             //DEBUG(1,"File %s", mydir.FileName);
             //
             if (dir_entries->nextc == 0 ) {
@@ -344,7 +356,7 @@ void Filesel_ScanFirst(tDirScan* dir_entries)
             total++; // total file count,
         } // next file
 
-        tester = FF_FindNext(pIoman, &mydir);
+        tester = FF_FindNext(pIoman, &direntry);
     }
 
     dir_entries->total_entries = total;
@@ -412,19 +424,25 @@ void Filesel_DelFilterChar(tDirScan* dir_entries)
 
 void Filesel_ScanFind(tDirScan* dir_entries, uint8_t search)
 {
-    FF_DIRENT mydir;
-    FF_DIRENT dirent_file;
-    FF_DIRENT dirent_dir;
+    FF_DIRENT direntry;
+    FILEENTRY mydir;
+    FILEENTRY dirent_file;
+    FILEENTRY dirent_dir;
     FF_ERROR tester = 0;
 
     uint8_t found_file = 0;
     uint8_t found_dir  = 0;
 
     // note search is uppercase
-    tester = FF_FindFirst(pIoman, &mydir, dir_entries->pPath); // Find first Object.
+    tester = FF_FindFirst(pIoman, &direntry, dir_entries->pPath); // Find first Object.
 
     while (tester == 0) {
-        if (FilterFile(dir_entries, &mydir)) { // returns dirs
+        if (FilterFile(dir_entries, &direntry)) { // returns dirs
+
+            // Copy info from general representation (FF_DIRENT) to size-minimized (FILENTRY)
+            mydir.Attrib = direntry.Attrib;
+            strncpy(mydir.FileName, direntry.FileName, sizeof(mydir.FileName));
+
             if (toupper((int)mydir.FileName[0]) == search) {
                 if (mydir.Attrib & FF_FAT_ATTR_DIR) { // it's a dir
                     if (found_dir == 0) {
@@ -447,7 +465,7 @@ void Filesel_ScanFind(tDirScan* dir_entries, uint8_t search)
             }
         }
 
-        tester = FF_FindNext(pIoman, &mydir);
+        tester = FF_FindNext(pIoman, &direntry);
     }
 
     // toggle between dir and file selection
@@ -478,7 +496,7 @@ void Filesel_ScanFind(tDirScan* dir_entries, uint8_t search)
     }
 }
 
-FF_DIRENT Filesel_GetEntry(tDirScan* dir_entries, uint8_t entry)
+FILEENTRY Filesel_GetEntry(tDirScan* dir_entries, uint8_t entry)
 {
     uint8_t offset = 0;
 
@@ -502,13 +520,13 @@ FF_DIRENT Filesel_GetEntry(tDirScan* dir_entries, uint8_t entry)
         }
     }
 
-    FF_DIRENT dNull;
+    FILEENTRY dNull;
     memset(&dNull, 0x00, sizeof(dNull));
 
     return dNull;
 }
 
-FF_DIRENT Filesel_GetLine(tDirScan* dir_entries, uint8_t pos)
+FILEENTRY Filesel_GetLine(tDirScan* dir_entries, uint8_t pos)
 {
     return Filesel_GetEntry(dir_entries, dir_entries->offset + pos);
 }

@@ -33,6 +33,12 @@ typedef struct file_ext {
     char ext[4];  // "EXT\0"
 } file_ext_t;
 
+typedef struct _FILEENTRY {
+    FF_T_UINT8     Attrib;
+    FF_T_INT8      FileName[FF_MAX_FILENAME];
+//    DIR            dir;
+} FILEENTRY;
+
 typedef struct {
     const file_ext_t* file_exts;  // list of extension strings used for scan (including /0)
     char*      pPath;       // pointer to the path
@@ -47,9 +53,9 @@ typedef struct {
     uint8_t    offset; // 128 = ref, >128 next, <128 prev
     uint8_t    sel; // as above
 
-    FF_DIRENT  dPrev[MAXDIRENTRIES];
-    FF_DIRENT  dRef;
-    FF_DIRENT  dNext[MAXDIRENTRIES];
+    FILEENTRY  dPrev[MAXDIRENTRIES];
+    FILEENTRY  dRef;
+    FILEENTRY  dNext[MAXDIRENTRIES];
 } tDirScan;
 
 void Filesel_ScanUpdate(tDirScan* dir_entries);
@@ -61,8 +67,8 @@ void Filesel_ChangeDir(tDirScan* dir_entries, char* pPath);
 void Filesel_AddFilterChar(tDirScan* dir_entries, char letter);
 void Filesel_DelFilterChar(tDirScan* dir_entries);
 
-FF_DIRENT Filesel_GetEntry(tDirScan* dir_entries, uint8_t entry);
-FF_DIRENT Filesel_GetLine(tDirScan* dir_entries, uint8_t pos);
+FILEENTRY Filesel_GetEntry(tDirScan* dir_entries, uint8_t entry);
+FILEENTRY Filesel_GetLine(tDirScan* dir_entries, uint8_t pos);
 uint8_t   Filesel_GetSel(tDirScan* dir_entries);
 
 uint8_t Filesel_Update(tDirScan* dirdir_entries, uint8_t opt);

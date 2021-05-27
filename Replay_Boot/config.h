@@ -579,6 +579,10 @@ void CFG_vid_timing_HD74(framerate_t standard);
 void CFG_set_CH7301_SD(void);
 void CFG_set_CH7301_HD(void);
 
+menu_t* CFG_alloc_menu_and_set_active(status_t* pStatus, const char* title);
+menuitem_t* CFG_alloc_menuitem_and_set_active(status_t* pStatus);
+itemoption_t* CFG_alloc_itemoption_and_set_active(status_t* pStatus);
+
 uint32_t CFG_get_free_mem(void);
 void CFG_dump_mem_stats(uint8_t only_check_stack);
 

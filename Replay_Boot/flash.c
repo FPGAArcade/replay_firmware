@@ -234,17 +234,6 @@ __attribute__( ( section(".data") ) ) __attribute__ ((noreturn)) __attribute__ (
     while (1) {}
 }
 
-#else
-
-void FlashAndReset(uint32_t base, uint32_t dram, uint32_t length)
-{
-    (void) base, (void) dram, (void) length;
-    // noop!
-}
-
-#endif
-
-
 #include "flash.h"
 #include "messaging.h"
 #include "fpga.h"
@@ -709,3 +698,22 @@ uint8_t FLASH_RebootAndFlash(const char* filename)
 
     return 1;
 }
+#else
+
+uint8_t FLASH_VerifySRecords(const char* filename, uint32_t* crc_file, uint32_t* crc_flash)
+{
+    return 0;
+}
+
+uint8_t FLASH_RebootAndFlash(const char* filename)
+{
+    return 0;
+}
+
+void FlashAndReset(uint32_t base, uint32_t dram, uint32_t length)
+{
+    (void) base, (void) dram, (void) length;
+    // noop!
+}
+
+#endif

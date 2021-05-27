@@ -148,7 +148,8 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
     if MATCH(item->action_name, "cha_select") {
         if ((current_status->fileio_cha_ena >> item->action_value) & 1) {
             if (FileIO_FCh_GetInserted(0, item->action_value)) {
-                if (current_status->fileio_cha_mode == REMOVABLE) {
+                if (current_status->fileio_cha_mode == REMOVABLE ||
+                    FileIO_FCh_GetProtect(0, item->action_value)) {
                     // deselect file
                     strcpy(item->selected_option->option_name, "<RETURN> to set");
                     item->selected_option = NULL;
@@ -178,7 +179,8 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
     else if MATCH(item->action_name, "chb_select") {
         if ((current_status->fileio_chb_ena >> item->action_value) & 1) {
             if (FileIO_FCh_GetInserted(1, item->action_value)) {
-                if (current_status->fileio_chb_mode == REMOVABLE) {
+                if (current_status->fileio_chb_mode == REMOVABLE ||
+                    FileIO_FCh_GetProtect(1, item->action_value)) {
                     // deselect file
                     strcpy(item->selected_option->option_name, "<RETURN> to set");
                     item->selected_option = NULL;

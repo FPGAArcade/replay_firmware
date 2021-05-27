@@ -64,7 +64,8 @@ typedef enum {
     XXX, // unsupported
     HDF,
     HDF_NAKED,
-    MMC
+    MMC,
+    ISO
 } drv08_format_t;
 
 typedef struct {
@@ -1101,6 +1102,14 @@ uint8_t Drv08_GetHardfileType(fch_t* pDrive, drv08_desc_t* pDesc)
         }
     }
 
+    // Check for ISO 9660 Volume Descriptor
+    FF_Seek(pDrive->fSource, 0x10 /* voldesc starts at sector 16 */ * 2048 /* sector size */, FF_SEEK_SET);
+    FF_Read(pDrive->fSource, DRV08_BLK_SIZE, 1, fbuf);
+    if (!memcmp(fbuf+1, "CD001", 4)) {
+        INFO("Drv08:ISO9660 OK");
+        return (0);
+    }
+
     WARNING("Drv08:Unknown HDF format");
     return (0);
 }
@@ -1607,6 +1616,12 @@ uint8_t FileIO_Drv08_InsertInit(uint8_t ch, uint8_t drive_number, fch_t* pDrive,
 
         // skip the rest of the setup - we're all done
         return (0);
+
+    } else if (strnicmp(ext, "ISO", 3) == 0) {
+        //
+        pDesc->format    = (drv08_format_t)ISO;
+        pDesc->file_size =  FF_Size(pDrive->fSource); //->Filesize;
+        pDrive->status  |= FILEIO_STAT_READONLY;
 
     } else {
         WARNING("Drv08:Unsupported format.");

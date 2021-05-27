@@ -288,6 +288,7 @@ extern "C" void NINA_Update()
         nina::setDebug(debuglevel >= 1);
         INFO("NINA: %s\n", nina::getVersion());
 
+        nina::pinMode(0, INPUT);    // Set GPIO0 as INPUT
         nina::pinMode(PIN_LED_G_NINA, OUTPUT);
         nina::pinMode(PIN_LED_B_NINA, OUTPUT);
 

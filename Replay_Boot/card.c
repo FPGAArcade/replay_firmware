@@ -91,6 +91,8 @@ uint8_t Card_Detect(void)
 
     cardDetected = successful_resets == num_attempts;
 
+    SPI_SetFreq25MHz();
+
     return cardDetected;
 }
 
@@ -302,6 +304,7 @@ uint8_t Card_Init(void)
 
         WARNING("SPI:Card_Init:Attempt %d failed!", i);
         Timer_Wait(100); // FIXME: Dunno what's reasonable..
+        cardDetected = FALSE;       // let's restart card detection..
     }
 
     return (CARDTYPE_NONE);

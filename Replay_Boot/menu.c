@@ -381,7 +381,7 @@ static uint8_t _MENU_action_menu_execute(menuitem_t* item, status_t* current_sta
 static uint8_t _MENU_action_browser_execute(menuitem_t* item, status_t* current_status)
 {
     // *****
-    FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan,
+    FILEENTRY mydir = Filesel_GetEntry(current_status->dir_scan,
                                        current_status->dir_scan->sel);
 
     // insert is ok for fixed or removable
@@ -814,7 +814,7 @@ void _MENU_show_file_browser(status_t* current_status)
     OSD_WriteRC(0, 3,    "      FILE  BROWSER       ", 0, YELLOW, BLACK);
 
     char* filename;
-    FF_DIRENT entry;
+    FILEENTRY entry;
 
     // show filter in header
     uint8_t sel = Filesel_GetSel(current_status->dir_scan);
@@ -1195,7 +1195,7 @@ static uint8_t key_action_filebrowser_down(status_t* current_status, const uint1
 
 static uint8_t key_action_filebrowser_enter(status_t* current_status, const uint16_t key)
 {
-    FF_DIRENT mydir = Filesel_GetEntry(current_status->dir_scan, current_status->dir_scan->sel);
+    FILEENTRY mydir = Filesel_GetEntry(current_status->dir_scan, current_status->dir_scan->sel);
 
     if (mydir.Attrib & FF_FAT_ATTR_DIR) {
         //dir_sel

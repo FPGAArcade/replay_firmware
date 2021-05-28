@@ -37,7 +37,11 @@ void kprintmem(const uint8_t* memory, uint32_t size);
 #endif
 
 #undef Assert
+#if 0
 #define Assert(expr) do { if(!(expr)) { kprintf("*** expr '%s' failed at %s:%i\n\r", #expr, __FILE__, __LINE__); asm("BKPT #0"); } } while(0)
+#else
+#define Assert(expr) do {  } while(0)
+#endif
 
 #include "usb_protocol.h"
 #include "usb_protocol_hid.h"

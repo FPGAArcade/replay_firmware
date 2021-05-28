@@ -59,8 +59,6 @@ jmp_buf exit_env;
 static __attribute__ ((noinline)) void FPGA_WriteGeneratedImage(uint32_t base);
 #endif
 
-extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
-
 extern char _binary_replay_ini_start;
 extern char _binary_replay_ini_end;
 extern char _binary_build_replayhand_start;

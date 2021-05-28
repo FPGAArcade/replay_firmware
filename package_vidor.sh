@@ -23,9 +23,8 @@ echo "Staging zip in ${staging_path}"
 
 LIBPATH="${staging_path}/replay_mkrvidor4000"
 
-BUILDNUM=`od -An -vtu4 Replay_Boot/buildfile.num | tr -d [:space:]`
 GITTAG=`git describe --tag --always`
-LIBZIP="replay_mkrvidor4000_build${BUILDNUM}_${GITTAG}.zip"
+LIBZIP="replay_mkrvidor4000_build_${GITTAG}.zip"
 
 cp -r "Replay_Boot/build/replay_mkrvidor4000" "${LIBPATH}"
 

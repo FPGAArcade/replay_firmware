@@ -44,8 +44,11 @@
 # hacked about by mikeJ
 # hacked again by Wolfgang Scherr
 
+SHELL=bash
+
 # object, list, etc. directory
 OUTPUT_DIR = build
+$(shell mkdir -p $(OUTPUT_DIR))
 
 # setup host
 ifeq ($(OS),Windows_NT)
@@ -60,8 +63,20 @@ else
 	ASTYLE = astyle_$(HOST)
 endif
 
-# build number
-BUILD_NUM = ./buildnum_$(HOST).$(APP_SUFFIX)
+# build date
+VER_DATE:="$(shell date +%Y%m%d)"
+
+##
+## Generate a C header file with a macro defining the current git hash (incl dirty state)
+##
+
+GIT:=$(shell git describe --tag --always --dirty="+")
+GIT_HEADER:=$(OUTPUT_DIR)/git.h
+GIT_DEFINE:='\#define GIT $(GIT)'
+OLD_DEFINE:='$(shell [[ -e $(GIT_HEADER) ]] && cat $(GIT_HEADER) || echo "nothing")'
+$(info GIT = $(GIT))
+$(info $(shell [[ $(OLD_DEFINE) != $(GIT_DEFINE) ]] && echo $(GIT_DEFINE) > $(GIT_HEADER)))
+
 
 # MCU name and submodel
 MCU      = arm7tdmi
@@ -194,7 +209,7 @@ AT91LIBNOWARN = yes
 CSTANDARD = -std=gnu99
 
 # Place -D or -U options for C here
-CDEFS =  -D$(RUN_MODE)
+CDEFS =  -D$(RUN_MODE) -DVER_DATE=$(VER_DATE)
 
 # Create small firmware w/o the embedded core
 #CDEFS +=  -DFPGA_DISABLE_EMBEDDED_CORE
@@ -355,7 +370,7 @@ CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/tools/CMSIS-Atmel/1.2.0/CMSIS/Device/ATMEL/
 CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/hardware/samd/$(ARDUINO_BOARD_VERSION)/cores/arduino"
 CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/hardware/samd/$(ARDUINO_BOARD_VERSION)/variants/mkrvidor4000"
 CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/hardware/samd/$(ARDUINO_BOARD_VERSION)/libraries/SPI" 
-CFLAGS      = -c -g -Os $(CFLAGS_WARN) $(CFLAGS_DEF) $(CFLAGS_INC)
+CFLAGS      = -c -g -Os $(CFLAGS_WARN) $(CFLAGS_DEF) $(CFLAGS_INC) -DVER_DATE=$(VER_DATE)
 CONLYFLAGS 	= -std=gnu11 -ffunction-sections -fdata-sections -nostdlib --param max-inline-insns-single=500
 CPPFLAGS    = -std=gnu++11 -ffunction-sections -fdata-sections -fno-threadsafe-statics -nostdlib --param max-inline-insns-single=500 -fno-rtti -fno-exceptions
 THUMB_IW    =
@@ -461,7 +476,7 @@ vidor_postproc: lib
 	@rm -rf "$(ARDUINO_ROOT)/portable/sketchbook/libraries/replay_mkrvidor4000"
 	@ln -s "$(PWD)/$(BUILDDIR)replay_mkrvidor4000" "$(ARDUINO_ROOT)/portable/sketchbook/libraries/replay_mkrvidor4000"
 	@cp -r "hardware_vidor/replay_mkrvidor4000" "$(BUILDDIR)replay_mkrvidor4000"
-	@BUILDNUM=`od -An -vtu4 buildfile.num | tr -d [:space:]`; sed 's/{BUILDNUM}/'"$$BUILDNUM"'/' hardware_vidor/replay_mkrvidor4000/library.properties > $(BUILDDIR)replay_mkrvidor4000/library.properties
+	@BUILDNUM=`git describe --tags --always --abbrev=0`; sed 's/{BUILDNUM}/'"$$BUILDNUM"'/' hardware_vidor/replay_mkrvidor4000/library.properties > $(BUILDDIR)replay_mkrvidor4000/library.properties
 	@cp "Replay_Boot.ino" "$(BUILDDIR)replay_mkrvidor4000/examples/Replay_Boot"
 	@cp "replay.h" "$(BUILDDIR)replay_mkrvidor4000/src"
 	@cp "$(BUILDDIR)libreplay.a" "$(BUILDDIR)replay_mkrvidor4000/src/cortex-m0plus"
@@ -527,12 +542,8 @@ $(BUILDDIR)%.sym: $(BUILDDIR)%.elf
 ifeq (,${HOSTED})
 $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
 	@echo
-	$(BUILD_NUM) > buildnum
-	$(OBJCOPY) -I binary -O elf32-littlearm -B arm buildnum buildnum.o
-	@echo
 	@echo $(MSG_LINKING) $@
-	@$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ) buildnum.o --output $@ $(LDFLAGS)
-	@$(REMOVE) buildnum buildnum.o
+	@$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ) --output $@ $(LDFLAGS)
 #       $(CPP) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
 else	# collapse ifeq() once we convert from objcopy to incbin
 $(BUILDDIR)%.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(EXTOBJ)
@@ -580,13 +591,8 @@ $(TXTOBJ) : $(BUILDDIR)%.o : %.ini
 	@echo Obj-copying raw $<
 	@cd $(dir $<) && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --rename-section .data=.text,alloc,load,readonly,data,contents $(notdir $<) $(abspath $@)	
 
-hardware_host/embedded.c: $(BUILDDIR)buildnum $(EXTOBJ)
-vidor.cpp: $(BUILDDIR)buildnum $(EXTOBJ)
-
-$(BUILDDIR)buildnum:
-	@echo
-	@echo Creating unique build ID $<
-	$(BUILD_NUM) > $(BUILDDIR)buildnum
+hardware_host/embedded.c: $(EXTOBJ)
+vidor.cpp: $(EXTOBJ)
 
 # Compile: create assembler files from C source files. ARM/Thumb
 ## does not work - TODO - hints welcome
@@ -646,7 +652,7 @@ clean_list : $(SRC)
 	# $(REMOVE) $(CPPSRCARM:.cpp=.d)
 	$(REMOVE) $(EXTOBJ)
 	$(REMOVE) $(EXTOBJ:.o=)
-	$(REMOVE) $(BUILDDIR)buildnum
+	$(REMOVE) $(GIT_HEADER)
 	$(REMOVE) -r $(addprefix $(BUILDDIR), $(sort $(filter-out .,$(^D))))
 	git clean -fd build/ .dep/
 

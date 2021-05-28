@@ -71,8 +71,6 @@ extern char __StackTop[];
 */
 extern FF_IOMAN* pIoman;
 
-extern const char* version;  // temp
-
 // y0 - FPGA DRAM
 // y1 - Coder
 // y2 - FPGA aux/sys clk
@@ -2320,7 +2318,7 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     FileIO_FCh_SetDriver(1, currentStatus->fileio_chb_drv); // temp
 
     // for OSD
-    sprintf(currentStatus->status[0], "ARM |FW:%s", version);
+    snprintf(currentStatus->status[0], sizeof(currentStatus->status[0]), "ARM |FW:%s", BUILD_VERSION);
     sprintf(currentStatus->status[1], "FPGA|FW:%04X STAT:%04x IO:%04X",
             config_ver, config_stat, ((config_fileio_drv << 8) | config_fileio_ena));
 

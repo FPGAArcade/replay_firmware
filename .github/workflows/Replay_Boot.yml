@@ -104,7 +104,7 @@ jobs:
     - name: Build
       run: |
         cd $GITHUB_WORKSPACE/Replay_Boot
-        VIDOR=1 make
+        VIDOR=1 make verify
 
     - name: Package
       run: |

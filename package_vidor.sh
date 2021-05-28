@@ -22,36 +22,12 @@ staging_path=`mktemp -d`
 echo "Staging zip in ${staging_path}"
 
 LIBPATH="${staging_path}/replay_mkrvidor4000"
-mkdir -p "${LIBPATH}"
 
 BUILDNUM=`od -An -vtu4 Replay_Boot/buildfile.num | tr -d [:space:]`
 GITTAG=`git describe --always --dirty`
 LIBZIP="replay_mkrvidor4000_build${BUILDNUM}_${GITTAG}.zip"
 
-cat << EOF > "${LIBPATH}/README.md"
-# FPGAArcade Replay ARM firmware.
-EOF
-
-cat << EOF > "${LIBPATH}/library.properties"
-name=Replay MKR Vidor 4000
-version=0.0.${BUILDNUM}
-author=eriquesnk@gmail.com
-maintainer=eriquesnk@gmail.com
-sentence=FPGAArcade Replay ARM firmware.
-paragraph=Supports Replay FPGA cores for the Vidor.
-category=Other
-url=https://github.com/FPGAArcade/replay_release
-architectures=*
-precompiled=true
-ldflags=-lreplay
-EOF
-
-mkdir -p "${LIBPATH}/examples/Replay_Boot"
-mkdir -p "${LIBPATH}/src/cortex-m0plus"
-
-cp "Replay_Boot/Replay_Boot.ino" "${LIBPATH}/examples/Replay_Boot"
-cp "Replay_Boot/replay.h" "${LIBPATH}/src"
-cp "Replay_Boot/build/libreplay.a" "${LIBPATH}/src/cortex-m0plus"
+cp -r "Replay_Boot/build/replay_mkrvidor4000" "${LIBPATH}"
 
 # Zip it.
 echo "Zipping firmware apps"

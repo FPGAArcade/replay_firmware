@@ -672,7 +672,7 @@ static void _MENU_show_status(status_t* current_status)
     {
         char buffer[8];
         sprintf(buffer, "%3dHz", OSD_GetVerticalRefreshRate());
-        OSD_WriteRC(2, OSDLINELEN - strlen(buffer), buffer, 0, YELLOW, BLACK);
+        OSD_WriteRC(1, OSDLINELEN - strlen(buffer), buffer, 0, YELLOW, DARK_BLUE);
     }
 
     OSD_WriteRC(2 + i, 0,   "                                ", 0, BLACK, DARK_BLUE);

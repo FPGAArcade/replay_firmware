@@ -425,8 +425,6 @@ endif
 #all: begin gccversion sizebefore build sizeafter finished end
 all: begin $(BUILDDIR)isset gccversion build finished end
 
-install: all usbdl
-
 usbdl: $(BUILDDIR)$(TARGET).s19
 	../Replay_Update/FW/$(USBDL) load $(BUILDDIR)$(TARGET).s19
 
@@ -439,9 +437,14 @@ $(BUILDDIR)isset: $(SRC)
 ifeq (1,${HOSTED})
 build: elf bin s19 sym size
 else ifeq (1,${VIDOR})
-build: lib
+build: lib vidor_postproc
+verify: all
+	$(ARDUINO_ROOT)/arduino --verbose --verify $(BUILDDIR)replay_mkrvidor4000/examples/Replay_Boot/Replay_Boot.ino
+install: all
+	$(ARDUINO_ROOT)/arduino $(BUILDDIR)replay_mkrvidor4000/examples/Replay_Boot/Replay_Boot.ino
 else
 build: elf hex bin s19 lss sym size
+install: all usbdl
 endif
 
 elf: $(BUILDDIR)$(TARGET).elf
@@ -451,6 +454,18 @@ s19: $(BUILDDIR)$(TARGET).s19
 lss: $(BUILDDIR)$(TARGET).lss
 sym: $(BUILDDIR)$(TARGET).sym
 lib: $(BUILDDIR)libreplay.a
+
+vidor_postproc: lib
+	@echo "Creating 'Replay MKR Vidor 4000' library folder under '$(BUILDDIR)replay_mkrvidor4000'"
+	@rm -rf "$(BUILDDIR)replay_mkrvidor4000"
+	@rm -rf "$(ARDUINO_ROOT)/portable/sketchbook/libraries/replay_mkrvidor4000"
+	@ln -s "$(PWD)/$(BUILDDIR)replay_mkrvidor4000" "$(ARDUINO_ROOT)/portable/sketchbook/libraries/replay_mkrvidor4000"
+	@cp -r "hardware_vidor/replay_mkrvidor4000" "$(BUILDDIR)replay_mkrvidor4000"
+	@BUILDNUM=`od -An -vtu4 buildfile.num | tr -d [:space:]`; sed -i "" 's/{BUILDNUM}/'"$$BUILDNUM"'/' $(BUILDDIR)replay_mkrvidor4000/library.properties
+	@cp "Replay_Boot.ino" "$(BUILDDIR)replay_mkrvidor4000/examples/Replay_Boot"
+	@cp "replay.h" "$(BUILDDIR)replay_mkrvidor4000/src"
+	@cp "$(BUILDDIR)libreplay.a" "$(BUILDDIR)replay_mkrvidor4000/src/cortex-m0plus"
+
 
 # Eye candy.
 begin:

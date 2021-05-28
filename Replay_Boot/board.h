@@ -17,6 +17,16 @@
 #ifndef BOARD_H
 #define BOARD_H
 
+#if __has_include(<build/git.h>)
+#include "build/git.h"
+#define AS_STRING(x) #x
+#define STR(x) AS_STRING(x)
+#define BUILD_VERSION   STR(VER_DATE) "_" STR(GIT)
+#else
+//                       123456789012345678901234
+#define BUILD_VERSION   "YYYYMMDD_NNN-n-g0123456+"
+#endif
+
 //------------------------------------------------------------------------------
 //         Headers
 //------------------------------------------------------------------------------

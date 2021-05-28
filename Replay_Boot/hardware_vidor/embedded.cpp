@@ -24,7 +24,6 @@
 // Windows : %USERPROFILE%\AppData\Local\Arduino15\packages\arduino\hardware\samd\1.8.11
 // macOS   : $HOME/Library/Arduino15/packages/arduino/hardware/samd/1.8.11
 
-INCBIN(buildnum, "build/buildnum");
 INCBIN(replay_ini, "../loader_embedded/replay.ini");
 
 #include "board_driver_jtag.h"

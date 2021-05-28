@@ -34,6 +34,9 @@
 #include "menu.h"
 #include "osd.h"
 #include "messaging.h"
+#include <stdio.h>
+#undef printf
+#undef sprintf
 #include "printf.h"
 #include <unistd.h> // sbrk()
 
@@ -72,7 +75,6 @@ static void prepare_sdcard();
 
 // GLOBALS
 FF_IOMAN* pIoman = NULL;  // file system handle
-const char* version = &_binary_buildnum_start; // actual build version
 
 #if defined(ARDUINO)   // sketches already have a main()
 int replay_main(void)
@@ -183,7 +185,7 @@ int main(void)
     DEBUG(0, "== FPGAArcade Replay Board ==");
     DEBUG(0, "Mike Johnson & Wolfgang Scherr");
     DEBUG(0, "");
-    DEBUG(0, "ARM Firmware: %s", version);
+    DEBUG(0, "ARM Firmware: %s", BUILD_VERSION);
 #if defined(AT91SAM7S256)
     DEBUG(0, "ARM Firmware Size: %d bytes", *(uint32_t*)0x102024);
 #endif
@@ -356,8 +358,7 @@ static __attribute__ ((noinline)) void load_embedded_core()
         current_status.spi_fpga_enabled = 1;
         current_status.spi_osd_enabled = 1;
 
-        sprintf(current_status.status[0], "ARM |FW:%s (%ldkB free)", version,
-                CFG_get_free_mem() >> 10);
+        snprintf(current_status.status[0], sizeof(current_status.status[0]), "ARM |FW:%s", BUILD_VERSION);
         sprintf(current_status.status[1], "FPGA|NO VALID SETUP ON SDCARD!");
 
     } else {

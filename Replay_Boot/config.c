@@ -2522,7 +2522,7 @@ menuitem_t* CFG_alloc_menuitem_and_set_active(status_t* pStatus)
 {
     static uint32_t num_items = 0;
     num_items++;
-    DEBUG(1, "[alloc_menuitem] NUM_ITEMS = %ld (%ld bytes)", num_items, num_items * sizeof(menuitem_t));
+    DEBUG(2, "[alloc_menuitem] NUM_ITEMS = %ld (%ld bytes)", num_items, num_items * sizeof(menuitem_t));
 
     if (pStatus->menu_act->item_list) {
         pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
@@ -2548,7 +2548,7 @@ itemoption_t* CFG_alloc_itemoption_and_set_active(status_t* pStatus)
 {
     static uint32_t num_options = 0;
     num_options++;
-    DEBUG(1, "[alloc_itemoption] NUM_OPTIONS = %ld (%ld bytes)", num_options, num_options * sizeof(itemoption_t));
+    DEBUG(2, "[alloc_itemoption] NUM_OPTIONS = %ld (%ld bytes)", num_options, num_options * sizeof(itemoption_t));
 
     if (pStatus->menu_item_act->option_list) {
         pStatus->item_opt_act->next = malloc(sizeof(itemoption_t));

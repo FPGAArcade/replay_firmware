@@ -91,7 +91,8 @@ uint8_t Card_Detect(void)
 
     cardDetected = successful_resets == num_attempts;
 
-    SPI_SetFreq25MHz();
+    // Should revert back to full speed here, but creates ping-pong when no card is available
+    // SPI_SetFreq25MHz();
 
     return cardDetected;
 }

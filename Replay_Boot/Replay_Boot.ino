@@ -20,6 +20,8 @@
 #include <unistd.h>
 #include "SPI.h"
 #include "replay.h"
+// Uncomment after patching (see wifinina.cpp)
+// #include <ArduinoBLE.h>
 
 // hardware/irq.h
 extern "C" unsigned disableIRQ(void);

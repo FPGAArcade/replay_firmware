@@ -369,7 +369,8 @@ CFLAGS_INC  = "-I$(ARDUINO_PORTABLE)/tools/CMSIS/4.5.0/CMSIS/Include/"
 CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/tools/CMSIS-Atmel/1.2.0/CMSIS/Device/ATMEL/"
 CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/hardware/samd/$(ARDUINO_BOARD_VERSION)/cores/arduino"
 CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/hardware/samd/$(ARDUINO_BOARD_VERSION)/variants/mkrvidor4000"
-CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/hardware/samd/$(ARDUINO_BOARD_VERSION)/libraries/SPI" 
+CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/hardware/samd/$(ARDUINO_BOARD_VERSION)/libraries/SPI"
+CFLAGS_INC += "-I$(ARDUINO_ROOT)/portable/sketchbook/libraries/ArduinoBLE/src"
 CFLAGS      = -c -g -Os $(CFLAGS_WARN) $(CFLAGS_DEF) $(CFLAGS_INC) -DVER_DATE=$(VER_DATE)
 CONLYFLAGS 	= -std=gnu11 -ffunction-sections -fdata-sections -nostdlib --param max-inline-insns-single=500
 CPPFLAGS    = -std=gnu++11 -ffunction-sections -fdata-sections -fno-threadsafe-statics -nostdlib --param max-inline-insns-single=500 -fno-rtti -fno-exceptions

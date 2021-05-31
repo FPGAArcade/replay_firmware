@@ -570,9 +570,12 @@ static __attribute__ ((noinline)) void main_update()
 
     const uint8_t card_was_inserted = !card_already_detected && current_status.card_detected;
     const uint8_t card_was_removed = card_already_detected && !current_status.card_detected;
-    const uint8_t card_found_but_no_fs = current_status.card_detected && card_was_inserted && !current_status.fs_mounted_ok;
+    const uint8_t card_found_but_no_fs = current_status.card_detected && !current_status.fs_mounted_ok && !current_status.usb_mounted;
 
     if (card_was_inserted || card_was_removed || card_found_but_no_fs) {
+        DEBUG(1, "card_was_inserted    : %s", card_was_inserted ? "TRUE" : "FALSE");
+        DEBUG(1, "card_was_removed     : %s", card_was_removed ? "TRUE" : "FALSE");
+        DEBUG(1, "card_found_but_no_fs : %s", card_found_but_no_fs ? "TRUE" : "FALSE");
         CFG_card_start(&current_status);    // restart file system if card was removed or (re-)inserted
     }
 

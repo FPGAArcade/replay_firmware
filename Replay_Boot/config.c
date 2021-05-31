@@ -311,26 +311,26 @@ void CFG_card_start(status_t* current_status)
 
         switch (pIoman->pPartition->Type) {
             case FF_T_FAT32+1:
-                MSG_info("SDCARD: exFAT formatted");
+                INFO("SDCARD: exFAT formatted");
                 break;
 
             case FF_T_FAT32:
-                MSG_info("SDCARD: FAT32 formatted");
+                INFO("SDCARD: FAT32 formatted");
                 break;
 
             //DEBUG(1,"FAT32 Formatted Drive"); break;
             case FF_T_FAT16:
-                MSG_info("SDCARD: FAT16 formatted");
+                INFO("SDCARD: FAT16 formatted");
                 break;
 
             //DEBUG(1,"FAT16 Formatted Drive"); break;
             case FF_T_FAT12:
-                MSG_info("SDCARD: FAT12 formatted");
+                INFO("SDCARD: FAT12 formatted");
                 break;
 
             //DEBUG(1,"FAT12 Formatted Drive"); break;
             default:
-                MSG_info("SDCARD: Unknown format %d", pIoman->pPartition->Type);
+                INFO("SDCARD: Unknown format %d", pIoman->pPartition->Type);
         }
 
         //DEBUG(1,"");
@@ -340,13 +340,13 @@ void CFG_card_start(status_t* current_status)
         //DEBUG(1,"Volume Size: %lu MB", FF_GetVolumeSize(pIoman));
         //DEBUG(1,"");
 
-        MSG_info("SDCARD: %dB/%dkB x %d/%luMB",
-                 pIoman->pPartition->BlkSize,
-                 (pIoman->pPartition->BlkSize *
-                  pIoman->pPartition->SectorsPerCluster) >> 10,
-                 pIoman->pPartition->BlkFactor,
-                 FF_GetVolumeSize(pIoman)
-                );
+        INFO("SDCARD: %dB/%dkB x %d/%luMB",
+             pIoman->pPartition->BlkSize,
+             (pIoman->pPartition->BlkSize *
+              pIoman->pPartition->SectorsPerCluster) >> 10,
+             pIoman->pPartition->BlkFactor,
+             FF_GetVolumeSize(pIoman)
+            );
 
     }  else { // no card, maybe removed
         current_status->card_init_ok = FALSE;
@@ -1311,7 +1311,7 @@ static uint8_t _CFG_handle_SETUP_CLOCKMON(status_t* pStatus, const ini_symbols_t
     }
 
     if (pStatus->clockmon) {
-        MSG_info("ClockMonitor Enabled");
+        INFO("ClockMonitor Enabled");
     }
 
     return 0;
@@ -1420,7 +1420,7 @@ static uint8_t _CFG_handle_SETUP_INFO(status_t* pStatus, const ini_symbols_t nam
     uint16_t entries = ParseList(value, valueList, 8);
 
     if (entries == 1) {
-        MSG_info(valueList[0].strval);
+        INFO(valueList[0].strval);
     }
 
     FreeList(valueList, entries);

@@ -28,6 +28,7 @@ static HARDWARE_TICK timeout;
 static uint8_t response;
 static uint8_t cardType;
 static uint8_t cardDetected = FALSE;
+static uint8_t writeStateActive = FALSE;
 
 static const int32_t dma_buffer[512 / 4] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -36,10 +37,74 @@ static const int32_t dma_buffer[512 / 4] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
+#if (debuglevel > 0)
+
+typedef struct {
+    HARDWARE_TICK time;
+    uint32_t arg;
+    uint8_t cmd;
+    uint8_t param;
+} CmdHistory_t;
+
+#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+static CmdHistory_t s_CmdHistory[16] = { { 0, 0, 0, 0} };
+#else
+static CmdHistory_t s_CmdHistory[128] = { { 0, 0, 0, 0} };
+#endif
+static uint32_t s_CmdHistoryPos = 0;
+static void SaveCommandHistory(uint8_t cmd, uint32_t arg)
+{
+    const int historyLen = sizeof(s_CmdHistory) / sizeof(s_CmdHistory[0]);
+
+    CmdHistory_t* p = &s_CmdHistory[s_CmdHistoryPos];
+    p->time = Timer_Get(0);
+    p->arg = arg;
+    p->cmd = cmd;
+    p->param = 0;
+
+    s_CmdHistoryPos = (s_CmdHistoryPos + 1) & (historyLen - 1);
+}
+static void AddParamToPreviousCommand(uint8_t param)
+{
+    const int historyLen = sizeof(s_CmdHistory) / sizeof(s_CmdHistory[0]);
+    uint32_t prev = (s_CmdHistoryPos - 1) & (historyLen - 1);
+    CmdHistory_t* p = &s_CmdHistory[prev];
+    p->param = param;
+}
+
+static void PrintCommandHistory()
+{
+    const int historyLen = sizeof(s_CmdHistory) / sizeof(s_CmdHistory[0]);
+
+    DEBUG(1, "****************************");
+
+    for (int i = 0; i < historyLen; ++i) {
+        uint32_t index = (s_CmdHistoryPos + i) & (historyLen - 1);
+        CmdHistory_t* p = &s_CmdHistory[index];
+
+        if (p->time == 0) {
+            continue;
+        }
+
+        uint32_t timestamp = Timer_Convert(p->time);
+        uint32_t timestamp_s = timestamp / 1000;
+        uint32_t timestamp_fraction = timestamp - timestamp_s * 1000;
+
+        DEBUG(1, "#%02ld : %d.%03d : CMD%d (%02x) (%08lx, %02x)", (historyLen - 1) - i, timestamp_s, timestamp_fraction, (p->cmd & ~0x40), p->cmd, p->arg, p->param);
+    }
+
+    DEBUG(1, "****************************");
+}
+#else
+static void SaveCommandHistory(uint8_t cmd, uint32_t arg) {}
+static void AddParamToPreviousCommand(uint8_t param) {}
+static void PrintCommandHistory() {}
+#endif
+
 // internal functions
-uint8_t MMC_Command(uint8_t cmd, uint32_t arg);
-uint8_t MMC_Command12(void);
-void    MMC_CRC(uint8_t c);
+static uint8_t MMC_Command(uint8_t cmd, uint32_t arg);
+static uint8_t MMC_Command12(void);
+static void    MMC_CRC(uint8_t c);
 
 uint8_t Card_Detect(void)
 {
@@ -150,6 +215,89 @@ static uint8_t Card_TrySetHighSpeed()
     return resultFunc1 == 0x01;
 }
 
+
+// Helper functions to extract contents from the SDCARD status register bitstreams
+#define GET_VAL(     array, start, end) extractValueFromBitstream(      array, sizeof(array)*8, start, end)
+#define GET_STR(buf, array, start, end) extractStringFromBitstream(buf, array, sizeof(array)*8, start, end)
+
+static uint32_t extractValueFromBitstream(const uint8_t* buffer, uint32_t buffer_length, uint32_t bit_start, uint32_t bit_end)
+{
+    Assert(buffer_length >= bit_start);
+    Assert(buffer_length >= bit_end);
+    Assert(bit_start >= bit_end);
+
+    uint32_t value = 0x0;
+    uint32_t bit_length = bit_start - bit_end + 1;
+
+    uint32_t byte_offset = (buffer_length - bit_end - 1) >> 3;
+    bit_end &= 0x7;
+
+    value |= buffer[byte_offset--] >> bit_end;
+    bit_end = (8 - bit_end);
+
+    for (int32_t bits_left = bit_length - bit_end; bits_left > 0; bits_left -= 8) {
+        value |= buffer[byte_offset--] << bit_end;
+        bit_end += 8;
+    }
+
+    value &= (1 << bit_length) - 1;
+    return value;
+}
+
+static const char* extractStringFromBitstream(char* out, const uint8_t* buffer, uint32_t buffer_length, uint32_t bit_start, uint32_t bit_end)
+{
+    const uint32_t str_bits = bit_start - bit_end + 1;
+
+    Assert((str_bits & 0x7) == 0x00);
+
+    for (uint32_t i = 0; i < str_bits; i += 8) {
+        uint32_t start = bit_start - i;
+        uint32_t end = start - 7;
+        out[i >> 3] = extractValueFromBitstream(buffer, buffer_length, start, end );
+    }
+
+    out[str_bits >> 3] = 0;
+    return out;
+}
+
+static void ReadCID()
+{
+    SPI_EnableCard();
+
+    if (MMC_Command(CMD10, 0)) {
+        WARNING("SPI:Card_Init CMD10 (SEND_CID) failed!");
+        SPI_DisableCard();
+        return;
+    }
+
+    timeout = Timer_Get(250);      // timeout
+
+    while (rSPI(0xFF) != 0xFE) {
+        if (Timer_Check(timeout)) {
+            WARNING("SPI:Card_CMD10 - no data token!");
+            SPI_DisableCard();
+            return;
+        }
+    }
+
+    uint8_t cid[128 / 8];
+    char buf[8];
+
+    for (int i = 0; i < sizeof(cid); ++i) {
+        cid[i] = rSPI(0xff);
+    }
+
+    DEBUG(1, "CID:MID = %02x",         GET_VAL(     cid, 127, 120));
+    DEBUG(1, "CID:OID = %s",           GET_STR(buf, cid, 119, 104));
+    DEBUG(1, "CID:PNM = %s",           GET_STR(buf, cid, 103,  64));
+    DEBUG(1, "CID:PRV = %02x",         GET_VAL(     cid,  63,  56));
+    DEBUG(1, "CID:PSN = %08x",         GET_VAL(     cid,  55,  24));
+    DEBUG(1, "CID:MDT = %d-%d", 2000 + GET_VAL(     cid,  19,  12), GET_VAL(cid, 11, 8));
+    DEBUG(1, "CID:CRC = %02x",         GET_VAL(     cid,   7,   1));
+
+    SPI_DisableCard();
+}
+
 uint8_t Card_TryInit(void)
 {
     uint8_t n;
@@ -189,6 +337,11 @@ uint8_t Card_TryInit(void)
                         // CMD55 must precede any ACMD command
                         if (MMC_Command(CMD41, 1 << 30) == 0x00) { // ACMD41 with HCS bit
                             // initialization completed
+                            //
+                            if (MMC_Command(CMD55, 0) == 0x00 && MMC_Command(CMD42, 0) == 0x00) {
+                                DEBUG(1, "CARD:Internal pull-up disabled");
+                            }
+
                             if (MMC_Command(CMD58, 0) == 0x00) {
                                 // check CCS (Card Capacity Status) bit in the OCR
                                 for (n = 0; n < 4; n++) {
@@ -300,6 +453,7 @@ uint8_t Card_Init(void)
         card_type = Card_TryInit();
 
         if (card_type != (CARDTYPE_NONE)) {
+            ReadCID();
             return card_type;
         }
 
@@ -375,9 +529,85 @@ uint64_t Card_GetCapacity(void)
     return capacity;
 }
 
+static uint8_t Card_WaitXfer()
+{
+    timeout = Timer_Get(500);      // timeout
+
+    while (rSPI(0xFF) == 0x00) {
+        if (Timer_Check(timeout)) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static uint8_t Card_GetStatus()
+{
+    if (MMC_Command(CMD13, 0)) {
+        WARNING("SPI:Card_CMD13 - invalid response 0x%02X", response);
+        return FALSE;
+    }
+
+    // R2 response
+    uint8_t byte1 = response;   // R1
+    uint8_t byte2 = rSPI(0xff);
+
+    if (byte2 != 0x00) {
+        WARNING("SPI:Card_CMD13 - Error %02x.%02x", byte1, byte2);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+// Ok, this is a bit of a nuclear option; bear with me:
+// After hours of debugging I've finally managed to isolate repro steps to
+// completely crash the SDCARD (So far only repro'ed with SDXC type cards).
+//
+// In short - when repeatedly issuing consecutive WRITE+READ (i.e. a verified write)
+// for a prolonged time (say 100s of MBs), without any interruptions, the card
+// will sooner or later 'give up' and never return from its busy state.
+//
+// Repro steps:
+//   1) WRITE 16 blocks @ LBA+00
+//   2) WRITE  2 blocks @ LBA+16
+//   3)  READ  7 blocks @ LBA+00
+//   4)  READ  7 blocks @ LBA+07
+//   5)  READ  2 blocks @ LBA+14
+//   6)  READ  2 blocks @ LBA+16
+//   7)   LBA = LBA + 18
+//   8) GOTO 1
+//
+// The READs are important; only writing will not trigger this.
+// And seemingly reading back the blocks just written causes this behavior.
+//
+// So, after experimenting with a few different techniques I eventually settled on
+// simply issuing a dummy read of block 0, every time we move from a READ state to
+// a WRITE state, and vice versa.
+// It hurts performance a little bit, but really only for READ/WRITE operations (copy/format).
+
+static void Card_TriggerFillRead(void)
+{
+    uint8_t dummy[512];
+    Card_ReadM(dummy, 0, 1, NULL);
+}
+
+static FF_T_SINT32 SignalError(FF_T_SINT32 err)
+{
+    // IO_ClearOutputData(PIN_CARD_DAT1);
+    PrintCommandHistory();
+    return err;
+}
 
 FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam)
 {
+    if (writeStateActive) {
+        writeStateActive = FALSE;
+
+        Card_TriggerFillRead();
+    }
+
     // if pReadBuffer is NULL then use direct to the FPGA transfer mode (FPGA2 asserted)
 
     uint32_t sectorCount = numSectors;
@@ -386,6 +616,12 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
     DEBUG(3, "SPI:Card_ReadM(%08x, %lu, %lu, %08x)", pBuffer, sector, numSectors, pParam);
 
     SPI_EnableCard();
+
+    if (!Card_WaitXfer()) {
+        WARNING("SPI:Card_ReadM - WaitXfer timeout! (lba=%lu, %ld sectors)", sector, numSectors);
+        SPI_DisableCard();
+        return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
+    }
 
     if (cardType != CARDTYPE_SDHC) { // SDHC cards are addressed in sectors not bytes
         sector = sector << 9;    // calculate byte address
@@ -396,7 +632,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         if (MMC_Command(CMD17, sector)) {
             WARNING("SPI:Card_ReadM CMD17 - invalid response 0x%02X (lba=%lu)", response, sector);
             SPI_DisableCard();
-            return (FF_ERR_DEVICE_DRIVER_FAILED);
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
 
     } else {
@@ -404,9 +640,11 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         if (MMC_Command(CMD18, sector)) {
             WARNING("SPI:Card_ReadM CMD18 - invalid response 0x%02X (lba=%lu)", response, sector);
             SPI_DisableCard();
-            return (FF_ERR_DEVICE_DRIVER_FAILED);
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
     }
+
+    AddParamToPreviousCommand(numSectors);
 
     while (sectorCount--) {
 
@@ -416,7 +654,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
             if (Timer_Check(timeout)) {
                 WARNING("SPI:Card_ReadM - no data token! (lba=%lu)", sector);
                 SPI_DisableCard();
-                return (FF_ERR_DEVICE_DRIVER_FAILED);
+                return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
             }
         }
 
@@ -476,7 +714,7 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
                 }
 
                 SPI_DisableCard();
-                return (FF_ERR_DEVICE_DRIVER_FAILED);
+                return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
             }
         };
 
@@ -525,53 +763,124 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
         MMC_Command12(); // stop multi block transmission
     }
 
+    if (!Card_GetStatus()) {
+        WARNING("SPI:Card_ReadM - SEND_STATUS error! (lba=%lu, %ld sectors)", sector, numSectors);
+        SPI_DisableCard();
+        return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
+    }
+
     SPI_DisableCard();
     return (FF_ERR_NONE);
 }
 
 FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numSectors, void* pParam)
 {
+    if (!writeStateActive) {
+        Card_TriggerFillRead();
+        writeStateActive = TRUE;
+    }
+
     DEBUG(3, "SPI:Card_WriteM(%08x, %lu, %lu, %08x)", pBuffer, sector, numSectors, pParam);
 
-    const uint32_t sectorEnd = sector + numSectors;
-    uint32_t offset;
+    uint32_t sectorCount = numSectors;
+
     SPI_EnableCard();
 
-    // to do : optimise for multi-block write
+    if (!Card_WaitXfer()) {
+        WARNING("SPI:Card_WriteM - WaitXfer timeout! (lba=%lu, %ld sectors)", sector, numSectors);
+        SPI_DisableCard();
+        return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
+    }
 
-    for (; sector < sectorEnd; ++sector) {
 
-        if (cardType != CARDTYPE_SDHC) { // SDHC cards are addressed in sectors not bytes
-            offset = sector << 9;    // calculate byte address
+    if (cardType != CARDTYPE_SDHC) { // SDHC cards are addressed in sectors not bytes
+        sector = sector << 9;    // calculate byte address
 
-        } else {
-            offset = sector;
-        }
+    }
 
-        if (MMC_Command(CMD24, offset)) {
+    if (numSectors == 1) {
+        // single sector
+        if (MMC_Command(CMD24, sector)) {
             WARNING("SPI:Card_WriteM CMD24 - invalid response 0x%02X (lba=%lu)", response, sector);
             SPI_DisableCard();
-            return (FF_ERR_DEVICE_DRIVER_FAILED);
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
 
-        rSPI(0xFF); // one byte gap
-        rSPI(0xFE); // send Data Token
+    } else {
+        // multiple sectors
+        if ( cardType != CARDTYPE_MMC) {
+            if (MMC_Command(CMD55, 0)) {
+                WARNING("SPI:Card_WriteM CMD55 - invalid response 0x%02X", response);
+                SPI_DisableCard();
+                return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
+            }
+        }
 
-#if defined(ARDUINO_SAMD_MKRVIDOR4000)
+        if (MMC_Command(CMD23, numSectors)) {
+            WARNING("SPI:Card_WriteM CMD23 - invalid response 0x%02X (numSectors=%lu)", response, numSectors);
+            SPI_DisableCard();
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
+        }
+
+        if (MMC_Command(CMD25, sector)) {
+            WARNING("SPI:Card_WriteM CMD25 - invalid response 0x%02X (lba=%lu)", response, sector);
+            SPI_DisableCard();
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
+        }
+    }
+
+    AddParamToPreviousCommand(numSectors);
+
+    while (sectorCount--) {
+        rSPI(0xFF); // one byte gap
+        rSPI(numSectors == 1 ? 0xFE : 0xFC); // send Data Token
+
+#if defined(AT91SAM7S256)
+
+        Assert((AT91C_BASE_SPI->SPI_PTSR & (AT91C_PDC_TXTEN | AT91C_PDC_RXTEN)) == 0);
+
+        AT91C_BASE_SPI->SPI_TPR  = (uint32_t) pBuffer;
+        AT91C_BASE_SPI->SPI_TCR  = 512;
+        AT91C_BASE_SPI->SPI_TNCR = 0;
+
+        AT91C_BASE_SPI->SPI_RPR  = (uint32_t) 0x00102000;   // just sink the data into the .text (ROM)
+        AT91C_BASE_SPI->SPI_RCR  = 512;
+        AT91C_BASE_SPI->SPI_RNCR = 0;
+        AT91C_BASE_SPI->SPI_PTCR = AT91C_PDC_TXTEN | AT91C_PDC_RXTEN; // start DMA transfer
+        uint32_t dma_end         = AT91C_SPI_ENDTX | AT91C_SPI_ENDRX;
+
+        // wait for tranfer end
+        timeout = Timer_Get(100);      // 100 ms timeout
+
+        while ( (AT91C_BASE_SPI->SPI_SR & dma_end) != dma_end) {
+
+            if (Timer_Check(timeout)) {
+                WARNING("SPI:Card_WriteM DMA Timeout! (lba=%lu)", sector);
+
+                AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
+                // AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
+
+                SPI_DisableCard();
+                return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
+            }
+        };
+
+        AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
+
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
 
         void SPI_DMA(const void* out, void* in, uint16_t length);
 
         SPI_DMA(pBuffer, NULL, 512);
-        pBuffer+=512;
 
 #else
-
-        // send sector bytes TO DO -- DMA
-        for (offset = 0; offset < 512; offset++) {
-            rSPI(*(pBuffer++));
+        for (uint32_t offset = 0; offset < 512; offset++) {
+            rSPI(pBuffer[offset]);
         }
 
 #endif
+
+        pBuffer += 512;    // point to next sector
 
         // calc CRC????
         rSPI(0xFF); // send CRC lo byte
@@ -587,20 +896,31 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
         if (response != 0x05) {
             WARNING("SPI:Card_WriteM - invalid status 0x%02X (lba=%lu)", response, sector);
             SPI_DisableCard();
-            return (FF_ERR_DEVICE_DRIVER_FAILED);
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
 
-        timeout = Timer_Get(500);      // timeout
-
-        while (rSPI(0xFF) == 0x00) {
-            if (Timer_Check(timeout)) {
-                WARNING("SPI:Card_WriteM - busy write timeout! (lba=%lu)", sector);
-                SPI_DisableCard();
-                return (FF_ERR_DEVICE_DRIVER_FAILED);
-            }
+        if (!Card_WaitXfer()) {
+            WARNING("SPI:Card_WriteM - Loop timeout! (lba=%lu, %ld sectors)", sector, numSectors);
+            SPI_DisableCard();
+            return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
         }
 
         // sector loop
+    }
+
+    rSPI(numSectors == 1 ? 0xFF : 0xFD); // send Data Stop Token
+    rSPI(0xFF); // one byte gap
+
+    if (!Card_WaitXfer()) {
+        WARNING("SPI:Card_WriteM - Done timeout! (lba=%lu, %ld sectors)", sector, numSectors);
+        SPI_DisableCard();
+        return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
+    }
+
+    if (!Card_GetStatus()) {
+        WARNING("SPI:Card_WriteM - SEND_STATUS error! (lba=%lu, %ld sectors)", sector, numSectors);
+        SPI_DisableCard();
+        return SignalError(FF_ERR_DEVICE_DRIVER_FAILED);
     }
 
     SPI_DisableCard();
@@ -612,6 +932,8 @@ uint8_t MMC_Command(uint8_t cmd, uint32_t arg)
     uint8_t c;
     /*flush SPI-bus*/
     uint8_t attempts = 100;
+
+    SaveCommandHistory(cmd, arg);
 
     do {
         response = rSPI(0xFF); // get response
@@ -648,7 +970,7 @@ uint8_t MMC_Command(uint8_t cmd, uint32_t arg)
     return response;
 }
 
-uint8_t MMC_Command12(void)
+static uint8_t MMC_Command12(void)
 {
     // WORKAROUND for no compliance card (Atmel Internal ref. !MMC7 !SD19):
     // The errors on this command must be ignored
@@ -662,7 +984,6 @@ uint8_t MMC_Command12(void)
     while (rSPI(0xFF) != 0xFF) {// wait until the card is not busy
         if (Timer_Check(timeout)) {
             WARNING("SPI:Card_CMD12 (STOP) timeout!");
-            SPI_DisableCard();
             return (0);
         }
     }

@@ -121,7 +121,7 @@ void MSG_fatal_error(uint8_t error)
 
 }
 
-void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, const char* fmt, ...)
+void MSG_output(MsgType_t type, const char* file, unsigned int line, const char* fmt, ...)
 {
     char s[256]; // take "enough" size here, not to get any overflow problems...
     char* sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
@@ -135,107 +135,53 @@ void MSG_debug(uint8_t do_osd, const char* file, unsigned int line, const char* 
     _MSG_putcp(&sp, 0);
     va_end(argptr);
 
+    static const char* typeStr[] = {
+        "DEBUG",    // MSG_TYPE_DEBUG
+        "INFO",     // MSG_TYPE_INFO
+        "WARN",     // MSG_TYPE_WARN
+        "ERR",      // MSG_TYPE_ERR
+    };
+
+    const char* prefix = (MSG_TYPE_DEBUG <= type && type <= MSG_TYPE_ERR) ? typeStr[type] : "";
+
     // print on USART including CR/LF if enabled
     if (msg_serial) {
-        printf("%d.%03d: [%s:%d] %s\r\n", timestamp_s, timestamp_fraction, file, line, s);
+        if (file && line) {
+            printf("%d.%03d: [%s:%d] %s\r\n", timestamp_s, timestamp_fraction, file, line, s);
+
+        } else {
+            printf("%d.%03d: [%s] %s\r\n", timestamp_s, timestamp_fraction, prefix, s);
+        }
     }
 
     // optional OSD print (check also for set up of required status structure)
-    if (do_osd && msg_status) {
-        _MSG_to_osd(s, 'D');
-    }
-}
-
-void MSG_info(const char* fmt, ...)
-{
-    char s[256]; // take "enough" size here, not to get any overflow problems...
-    char* sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
-
-    // process initial printf (nearly) w/o size limit...
-    va_list argptr;
-    va_start(argptr, fmt);
-    //sprintf(s,fmt,argptr);
-    tfp_format(&sp, _MSG_putcp, fmt, argptr);
-    _MSG_putcp(&sp, 0);
-    va_end(argptr);
-
-    // print on USART including CR/LF if enabled
-    if (msg_serial) {
-        printf("INFO: %s\r\n", s);
-    }
-
-    // if the status structure pointer is set (OSD available), print it there
     if (msg_status) {
-        _MSG_to_osd(s, 'I');
+        if (type == MSG_TYPE_ERR) {
+            // if the status structure pointer is set (OSD available), print it there
+
+            MENU_init_ui(msg_status);
+
+            OSD_Reset(0);
+            Timer_Wait(100);
+
+            WARNING("Error during core boot");
+            WARNING("Check the .ini file");
+            _MSG_to_osd(s, 'E');
+
+            MENU_set_state(msg_status, SHOW_STATUS);
+            msg_status->update = 1;
+
+            MENU_handle_ui(0, msg_status);
+
+            OSD_Enable(DISABLE_KEYBOARD);
+
+        } else if (type != MSG_TYPE_DEBUG) {
+            _MSG_to_osd(s, prefix[0]);
+        }
     }
 }
 
-void MSG_warning(const char* fmt, ...)
-{
-    char s[256]; // take "enough" size here, not to get any overflow problems...
-    char* sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
-
-    // process initial printf (nearly) w/o size limit...
-    va_list argptr;
-    va_start(argptr, fmt);
-    //sprintf(s,fmt,argptr);
-    tfp_format(&sp, _MSG_putcp, fmt, argptr);
-    _MSG_putcp(&sp, 0);
-    va_end(argptr);
-
-    // print on USART including CR/LF if enabled
-    if (msg_serial) {
-        printf("WARN: %s\r\n", s);
-    }
-
-    // if the status structure pointer is set (OSD available), print it there
-    if (msg_status) {
-        _MSG_to_osd(s, 'W');
-    }
-}
-
-
-void MSG_error(const char* fmt, ...)
-{
-    char s[256]; // take "enough" size here, not to get any overflow problems...
-    char* sp = &(s[0]);  // _MSG_putcp needs a pointer to the string...
-    //int i;
-
-    // process initial printf (nearly) w/o size limit...
-    va_list argptr;
-    va_start(argptr, fmt);
-    //sprintf(s,fmt,argptr);
-    tfp_format(&sp, _MSG_putcp, fmt, argptr);
-    _MSG_putcp(&sp, 0);
-    va_end(argptr);
-
-    // print on USART including CR/LF if enabled
-    if (msg_serial) {
-        printf("ERR:  %s\r\n", s);
-    }
-
-    if (msg_status) {
-        // if the status structure pointer is set (OSD available), print it there
-
-        MENU_init_ui(msg_status);
-
-        OSD_Reset(0);
-        Timer_Wait(100);
-
-        WARNING("Error during core boot");
-        WARNING("Check the .ini file");
-        _MSG_to_osd(s, 'E');
-
-        MENU_set_state(msg_status, SHOW_STATUS);
-        msg_status->update = 1;
-
-        MENU_handle_ui(0, msg_status);
-
-        OSD_Enable(DISABLE_KEYBOARD);
-    }
-}
-
-#ifdef ASSERT
+#if ASSERT_ENABLED
 
 void AssertionFailure(const char* exp, const char* file, const char* baseFile, int line)
 {
@@ -249,7 +195,7 @@ void AssertionFailure(const char* exp, const char* file, const char* baseFile, i
                                    exp, file, baseFile, line);
     }
 
-    MSG_error("Assert(%s) failed", exp);
+    ERROR("Assert(%s) failed", exp);
 }
 
 #endif

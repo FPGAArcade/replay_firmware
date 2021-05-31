@@ -91,6 +91,8 @@ uint8_t FPGA_Default(void) // embedded in FW, something to start with
     extern void JTAG_StartEmbeddedCore();
     JTAG_StartEmbeddedCore();
     return 0;
+#elif defined(HOSTED)
+    return 0;
 #endif
 
 #ifdef FPGA_DISABLE_EMBEDDED_CORE

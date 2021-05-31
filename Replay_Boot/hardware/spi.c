@@ -16,6 +16,7 @@
 
 #include "board.h"
 #include "messaging.h"
+#include "hardware/io.h"
 #include "hardware/spi.h"
 #include "hardware/timer.h"
 
@@ -121,6 +122,7 @@ inline void SPI_Wait4XferEnd(void)
 
 inline void SPI_EnableCard(void)
 {
+    ACTLED_ON;
     AT91C_BASE_PIOA->PIO_CODR = PIN_CARD_CS_L;
 }
 
@@ -130,6 +132,7 @@ void SPI_DisableCard(void)
     AT91C_BASE_PIOA->PIO_SODR = PIN_CARD_CS_L;
     rSPI(0xFF);
     SPI_Wait4XferEnd();
+    ACTLED_OFF;
 }
 
 inline void SPI_EnableFileIO(void)

@@ -566,7 +566,7 @@ void FileIO_FCh_Process(uint8_t ch)
                 break;
 
             default :
-                MSG_warning("FCh:Unknown driver");
+                WARNING("FCh:Unknown driver");
         }
     }
 }
@@ -608,6 +608,7 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char* path)
     pDrive->name[0] = '\0';
 
     pDrive->fSource = NULL;
+    pDrive->pDesc = NULL;
 
     char* pSpecial = strchr(path, '?');
 
@@ -659,6 +660,8 @@ void FileIO_FCh_Insert(uint8_t ch, uint8_t drive_number, char* path)
 
     if (fail) {
         FF_Close(pDrive->fSource);
+        if (pDrive->pDesc)
+            free(pDrive->pDesc);
         return;
     }
 

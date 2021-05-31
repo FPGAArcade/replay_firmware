@@ -565,6 +565,9 @@ FF_ERROR FF_Seek(FF_FILE* pFile, int64_t Offset, FF_T_INT8 Origin)
         Offset += f_size((FIL*)pFile);
     }
 
+    if (Offset == f_tell((FIL*)pFile))
+        return mapError(FR_OK);
+
     return mapError(f_lseek((FIL*)pFile, Offset));
 }
 // FF_T_SINT32      FF_PutC                (FF_FILE *pFile, FF_T_UINT8 Value);

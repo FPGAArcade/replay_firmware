@@ -156,6 +156,9 @@ uint8_t Card_Detect(void)
 
     cardDetected = successful_resets == num_attempts;
 
+    // Should revert back to full speed here, but creates ping-pong when no card is available
+    // SPI_SetFreq25MHz();
+
     return cardDetected;
 }
 
@@ -456,6 +459,7 @@ uint8_t Card_Init(void)
 
         WARNING("SPI:Card_Init:Attempt %d failed!", i);
         Timer_Wait(100); // FIXME: Dunno what's reasonable..
+        cardDetected = FALSE;       // let's restart card detection..
     }
 
     return (CARDTYPE_NONE);
@@ -718,6 +722,12 @@ FF_T_SINT32 Card_ReadM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 numS
 
         // AT91C_BASE_PIOA->PIO_PDR  = PIN_CARD_MOSI; // disable GPIO function*/
 
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+
+        void SPI_DMA(const void* out, void* in, uint16_t length);
+
+        SPI_DMA(dma_buffer, pBuffer, 512);
+
 #else
         (void) dma_end;
 
@@ -856,6 +866,12 @@ FF_T_SINT32 Card_WriteM(FF_T_UINT8* pBuffer, FF_T_UINT32 sector, FF_T_UINT32 num
         };
 
         AT91C_BASE_SPI ->SPI_PTCR = AT91C_PDC_RXTDIS | AT91C_PDC_TXTDIS; // disable transmitter and receiver*/
+
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+
+        void SPI_DMA(const void* out, void* in, uint16_t length);
+
+        SPI_DMA(pBuffer, NULL, 512);
 
 #else
         for (uint32_t offset = 0; offset < 512; offset++) {

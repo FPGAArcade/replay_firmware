@@ -15,6 +15,8 @@
  */
 
 #pragma once
+#ifndef FULLFAT_WRAPPER_H
+#define FULLFAT_WRAPPER_H
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -176,3 +178,5 @@ FF_ERROR         FF_FindFirst          (FF_IOMAN* pIoman, FF_DIRENT* pDirent, co
 FF_ERROR         FF_FindNext           (FF_IOMAN* pIoman, FF_DIRENT* pDirent);
 FF_ERROR         FF_MkDirTree          (FF_IOMAN* pIoman, const FF_T_INT8* Path);
 FF_T_UINT32      FF_getClusterChainNumber(FF_IOMAN* pIoman, FF_T_UINT32 nEntry, FF_T_UINT16 nEntrySize);
+
+#endif // FULLFAT_WRAPPER_H

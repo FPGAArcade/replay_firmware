@@ -132,6 +132,8 @@ else
   echo -e "${ORANGE}CACHED ${PASS_MSG}"
 fi
 
+cp "platform.local.txt" "$ARDUINO_PATH/portable/packages/arduino/hardware/samd/${ARDUINO_BOARD_VERSION}"
+
 echo -e "${LGRAY}\n########################################################################";
 echo -e "${YELLOW}DONE!"
 echo -e "${LGRAY}########################################################################";

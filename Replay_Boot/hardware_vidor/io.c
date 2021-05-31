@@ -112,13 +112,33 @@ void IO_Init(void)
     digitalWrite(PIN_FPGA_RST_L, HIGH);
 
     attachInterrupt(PIN_CONF_DOUT, ISR_VerticalBlank, FALLING);
+
+    // NINA
+    pinMode(PIN_NINA_GPIO0, INPUT);
+    pinMode(PIN_NINA_RDY_L, INPUT);
+    pinMode(PIN_NINA_RST_L, OUTPUT);
+    digitalWrite(PIN_NINA_RST_L, LOW);  // keep NINA held in reset
+
+    pinMode(PIN_FPGA_CTRL1, OUTPUT);
+    pinMode(PIN_FPGA_CTRL0, OUTPUT);
 }
 
+unsigned int PINCOUNT_fn();
 void IO_ClearOutputData_(uint32_t pins, const char* pin_names)
 {
-    DEBUG(3, "%s : %08x (%s)", __FUNCTION__, pins, pin_names);
+    if (pins < PINCOUNT_fn()) {
+        digitalWrite(pins, LOW);
+
+    } else {
+        DEBUG(0, "UNSUPPORTED! %s(%s)", __FUNCTION__, pin_names);
+    }
 }
 void IO_SetOutputData_(uint32_t pins, const char* pin_names)
 {
-    DEBUG(3, "%s : %08x (%s)", __FUNCTION__, pins, pin_names);
+    if (pins < PINCOUNT_fn()) {
+        digitalWrite(pins, HIGH);
+
+    } else {
+        DEBUG(0, "UNSUPPORTED! %s(%s)", __FUNCTION__, pin_names);
+    }
 }

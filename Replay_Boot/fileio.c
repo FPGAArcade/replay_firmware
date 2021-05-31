@@ -546,8 +546,6 @@ void FileIO_FCh_Process(uint8_t ch)
     uint8_t status = FileIO_FCh_GetStat(ch);
 
     if (status & FILEIO_REQ_ACT) {
-        ACTLED_ON;
-
         // do stuff
         // note, the array is just a pointer passed ...
         switch (fch_driver[ch]) {
@@ -570,8 +568,6 @@ void FileIO_FCh_Process(uint8_t ch)
             default :
                 WARNING("FCh:Unknown driver");
         }
-
-        ACTLED_OFF;
     }
 }
 

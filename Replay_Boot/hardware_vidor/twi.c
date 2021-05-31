@@ -20,8 +20,8 @@
 #include "../hardware/timer.h"
 #include "../messaging.h"
 
-static uint8_t offset = 0;
-static uint8_t memory[256];
+static uint8_t twi_offset = 0;
+static uint8_t twi_memory[256];
 
 void TWI_Configure(void)
 {
@@ -29,53 +29,53 @@ void TWI_Configure(void)
 
 void TWI_Stop(void)
 {
-    printf("%s - ", __FUNCTION__);
+    DEBUG(2, "%s - ", __FUNCTION__);
 }
 
 uint8_t TWI_ReadByte(void)
 {
-    printf("%s - ", __FUNCTION__);
-    return memory[offset];
+    DEBUG(2, "%s - ", __FUNCTION__);
+    return twi_memory[twi_offset];
 }
 
 void TWI_WriteByte(uint8_t byte)
 {
-    printf("%s %02X - ", __FUNCTION__, byte);
-    memory[offset] = byte;
+    DEBUG(2, "%s %02X - ", __FUNCTION__, byte);
+    twi_memory[twi_offset] = byte;
 }
 
 uint8_t TWI_ByteReceived(void)
 {
-    printf("%s - ", __FUNCTION__);
+    DEBUG(2, "%s - ", __FUNCTION__);
     return 1;
 }
 
 uint8_t TWI_ByteSent(void)
 {
-    printf("%s - ", __FUNCTION__);
+    DEBUG(2, "%s - ", __FUNCTION__);
     return 1;
 }
 
 uint8_t TWI_TransferComplete(void)
 {
-    printf("%s\r\n", __FUNCTION__);
+    DEBUG(2, "%s\r\n", __FUNCTION__);
     return 1;
 }
 
 void TWI_StartRead(uint8_t DevAddr, uint8_t IntAddrSize, uint16_t IntAddr)
 {
-    printf("%s  %02x %02x %04x    - ", __FUNCTION__, DevAddr, IntAddrSize, IntAddr);
+    DEBUG(2, "%s  %02x %02x %04x    - ", __FUNCTION__, DevAddr, IntAddrSize, IntAddr);
 }
 
 void TWI_StartWrite(uint8_t DevAddr, uint8_t IntAddrSize, uint16_t IntAddr, uint8_t WriteData)
 {
-    printf("%s %02x %02x %04x %02x - ", __FUNCTION__, DevAddr, IntAddrSize, IntAddr, WriteData);
+    DEBUG(2, "%s %02x %02x %04x %02x - ", __FUNCTION__, DevAddr, IntAddrSize, IntAddr, WriteData);
 
     if (IntAddr) {
-        offset = IntAddr;
-        memory[offset] = WriteData;
+        twi_offset = IntAddr;
+        twi_memory[twi_offset] = WriteData;
 
     } else {
-        offset = WriteData;
+        twi_offset = WriteData;
     }
 }

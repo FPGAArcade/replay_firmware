@@ -71,8 +71,6 @@ extern char __StackTop[];
 */
 extern FF_IOMAN* pIoman;
 
-extern const char* version;  // temp
-
 // y0 - FPGA DRAM
 // y1 - Coder
 // y2 - FPGA aux/sys clk
@@ -171,6 +169,17 @@ void CFG_call_bootloader(void)
 #if defined(HOSTED)
     raise(SIGINT);
     return;
+#elif defined(ARDUINO_SAMD_MKRVIDOR4000)
+    // starve the watchdog.. woof!
+    WDT->CONFIG.reg = 0;
+    WDT->EWCTRL.reg = 0;
+    WDT->CTRL.bit.ENABLE = 1;
+    WDT->CLEAR.reg = 0xff;
+
+    while (1) {
+        Timer_Wait(200);
+    }
+
 #endif
     int i;
 
@@ -265,6 +274,10 @@ void CFG_card_start(status_t* current_status)
         {
             return;
         }
+
+        DEBUG(1, "card_init_ok  : %s", current_status->card_init_ok ? "TRUE" : "FALSE");
+        DEBUG(1, "fs_mounted_ok : %s", current_status->fs_mounted_ok ? "TRUE" : "FALSE");
+        DEBUG(1, "usb_mounted   : %s", current_status->usb_mounted ? "TRUE" : "FALSE");
 
         if (Card_Init()) { // true is non zero
             DEBUG(1, "Card Init OK.");
@@ -1449,35 +1462,8 @@ static uint8_t _CFG_handle_MENU_TITLE(status_t* pStatus, const ini_symbols_t nam
         DEBUG(3, "T1: %lx %lx %lx ", pStatus->menu_act,
               pStatus->menu_top ? pStatus->menu_act->next : 0, pStatus->menu_top ? pStatus->menu_act->item_list : 0);
 
-        // we filled this menu branch already with items
-        if (pStatus->menu_top) {   // add further entry
-            // prepare next level and set pointers correctly
-            pStatus->menu_act->next = malloc(sizeof(menu_t));
-            // link back
-            pStatus->menu_act->next->last = pStatus->menu_act;
-            // step in linked list
-            pStatus->menu_act = pStatus->menu_act->next;
-
-        } else {                   // first top entry
-            // prepare top level
-            pStatus->menu_act = malloc(sizeof(menu_t));
-            pStatus->menu_act->last = NULL;
-            // set top level
-            pStatus->menu_top = pStatus->menu_act;
-        }
-
-        pStatus->menu_act->next = NULL;
-        pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
-        pStatus->menu_item_act = pStatus->menu_act->item_list;
-        pStatus->menu_item_act->item_name[0] = 0;
-        pStatus->menu_item_act->next = NULL;
-        pStatus->menu_item_act->last = NULL;
-        pStatus->menu_item_act->option_list = NULL;
-        pStatus->menu_item_act->selected_option = NULL;
-        pStatus->menu_item_act->action_name[0] = 0;
-        // store title to actual branch
-        strncpy(pStatus->menu_act->menu_title,
-                valueList[0].strval, MAX_MENU_STRING);
+        CFG_alloc_menu_and_set_active(pStatus, valueList[0].strval);
+        CFG_alloc_menuitem_and_set_active(pStatus);
 
         DEBUG(3, "T2: %lx %lx %lx ", pStatus->menu_act,
               pStatus->menu_act->next, pStatus->menu_act->item_list);
@@ -1502,19 +1488,12 @@ static uint8_t _CFG_handle_MENU_ITEM(status_t* pStatus, const ini_symbols_t name
         // item string is set, so this is a new item
         // (happens with all but the seed item entry of a menu)
         if (pStatus->menu_item_act->item_name[0]) {
-            pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-            // link back
-            pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-            // step in linked list
-            pStatus->menu_item_act = pStatus->menu_item_act->next;
+            CFG_alloc_menuitem_and_set_active(pStatus);
         }
 
         // basic settings
-        pStatus->menu_item_act->next = NULL;
-        pStatus->menu_item_act->option_list = NULL;
-        pStatus->menu_item_act->selected_option = NULL;
         pStatus->menu_item_act->conf_dynamic = 1;
-        pStatus->menu_item_act->action_name[0] = 0;
+
         strncpy(pStatus->menu_item_act->item_name,
                 valueList[0].strval, MAX_ITEM_STRING);
 
@@ -1569,11 +1548,8 @@ static uint8_t _CFG_handle_MENU_ITEM(status_t* pStatus, const ini_symbols_t name
             }
         }
 
-        pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-        pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-        pStatus->item_opt_act->next = NULL;
-        pStatus->item_opt_act->last = NULL;
-        pStatus->item_opt_act->option_name[0] = 0;
+        CFG_alloc_itemoption_and_set_active(pStatus);
+
         DEBUG(3, "I2: %lx %lx %lx ", pStatus->menu_item_act,
               pStatus->menu_item_act->next,
               pStatus->menu_item_act->option_list);
@@ -1600,12 +1576,7 @@ static uint8_t _CFG_handle_MENU_OPTION(status_t* pStatus, const ini_symbols_t na
         // option string is set, so we add a new one
         // (happens with all but the seed option entry of a menu item)
         if (pStatus->item_opt_act->option_name[0]) {
-            pStatus->item_opt_act->next = malloc(sizeof(menuitem_t));
-            // link back
-            pStatus->item_opt_act->next->last = pStatus->item_opt_act;
-            // step in linked list
-            pStatus->item_opt_act = pStatus->item_opt_act->next;
-            pStatus->item_opt_act->next = NULL;
+            CFG_alloc_itemoption_and_set_active(pStatus);
         }
 
         pStatus->item_opt_act->conf_value = valueList[1].intval;
@@ -1825,36 +1796,12 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
 #define ROM_MENU_STRING "ROMs"
 
     if (pStatus->menu_act == NULL || (pStatus->menu_act && strcmp(pStatus->menu_act->menu_title, ROM_MENU_STRING))) {
-        if (pStatus->menu_top) {   // add further entry
-            // prepare next level and set pointers correctly
-            pStatus->menu_act->next = malloc(sizeof(menu_t));
-            // link back
-            pStatus->menu_act->next->last = pStatus->menu_act;
-            // step in linked list
-            pStatus->menu_act = pStatus->menu_act->next;
 
-        } else {                   // first top entry
-            // prepare top level
-            pStatus->menu_act = malloc(sizeof(menu_t));
-            pStatus->menu_act->last = NULL;
-            // set top level
-            pStatus->menu_top = pStatus->menu_act;
-        }
+        CFG_alloc_menu_and_set_active(pStatus, ROM_MENU_STRING);
 
-        pStatus->menu_act->next = NULL;
-        strcpy(pStatus->menu_act->menu_title, ROM_MENU_STRING);
-
-        pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
-        pStatus->menu_item_act = pStatus->menu_act->item_list;
-        pStatus->menu_item_act->next = NULL;
-        pStatus->menu_item_act->last = NULL;
-
-    } else {
-        pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-        pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-        pStatus->menu_item_act = pStatus->menu_item_act->next;
-        pStatus->menu_item_act->next = NULL;
     }
+
+    CFG_alloc_menuitem_and_set_active(pStatus);
 
     char buf[16] = { 0 };
     static const char prefixes[] = {' ', 'k', 'M', 'G', '\0'};
@@ -1867,16 +1814,12 @@ static uint8_t _CFG_handle_UPLOAD_ROM(status_t* pStatus, const ini_symbols_t nam
     }
 
     sprintf(pStatus->menu_item_act->item_name, size == 0 ? "%8X" : "%8X/%s", (unsigned int)base, buf);
-    pStatus->menu_item_act->option_list = NULL;
-    pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = format;
     pStatus->menu_item_act->conf_mask = size;
     pStatus->menu_item_act->action_value = base;
     strcpy(pStatus->menu_item_act->action_name, "rom");
-    pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-    pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-    pStatus->item_opt_act->next = NULL;
-    pStatus->item_opt_act->last = NULL;
+
+    CFG_alloc_itemoption_and_set_active(pStatus);
     _strlcpy(pStatus->item_opt_act->option_name, filename, sizeof(pStatus->item_opt_act->option_name));
     pStatus->menu_item_act->selected_option = pStatus->menu_item_act->option_list;
 
@@ -2379,7 +2322,7 @@ uint8_t CFG_init(status_t* currentStatus, const char* iniFile)
     FileIO_FCh_SetDriver(1, currentStatus->fileio_chb_drv); // temp
 
     // for OSD
-    sprintf(currentStatus->status[0], "ARM |FW:%s", version);
+    snprintf(currentStatus->status[0], sizeof(currentStatus->status[0]), "ARM |FW:%s", BUILD_VERSION);
     sprintf(currentStatus->status[1], "FPGA|FW:%04X STAT:%04x IO:%04X",
             config_ver, config_stat, ((config_fileio_drv << 8) | config_fileio_ena));
 
@@ -2437,153 +2380,69 @@ void CFG_add_default(status_t* currentStatus)
 {
     status_t* pStatus = (status_t*) currentStatus;
 
-    // add default menu entry
-    if (pStatus->menu_top) {   // add further entry
-        // prepare next level and set pointers correctly
-        pStatus->menu_act->next = malloc(sizeof(menu_t));
-        // link back
-        pStatus->menu_act->next->last = pStatus->menu_act;
-        // step in linked list
-        pStatus->menu_act = pStatus->menu_act->next;
+    CFG_alloc_menu_and_set_active(pStatus, "Replay Menu");
 
-    } else {                   // first top entry
-        // prepare top level
-        pStatus->menu_act = malloc(sizeof(menu_t));
-        pStatus->menu_act->last = NULL;
-        // set top level
-        pStatus->menu_top = pStatus->menu_act;
-    }
-
-    pStatus->menu_act->next = NULL;
-    strcpy(pStatus->menu_act->menu_title, "Replay Menu");
-
-    pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
-    pStatus->menu_item_act = pStatus->menu_act->item_list;
-    pStatus->menu_item_act->next = NULL;
-    pStatus->menu_item_act->last = NULL;
-
+    CFG_alloc_menuitem_and_set_active(pStatus);
     strcpy(pStatus->menu_item_act->item_name, "Load Target");
     pStatus->menu_item_act->option_list = NULL;
     pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = 0;
     pStatus->menu_item_act->conf_mask = 0;
     strcpy(pStatus->menu_item_act->action_name, "iniselect");
-    pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-    pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-    pStatus->item_opt_act->next = NULL;
-    pStatus->item_opt_act->last = NULL;
-    pStatus->item_opt_act->option_name[0] = 0;
+    CFG_alloc_itemoption_and_set_active(pStatus);
 
-    pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-    pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-    pStatus->menu_item_act = pStatus->menu_item_act->next;
-    pStatus->menu_item_act->next = NULL;
-
+    CFG_alloc_menuitem_and_set_active(pStatus);
     strcpy(pStatus->menu_item_act->item_name, "Reset Target");
     pStatus->menu_item_act->option_list = NULL;
     pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = 0;
     pStatus->menu_item_act->conf_mask = 0;
     strcpy(pStatus->menu_item_act->action_name, "reset");
-    pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-    pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-    pStatus->item_opt_act->next = NULL;
-    pStatus->item_opt_act->last = NULL;
-    pStatus->item_opt_act->option_name[0] = 0;
+    CFG_alloc_itemoption_and_set_active(pStatus);
 
-    /*pStatus->menu_item_act = pStatus->menu_item_act->next;*/
-    /*strcpy(pStatus->menu_item_act->item_name,"Save Config");*/
-    /*pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));*/
-    /*pStatus->menu_item_act->next->last=pStatus->menu_item_act;*/
-    /*pStatus->menu_item_act->option_list=NULL;*/
-    /*pStatus->menu_item_act->selected_option=NULL;*/
-    /*pStatus->menu_item_act->conf_dynamic=0;*/
-    /*pStatus->menu_item_act->conf_mask=0;*/
-    /*strcpy(pStatus->menu_item_act->action_name,"backup");*/
-    /*pStatus->menu_item_act->option_list=malloc(sizeof(itemoption_t));*/
-    /*pStatus->item_opt_act = pStatus->menu_item_act->option_list;*/
-    /*pStatus->item_opt_act->next=NULL;*/
-    /*pStatus->item_opt_act->last=NULL;*/
-    /*pStatus->item_opt_act->option_name[0]=0;*/
-
-    pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-    pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-    pStatus->menu_item_act = pStatus->menu_item_act->next;
-    pStatus->menu_item_act->next = NULL;
-
+    CFG_alloc_menuitem_and_set_active(pStatus);
     strcpy(pStatus->menu_item_act->item_name, "Reboot Board");
     pStatus->menu_item_act->option_list = NULL;
     pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = 0;
     pStatus->menu_item_act->conf_mask = 0;
     strcpy(pStatus->menu_item_act->action_name, "reboot");
-    pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-    pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-    pStatus->item_opt_act->next = NULL;
-    pStatus->item_opt_act->last = NULL;
-    pStatus->item_opt_act->option_name[0] = 0;
+    CFG_alloc_itemoption_and_set_active(pStatus);
 
-    pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-    pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-    pStatus->menu_item_act = pStatus->menu_item_act->next;
-    pStatus->menu_item_act->next = NULL;
-
+    CFG_alloc_menuitem_and_set_active(pStatus);
     strcpy(pStatus->menu_item_act->item_name, "SDCard over USB");
     pStatus->menu_item_act->option_list = NULL;
     pStatus->menu_item_act->selected_option = NULL;
     pStatus->menu_item_act->conf_dynamic = 0;
     pStatus->menu_item_act->conf_mask = 0;
     strcpy(pStatus->menu_item_act->action_name, "mountmsc");
-    pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-    pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-    pStatus->item_opt_act->next = NULL;
-    pStatus->item_opt_act->last = NULL;
-    pStatus->item_opt_act->option_name[0] = 0;
+    CFG_alloc_itemoption_and_set_active(pStatus);
 
     /*
-        pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-        pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-        pStatus->menu_item_act = pStatus->menu_item_act->next;
-        pStatus->menu_item_act->next = NULL;
-
+        CFG_alloc_menuitem_and_set_active(pStatus);
         strcpy(pStatus->menu_item_act->item_name, "Sync MBR & RDB");
         pStatus->menu_item_act->option_list = NULL;
         pStatus->menu_item_act->selected_option = NULL;
         pStatus->menu_item_act->conf_dynamic = 0;
         pStatus->menu_item_act->conf_mask = 0;
         strcpy(pStatus->menu_item_act->action_name, "syncrdb");
-        pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-        pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-        pStatus->item_opt_act->next = NULL;
-        pStatus->item_opt_act->last = NULL;
-        pStatus->item_opt_act->option_name[0] = 0;
+        CFG_alloc_itemoption_and_set_active(pStatus);
     */
     /*
-        pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-        pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-        pStatus->menu_item_act = pStatus->menu_item_act->next;
-        pStatus->menu_item_act->next = NULL;
-
+        CFG_alloc_menuitem_and_set_active(pStatus);
         strcpy(pStatus->menu_item_act->item_name, "Flash ARM FW");
         pStatus->menu_item_act->option_list = NULL;
         pStatus->menu_item_act->selected_option = NULL;
         pStatus->menu_item_act->conf_dynamic = 0;
         pStatus->menu_item_act->conf_mask = 0;
         strcpy(pStatus->menu_item_act->action_name, "flashfw");
-        pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-        pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-        pStatus->item_opt_act->next = NULL;
-        pStatus->item_opt_act->last = NULL;
-        pStatus->item_opt_act->option_name[0] = 0;
+        CFG_alloc_itemoption_and_set_active(pStatus);
     */
     // Add ini_targets - TODO : this should probably go on a separate menu screen..
     for (tIniTarget* it = pStatus->ini_targets; it != NULL; it = it->next) {
         DEBUG(3, "_CFG_add_default: adding ini_target %s", it->name);
 
-        pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
-        pStatus->menu_item_act->next->last = pStatus->menu_item_act;
-        pStatus->menu_item_act = pStatus->menu_item_act->next;
-        pStatus->menu_item_act->next = NULL;
+        CFG_alloc_menuitem_and_set_active(pStatus);
 
         strcpy(pStatus->menu_item_act->item_name, it->name);
 
@@ -2593,16 +2452,11 @@ void CFG_add_default(status_t* currentStatus)
         pStatus->menu_item_act->conf_mask = 0;
         strcpy(pStatus->menu_item_act->action_name, "iniload");
 
-        pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
-
-        pStatus->item_opt_act = pStatus->menu_item_act->option_list;
-        pStatus->item_opt_act->next = it->dir ? malloc(sizeof(itemoption_t)) : NULL;
-        pStatus->item_opt_act->last = NULL;
+        CFG_alloc_itemoption_and_set_active(pStatus);
         strcpy(pStatus->item_opt_act->option_name, it->file);
 
-        if (it->dir != NULL && pStatus->item_opt_act->next != NULL) {
-            pStatus->item_opt_act = pStatus->item_opt_act->next;
-            pStatus->item_opt_act->next = NULL;
+        if (it->dir) {
+            CFG_alloc_itemoption_and_set_active(pStatus);
             pStatus->item_opt_act->last = NULL;
             strcpy(pStatus->item_opt_act->option_name, it->dir);
         }
@@ -2633,6 +2487,88 @@ void CFG_add_default(status_t* currentStatus)
         menu->last = menu->next->last;
         menu->next->last = menu;
     }
+}
+
+menu_t* CFG_alloc_menu_and_set_active(status_t* pStatus, const char* title)
+{
+    static uint32_t num_menus = 0;
+    num_menus++;
+    DEBUG(2, "[alloc_menu] NUM_MENUS = %ld (%ld bytes)", num_menus, num_menus * sizeof(menu_t));
+
+    // we filled this menu branch already with items
+    if (pStatus->menu_top) {   // add further entry
+        // prepare next level and set pointers correctly
+        pStatus->menu_act->next = malloc(sizeof(menu_t));
+        // link back
+        pStatus->menu_act->next->last = pStatus->menu_act;
+        // step in linked list
+        pStatus->menu_act = pStatus->menu_act->next;
+
+    } else {                   // first top entry
+        // prepare top level
+        pStatus->menu_act = malloc(sizeof(menu_t));
+        pStatus->menu_act->last = NULL;
+        // set top level
+        pStatus->menu_top = pStatus->menu_act;
+    }
+
+    pStatus->menu_act->next = NULL;
+    pStatus->menu_act->item_list = NULL;
+    pStatus->menu_item_act = NULL;
+
+    // store title to actual branch
+    strncpy(pStatus->menu_act->menu_title, title, MAX_MENU_STRING);
+
+    return pStatus->menu_act;
+}
+
+menuitem_t* CFG_alloc_menuitem_and_set_active(status_t* pStatus)
+{
+    static uint32_t num_items = 0;
+    num_items++;
+    DEBUG(2, "[alloc_menuitem] NUM_ITEMS = %ld (%ld bytes)", num_items, num_items * sizeof(menuitem_t));
+
+    if (pStatus->menu_act->item_list) {
+        pStatus->menu_item_act->next = malloc(sizeof(menuitem_t));
+        pStatus->menu_item_act->next->last = pStatus->menu_item_act;
+        pStatus->menu_item_act = pStatus->menu_item_act->next;
+        pStatus->menu_item_act->next = NULL;
+    } else {
+        pStatus->menu_act->item_list = malloc(sizeof(menuitem_t));
+        pStatus->menu_item_act = pStatus->menu_act->item_list;
+        pStatus->menu_item_act->next = NULL;
+        pStatus->menu_item_act->last = NULL;
+    }
+
+    pStatus->menu_item_act->item_name[0] = 0;
+    pStatus->menu_item_act->option_list = NULL;
+    pStatus->menu_item_act->selected_option = NULL;
+    pStatus->menu_item_act->action_name[0] = 0;
+
+    return pStatus->menu_item_act;
+}
+
+itemoption_t* CFG_alloc_itemoption_and_set_active(status_t* pStatus)
+{
+    static uint32_t num_options = 0;
+    num_options++;
+    DEBUG(2, "[alloc_itemoption] NUM_OPTIONS = %ld (%ld bytes)", num_options, num_options * sizeof(itemoption_t));
+
+    if (pStatus->menu_item_act->option_list) {
+        pStatus->item_opt_act->next = malloc(sizeof(itemoption_t));
+        pStatus->item_opt_act->next->last = pStatus->item_opt_act;
+        pStatus->item_opt_act = pStatus->item_opt_act->next;
+        pStatus->item_opt_act->next = NULL;
+    } else {
+        pStatus->menu_item_act->option_list = malloc(sizeof(itemoption_t));
+        pStatus->item_opt_act = pStatus->menu_item_act->option_list;
+        pStatus->item_opt_act->next = NULL;
+        pStatus->item_opt_act->last = NULL;
+    }
+
+    pStatus->item_opt_act->option_name[0] = 0;
+
+    return pStatus->item_opt_act;
 }
 
 void CFG_free_menu(status_t* currentStatus)

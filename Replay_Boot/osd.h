@@ -65,6 +65,8 @@
 //#define OSDCTRLLEFT     0x20        /*OSD left control*/
 
 #define STF_NEWKEY 0x01
+#define STF_POWER_LED 0x10
+#define STF_DRIVE_LED 0x20
 
 #define DISABLE_KEYBOARD 0x02        // disable keyboard while OSD is active
 

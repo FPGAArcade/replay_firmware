@@ -71,9 +71,6 @@
 //! \name Internal variables to manage the USB host stack
 //! @{
 
-static COMPILER_WORD_ALIGNED uint8_t conf_desc_buffer[512];
-usb_conf_desc_t* conf_desc = (usb_conf_desc_t*)&conf_desc_buffer[0];
-
 #ifdef USB_HOST_HUB_SUPPORT
 #define USB_MAX_NUM_DEVICES (USB_PIPE_NUM)
 #else
@@ -270,6 +267,7 @@ static void uhc_connection_tree(bool b_plug, uhc_device_t* dev)
 #ifdef USB_HOST_HUB_SUPPORT
 		uhc_dev_enum = dev;
 #endif
+		uhc_dev_enum->conf_desc = NULL;
 		uhc_dev_enum->address = 0;
 		UHC_CONNECTION_EVENT(uhc_dev_enum, true);
 		uhc_enumeration_step1();
@@ -288,15 +286,20 @@ static void uhc_connection_tree(bool b_plug, uhc_device_t* dev)
 
 		UHC_CONNECTION_EVENT(dev, false);
 		dev->address = UHC_USB_ADD_NOT_VALID;
+		// Free USB configuration descriptor buffer
+		if (dev->conf_desc != NULL) {
+			free(dev->conf_desc);
+			dev->conf_desc = NULL;
+		}
 #ifdef USB_HOST_HUB_SUPPORT
 		uhc_power_running -= dev->power;
 		usb_printf("uhc_power_running = %i (%i)\n\r", uhc_power_running, dev->power);
 		if (&g_uhc_device_root != dev) {
 			// It is on a USB hub
 			if (dev->prev)
-				dev->prev->next = dev->next;
+			dev->prev->next = dev->next;
 			if (dev->next)
-				dev->next->prev = dev->prev;
+			dev->next->prev = dev->prev;
 		}
 #endif
 	}
@@ -340,7 +343,7 @@ static void uhc_enumeration_step4(void)
 {
 	usb_printf("%s\n\r", __FUNCTION__);
 	if (uhc_dev_enum->hub == 0)
-		uhc_dev_enum->speed = uhd_get_speed();
+	uhc_dev_enum->speed = uhd_get_speed();
 	uhc_enable_timeout_callback(100, uhc_enumeration_step5);
 }
 
@@ -582,8 +585,14 @@ static void uhc_enumeration_step12(
 		conf_num = 1;
 	}
 
-	Assert(sizeof(usb_conf_desc_t) < sizeof(conf_desc_buffer));
+	Assert(uhc_dev_enum->conf_desc == NULL);
 
+	uhc_dev_enum->conf_desc = malloc(sizeof(usb_conf_desc_t));
+	if (uhc_dev_enum->conf_desc == NULL) {
+		Assert(false);
+		uhc_enumeration_error(UHC_ENUM_MEMORY_LIMIT);
+		return;
+	}
 	// Send USB device descriptor request
 	req.bmRequestType = USB_REQ_RECIP_DEVICE|USB_REQ_TYPE_STANDARD|USB_REQ_DIR_IN;
 	req.bRequest = USB_REQ_GET_DESCRIPTOR;
@@ -592,7 +601,7 @@ static void uhc_enumeration_step12(
 	req.wLength = sizeof(usb_conf_desc_t);
 	if (!uhd_setup_request(UHC_DEVICE_ENUM_ADD,
 			&req,
-			(uint8_t *) conf_desc,
+			(uint8_t *) uhc_dev_enum->conf_desc,
 			sizeof(usb_conf_desc_t),
 			NULL, uhc_enumeration_step13)) {
 		uhc_enumeration_error(UHC_ENUM_MEMORY_LIMIT);
@@ -621,15 +630,15 @@ static void uhc_enumeration_step13(
 	(void)(add);
 
 	if ((status != UHD_TRANS_NOERROR) || (payload_trans != sizeof(usb_conf_desc_t))
-			|| (conf_desc->bDescriptorType != USB_DT_CONFIGURATION)) {
+			|| (uhc_dev_enum->conf_desc->bDescriptorType != USB_DT_CONFIGURATION)) {
 		uhc_enumeration_error((status == UHD_TRANS_DISCONNECT)?
 				UHC_ENUM_DISCONNECT:UHC_ENUM_FAIL);
 		return;
 	}
 
 	// Copy usb_conf_desc_t members
-	uhc_dev_enum->bmAttributes = conf_desc->bmAttributes;
-	uhc_dev_enum->bMaxPower = conf_desc->bMaxPower;
+	uhc_dev_enum->bmAttributes = uhc_dev_enum->conf_desc->bmAttributes;
+	uhc_dev_enum->bMaxPower = uhc_dev_enum->conf_desc->bMaxPower;
 
 #ifdef USB_HOST_HUB_SUPPORT
 	uhc_device_t *dev;
@@ -673,10 +682,17 @@ static void uhc_enumeration_step13(
 #endif
 
 	// Save information about USB configuration descriptor size
-	conf_size = le16_to_cpu(conf_desc->wTotalLength);
-	conf_num = conf_desc->bConfigurationValue;
+	conf_size = le16_to_cpu(uhc_dev_enum->conf_desc->wTotalLength);
+	conf_num = uhc_dev_enum->conf_desc->bConfigurationValue;
 	Assert(conf_num);
-	Assert(conf_size < sizeof(conf_desc_buffer));
+	// Re alloc USB configuration descriptor
+	free(uhc_dev_enum->conf_desc);
+	uhc_dev_enum->conf_desc = malloc(conf_size);
+	if (uhc_dev_enum->conf_desc == NULL) {
+		Assert(false);
+		uhc_enumeration_error(UHC_ENUM_MEMORY_LIMIT);
+		return;
+	}
 	// Send USB device descriptor request
 	req.bmRequestType =
 			USB_REQ_RECIP_DEVICE | USB_REQ_TYPE_STANDARD |
@@ -687,7 +703,7 @@ static void uhc_enumeration_step13(
 	req.wLength = conf_size;
 	if (!uhd_setup_request(UHC_DEVICE_ENUM_ADD,
 			&req,
-			(uint8_t *) conf_desc,
+			(uint8_t *) uhc_dev_enum->conf_desc,
 			conf_size,
 			NULL, uhc_enumeration_step14)) {
 		uhc_enumeration_error(UHC_ENUM_MEMORY_LIMIT);
@@ -715,18 +731,18 @@ static void uhc_enumeration_step14(
 
 	if ((status != UHD_TRANS_NOERROR)
 			|| (payload_trans < sizeof(usb_conf_desc_t))
-			|| (conf_desc->bDescriptorType != USB_DT_CONFIGURATION)
-			|| (payload_trans != le16_to_cpu(conf_desc->wTotalLength))) {
+			|| (uhc_dev_enum->conf_desc->bDescriptorType != USB_DT_CONFIGURATION)
+			|| (payload_trans != le16_to_cpu(uhc_dev_enum->conf_desc->wTotalLength))) {
 		uhc_enumeration_error((status==UHD_TRANS_DISCONNECT)?
 				UHC_ENUM_DISCONNECT:UHC_ENUM_FAIL);
 		return;
 	}
 
-	print_conf_desc(conf_desc, true);
+	print_conf_desc(uhc_dev_enum->conf_desc, true);
 	
-	// Check if unless one USB interface is supported by UHIs
+	// Check if at least one USB interface is supported by UHIs
 	for (uint8_t i = 0; i < UHC_NB_UHI /*&& !b_conf_supported*/; i++) {
-		switch (uhc_uhis[i].install(uhc_dev_enum, conf_desc)) {
+		switch (uhc_uhis[i].install(uhc_dev_enum, uhc_dev_enum->conf_desc)) {
 		case UHC_ENUM_SUCCESS:
 			usb_printf("  -> %s => UHC_ENUM_SUCCESS\n\r", __FUNCTION__);
 			b_conf_supported = true;
@@ -768,7 +784,7 @@ static void uhc_enumeration_step14(
 	req.bmRequestType = USB_REQ_RECIP_DEVICE
 			| USB_REQ_TYPE_STANDARD | USB_REQ_DIR_OUT;
 	req.bRequest = USB_REQ_SET_CONFIGURATION;
-	req.wValue = conf_desc->bConfigurationValue;
+	req.wValue = uhc_dev_enum->conf_desc->bConfigurationValue;
 	req.wIndex = 0;
 	req.wLength = 0;
 	if (!uhd_setup_request(UHC_DEVICE_ENUM_ADD,
@@ -808,6 +824,12 @@ static void uhc_enumeration_step15(
 	// Enable all UHIs supported
 	for (uint8_t i = 0; i < UHC_NB_UHI; i++) {
 		uhc_uhis[i].enable(uhc_dev_enum);
+	}
+
+	// Free USB configuration descriptor buffer
+	if (uhc_dev_enum->conf_desc != NULL) {
+		free(uhc_dev_enum->conf_desc);
+		uhc_dev_enum->conf_desc = NULL;
 	}
 
 #ifdef USB_HOST_LPM_SUPPORT
@@ -976,6 +998,11 @@ static void uhc_enumeration_error(uhc_enum_status_t status)
 	}
 	uhd_ep_free(uhc_dev_enum->address, 0xFF);
 
+	// Free USB configuration descriptor buffer
+	if (uhc_dev_enum->conf_desc != NULL) {
+		free(uhc_dev_enum->conf_desc);
+		uhc_dev_enum->conf_desc = NULL;
+	}
 	uhc_dev_enum->address = 0;
 	if (uhc_enum_try++ < UHC_ENUM_NB_TRY) {
 		// Restart enumeration at beginning
@@ -1461,6 +1488,10 @@ void uhc_dev_reset(uhc_device_t *dev)
 #endif
 	for (i = 0; i < UHC_NB_UHI; i++) {
 		uhc_uhis[i].uninstall(uhc_dev_enum);
+	}
+	if (uhc_dev_enum->conf_desc) {
+		free(uhc_dev_enum->conf_desc);
+		uhc_dev_enum->conf_desc = NULL;
 	}
 	uhc_enumeration_step3();
 }

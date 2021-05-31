@@ -134,7 +134,7 @@ extern "C" void PrintExceptionInfo(unsigned long* stack)
   }
 }
 
-static char buffer[256];
+static char kprintbuf[256];
 static void kprintstr(const char* str)
 {
   if (!str)
@@ -151,11 +151,11 @@ extern "C" int kprintf(const char * fmt, ...)
 
   va_list args;
   va_start (args, fmt);
-  int n = vsnprintf (buffer, sizeof(buffer)-1, fmt, args);
-  if (0 < n && n < (int)sizeof(buffer))
+  int n = vsnprintf (kprintbuf, sizeof(kprintbuf)-1, fmt, args);
+  if (0 < n && n < (int)sizeof(kprintbuf))
   {
-    buffer[n] = 0;
-    kprintstr(buffer);
+    kprintbuf[n] = 0;
+    kprintstr(kprintbuf);
   }
   va_end (args);
 

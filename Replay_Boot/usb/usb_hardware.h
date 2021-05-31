@@ -13,6 +13,8 @@
  * Copyright (c) 2020, The FPGAArcade community (see AUTHORS.txt)
  *
  */
+#ifndef USB_HARDWARE_H
+#define USB_HARDWARE_H
 
 #include <stdint.h>
 #include "board.h"
@@ -25,6 +27,8 @@ typedef struct _UsbSetupPacket {
     uint16_t        wLength;
 } __attribute__((packed)) UsbSetupPacket;
 
+#if defined(AT91SAM7S256)
+
 enum EndpointTypes
 {
 	EPTYPE_CTRL			= (AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_CTRL),
@@ -36,6 +40,7 @@ enum EndpointTypes
 	EPTYPE_INT_IN		= (AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_INT_IN),
 };
 
+#endif
 
 #define USB_REQUEST_GET_STATUS          0
 #define USB_REQUEST_CLEAR_FEATURE       1
@@ -69,7 +74,7 @@ uint8_t usb_poll();
 void usb_disconnect();
 
 void usb_send(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32_t packet_length, uint32_t wLength);
-void usb_send_async(uint8_t ep, usb_func _send, uint32_t length);
+void usb_send_async(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32_t packet_length, uint32_t wLength, uint8_t wait_done);
 
 void usb_send_ep0_stall(void);
 void usb_send_stall(uint8_t ep);
@@ -91,3 +96,5 @@ static inline void usb_send_ep0_zlp()
 {
 	usb_send(/*ep = */ 0, /*wMaxPacketSize = */ 8, /*packet = */ 0, /*packet_length = */ 0, /*wLength = */ 0);
 }
+
+#endif // USB_HARDWARE_H

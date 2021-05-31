@@ -34,6 +34,9 @@
 #include "menu.h"
 #include "osd.h"
 #include "messaging.h"
+#include <stdio.h>
+#undef printf
+#undef sprintf
 #include "printf.h"
 #include <unistd.h> // sbrk()
 
@@ -49,13 +52,12 @@
 #endif
 
 #if defined(ARDUINO_SAMD_MKRVIDOR4000)
+void NINA_Update();
 #include "hardware_vidor/usbblaster.h"
 #include <setjmp.h>
 jmp_buf exit_env;
 static __attribute__ ((noinline)) void FPGA_WriteGeneratedImage(uint32_t base);
 #endif
-
-extern char _binary_buildnum_start;     // from ./buildnum.elf > buildnum && arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm buildnum buildnum.o
 
 extern char _binary_replay_ini_start;
 extern char _binary_replay_ini_end;
@@ -71,7 +73,6 @@ static void prepare_sdcard();
 
 // GLOBALS
 FF_IOMAN* pIoman = NULL;  // file system handle
-const char* version = &_binary_buildnum_start; // actual build version
 
 #if defined(ARDUINO)   // sketches already have a main()
 int replay_main(void)
@@ -182,7 +183,7 @@ int main(void)
     DEBUG(0, "== FPGAArcade Replay Board ==");
     DEBUG(0, "Mike Johnson & Wolfgang Scherr");
     DEBUG(0, "");
-    DEBUG(0, "ARM Firmware: %s", version);
+    DEBUG(0, "ARM Firmware: %s", BUILD_VERSION);
 #if defined(AT91SAM7S256)
     DEBUG(0, "ARM Firmware Size: %d bytes", *(uint32_t*)0x102024);
 #endif
@@ -355,8 +356,7 @@ static __attribute__ ((noinline)) void load_embedded_core()
         current_status.spi_fpga_enabled = 1;
         current_status.spi_osd_enabled = 1;
 
-        sprintf(current_status.status[0], "ARM |FW:%s (%ldkB free)", version,
-                CFG_get_free_mem() >> 10);
+        snprintf(current_status.status[0], sizeof(current_status.status[0]), "ARM |FW:%s", BUILD_VERSION);
         sprintf(current_status.status[1], "FPGA|NO VALID SETUP ON SDCARD!");
 
     } else {
@@ -505,6 +505,7 @@ static __attribute__ ((noinline)) void main_update()
 
 #if defined(ARDUINO_SAMD_MKRVIDOR4000)
     USBBlaster_Update();
+    NINA_Update();
 #endif
 
     // check menu
@@ -569,9 +570,12 @@ static __attribute__ ((noinline)) void main_update()
 
     const uint8_t card_was_inserted = !card_already_detected && current_status.card_detected;
     const uint8_t card_was_removed = card_already_detected && !current_status.card_detected;
-    const uint8_t card_found_but_no_fs = current_status.card_detected && !current_status.fs_mounted_ok;
+    const uint8_t card_found_but_no_fs = current_status.card_detected && !current_status.fs_mounted_ok && !current_status.usb_mounted;
 
     if (card_was_inserted || card_was_removed || card_found_but_no_fs) {
+        DEBUG(1, "card_was_inserted    : %s", card_was_inserted ? "TRUE" : "FALSE");
+        DEBUG(1, "card_was_removed     : %s", card_was_removed ? "TRUE" : "FALSE");
+        DEBUG(1, "card_found_but_no_fs : %s", card_found_but_no_fs ? "TRUE" : "FALSE");
         CFG_card_start(&current_status);    // restart file system if card was removed or (re-)inserted
     }
 

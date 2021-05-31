@@ -17,7 +17,13 @@
 #include "usb_host/conf_usb_host.h"
 
 #define MAX_SCANCODES (1<<4)
-#define MAX_SCANCODE_LENGTH (15+1)
+
+typedef struct KeyData_t {
+    uint8_t keyCode;
+    uint8_t keyMeta: 4;
+    uint8_t _pad_: 3;
+    uint8_t keyDown: 1;
+} __attribute__ ((packed)) KeyData;
 
 class ReplayKeyboard
 {
@@ -39,13 +45,50 @@ class ReplayKeyboard
     {
     };
 
-    const char* PopKey()
+    const char* GetNextScanCode()
     {
-        if (((m_Put - m_Get) & (MAX_SCANCODES - 1)) == 0) {
+        KeyData data;
+
+        if (!PopKey(&data)) {
             return 0;
         }
 
-        return m_ScanCodes[m_Get++ & (MAX_SCANCODES - 1)];
+        bool keyDown = data.keyDown;
+        uint8_t meta = data.keyMeta;
+        uint8_t key  = data.keyCode;
+
+        char* buffer = &m_ScanCode[0];
+
+        if (!key) {
+            uint8_t ps2 = GetPS2Meta(meta);
+
+            if (!ps2) {
+                DEBUG(2, "[%s] OEM %02x Unknown Meta", __FUNCTION__, meta);
+                return 0;
+            }
+
+            ExpandPS2(ps2, keyDown, buffer);
+            DEBUG(2, "[%s] META %02x => %02x %02x %02x", __FUNCTION__, (1 << meta), buffer[0], buffer[1], buffer[2]);
+            return (buffer);
+        }
+
+        if (key == 0x48 && keyDown) {  // pause/break
+            static const char ps2_break[] = { 0xE0, 0x7E, 0xE0, 0xF0, 0x7E, 0x00 };
+            static const char ps2_pause[] = { 0xE1, 0x14, 0x77, 0xE1, 0xF0, 0x14, 0xF0, 0x77, 0x00 };
+            const bool ctrl = meta;
+            return (ctrl ? ps2_break : ps2_pause);
+        }
+
+        uint8_t ps2 = GetPS2(key);
+
+        if (!ps2) {
+            DEBUG(2, "[%s] OEM %02x Unknown", __FUNCTION__, key);
+            return 0;
+        }
+
+        ExpandPS2(ps2, keyDown, buffer);
+        DEBUG(2, "[%s] OEM %02x %s => %02x %02x %02x", __FUNCTION__, key, keyDown ? "DOWN" : "UP", buffer[0], buffer[1], buffer[2]);
+        return (buffer);
     }
 
     void OnControlKeysChanged(uint8_t before, uint8_t after)
@@ -61,66 +104,49 @@ class ReplayKeyboard
             }
 
             bool keyDown = (after & (1 << meta));
-            uint8_t ps2 = GetPS2Meta(meta);
 
-            if (!ps2) {
-                continue;
-            }
-
-            ExpandPS2(ps2, keyDown, buffer);
-            PushKey(buffer);
-            DEBUG(2, "[%s] META [%02x => %02x => %02x] %02x => %02x %02x %02x", __FUNCTION__, before, after, updated, (1 << meta), buffer[0], buffer[1], buffer[2]);
+            PutKey(keyDown, meta, 0);
         }
     }
     void OnKeyDown(uint8_t mod, uint8_t key)
     {
-        char buffer[8];
-
-        if (key == 0x48) {	// pause/break
-            const char ps2_break[] = { 0xE0, 0x7E, 0xE0, 0xF0, 0x7E, 0x00 };
-            const char ps2_pause[] = { 0xE1, 0x14, 0x77, 0xE1, 0xF0, 0x14, 0xF0, 0x77, 0x00 };
-            const bool ctrl = mod & (Meta_LeftCtrl | Meta_RightCtrl);
-            PushKey(ctrl ? ps2_break : ps2_pause);
-            return;
-        }
-
-        uint8_t ps2 = GetPS2(key);
-
-        if (!ps2) {
-            DEBUG(2, "[%s] OEM %02x Unknown", __FUNCTION__, key);
-            return;
-        }
-
-        ExpandPS2(ps2, true, buffer);
-        PushKey(buffer);
-        DEBUG(2, "[%s] OEM %02x => %02x %02x %02x", __FUNCTION__, key, buffer[0], buffer[1], buffer[2]);
+        PutKey(true, (mod & (Meta_LeftCtrl | Meta_RightCtrl)) ? 1 : 0, key);
     }
     void OnKeyUp(uint8_t mod, uint8_t key)
     {
         (void)mod;
-        char buffer[8];
-        uint8_t ps2 = GetPS2(key);
-
-        if (!ps2) {
-            DEBUG(2, "[%s] OEM %02x Unknown", __FUNCTION__, key);
-            return;
-        }
-
-        ExpandPS2(ps2, false, buffer);
-        PushKey(buffer);
-        DEBUG(2, "[%s] OEM %02x => %02x %02x %02x", __FUNCTION__, key, buffer[0], buffer[1], buffer[2]);
+        PutKey(false, 0, key);
     }
 
   protected:
-    void PushKey(const char* scancode)
+    void PutKey(uint8_t down, uint8_t mod, uint8_t key)
     {
+        disableIRQ();
         if (((m_Put - m_Get) & (MAX_SCANCODES - 1)) == 15) {
+            enableIRQ();
             return;    // key dropped
         }
 
-        char* p = m_ScanCodes[m_Put++ & (MAX_SCANCODES - 1)];
-        strncpy(p, scancode, MAX_SCANCODE_LENGTH);
-        p[MAX_SCANCODE_LENGTH - 1] = '\0';
+        KeyData* p = &m_KeyData[m_Put++ & (MAX_SCANCODES - 1)];
+        p->keyDown = down;
+        p->keyMeta = mod;
+        p->keyCode = key;
+        enableIRQ();
+    }
+
+    const bool PopKey(KeyData* p)
+    {
+        disableIRQ();
+
+        if (((m_Put - m_Get) & (MAX_SCANCODES - 1)) == 0) {
+            enableIRQ();
+            return false;    // no key available
+        }
+
+        *p = m_KeyData[m_Get++ & (MAX_SCANCODES - 1)];
+        enableIRQ();
+
+        return true;
     }
 
     uint8_t GetPS2(uint8_t oem)
@@ -160,8 +186,9 @@ class ReplayKeyboard
     }
 
   private:
-    uint32_t	m_Put, m_Get;
-    char		m_ScanCodes[MAX_SCANCODES][MAX_SCANCODE_LENGTH];
+    uint32_t    m_Put, m_Get;
+    char        m_ScanCode[8];
+    KeyData     m_KeyData[MAX_SCANCODES];
 
     static const uint8_t OEMtoPS2[0x74];
     static const uint8_t OEMtoPS2meta[8];
@@ -169,7 +196,7 @@ class ReplayKeyboard
 
 class ReplayMouse
 {
-public:
+  public:
     ReplayMouse() :
         mouseX(0),
         mouseY(0),
@@ -186,7 +213,7 @@ public:
         uint16_t mX = mouseX;
         uint16_t mY = mouseY;
         uint16_t mZ = mouseZ;
-        uint8_t mButtons = mouseButtons; 
+        uint8_t mButtons = mouseButtons;
         bool refresh = updated;
         updated = false;
 
@@ -219,15 +246,18 @@ public:
     void OnMouseButtonChanged(uint8_t button, uint8_t down)
     {
         uint8_t mask = 1 << button;
-        if (down)
+
+        if (down) {
             mouseButtons |= mask;
-        else
+
+        } else {
             mouseButtons &= ~mask;
+        }
 
         updated = true;
     }
 
-private:
+  private:
     volatile uint16_t    mouseX, mouseY, mouseZ;
     volatile uint8_t     mouseButtons;
     volatile bool        updated;        // $TODO make this a ring buffer instead
@@ -238,79 +268,82 @@ static ReplayMouse mouse;
 
 extern "C" {
 
-void USB_Connection_Event(uhc_device_t *dev, bool b_present)
-{
-    (void)dev;
-    (void)b_present;
-    kprintf("%s\n\r", __FUNCTION__);
-}
-
-void USB_Enum_Event(uhc_device_t *dev, uhc_enum_status_t status)
-{
-    (void)dev;
-    if (status == UHC_ENUM_FAIL) {
-        if (dev->hub && dev->speed == UHD_SPEED_LOW) {
-            WARNING("LOW speed via HUB detected!");
-        } else {
-            WARNING("USB device failed enumeration");
-        }
-    } else if (status == UHC_ENUM_SUCCESS) {
-        INFO("USB VID/PID : %04x / %04x", dev->dev_desc.idVendor, dev->dev_desc.idProduct);
+    void USB_Connection_Event(uhc_device_t* dev, bool b_present)
+    {
+        (void)dev;
+        (void)b_present;
+        kprintf("%s\n\r", __FUNCTION__);
     }
 
-}
+    void USB_Enum_Event(uhc_device_t* dev, uhc_enum_status_t status)
+    {
+        (void)dev;
 
-void USB_Mouse_Change(uhc_device_t *dev, bool b_plug)
-{
-    (void)dev;
-    INFO("HID Device MOUSE %s", b_plug ? "attached" : "detached");
-}
+        if (status == UHC_ENUM_FAIL) {
+            if (dev->hub && dev->speed == UHD_SPEED_LOW) {
+                WARNING("LOW speed via HUB detected!");
 
-void USB_Keyboard_Change(uhc_device_t *dev, bool b_plug)
-{
-    (void)dev;
-    INFO("HID Device KEYBOARD %s", b_plug ? "attached" : "detached");
-}
+            } else {
+                WARNING("USB device failed enumeration");
+            }
 
-void USB_Hub_Change(uhc_device_t *dev, bool b_plug)
-{
-    (void)dev;
-    INFO("USB Hub Device %s", b_plug ? "attached" : "detached");
-}
+        } else if (status == UHC_ENUM_SUCCESS) {
+            INFO("USB VID/PID : %04x / %04x", dev->dev_desc.idVendor, dev->dev_desc.idProduct);
+        }
 
-void USB_Mouse_Button_Left(bool b_state)
-{
-    mouse.OnMouseButtonChanged(0, b_state);
-}
+    }
 
-void USB_Mouse_Button_Right(bool b_state)
-{
-    mouse.OnMouseButtonChanged(1, b_state);
-}
+    void USB_Mouse_Change(uhc_device_t* dev, bool b_plug)
+    {
+        (void)dev;
+        INFO("HID Device MOUSE %s", b_plug ? "attached" : "detached");
+    }
 
-void USB_Mouse_Button_Middle(bool b_state)
-{
-    mouse.OnMouseButtonChanged(2, b_state);
-}
+    void USB_Keyboard_Change(uhc_device_t* dev, bool b_plug)
+    {
+        (void)dev;
+        INFO("HID Device KEYBOARD %s", b_plug ? "attached" : "detached");
+    }
 
-void USB_Mouse_Move(int8_t x, int8_t y, int8_t scroll)
-{
-    mouse.OnMouseMove(x, y, scroll);
-}
+    void USB_Hub_Change(uhc_device_t* dev, bool b_plug)
+    {
+        (void)dev;
+        INFO("USB Hub Device %s", b_plug ? "attached" : "detached");
+    }
+
+    void USB_Mouse_Button_Left(bool b_state)
+    {
+        mouse.OnMouseButtonChanged(0, b_state);
+    }
+
+    void USB_Mouse_Button_Right(bool b_state)
+    {
+        mouse.OnMouseButtonChanged(1, b_state);
+    }
+
+    void USB_Mouse_Button_Middle(bool b_state)
+    {
+        mouse.OnMouseButtonChanged(2, b_state);
+    }
+
+    void USB_Mouse_Move(int8_t x, int8_t y, int8_t scroll)
+    {
+        mouse.OnMouseMove(x, y, scroll);
+    }
 
 
-void USB_Keyboard_Meta(uint8_t before, uint8_t after)
-{
-    keyboard.OnControlKeysChanged(before, after);
-}
-void USB_Keyboard_Key_Down(uint8_t meta, uint8_t key)
-{
-    keyboard.OnKeyDown(meta, key);
-}
-void USB_Keyboard_Key_Up(uint8_t meta, uint8_t key)
-{
-    keyboard.OnKeyUp(meta, key);
-}
+    void USB_Keyboard_Meta(uint8_t before, uint8_t after)
+    {
+        keyboard.OnControlKeysChanged(before, after);
+    }
+    void USB_Keyboard_Key_Down(uint8_t meta, uint8_t key)
+    {
+        keyboard.OnKeyDown(meta, key);
+    }
+    void USB_Keyboard_Key_Up(uint8_t meta, uint8_t key)
+    {
+        keyboard.OnKeyUp(meta, key);
+    }
 
 }
 
@@ -320,10 +353,12 @@ extern "C" void USBHID_Init()
 {
     pinMode( PIN_USB_HOST_ENABLE, INPUT );
     USBsense = digitalRead(PIN_USB_HOST_ENABLE);
+
     if (USBsense) {
         INFO("USB DEVICE mode");
         return;
     }
+
     INFO("USB HOST mode");
     uhc_start();
 }
@@ -332,19 +367,19 @@ extern "C" const char* USBHID_Update()
 {
     if (USBsense != digitalRead(PIN_USB_HOST_ENABLE)) {
         USBHID_Init();
+
         if (USBsense) {
             USBDevice.init();
             USBDevice.attach();
         }
     }
+
     if (USBsense) {
         return 0;
     }
+
     mouse.SendMouseUpdate();
-    disableIRQ();
-    const char* key = keyboard.PopKey();
-    enableIRQ();
-    return key;
+    return keyboard.GetNextScanCode();
 }
 
 const uint8_t ReplayKeyboard::OEMtoPS2[0x74] = {

@@ -16,11 +16,10 @@
 
 #include "msc.h"
 
-#if defined(AT91SAM7S256)
-
 #include "msc_descriptor.h"
 #include "usb_hardware.h"
 #include "messaging.h"
+#include "hardware/io.h"
 
 #include "card.h"
 
@@ -28,7 +27,7 @@ void UsbPacketReceived(uint8_t *data, int len);
 
 // The buffer used to store packets received over USB while we are in the
 // process of receiving them.
-static uint8_t UsbBuffer[512] __attribute__((aligned(8)));
+static uint8_t UsbBuffer[64] __attribute__((aligned(8)));
 
 // The number of characters received in the USB buffer so far.
 static int  UsbSoFarCount;
@@ -62,6 +61,10 @@ void msc_recv(uint8_t ep, uint8_t* packet, uint32_t length)
 void msc_send(uint8_t* packet, uint32_t length)
 {
 	usb_send(1, 64, packet, length, length);
+}
+void msc_send_async(uint8_t* packet, uint32_t length, uint8_t wait_done)
+{
+    usb_send_async(1, 64, packet, length, length, wait_done);
 }
 void msc_read(uint8_t* packet, uint32_t length)
 {
@@ -104,8 +107,8 @@ static void HandleRxdSetupData(UsbSetupPacket* data)
             DEBUG(1,"\tUSB_REQUEST_GET_DESCRIPTOR");
             if((usd.wValue >> 8) == USB_DESCRIPTOR_TYPE_DEVICE) {
                 DEBUG(1,"\t\tUSB_DESCRIPTOR_TYPE_DEVICE");
-                usb_send_ep0((uint8_t *)&DeviceDescriptor,
-                    sizeof(DeviceDescriptor), usd.wLength);
+                usb_send_ep0((uint8_t *)&DeviceDescriptorR1,
+                    sizeof(DeviceDescriptorR1), usd.wLength);
             } else if((usd.wValue >> 8) == USB_DESCRIPTOR_TYPE_CONFIGURATION) {
                 DEBUG(1,"\t\tUSB_DESCRIPTOR_TYPE_CONFIGURATION");
                 usb_send_ep0((uint8_t *)&ConfigurationDescriptor,
@@ -150,6 +153,7 @@ static void HandleRxdSetupData(UsbSetupPacket* data)
         }
         case USB_REQUEST_SET_CONFIGURATION:
             DEBUG(1,"\tUSB_REQUEST_SET_CONFIGURATION");
+#if defined(AT91SAM7S256)
             CurrentConfiguration = usd.wValue;
             uint32_t eps[2] = { EPTYPE_BULK_IN, EPTYPE_BULK_OUT };
             if(CurrentConfiguration) {
@@ -158,6 +162,7 @@ static void HandleRxdSetupData(UsbSetupPacket* data)
                 usb_setup_endpoints(NULL, 0);
             }
             usb_send_ep0_zlp();
+#endif
             break;
 
         case USB_REQUEST_GET_INTERFACE: {
@@ -206,10 +211,12 @@ static void HandleRxdSetupData(UsbSetupPacket* data)
             break;
         }
         case USB_REQUEST_GET_MAX_LUN:
+        {
             DEBUG(1,"\tUSB_REQUEST_GET_MAX_LUN");
             uint16_t w = 0x00;
             usb_send_ep0((uint8_t *)&w, sizeof(w), usd.wLength);
             break;
+        }
         default:
             WARNING("USB: USB_REQUEST_UNKNOWN!!");
             usb_send_ep0_stall();
@@ -302,8 +309,8 @@ typedef enum {
 
 
 static struct {
-    CommandBlockWrapper         cbw;
-    CommandStatusWrapper        csw;
+    CommandBlockWrapper         cbw __attribute__((aligned(8)));
+    CommandStatusWrapper        csw __attribute__((aligned(8)));
     uint32_t                    hostLength;
     uint32_t                    deviceLength;
     HostDeviceDataTransferMode  transferMode;
@@ -579,6 +586,22 @@ typedef struct {
 } __attribute__ ((packed)) MODE_SENSE_6;
 #define OPERATIONCODE_MODE_SENSE_6 0x1a
 
+
+typedef struct {
+    uint8_t     OPERATIONCODE;
+    uint8_t     Reserved0:3;
+    uint8_t     DBD:1;
+    uint8_t     Reserved1:4;
+    uint8_t     PAGECODE:6;
+    uint8_t     PC:2;
+    uint8_t     SUBPAGECODE;
+    uint8_t     Reserved2[3];
+    uint8_t     ALLOCATIONLENGTH[2];
+    uint8_t     CONTROL;
+} __attribute__ ((packed)) MODE_SENSE_10;
+#define OPERATIONCODE_MODE_SENSE_10 0x5a
+
+
 static const struct {
     uint8_t     MODEDATALENGTH;
     uint8_t     MEDIUMTYPE;
@@ -628,6 +651,21 @@ typedef struct {
 } __attribute__ ((packed)) REQUEST_SENSE;
 #define OPERATIONCODE_REQUEST_SENSE 0x03
 
+typedef struct {
+    uint8_t     OPERATIONCODE;
+    uint8_t     IMMED:1;
+    uint8_t     Reserved:7;
+    uint8_t     Reserved1;
+    uint8_t     POWERCONDITIONMODIFER:4;
+    uint8_t     Reserved2:4;
+    uint8_t     START:1;
+    uint8_t     LOEJ:1;
+    uint8_t     NO_FLUSH:1;
+    uint8_t     Reserved3:1;
+    uint8_t     POWERCONDITION;
+    uint8_t     CONTROL;
+} __attribute__ ((packed)) START_STOP_UNIT;
+#define OPERATIONCODE_START_STOP_UNIT 0x1b
 
 typedef enum {
     NOSENSE = 0x00,             // Indicates that there is no specific sense key information to be reported.
@@ -764,9 +802,11 @@ typedef union {
     READ_CAPACITY   readCapacity;
     READ_FORMAT_CAPACITY    readFormatCapacity;
     MODE_SENSE_6    modeSense6;
+    MODE_SENSE_10   modeSense10;
     READ_WRITE_10   readWrite10;
     PREVENT_ALLOW_REMOVAL   preventAllowRemoval;
     REQUEST_SENSE   requestSense;
+    START_STOP_UNIT startStopUnit;
 } CommandDescriptorBlock;
 
 
@@ -828,6 +868,14 @@ static uint8_t process_transfer_mode()
             if (cdb->modeSense6.PAGECODE != 0x3f)
                 WARNING("USB: Unknown pagecode = %02x", cdb->modeSense6.PAGECODE);
             break;
+        case OPERATIONCODE_MODE_SENSE_10:
+            deviceLength = READ_BE_16B(cdb->modeSense10.ALLOCATIONLENGTH);
+            if (deviceLength >= sizeof(s_MODE_PARAMETER_HEADERdata))
+                deviceLength = sizeof(s_MODE_PARAMETER_HEADERdata);
+            deviceTransferType = DeviceToHost;
+            if (cdb->modeSense10.PAGECODE != 0x3f)
+                WARNING("USB: Unknown pagecode = %02x", cdb->modeSense10.PAGECODE);
+            break;
         case OPERATIONCODE_READ_10:
             deviceLength = READ_BE_16B(cdb->readWrite10.TRANSFERLENGTH) * 512;
             deviceTransferType = DeviceToHost;
@@ -843,11 +891,14 @@ static uint8_t process_transfer_mode()
             deviceLength = cdb->requestSense.ALLOCATIONLENGTH;
             deviceTransferType = DeviceToHost;
             break;
+        case OPERATIONCODE_START_STOP_UNIT:
+            deviceTransferType = NoTransfer;
+            break;
         default:
             WARNING("USB: Unknown opcode = %02x", cdb->OPERATIONCODE);
             s_ProcessState.hostLength = hostLength;
             s_ProcessState.deviceLength = 0;
-            s_ProcessState.transferMode = NoTransfer;
+            s_ProcessState.transferMode = Illegal;
             return FALSE;
     }
 
@@ -898,10 +949,12 @@ static uint8_t process_transfer_mode()
     return TRUE;
 }
 
-static uint8_t OneSector[512];
 
 static CSWStatus process_command()
 {
+    uint8_t TwoSectors[2][512] __attribute__((aligned(16)));
+    Assert(( ((uint32_t)&TwoSectors[0][0]) & 0xf ) == 0);
+
     CommandBlockWrapper* cbw = &s_ProcessState.cbw;
 //    CommandStatusWrapper* csw = &s_ProcessState.csw;
 
@@ -947,14 +1000,19 @@ static CSWStatus process_command()
             INFO("USB: Mode Sense(6)");
             msc_send((uint8_t*)&s_MODE_PARAMETER_HEADERdata, s_ProcessState.deviceLength);
             return CommandPassed;
+        case OPERATIONCODE_MODE_SENSE_10:
+            INFO("USB: Mode Sense(10)");
+            msc_send((uint8_t*)&s_MODE_PARAMETER_HEADERdata, s_ProcessState.deviceLength);
+            return CommandPassed;
         case OPERATIONCODE_READ_10: {
             uint32_t sectorOffset = READ_BE_32B(cdb->readWrite10.LBA);
             uint32_t numSectors = s_ProcessState.deviceLength / 512;
             INFO("USB: Read(10) (%08x, %d)", sectorOffset, numSectors);
             for (int i = 0; i < numSectors; ++i) {
-                // usb_send_async(2, sizeof(OneSector), usb_func ReadCallback);
-                Card_ReadM(OneSector, sectorOffset+i, 1, NULL);
-                msc_send(OneSector, sizeof(OneSector));
+                uint8_t buf = i&1;
+                uint8_t last = ((i+1) == numSectors);
+                Card_ReadM(TwoSectors[buf], sectorOffset+i, 1, NULL);
+                msc_send_async(TwoSectors[buf], sizeof(TwoSectors[buf]), last);
             }
             return CommandPassed;
         }
@@ -962,10 +1020,14 @@ static CSWStatus process_command()
             uint32_t sectorOffset = READ_BE_32B(cdb->readWrite10.LBA);
             uint32_t numSectors = s_ProcessState.deviceLength / 512;
             INFO("USB: Write(10) (%08x, %d)", sectorOffset, numSectors);
-            for (int i = 0; i < numSectors; ++i) {
+            for (int i = 0; i < numSectors; ) {
                 // usb_recv_async(2, sizeof(OneSector), usb_func WriteCallback);
-                msc_read(OneSector, sizeof(OneSector));
-                Card_WriteM(OneSector, sectorOffset+i, 1, NULL);
+                uint32_t n = 2; /* blocks */
+                if (n > (numSectors-i))
+                    n = (numSectors-i);
+                msc_read(TwoSectors[0], n * sizeof(TwoSectors[0]));
+                Card_WriteM(TwoSectors[0], sectorOffset+i, n, NULL);
+                i += n;
             }
             return CommandPassed;
         }
@@ -977,6 +1039,9 @@ static CSWStatus process_command()
         case OPERATIONCODE_REQUEST_SENSE:
             INFO("USB: Request Sense");
             msc_send((uint8_t*)&s_REQUEST_SENSEdata, s_ProcessState.deviceLength);
+            return CommandPassed;
+        case OPERATIONCODE_START_STOP_UNIT:
+            INFO("USB: START STOP UNIT");
             return CommandPassed;
         default:
             return Unsupported;
@@ -1096,21 +1161,3 @@ uint8_t MSC_PreventMediaRemoval()
     return s_PreventMediaRemoval;
 }
 
-#else // defined(AT91SAM7S256)
-
-void MSC_Start(void)
-{
-}
-void MSC_Stop(void)
-{
-}
-uint8_t MSC_Poll(void)
-{
-    return 0;
-}
-uint8_t MSC_PreventMediaRemoval()
-{
-    return 0;
-}
-
-#endif

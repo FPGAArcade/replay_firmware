@@ -14,11 +14,11 @@
  *
  */
 
-#if defined(AT91SAM7S256)
-
 #include "board.h"
 #include "usb_hardware.h"
 #include "messaging.h"
+
+#if defined(AT91SAM7S256)
 
 static usb_func recv_func = 0;
 
@@ -233,9 +233,9 @@ void usb_send(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32
     }
 }
 
-void usb_send_async(uint8_t ep, usb_func _send, uint32_t length)
+void usb_send_async(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32_t packet_length, uint32_t wLength, uint8_t wait_done)
 {
-
+    usb_send(ep, wMaxPacketSize, packet, packet_length, wLength);
 }
 
 void usb_send_ep0_stall(void)
@@ -340,5 +340,25 @@ void usb_setup_faddr(uint16_t wValue)
     udp->UDP_FADDR = (AT91C_UDP_FEN | wValue);
     udp->UDP_GLBSTATE  = (wValue) ? AT91C_UDP_FADDEN : 0;
 }
+
+#else
+
+void usb_connect(usb_func _recv) {}
+uint8_t usb_poll() { return 0; }
+void usb_disconnect() {}
+
+void usb_send(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32_t packet_length, uint32_t wLength) {}
+void usb_send_async(uint8_t ep, uint32_t wMaxPacketSize, const uint8_t* packet, uint32_t packet_length, uint32_t wLength, uint8_t wait_done)
+{
+    usb_send(ep, wMaxPacketSize, packet, packet_length, wLength);
+}
+
+void usb_send_ep0_stall(void) {}
+void usb_send_stall(uint8_t ep) {}
+
+uint32_t usb_recv(uint8_t ep, uint8_t* packet, uint32_t length) { return 0; }
+
+void usb_setup_faddr(uint16_t wValue) {}
+void usb_setup_endpoints(uint32_t* ep_types, uint32_t num_eps) {}
 
 #endif // defined(AT91SAM7S256)

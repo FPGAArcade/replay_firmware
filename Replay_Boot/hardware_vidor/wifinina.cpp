@@ -15,7 +15,7 @@
  */
 
 /*
-  The latest offical NINA firmware (1.1.0) does not support BT (nor does it 
+  The latest offical NINA firmware (1.1.0) does not support BT (nor does it
   have the recent bug fixes).
 
   Instead download it from: https://github.com/arduino/nina-fw/releases
@@ -38,6 +38,8 @@
 
   This way we can use SERCOM3 to talk to it, if we run it in BT mode.
 */
+
+#define ENABLE_NINA_BT 0
 
 #include "SPI.h"
 #include <wiring_private.h>
@@ -254,14 +256,32 @@ static void digitalWrite(uint8_t pin, uint8_t val)
 
 }
 
-static Uart SerialNina(&sercom3, PIN_NINA_RX, PIN_NINA_TX, PAD_NINA_RX, PAD_NINA_TX);
+Uart Serial2(&sercom3, PIN_NINA_RX, PIN_NINA_TX,
+#if ENABLE_NINA_BT
+             PAD_HCI_RX, PAD_HCI_TX, PIN_NINA_GPIO0, PIN_NINA_RDY_L
+#else
+             PAD_NINA_RX, PAD_NINA_TX
+#endif
+            );
 
 void SERCOM3_Handler()
 {
-    SerialNina.IrqHandler();
+    Serial2.IrqHandler();
 }
 
+static void NINA_UpdateWIFI();
+static void NINA_UpdateBT();
+
 extern "C" void NINA_Update()
+{
+#if ENABLE_NINA_BT
+    NINA_UpdateBT();
+#else
+    NINA_UpdateWIFI();
+#endif
+}
+
+static void NINA_UpdateWIFI()
 {
     static uint8_t _init = 0;
 
@@ -270,7 +290,7 @@ extern "C" void NINA_Update()
 
         pinPeripheral(PIN_NINA_RX, PIO_SERCOM);
         pinPeripheral(PIN_NINA_TX, PIO_SERCOM);
-        SerialNina.begin(115200);
+        Serial2.begin(115200);
         SerialUSB.begin(115200);
 
         _init++;
@@ -315,7 +335,72 @@ extern "C" void NINA_Update()
         }
     }
 
-    while (SerialNina.available()) {
-        SerialUSB.write(SerialNina.read());
+    while (Serial2.available()) {
+        SerialUSB.write(Serial2.read());
     }
 }
+
+#if ENABLE_NINA_BT
+// Requires patching ArduinoBLE to enable MKR Vidor 4000 support
+#include <ArduinoBLE.h>
+/*
+diff --git a/src/utility/HCIUartTransport.cpp b/src/utility/HCIUartTransport.cpp
+index 67bc173..da5e997 100644
+--- a/src/utility/HCIUartTransport.cpp
++++ b/src/utility/HCIUartTransport.cpp
+@@ -21,7 +21,8 @@
+
+ #include "HCIUartTransport.h"
+
+-#if defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_AVR_UNO_WIFI_REV2)
++#if defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_AVR_UNO_WIFI_REV2) || defined(ARDUINO_SAMD_MKRVIDOR4000)
++extern Uart Serial2;
+ #define SerialHCI Serial2
+ #elif defined(ARDUINO_SAMD_NANO_33_IOT) || defined(ARDUINO_NANO_RP2040_CONNECT)
+ // SerialHCI is already defined in the variant
+@@ -93,7 +94,7 @@ size_t HCIUartTransportClass::write(const uint8_t* data, size_t length)
+   return result;
+ }
+
+-#if defined(ARDUINO_AVR_UNO_WIFI_REV2) || defined(ARDUINO_NANO_RP2040_CONNECT)
++#if defined(ARDUINO_AVR_UNO_WIFI_REV2) || defined(ARDUINO_NANO_RP2040_CONNECT) || defined(ARDUINO_SAMD_MKRVIDOR4000)
+ HCIUartTransportClass HCIUartTransport(SerialHCI, 119600);
+ #else
+ HCIUartTransportClass HCIUartTransport(SerialHCI, 912600);
+*/
+
+static void NINA_UpdateBT()
+{
+    static uint8_t _init = 0;
+
+    if (_init == 0) {
+        ResetNina(false);
+
+        pinPeripheral(PIN_NINA_RX, PIO_SERCOM);
+        pinPeripheral(PIN_NINA_TX, PIO_SERCOM);
+        pinPeripheral(PIN_NINA_GPIO0, PIO_SERCOM);  // RTS
+        pinPeripheral(PIN_NINA_RDY_L, PIO_SERCOM);  // CTS
+
+        // begin initialization
+        if (!BLE.begin()) {
+            WARNING("Failed to start BLE!");
+            return;
+        }
+
+        DEBUG(1, "Start BLE Central scan");
+        BLE.scan();
+
+        _init++;
+    }
+
+    // check if a peripheral has been discovered
+    BLEDevice peripheral = BLE.available();
+
+    if (peripheral) {
+        INFO("BLE: %s %lddB", peripheral.address().c_str(), peripheral.rssi());
+        if (peripheral.hasLocalName()) {
+            INFO("     %s", peripheral.localName().c_str());
+        }
+    }
+}
+#endif

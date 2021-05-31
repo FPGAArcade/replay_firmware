@@ -275,6 +275,10 @@ void CFG_card_start(status_t* current_status)
             return;
         }
 
+        DEBUG(1, "card_init_ok  : %s", current_status->card_init_ok ? "TRUE" : "FALSE");
+        DEBUG(1, "fs_mounted_ok : %s", current_status->fs_mounted_ok ? "TRUE" : "FALSE");
+        DEBUG(1, "usb_mounted   : %s", current_status->usb_mounted ? "TRUE" : "FALSE");
+
         if (Card_Init()) { // true is non zero
             DEBUG(1, "Card Init OK.");
             current_status->card_init_ok = TRUE;

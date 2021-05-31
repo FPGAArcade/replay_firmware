@@ -61,34 +61,31 @@ extern "C" void SPI_DMA(const void* out, void* in, uint16_t length);
 
 static void ResetNina(bool wifi)
 {
-    // PIN_NINA_CS_L == PIN_FPGA_CTRL0 + PIN_FPGA_CTRL1
     // NINA CS high during reset == WIFI mode
     // NINA CS low during reset == BT mode
     const uint8_t cs = wifi ? HIGH : LOW;
-    digitalWrite(PIN_FPGA_CTRL1, cs);
-    digitalWrite(PIN_FPGA_CTRL0, cs);
+    digitalWrite(PIN_NINA_CS_L, cs);
 
     digitalWrite(PIN_NINA_RST_L, LOW);
+    digitalWrite(PIN_NINA_GPIO0, HIGH);     // "Normal Boot from internal Flash"
     delay(10);
     digitalWrite(PIN_NINA_RST_L, HIGH);
     // takes about 500ms for NINA to reach the point where it samples BT/WIFI
     delay(500);
+    digitalWrite(PIN_NINA_GPIO0, LOW);     // default LOW to not conflict with WIFI IRQ
 
-    digitalWrite(PIN_FPGA_CTRL1, HIGH);
-    digitalWrite(PIN_FPGA_CTRL0, HIGH);
+    digitalWrite(PIN_NINA_CS_L, HIGH);
 }
 
 static void EnableNina()
 {
     SPI.beginTransaction(SPISettings(6000000, MSBFIRST, SPI_MODE0));
-    digitalWrite(PIN_FPGA_CTRL0, LOW);
-    digitalWrite(PIN_FPGA_CTRL1, LOW);
+    digitalWrite(PIN_NINA_CS_L, LOW);
 }
 
 static void DisableNina()
 {
-    digitalWrite(PIN_FPGA_CTRL0, HIGH);
-    digitalWrite(PIN_FPGA_CTRL1, HIGH);
+    digitalWrite(PIN_NINA_CS_L, HIGH);
     SPI.endTransaction();
 }
 

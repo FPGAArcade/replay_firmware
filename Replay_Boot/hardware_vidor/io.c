@@ -114,9 +114,10 @@ void IO_Init(void)
     attachInterrupt(PIN_CONF_DOUT, ISR_VerticalBlank, FALLING);
 
     // NINA
-    pinMode(PIN_NINA_GPIO0, INPUT);
+    pinMode(PIN_NINA_GPIO0, OUTPUT);
     pinMode(PIN_NINA_RDY_L, INPUT);
     pinMode(PIN_NINA_RST_L, OUTPUT);
+    pinMode(PIN_NINA_CS_L, OUTPUT);
     digitalWrite(PIN_NINA_RST_L, LOW);  // keep NINA held in reset
 
     pinMode(PIN_FPGA_CTRL1, OUTPUT);

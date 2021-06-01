@@ -63,6 +63,12 @@ extern "C" void SPI_DMA(const void* out, void* in, uint16_t length);
 
 static void ResetNina(bool wifi)
 {
+    // Setup pin direction;
+    // At this point we know we have a working CORE and we can start driving the pins
+    pinMode(PIN_NINA_GPIO0, OUTPUT);
+    pinMode(PIN_NINA_CS_L, OUTPUT);
+    pinMode(PIN_NINA_RDY_L, INPUT);
+
     // NINA CS high during reset == WIFI mode
     // NINA CS low during reset == BT mode
     const uint8_t cs = wifi ? HIGH : LOW;

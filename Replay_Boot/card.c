@@ -132,9 +132,12 @@ uint8_t Card_Detect(void)
 
     // For boards that don't support CARD DETECT we need to manually detect SDCARD presence
 
-    if (SPI_GetFreq() >= 1) {
-        SPI_SetFreq400kHz();
-    }
+    static HARDWARE_TICK delay = 0;
+
+    if (!Timer_Check(delay))
+        return cardDetected;
+
+    SPI_SetFreq400kHz();
 
     // Try to reset the card a few times;
     // if all attempts are successful we probably have an SDCARD attached
@@ -156,8 +159,9 @@ uint8_t Card_Detect(void)
 
     cardDetected = successful_resets == num_attempts;
 
-    // Should revert back to full speed here, but creates ping-pong when no card is available
-    // SPI_SetFreq25MHz();
+    SPI_SetFreq25MHz();
+
+    delay = Timer_Get(500);
 
     return cardDetected;
 }

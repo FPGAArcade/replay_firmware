@@ -252,21 +252,21 @@ unsigned char SPI_IsActive(void)
 void SPI_SetFreq400kHz()
 {
     vidor_SPI_setFreq(400 * 1000);
-    DEBUG(0, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
+    DEBUG(1, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
 }
 void SPI_SetFreq20MHz()
 {
     vidor_SPI_setFreq(20 * 1000 * 1000);
-    DEBUG(0, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
+    DEBUG(1, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
 }
 void SPI_SetFreq25MHz()
 {
     vidor_SPI_setFreq(25 * 1000 * 1000);
-    DEBUG(0, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
+    DEBUG(1, "%s -> %d", __FUNCTION__, vidor_SPI_getFreq());
 }
 void SPI_SetFreqDivide(uint32_t freqDivide)
 {
-    DEBUG(0, "%s %d -> %d", __FUNCTION__, freqDivide, 48054857 / freqDivide);
+    DEBUG(1, "%s %d -> %d", __FUNCTION__, freqDivide, 48054857 / freqDivide);
     vidor_SPI_setFreq(48054857 / freqDivide);
 }
 uint32_t SPI_GetFreq()

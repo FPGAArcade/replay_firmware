@@ -128,7 +128,7 @@ void IO_ClearOutputData_(uint32_t pins, const char* pin_names)
         digitalWrite(pins, LOW);
 
     } else {
-        DEBUG(0, "UNSUPPORTED! %s(%s)", __FUNCTION__, pin_names);
+        DEBUG(1, "UNSUPPORTED! %s(%s)", __FUNCTION__, pin_names);
     }
 }
 void IO_SetOutputData_(uint32_t pins, const char* pin_names)
@@ -137,6 +137,6 @@ void IO_SetOutputData_(uint32_t pins, const char* pin_names)
         digitalWrite(pins, HIGH);
 
     } else {
-        DEBUG(0, "UNSUPPORTED! %s(%s)", __FUNCTION__, pin_names);
+        DEBUG(1, "UNSUPPORTED! %s(%s)", __FUNCTION__, pin_names);
     }
 }

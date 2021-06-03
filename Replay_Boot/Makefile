@@ -65,6 +65,7 @@ endif
 
 # build date
 VER_DATE:="$(shell date +%Y%m%d)"
+VER_YEAR:="$(shell date +%Y)"
 
 ##
 ## Generate a C header file with a macro defining the current git hash (incl dirty state)
@@ -209,7 +210,7 @@ AT91LIBNOWARN = yes
 CSTANDARD = -std=gnu99
 
 # Place -D or -U options for C here
-CDEFS =  -D$(RUN_MODE) -DVER_DATE=$(VER_DATE)
+CDEFS =  -D$(RUN_MODE) -DVER_DATE=$(VER_DATE) -DVER_YEAR=$(VER_YEAR)
 
 # Create small firmware w/o the embedded core
 #CDEFS +=  -DFPGA_DISABLE_EMBEDDED_CORE
@@ -371,7 +372,7 @@ CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/hardware/samd/$(ARDUINO_BOARD_VERSION)/core
 CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/hardware/samd/$(ARDUINO_BOARD_VERSION)/variants/mkrvidor4000"
 CFLAGS_INC += "-I$(ARDUINO_PORTABLE)/hardware/samd/$(ARDUINO_BOARD_VERSION)/libraries/SPI"
 CFLAGS_INC += "-I$(ARDUINO_ROOT)/portable/sketchbook/libraries/ArduinoBLE/src"
-CFLAGS      = -c -g -Os $(CFLAGS_WARN) $(CFLAGS_DEF) $(CFLAGS_INC) -DVER_DATE=$(VER_DATE)
+CFLAGS      = -c -g -Os $(CFLAGS_WARN) $(CFLAGS_DEF) $(CFLAGS_INC) -DVER_DATE=$(VER_DATE) -DVER_YEAR=$(VER_YEAR)
 CONLYFLAGS 	= -std=gnu11 -ffunction-sections -fdata-sections -nostdlib --param max-inline-insns-single=500
 CPPFLAGS    = -std=gnu++11 -ffunction-sections -fdata-sections -fno-threadsafe-statics -nostdlib --param max-inline-insns-single=500 -fno-rtti -fno-exceptions
 THUMB_IW    =

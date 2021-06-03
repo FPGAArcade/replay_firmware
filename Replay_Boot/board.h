@@ -21,6 +21,12 @@
 #include "build/git.h"
 #define AS_STRING(x) #x
 #define STR(x) AS_STRING(x)
+#ifndef VER_DATE
+#define VER_DATE 20200101
+#endif
+#ifndef VER_YEAR
+#define VER_YEAR 2020
+#endif
 #define BUILD_VERSION   STR(VER_DATE) "_" STR(GIT)
 #else
 //                       123456789012345678901234

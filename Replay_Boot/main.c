@@ -181,17 +181,11 @@ int main(void)
     //
     DEBUG(0, "");
     DEBUG(0, "== FPGAArcade Replay Board ==");
-    DEBUG(0, "Mike Johnson & Wolfgang Scherr");
+    DEBUG(0, "Copyright (c) %s, The FPGAArcade community", STR(VER_YEAR));
     DEBUG(0, "");
     DEBUG(0, "ARM Firmware: %s", BUILD_VERSION);
 #if defined(AT91SAM7S256)
     DEBUG(0, "ARM Firmware Size: %d bytes", *(uint32_t*)0x102024);
-#endif
-    DEBUG(0, "");
-
-    DEBUG(0, "Built upon work by Dennis van Weeren & Jakub Bednarski");
-#if !defined(FF_DEFINED)
-    MSG_info("Using %s by James Walmsley", FF_REVISION);
 #endif
     DEBUG(0, "");
 

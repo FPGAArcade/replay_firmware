@@ -17,7 +17,7 @@
 #include "../board.h"
 #include "SPI.h"
 
-static SPISettings settings;
+static SPISettings settings(4000000, MSBFIRST, SPI_MODE3);
 static uint8_t chip_select_asserted = 0;
 
 static void vidor_SPI_beginTransaction(uint8_t cs)

@@ -715,7 +715,7 @@ static __attribute__ ((noinline)) void FPGA_WriteGeneratedImage(uint32_t base)
             buffer[i++] = c;
 
             if (i == sizeof(buffer)) {
-                if ((write_offset >> 10) & 1) {
+                if ((write_offset >> 14) & 1) {
                     ACTLED_ON;
 
                 } else {

@@ -1,1 +1,0 @@
-# FPGAArcade Replay ARM firmware.

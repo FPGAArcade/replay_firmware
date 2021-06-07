@@ -478,7 +478,7 @@ vidor_postproc: lib
 	@rm -rf "$(ARDUINO_ROOT)/portable/sketchbook/libraries/replay_mkrvidor4000"
 	@ln -s "$(PWD)/$(BUILDDIR)replay_mkrvidor4000" "$(ARDUINO_ROOT)/portable/sketchbook/libraries/replay_mkrvidor4000"
 	@cp -r "hardware_vidor/replay_mkrvidor4000" "$(BUILDDIR)replay_mkrvidor4000"
-	@BUILDNUM=`git describe --tags --always --abbrev=0`; sed 's/{BUILDNUM}/'"$$BUILDNUM"'/' hardware_vidor/replay_mkrvidor4000/library.properties > $(BUILDDIR)replay_mkrvidor4000/library.properties
+	@BUILDNUM=`git describe --tags --always --long | sed 's/\(.*\)-\(.*\)-.*/\1.\2/g'`; sed 's/{BUILDNUM}/'"$$BUILDNUM"'/' hardware_vidor/replay_mkrvidor4000/library.properties > $(BUILDDIR)replay_mkrvidor4000/library.properties
 	@cp "Replay_Boot.ino" "$(BUILDDIR)replay_mkrvidor4000/examples/Replay_Boot"
 	@cp "replay.h" "$(BUILDDIR)replay_mkrvidor4000/src"
 	@cp "$(BUILDDIR)libreplay.a" "$(BUILDDIR)replay_mkrvidor4000/src/cortex-m0plus"

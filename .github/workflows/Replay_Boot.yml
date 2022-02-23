@@ -47,7 +47,7 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: |
-          $GITHUB_WORKSPACE/artifact
+          artifact/*.zip
   
   Verify_MacOSX_Build:
     runs-on: macos-latest

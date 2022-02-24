@@ -17,7 +17,8 @@ require zip
 require mktemp
 require make
 
-now=`date +%Y%m%d`_`git describe --tag --always`
+
+now=`date +%Y%m%d`_`git describe --tag --always --dirty --long`
 fw_zip="Firmware_Replay1_${now}.zip"
 # Staging dir is not automatically removed just in case anything goes
 # wrong with pathing... It should be created in /tmp and go away on reboot.

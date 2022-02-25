@@ -17,7 +17,6 @@ require zip
 require mktemp
 require make
 
-
 # Staging dir is not automatically removed just in case anything goes
 # wrong with pathing... It should be created in /tmp and go away on reboot.
 staging_path=`mktemp -d`

@@ -17,8 +17,6 @@ require zip
 require mktemp
 require make
 
-now=`date +%Y%m%d`_`git describe --tag --always`
-fw_zip="Firmware_Replay1_${now}.zip"
 # Staging dir is not automatically removed just in case anything goes
 # wrong with pathing... It should be created in /tmp and go away on reboot.
 staging_path=`mktemp -d`
@@ -30,6 +28,14 @@ cp -r Replay_Apps/rAppFlashUpdater/sdcard ${staging_path}/rAppUpdater
 
 # USBDL
 cp -r Replay_Update ${staging_path}/usbUpdater
+
+# reset work dir output
+git checkout HEAD -- Replay_Apps/*/sdcard
+git checkout HEAD -- Replay_Update/FW/main.s19
+
+# create description
+now=`date +%Y%m%d`_`git describe --tag --always --dirty --long`
+fw_zip="Firmware_Replay1_${now}.zip"
 
 # Readme info
 cat << EOF > ${staging_path}/readme.txt

@@ -346,6 +346,7 @@ NM = nm
 ifeq (,$(findstring clang,$(shell $(CC) 2>&1)))
 CFLAGS += -Wno-unused-but-set-variable -Wno-redundant-decls
 endif
+CFLAGS += -Wno-error=comment
 
 SUBMDL=HOSTED
 

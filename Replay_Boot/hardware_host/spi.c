@@ -28,6 +28,12 @@
 
 // hdiutil create sdcard.dmg -volname "REPLAY" -fs FAT32 -size 256m -format UDRW -srcfolder ../loader_embedded/
 // mv sdcard.dmg sdcard.bin
+
+// dd if=/dev/zero of=sdcard.bin bs=256M count=1 && \
+   mformat -i sdcard.bin -v REPLAY ::            && \
+   mcopy -i sdcard.bin ../loader_embedded/* ::   && \
+   mdir -i sdcard.bin
+
 #define SDCARD_FILE "sdcard.bin"
 
 enum {

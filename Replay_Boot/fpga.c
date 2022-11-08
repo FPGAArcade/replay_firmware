@@ -746,13 +746,19 @@ uint8_t FPGA_ProdTest(void)
 
 void FPGA_ClockMon(status_t* currentStatus)
 {
-    static uint8_t old_stat = 0xFF; // so we always update first time in
-    uint8_t stat = (OSD_ConfigReadStatus() >> 12) & 0xF;
+    static uint16_t old_osd_status = 0xffff;
+    uint16_t cur_osd_status = OSD_ConfigReadStatus() & 0xf0ff;  // we ignore 8-11
 
-    if (stat != old_stat) {
-        old_stat = stat;
-        DEBUG(0, "Clock change : %02X", stat);
-        DEBUG(0, " status %04X", (uint16_t)OSD_ConfigReadStatus());
+    if (cur_osd_status != old_osd_status) {
+        old_osd_status = cur_osd_status;
+
+        uint8_t stat = (cur_osd_status >> 12) & 0xF;
+        uint8_t cpu = (cur_osd_status) & 0xFF;
+
+        DEBUG(0, "Clock change : %02X / %02X", stat, cpu);
+        DEBUG(0, " status %04X", (uint16_t)cur_osd_status);
+
+        clockconfig_t clkcfg = currentStatus->clock_cfg; // copy
 
         if (stat == 0 || stat == 8) { // default clock
             // (RTG enabled with sys clock is 8, but we could change the filters etc)
@@ -768,8 +774,6 @@ void FPGA_ClockMon(status_t* currentStatus)
 
             Configure_VidBuf(3, currentStatus->filter_cfg.stc, currentStatus->filter_cfg.lpf, currentStatus->filter_cfg.mode);
 
-            Configure_ClockGen(&currentStatus->clock_cfg);
-
         } else {
 
             // coder off
@@ -779,9 +783,6 @@ void FPGA_ClockMon(status_t* currentStatus)
             Configure_VidBuf(1, 0, 3, 3);
             Configure_VidBuf(2, 0, 3, 3);
             Configure_VidBuf(3, 0, 3, 3);
-
-            // jump to light speed
-            clockconfig_t clkcfg = currentStatus->clock_cfg; // copy
 
             switch (stat & 0x07) { // ignore top bit
                 //27 *  280/ 33  N/M
@@ -835,8 +836,27 @@ void FPGA_ClockMon(status_t* currentStatus)
 
             }
 
-            Configure_ClockGen(&clkcfg);
         }
+
+        if (cpu != 0)
+        {
+            uint32_t div = 2;
+            while(cpu*div < 80)
+                div++;
+
+            DEBUG(0, "CPU Freq: %d", cpu);
+            DEBUG(0, "DIV: %d", div);
+            DEBUG(0, "N2: %d", cpu*div);        
+
+            uint32_t pll_cpu_coder = 2; // cpu clock and coder share the same pll
+            clkcfg.pll2_m = 27;
+            clkcfg.pll2_n = cpu*div;
+            clkcfg.p_sel[pll_cpu_coder] = 2; // pll2
+            clkcfg.p_div[pll_cpu_coder] = div; // div
+            clkcfg.y_sel[pll_cpu_coder] = 1; // on
+        }
+
+        Configure_ClockGen(&clkcfg);
 
         // let clock settle
         Timer_Wait(100);

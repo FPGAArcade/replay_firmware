@@ -746,17 +746,13 @@ uint8_t FPGA_ProdTest(void)
 
 void FPGA_ClockMon(status_t* currentStatus)
 {
-    static uint16_t old_osd_status = 0xffff;
-    uint16_t cur_osd_status = OSD_ConfigReadStatus() & 0xf0ff;  // we ignore 8-11
+    static uint8_t old_stat = 0xFF; // so we always update first time in
+    uint8_t stat = (OSD_ConfigReadStatus() >> 12) & 0xF;
 
-    if (cur_osd_status != old_osd_status) {
-        old_osd_status = cur_osd_status;
-
-        uint8_t stat = (cur_osd_status >> 12) & 0xF;
-        uint8_t cpu = (cur_osd_status) & 0xFF;
-
-        DEBUG(0, "Clock change : %02X / %02X", stat, cpu);
-        DEBUG(0, " status %04X", (uint16_t)cur_osd_status);
+    if (stat != old_stat) {
+        old_stat = stat;
+        DEBUG(0, "RTG Clock change : %02X", stat);
+        DEBUG(0, " status %04X", (uint16_t)OSD_ConfigReadStatus());
 
         clockconfig_t clkcfg = currentStatus->clock_cfg; // copy
 
@@ -838,25 +834,8 @@ void FPGA_ClockMon(status_t* currentStatus)
 
         }
 
-        if (cpu != 0)
-        {
-            uint32_t div = 2;
-            while(cpu*div < 80)
-                div++;
-
-            DEBUG(0, "CPU Freq: %d", cpu);
-            DEBUG(0, "DIV: %d", div);
-            DEBUG(0, "N2: %d", cpu*div);        
-
-            uint32_t pll_cpu_coder = 2; // cpu clock and coder share the same pll
-            clkcfg.pll2_m = 27;
-            clkcfg.pll2_n = cpu*div;
-            clkcfg.p_sel[pll_cpu_coder] = 2; // pll2
-            clkcfg.p_div[pll_cpu_coder] = div; // div
-            clkcfg.y_sel[pll_cpu_coder] = 1; // on
-        }
-
-        Configure_ClockGen(&clkcfg);
+        // Configure_ClockGen(&clkcfg);
+        UpdatePLL(3, clkcfg.pll3_m, clkcfg.pll3_n, clkcfg.p_sel[4], clkcfg.p_div[4], 4);
 
         // let clock settle
         Timer_Wait(100);
@@ -885,6 +864,38 @@ void FPGA_ClockMon(status_t* currentStatus)
         // do video reset
         OSD_Reset(OSDCMD_CTRL_RES_VID);
 
+    }
+
+
+    static uint8_t old_cpu = 0x00;
+    uint8_t cpu = (OSD_ConfigReadStatus()) & 0xff;
+
+    if (cpu != old_cpu) {
+        old_cpu = cpu;
+        DEBUG(0, "CPU Clock change : %02X", cpu);
+        DEBUG(0, " status %04X", (uint16_t)OSD_ConfigReadStatus());
+
+        clockconfig_t clkcfg = currentStatus->clock_cfg; // copy
+
+        if (cpu != 0)
+        {
+            uint32_t div = 2;
+            while(cpu*div < 80)
+                div++;
+
+            DEBUG(0, "CPU Freq: %d", cpu);
+            DEBUG(0, "DIV: %d", div);
+            DEBUG(0, "N2: %d", cpu*div);        
+
+            clkcfg.pll2_m = 27;
+            clkcfg.pll2_n = cpu*div;
+            clkcfg.p_sel[2] = 2; // pll2
+            clkcfg.p_div[2] = div; // div
+            clkcfg.y_sel[2] = 1; // on
+
+        }
+
+        UpdatePLL(2, clkcfg.pll2_m, clkcfg.pll2_n, clkcfg.p_sel[2], clkcfg.p_div[2], 2);
     }
 }
 

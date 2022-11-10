@@ -421,6 +421,115 @@ void Configure_ClockGen(const clockconfig_t* config)
     // 74.25                        M= 2  N=11   Fvco=148.5 p=2  output = 74.25  (vfo=0)
 }
 
+void UpdatePLL(uint32_t pll, uint32_t m, uint32_t n, uint32_t pll_sel, uint32_t div, uint32_t y)
+{
+    // pll = {1,2,3}
+    // m = {1,511}
+    // n = {1,4095}
+    // div = {1,127}
+    // y = {0,5}
+/*
+1. Disable Y output
+2. Bypass PLLx
+3. Write new N/M values
+4. Disable bypass
+5. Set source PLL (Switch A)
+6. Write new Ydiv value
+7. Wait some arbitrary amount of time
+8. Re-enable Y (Switch B)
+*/
+    DEBUG(0, "SetPLL(pll = %d, m = %d, n= %d, pll_sel = %d, div = %d, y = %d)", pll, m, n, pll_sel, div, y);
+
+    // This PLL bit position is used in both register 3 and register 6
+    const uint8_t pll_conf_bit = 1 << (8-pll);
+
+    DEBUG(2, "Reading regs before switch");
+    for (uint8_t addr = 0; addr < 24; addr++) {
+        Read_CDCE906(addr+1);
+    }
+
+    DEBUG(2, "Making the switch");
+
+    // Disable Y (keep nominal slew, non-inverted; Y div selection is reset)
+    Write_CDCE906(19 + y, 0x30);
+
+    // Bypass PLLx (read/modify/write to enable VCO bypass in the PLL MUX)
+    uint8_t reg3 = Read_CDCE906(3);
+    reg3 |= pll_conf_bit;
+    Write_CDCE906(3, reg3);
+
+    // Update M/N
+    uint8_t lo_m = m & 0xff;        // separate lower bytes
+    uint8_t lo_n = n & 0xff;
+
+    uint8_t hi_m = (m >> 8) & 1;    // isolate upper bits (1 for M, 4 for N)
+    uint8_t hi_n = (n >> (8-1)) & (0xf << 1); // and move into place
+
+    uint8_t mn_base = 1+(pll-1)*3;  // base register for PLL M/N settings
+
+    // read/modify/write keeping the upper 3 bits, which holds MUX/fVCOsel/PLL selection
+    uint8_t hi = Read_CDCE906(mn_base+2) & 0xe0;
+
+    Write_CDCE906(mn_base+0, lo_m);
+    Write_CDCE906(mn_base+1, lo_n);
+    Write_CDCE906(mn_base+2, hi | hi_n | hi_m);
+
+    // Update VCO filter (read/modify/write, above 190Mhz we enable the fVCO filter)
+    const uint32_t fvco = 27000 * n / m;
+    DEBUG(0, "freq = %d", fvco/div);
+    uint8_t reg6 = Read_CDCE906(6);
+    reg6 &= ~pll_conf_bit;
+    reg6 |= (fvco > 190000) ? pll_conf_bit : 0;
+    Write_CDCE906(6, reg6);
+
+    // Update source PLL (setting is split over registers 9 through 12)
+    uint8_t regPx = 9+y;
+    uint8_t shiftPx = 5;
+    switch(y)
+    {
+        case 2: // reg 11
+        case 3: // reg 11
+        case 4: // reg 12
+        case 5: // reg 12
+            regPx = 11+y/4; // write reg 11/12
+            shiftPx = ((y&1) ? 3 : 0); // odd Px in upper position
+          break;
+    }
+
+    // Read/modify/write, updating the SWAPxy /Px
+    uint32_t valPx = Read_CDCE906(regPx);
+    valPx &= ~(0x7 << shiftPx);
+    valPx |= (pll_sel << shiftPx);
+    Write_CDCE906(regPx, valPx);
+
+    // Update Ydiv
+    Write_CDCE906(13 + y, (div & 0x7f));
+
+    // let clock settle
+    Timer_Wait(100);
+
+    // Disable bypass PLLx (read/modify/write to mask the VCO bypass bit)
+    reg3 = Read_CDCE906(3);
+    reg3 &= ~pll_conf_bit;
+    Write_CDCE906(3, reg3);
+
+    // let clock settle
+    Timer_Wait(100);
+
+    // Enable Y (nominal slew, non-inverted, static Ydiv selection, Yx enabled)
+    Write_CDCE906(19 + y, 0x30 | 0x08 | (y & 7));
+
+    // let clock settle
+    Timer_Wait(100);
+
+    DEBUG(2, "Reading regs after switch");
+    for (uint8_t addr = 0; addr < 24; addr++) {
+        Read_CDCE906(addr+1);
+    }
+
+    DEBUG(1, "Switch done");
+}
+
 void Write_CH7301(uint8_t address, uint8_t data)
 {
     uint8_t rab = 0x80 | (address & 0x7F);

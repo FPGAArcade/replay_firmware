@@ -76,6 +76,8 @@ void    Write_CDCE906(uint8_t Address, uint8_t Data);
 void Configure_VidBuf(uint8_t chan, uint8_t stc, uint8_t lpf, uint8_t mode);
 void Configure_ClockGen(const clockconfig_t* config);
 
+void UpdatePLL(uint32_t pll, uint32_t m, uint32_t n, uint32_t pll_sel, uint32_t div, uint32_t y);
+
 void Write_CH7301(uint8_t address, uint8_t data);
 uint8_t Read_CH7301(uint8_t address);
 void Configure_CH7301(const vidconfig_t* config);

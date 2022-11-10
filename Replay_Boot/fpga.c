@@ -751,8 +751,10 @@ void FPGA_ClockMon(status_t* currentStatus)
 
     if (stat != old_stat) {
         old_stat = stat;
-        DEBUG(0, "Clock change : %02X", stat);
+        DEBUG(0, "RTG Clock change : %02X", stat);
         DEBUG(0, " status %04X", (uint16_t)OSD_ConfigReadStatus());
+
+        clockconfig_t clkcfg = currentStatus->clock_cfg; // copy
 
         if (stat == 0 || stat == 8) { // default clock
             // (RTG enabled with sys clock is 8, but we could change the filters etc)
@@ -768,8 +770,6 @@ void FPGA_ClockMon(status_t* currentStatus)
 
             Configure_VidBuf(3, currentStatus->filter_cfg.stc, currentStatus->filter_cfg.lpf, currentStatus->filter_cfg.mode);
 
-            Configure_ClockGen(&currentStatus->clock_cfg);
-
         } else {
 
             // coder off
@@ -779,9 +779,6 @@ void FPGA_ClockMon(status_t* currentStatus)
             Configure_VidBuf(1, 0, 3, 3);
             Configure_VidBuf(2, 0, 3, 3);
             Configure_VidBuf(3, 0, 3, 3);
-
-            // jump to light speed
-            clockconfig_t clkcfg = currentStatus->clock_cfg; // copy
 
             switch (stat & 0x07) { // ignore top bit
                 //27 *  280/ 33  N/M
@@ -835,8 +832,10 @@ void FPGA_ClockMon(status_t* currentStatus)
 
             }
 
-            Configure_ClockGen(&clkcfg);
         }
+
+        // Configure_ClockGen(&clkcfg);
+        UpdatePLL(3, clkcfg.pll3_m, clkcfg.pll3_n, clkcfg.p_sel[4], clkcfg.p_div[4], 4);
 
         // let clock settle
         Timer_Wait(100);
@@ -865,6 +864,38 @@ void FPGA_ClockMon(status_t* currentStatus)
         // do video reset
         OSD_Reset(OSDCMD_CTRL_RES_VID);
 
+    }
+
+
+    static uint8_t old_cpu = 0x00;
+    uint8_t cpu = (OSD_ConfigReadStatus()) & 0xff;
+
+    if (cpu != old_cpu) {
+        old_cpu = cpu;
+        DEBUG(0, "CPU Clock change : %02X", cpu);
+        DEBUG(0, " status %04X", (uint16_t)OSD_ConfigReadStatus());
+
+        clockconfig_t clkcfg = currentStatus->clock_cfg; // copy
+
+        if (cpu != 0)
+        {
+            uint32_t div = 2;
+            while(cpu*div < 80)
+                div++;
+
+            DEBUG(0, "CPU Freq: %d", cpu);
+            DEBUG(0, "DIV: %d", div);
+            DEBUG(0, "N2: %d", cpu*div);        
+
+            clkcfg.pll2_m = 27;
+            clkcfg.pll2_n = cpu*div;
+            clkcfg.p_sel[2] = 2; // pll2
+            clkcfg.p_div[2] = div; // div
+            clkcfg.y_sel[2] = 1; // on
+
+        }
+
+        UpdatePLL(2, clkcfg.pll2_m, clkcfg.pll2_n, clkcfg.p_sel[2], clkcfg.p_div[2], 2);
     }
 }
 

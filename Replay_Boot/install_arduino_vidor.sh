@@ -45,7 +45,7 @@ mkdir -p "$ARDUINO_PATH/portable"
 if [ ! -f "$ARDUINO_PATH/arduino" ]; then
   if [[ "$OSTYPE" =~ "linux" ]]; then
     echo -ne "${ORANGE}DOWNLOADING... \n${LCYAN}"
-    curl -f -# http://downloads.arduino.cc/arduino-${ARDUINO_IDE_VERSION}-linux64.tar.xz -o arduino.tar.xz 2>&1
+    curl -L -f -# http://downloads.arduino.cc/arduino-${ARDUINO_IDE_VERSION}-linux64.tar.xz -o arduino.tar.xz 2>&1
     RET=$?
     echo -ne "${ORANGE}                    DOWNLOADED "
     if [ $RET -ne 0 ]; then echo -ne "${FAIL_MSG} "; else echo -ne "${PASS_MSG} "; fi
@@ -57,7 +57,7 @@ if [ ! -f "$ARDUINO_PATH/arduino" ]; then
     if [ -f arduino.tar.xz ]; then rm arduino.tar.xz; fi
   elif [[ "$OSTYPE" == "msys" ]]; then
     echo -ne "${ORANGE}DOWNLOADING... \n${LCYAN}"
-    curl -f -# http://downloads.arduino.cc/arduino-${ARDUINO_IDE_VERSION}-windows.zip -o arduino.zip 2>&1
+    curl -L -f -# http://downloads.arduino.cc/arduino-${ARDUINO_IDE_VERSION}-windows.zip -o arduino.zip 2>&1
     RET=$?
     echo -ne "${ORANGE}                    DOWNLOADED "
     if [ $RET -ne 0 ]; then echo -ne "${FAIL_MSG} "; else echo -ne "${PASS_MSG} "; fi
@@ -71,7 +71,7 @@ if [ ! -f "$ARDUINO_PATH/arduino" ]; then
     if [ -f arduino.zip ]; then rm arduino.zip; fi
   elif [[ "$OSTYPE" =~ "darwin" ]]; then
     echo -ne "${ORANGE}DOWNLOADING... \n${LCYAN}"
-    curl -f -# http://downloads.arduino.cc/arduino-${ARDUINO_IDE_VERSION}-macosx.zip -o arduino.zip 2>&1
+    curl -L -f -# http://downloads.arduino.cc/arduino-${ARDUINO_IDE_VERSION}-macosx.zip -o arduino.zip 2>&1
     RET=$?
     echo -ne "${ORANGE}                    DOWNLOADED "
     if [ $RET -ne 0 ]; then echo -ne "${FAIL_MSG} "; else echo -ne "${PASS_MSG} "; fi

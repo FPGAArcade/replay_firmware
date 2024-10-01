@@ -65,7 +65,7 @@ jobs:
         brew tap ArmMbed/homebrew-formulae
         brew tap-new $USER/armmbed
         brew extract --version=8-2018-q4-major armmbed/homebrew-formulae/arm-none-eabi-gcc $USER/armmbed
-        brew install arm-none-eabi-gcc@8-2018-q4-major
+        brew install arm-none-eabi-gcc@8.2018.4
         arm-none-eabi-gcc -v
       
     - name: Build
